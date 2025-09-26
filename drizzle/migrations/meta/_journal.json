@@ -1,0 +1,62 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1747488295493,
+      "tag": "0000_foamy_nightcrawler",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1747488328742,
+      "tag": "0001_mysterious_clea",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1747655711214,
+      "tag": "0002_curly_mimic",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1748200357301,
+      "tag": "0003_volatile_moon_knight",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1749393369342,
+      "tag": "0004_modern_ironclad",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1749455592764,
+      "tag": "0005_square_mantis",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1750221725745,
+      "tag": "0006_confused_the_captain",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1752217695953,
+      "tag": "0007_easy_frank_castle",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,0 +1,597 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:is(.dark *));
+
+@plugin 'tailwind-scrollbar';
+@import 'tw-animate-css';
+@plugin "@tailwindcss/typography";
+@source "../node_modules/streamdown/dist/index.js";
+
+/* Line clamp utilities */
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+@keyframes spinner-fade {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+@theme {
+  --animate-accordion-down: accordion-down 300ms ease-out;
+  --animate-accordion-up: accordion-up 300ms ease-out;
+}
+
+@utility no-scrollbar {
+  &::-webkit-scrollbar {
+    display: none !important;
+  }
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+@utility text-balance {
+  text-wrap: balance;
+}
+
+@layer utilities {
+  .markdown-body .katex {
+    font-size: 1.1em;
+  }
+
+  .markdown-body .katex-display {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-top: 0.5em;
+    padding-bottom: 0.5em;
+    margin-top: 1em;
+    margin-bottom: 1em;
+  }
+
+  .markdown-body .katex-display > .katex {
+    font-size: 1.21em;
+  }
+
+  .markdown-body .katex-display > .katex > .katex-html {
+    display: block;
+    position: relative;
+  }
+
+  .markdown-body .katex-display > .katex > .katex-html > .tag {
+    position: absolute;
+    right: 0;
+  }
+}
+
+@layer utilities {
+  /* Tweet wrapper styling for horizontal layout */
+  .tweet-wrapper {
+    position: relative;
+    height: 240px;
+    overflow: hidden;
+  }
+
+  .tweet-wrapper::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 24px;
+    background: linear-gradient(transparent, rgba(255, 255, 255, 0.8));
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .dark .tweet-wrapper::after {
+    background: linear-gradient(transparent, rgba(9, 9, 11, 0.95));
+  }
+
+  .tweet-wrapper [data-theme] {
+    margin: 0 !important;
+    border-radius: 1rem !important;
+    border: 1px solid rgb(229 231 235) !important;
+    box-shadow:
+      0 1px 3px 0 rgb(0 0 0 / 0.1),
+      0 1px 2px -1px rgb(0 0 0 / 0.1) !important;
+    background: white !important;
+    height: 100%;
+  }
+
+  .dark .tweet-wrapper [data-theme] {
+    border: 1px solid rgb(39 39 42) !important;
+    background: rgb(9 9 11) !important;
+    box-shadow:
+      0 1px 3px 0 rgb(0 0 0 / 0.3),
+      0 1px 2px -1px rgb(0 0 0 / 0.2) !important;
+  }
+
+  /* Tweet wrapper styling for sheet */
+  .tweet-wrapper-sheet [data-theme] {
+    margin: 0 !important;
+    border-radius: 1rem !important;
+    border: 1px solid rgb(229 231 235) !important;
+    box-shadow:
+      0 1px 3px 0 rgb(0 0 0 / 0.1),
+      0 1px 2px -1px rgb(0 0 0 / 0.1) !important;
+    background: white !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  .dark .tweet-wrapper-sheet [data-theme] {
+    border: 1px solid rgb(39 39 42) !important;
+    background: rgb(9 9 11) !important;
+    box-shadow:
+      0 1px 3px 0 rgb(0 0 0 / 0.3),
+      0 1px 2px -1px rgb(0 0 0 / 0.2) !important;
+  }
+
+  /* Ensure proper tweet spacing */
+  .tweet-wrapper .react-tweet-theme,
+  .tweet-wrapper-sheet .react-tweet-theme {
+    margin: 0 !important;
+  }
+
+  /* Override react-tweet default margins */
+  [data-tweet-container] {
+    margin: 0 !important;
+  }
+
+  .linenumber {
+    font-style: normal !important;
+    font-weight: normal !important;
+  }
+
+  :is([data-theme='dark'], .dark) :where(.react-tweet-theme) {
+    --tweet-skeleton-gradient: linear-gradient(270deg, #09090b, #18181b, #18181b, #09090b) !important;
+    --tweet-border: 1px solid #27272a !important;
+    --tweet-font-color: #fafafa !important;
+    --tweet-font-color-secondary: #a1a1aa !important;
+    --tweet-bg-color: #09090b !important;
+    --tweet-bg-color-hover: #18181b !important;
+    --tweet-quoted-bg-color: #18181b !important;
+    --tweet-quoted-bg-color-hover: #27272a !important;
+    --tweet-color-blue-primary: #3b82f6 !important;
+    --tweet-color-blue-secondary-hover: rgba(59, 130, 246, 0.1) !important;
+    --tweet-icon-color: #71717a !important;
+    --tweet-icon-color-hover: #a1a1aa !important;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border !no-scrollbar;
+  }
+
+  body {
+    @apply bg-background text-foreground !scrollbar;
+  }
+
+  [role='button'],
+  button {
+    cursor: pointer;
+  }
+
+  :disabled {
+    cursor: default;
+  }
+
+  .whatsize {
+    field-sizing: content;
+    min-height: 2lh;
+    max-height: 10lh;
+    resize: none;
+    overflow-y: auto;
+
+    /* Fallback for browsers that don't support field-sizing */
+    min-height: 40px;
+    height: auto;
+
+    /* fix for firefox */
+    @supports (-moz-appearance: none) {
+      min-height: 2lh;
+      max-height: 10lh;
+    }
+  }
+}
+
+:root {
+  --sh-class: #2563eb;
+  --sh-identifier: #1f2937;
+  --sh-sign: #6b7280;
+  --sh-property: #3b82f6;
+  --sh-entity: #8b5cf6;
+  --sh-jsxliterals: #f59e0b;
+  --sh-string: #059669;
+  --sh-keyword: #dc2626;
+  --sh-comment: #9ca3af;
+}
+
+.dark {
+  --sh-class: #60a5fa;
+  --sh-identifier: #e5e7eb;
+  --sh-sign: #9ca3af;
+  --sh-property: #93c5fd;
+  --sh-entity: #a78bfa;
+  --sh-jsxliterals: #fbbf24;
+  --sh-string: #34d399;
+  --sh-keyword: #f87171;
+  --sh-comment: #6b7280;
+}
+
+:root {
+  --font-be-vietnam-pro: 'Be Vietnam Pro';
+  --background: oklch(0.9821 0 0);
+  --foreground: oklch(0.2435 0 0);
+  --card: oklch(0.9911 0 0);
+  --card-foreground: oklch(0.2435 0 0);
+  --popover: oklch(0.9911 0 0);
+  --popover-foreground: oklch(0.2435 0 0);
+  --primary: oklch(0.4341 0.0392 41.9938);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.92 0.0651 74.3695);
+  --secondary-foreground: oklch(0.3499 0.0685 40.8288);
+  --muted: oklch(0.9521 0 0);
+  --muted-foreground: oklch(0.5032 0 0);
+  --accent: oklch(0.931 0 0);
+  --accent-foreground: oklch(0.2435 0 0);
+  --destructive: oklch(0.6271 0.1936 33.339);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.8822 0 0);
+  --input: oklch(0.8822 0 0);
+  --ring: oklch(0.4341 0.0392 41.9938);
+  --chart-1: oklch(0.4341 0.0392 41.9938);
+  --chart-2: oklch(0.92 0.0651 74.3695);
+  --chart-3: oklch(0.931 0 0);
+  --chart-4: oklch(0.9367 0.0523 75.5009);
+  --chart-5: oklch(0.4338 0.0437 41.6746);
+  --sidebar: oklch(0.9881 0 0);
+  --sidebar-foreground: oklch(0.2645 0 0);
+  --sidebar-primary: oklch(0.325 0 0);
+  --sidebar-primary-foreground: oklch(0.9881 0 0);
+  --sidebar-accent: oklch(0.9761 0 0);
+  --sidebar-accent-foreground: oklch(0.325 0 0);
+  --sidebar-border: oklch(0.9401 0 0);
+  --sidebar-ring: oklch(0.7731 0 0);
+  --radius: 1rem;
+  --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+  --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+  --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+  --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+  --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 2px 4px -1px hsl(0 0% 0% / 0.1);
+  --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 4px 6px -1px hsl(0 0% 0% / 0.1);
+  --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
+  --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+}
+
+.dark {
+  --font-be-vietnam-pro: 'Be Vietnam Pro';
+  --background: oklch(0.1776 0 0);
+  --foreground: oklch(0.9491 0 0);
+  --card: oklch(0.2134 0 0);
+  --card-foreground: oklch(0.9491 0 0);
+  --popover: oklch(0.2134 0 0);
+  --popover-foreground: oklch(0.9491 0 0);
+  --primary: oklch(0.9247 0.0524 66.1732);
+  --primary-foreground: oklch(0.2029 0.024 200.1962);
+  --secondary: oklch(0.3163 0.019 63.6992);
+  --secondary-foreground: oklch(0.9247 0.0524 66.1732);
+  --muted: oklch(0.252 0 0);
+  --muted-foreground: oklch(0.7699 0 0);
+  --accent: oklch(0.285 0 0);
+  --accent-foreground: oklch(0.9491 0 0);
+  --destructive: oklch(0.6271 0.1936 33.339);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.2351 0.0115 91.7467);
+  --input: oklch(0.4017 0 0);
+  --ring: oklch(0.9247 0.0524 66.1732);
+  --chart-1: oklch(0.9247 0.0524 66.1732);
+  --chart-2: oklch(0.3163 0.019 63.6992);
+  --chart-3: oklch(0.285 0 0);
+  --chart-4: oklch(0.3481 0.0219 67.0001);
+  --chart-5: oklch(0.9245 0.0533 67.0855);
+  --sidebar: oklch(0.2103 0.0059 285.8852);
+  --sidebar-foreground: oklch(0.9674 0.0013 286.3752);
+  --sidebar-primary: oklch(0.4882 0.2172 264.3763);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.2739 0.0055 286.0326);
+  --sidebar-accent-foreground: oklch(0.9674 0.0013 286.3752);
+  --sidebar-border: oklch(0.2739 0.0055 286.0326);
+  --sidebar-ring: oklch(0.8711 0.0055 286.286);
+  --radius: 1rem;
+  --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+  --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+  --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+  --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+  --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 2px 4px -1px hsl(0 0% 0% / 0.1);
+  --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 4px 6px -1px hsl(0 0% 0% / 0.1);
+  --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
+  --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+}
+
+@theme inline {
+  --font-be-vietnam-pro: var(--font-be-vietnam-pro);
+  --font-baumans: var(--font-baumans);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --shadow-2xs: var(--shadow-2xs);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow: var(--shadow);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Prevent iOS scroll bounce issues with fixed positioned elements */
+body {
+  /* Prevent iOS from shrinking viewport height when scrolling */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
+}
+
+/* Mobile viewport height fixes */
+@media screen and (max-width: 1024px) {
+  /* Fix for iOS viewport height issues */
+  .h-screen {
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height for better mobile support */
+  }
+
+  /* Ensure fixed elements work properly with viewport changes */
+  .fixed {
+    /* Force hardware acceleration */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+
+  /* Better height handling for mobile containers */
+  body {
+    /* Use dynamic viewport height on mobile */
+    height: 100dvh;
+    min-height: 100dvh;
+  }
+}
+
+/* iOS Safari specific fixes */
+@supports (-webkit-touch-callout: none) {
+  .h-screen {
+    height: -webkit-fill-available;
+  }
+
+  body {
+    height: -webkit-fill-available;
+    min-height: -webkit-fill-available;
+  }
+}
+
+/* Ensure fixed elements maintain position during scroll */
+@media screen and (max-width: 1024px) {
+  /* Prevent viewport height changes from affecting fixed elements */
+  .fixed {
+    /* Force hardware acceleration for smoother rendering */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    /* Prevent iOS bounce from affecting positioning */
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+
+  /* Ensure safe area calculations are consistent */
+  .fixed.bottom-0 {
+    /* Use padding instead of margin for more reliable positioning */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Hide Leaflet attribution globally */
+.leaflet-control-attribution {
+  display: none !important;
+}
+
+/* Polished Leaflet zoom control (light/dark aware) */
+.leaflet-control-zoom,
+.custom-zoom-control.leaflet-bar {
+  border: 1px solid hsl(var(--border));
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: saturate(180%) blur(6px);
+}
+
+.dark .leaflet-control-zoom,
+.dark .custom-zoom-control.leaflet-bar {
+  border-color: hsl(var(--border));
+  background: rgba(9, 9, 11, 0.6);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+}
+
+.leaflet-control-zoom a,
+.custom-zoom-control .zoom-btn {
+  width: 30px;
+  height: 30px;
+  line-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid hsl(var(--border));
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.leaflet-control-zoom a:last-child,
+.custom-zoom-control .zoom-btn:last-child {
+  border-bottom: none;
+}
+
+.leaflet-control-zoom a:hover,
+.custom-zoom-control .zoom-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.dark .leaflet-control-zoom a:hover,
+.dark .custom-zoom-control .zoom-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.leaflet-control-zoom a:active,
+.custom-zoom-control .zoom-btn:active {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.dark .leaflet-control-zoom a:active,
+.dark .custom-zoom-control .zoom-btn:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.leaflet-control-zoom a:focus,
+.custom-zoom-control .zoom-btn:focus {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: -2px;
+}
+
+.leaflet-control-zoom a.leaflet-disabled,
+.custom-zoom-control .zoom-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: transparent !important;
+}
+
+/* Touch-friendly sizing */
+.leaflet-touch .leaflet-control-zoom a,
+.leaflet-touch .custom-zoom-control .zoom-btn {
+  width: 34px;
+  height: 34px;
+  line-height: 34px;
+  font-size: 18px;
+}
+
+/* Divider between zoom buttons */
+.custom-zoom-control .divider {
+  height: 1px;
+  background: hsl(var(--border));
+}
+
+/* Thin horizontal scrollbar for the map's place-card scroller */
+.nearby-search-map::-webkit-scrollbar {
+  height: 8px;
+}
+.nearby-search-map::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.25);
+  border-radius: 9999px;
+}
+.nearby-search-map::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Sugar-high syntax highlighting styles */
+.sh__token--keyword {
+  color: #c792ea;
+}
+.sh__token--string {
+  color: #c3e88d;
+}
+.sh__token--comment {
+  color: #546e7a;
+  font-style: italic;
+}
+.sh__token--identifier {
+  color: #82b1ff;
+}
+.sh__token--number {
+  color: #f78c6c;
+}
+.sh__token--operator {
+  color: #89ddff;
+}
+.sh__token--punctuation {
+  color: #89ddff;
+}
+
+/* Dark mode adjustments for sugar-high */
+.dark .sh__token--keyword {
+  color: #bb86fc;
+}
+.dark .sh__token--string {
+  color: #4caf50;
+}
+.dark .sh__token--comment {
+  color: #6a737d;
+}
+.dark .sh__token--identifier {
+  color: #64b5f6;
+}
+.dark .sh__token--number {
+  color: #ff9800;
+}
+.dark .sh__token--operator {
+  color: #03dac6;
+}
+.dark .sh__token--punctuation {
+  color: #03dac6;
+}
