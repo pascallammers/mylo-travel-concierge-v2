@@ -37,7 +37,7 @@ import { useOptimizedScroll } from '@/hooks/use-optimized-scroll';
 import { SEARCH_LIMITS } from '@/lib/constants';
 import { ChatSDKError } from '@/lib/errors';
 import { cn, SearchGroupId, invalidateChatsCache } from '@/lib/utils';
-import { requiresProSubscription } from '@/ai/providers';
+import { DEFAULT_MODEL, requiresProSubscription } from '@/ai/providers';
 import { ConnectorProvider } from '@/lib/connectors';
 
 // State management imports
@@ -65,8 +65,13 @@ const ChatInterface = memo(
     const [q] = useQueryState('q', parseAsString.withDefault(''));
     const [input, setInput] = useState<string>('');
 
-    const [selectedModel, setSelectedModel] = useLocalStorage('scira-selected-model', 'scira-default');
-    const [selectedGroup, setSelectedGroup] = useLocalStorage<SearchGroupId>('scira-selected-group', 'web');
+    // Fixed GPT-5 model - no user selection
+    const selectedModel = DEFAULT_MODEL;
+    const setSelectedModel = () => {}; // Dummy setter for compatibility
+    
+    // Fixed to 'web' search mode - no user selection
+    const selectedGroup: SearchGroupId = 'web';
+    const setSelectedGroup = () => {}; // Dummy setter for compatibility
     const [selectedConnectors, setSelectedConnectors] = useState<ConnectorProvider[]>([]);
     const [isCustomInstructionsEnabled, setIsCustomInstructionsEnabled] = useLocalStorage(
       'scira-custom-instructions-enabled',
@@ -134,8 +139,8 @@ const ChatInterface = memo(
     );
 
     const [searchProvider, _] = useLocalStorage<'exa' | 'parallel' | 'tavily' | 'firecrawl'>(
-      'scira-search-provider',
-      'firecrawl',
+      'scira-search-provider-v2',
+      'exa',
     );
 
     // Use reducer for complex state management
@@ -206,22 +211,7 @@ const ChatInterface = memo(
       usageData.count >= SEARCH_LIMITS.DAILY_SEARCH_LIMIT;
     const isLimitBlocked = Boolean(hasExceededLimit);
 
-    // Auto-switch away from pro models when user loses pro access
-    useEffect(() => {
-      if (proStatusLoading) return;
-
-      const currentModelRequiresPro = requiresProSubscription(selectedModel);
-
-      // If current model requires pro but user is not pro, switch to default
-      // Also prevent infinite loops by ensuring we're not already on the default model
-      if (currentModelRequiresPro && !isUserPro && selectedModel !== 'scira-default') {
-        console.log(`Auto-switching from pro model '${selectedModel}' to 'scira-default' - user lost pro access`);
-        setSelectedModel('scira-default');
-
-        // Show a toast notification to inform the user
-        toast.info('Switched to default model - Pro subscription required for premium models');
-      }
-    }, [selectedModel, isUserPro, proStatusLoading, setSelectedModel]);
+    // Model is fixed to GPT-5 - no auto-switching needed
 
     // Timer for sign-in prompt for unauthenticated users
     useEffect(() => {
@@ -345,7 +335,8 @@ const ChatInterface = memo(
         // Only generate suggested questions if authenticated user or private chat
         if (message.parts && message.role === 'assistant' && (user || chatState.selectedVisibilityType === 'private')) {
           const lastPart = message.parts[message.parts.length - 1];
-          const lastPartText = lastPart.type === 'text' ? lastPart.text : '';
+          // Add null check for lastPart
+          const lastPartText = lastPart && lastPart.type === 'text' ? lastPart.text : '';
           const newHistory = [
             { role: 'user', content: lastSubmittedQueryRef.current },
             { role: 'assistant', content: lastPartText },

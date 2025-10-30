@@ -83,11 +83,43 @@ export const weatherTool = tool({
       console.log('Location:', locationName);
 
       const apiKey = serverEnv.OPENWEATHER_API_KEY;
+      
+      // Check if API key is configured
+      if (!apiKey || apiKey === 'your_openweather_api_key_here') {
+        return {
+          error: 'OpenWeather API key is not configured. Please set OPENWEATHER_API_KEY in your .env.local file.',
+          list: [],
+          geocoding: {
+            latitude: lat,
+            longitude: lng,
+            name: locationName,
+            country: country,
+            timezone: timezone,
+          },
+        };
+      }
+
       const [weatherResponse, airPollutionResponse, dailyForecastResponse] = await Promise.all([
         fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lng}&appid=${apiKey}`),
         fetch(`https://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lng}&appid=${apiKey}`),
         fetch(`https://api.openweathermap.org/data/2.5/forecast/daily?lat=${lat}&lon=${lng}&cnt=16&appid=${apiKey}`),
       ]);
+
+      // Check for API errors
+      if (!weatherResponse.ok) {
+        console.error('Weather API error:', weatherResponse.status, weatherResponse.statusText);
+        return {
+          error: `Weather API error: ${weatherResponse.status} ${weatherResponse.statusText}`,
+          list: [],
+          geocoding: {
+            latitude: lat,
+            longitude: lng,
+            name: locationName,
+            country: country,
+            timezone: timezone,
+          },
+        };
+      }
 
       const [weatherData, airPollutionData, dailyForecastData] = await Promise.all([
         weatherResponse.json(),

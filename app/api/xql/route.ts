@@ -15,11 +15,9 @@ import {
 import { ChatSDKError } from '@/lib/errors';
 
 import { markdownJoinerTransform } from '@/lib/parser';
-import { scira } from '@/ai/providers';
+import { languageModel } from '@/ai/providers';
 
 import { z } from 'zod';
-import { GroqProviderOptions } from '@ai-sdk/groq';
-import { XaiProviderOptions } from '@ai-sdk/xai';
 
 const xqlTool = tool({
     description: 'Search X posts for recent information and discussions with the ability to filter by X handles, date range, and post engagement metrics.',
@@ -66,35 +64,16 @@ const xqlTool = tool({
 
         console.log('X search - includeHandles:', normalizedInclude, 'excludeHandles:', normalizedExclude);
 
+        // Note: X search parameters removed as GPT-5 doesn't support xAI-specific features
+        // This tool would need to be refactored to use a different X search API
         const result = await generateText({
-            model: scira.languageModel('scira-grok-4-fast'),
-            prompt: query,
+            model: languageModel,
+            prompt: `Search X/Twitter for: ${query}`,
             maxOutputTokens: 10,
-            providerOptions: {
-                xai: {
-                    searchParameters: {
-                        mode: 'on',
-                        fromDate: effectiveStart,
-                        toDate: effectiveEnd,
-                        maxSearchResults: maxResults && maxResults < 15 ? 15 : maxResults ?? 15,
-                        returnCitations: true,
-                        sources: [
-                            {
-                                type: 'x',
-                                ...(normalizedInclude?.length ? { includedXHandles: normalizedInclude } : {}),
-                                ...(normalizedExclude?.length ? { excludedXHandles: normalizedExclude } : {}),
-                                ...(typeof postFavoritesCount === 'number' ? { postFavoriteCount: postFavoritesCount } : {}),
-                                ...(typeof postViewCount === 'number' ? { postViewCount: postViewCount } : {}),
-                            },
-                        ],
-                    },
-                } satisfies XaiProviderOptions,
-            },
         });
 
-        const citations = result.sources.map((source) => source.sourceType === 'url' ? source.url : null).filter((url) => url !== null) || [];
-
-        return citations;
+        // Return empty citations for now - needs X API integration
+        return [];
     },
 })
 
@@ -127,7 +106,7 @@ export async function POST(req: Request) {
     }
 
     const result = streamText({
-        model: scira.languageModel('scira-grok-4-fast'),
+        model: languageModel,
         messages: convertToModelMessages(messages),
         stopWhen: hasToolCall('xql'),
         onAbort: ({ steps }) => {
@@ -140,14 +119,6 @@ export async function POST(req: Request) {
                     activeTools: ['xql'],
                 }
             }
-        },
-        providerOptions: {
-            groq: {
-                reasoningEffort: 'none',
-                parallelToolCalls: false,
-                structuredOutputs: true,
-                serviceTier: 'auto',
-            } satisfies GroqProviderOptions,
         },
         maxRetries: 10,
         experimental_transform: markdownJoinerTransform(),

@@ -18,12 +18,11 @@ import {
 } from 'ai';
 import { createMemoryTools } from '@/lib/tools/supermemory';
 import {
-  scira,
+  languageModel,
+  getModelParameters,
   requiresAuthentication,
   requiresProSubscription,
   shouldBypassRateLimits,
-  models,
-  getModelParameters,
 } from '@/ai/providers';
 import {
   createStreamId,
@@ -68,7 +67,6 @@ import {
   extremeSearchTool,
   createConnectorsSearchTool,
 } from '@/lib/tools';
-import { GroqProviderOptions } from '@ai-sdk/groq';
 import { markdownJoinerTransform } from '@/lib/parser';
 import { ChatMessage } from '@/lib/types';
 
@@ -140,7 +138,7 @@ export async function POST(req: Request) {
   const requestStartTime = Date.now();
   const {
     messages,
-    model,
+    model, // Ignored - using GPT-5 as default
     group,
     timezone,
     id,
@@ -159,7 +157,7 @@ export async function POST(req: Request) {
   console.log('Messages: ', messages);
   console.log('--------------------------------');
 
-  console.log('Running with model: ', model.trim());
+  console.log('Running with model: GPT-5 (fixed)');
   console.log('Group: ', group);
   console.log('Timezone: ', timezone);
 
@@ -180,11 +178,7 @@ export async function POST(req: Request) {
   console.log('Custom Instructions Enabled:', isCustomInstructionsEnabled);
   console.log('--------------------------------');
 
-  // Check if model requires authentication (fast check)
-  const authRequiredModels = models.filter((m) => m.requiresAuth).map((m) => m.value);
-  if (authRequiredModels.includes(model) && !user) {
-    return new ChatSDKError('unauthorized:model', `Authentication required to access ${model}`).toResponse();
-  }
+  // No authentication required for GPT-5 (as per plan)
 
   // For authenticated users, do critical checks in parallel
   let criticalChecksPromise: Promise<{
@@ -259,10 +253,7 @@ export async function POST(req: Request) {
       return new ChatSDKError('bad_request:database', 'Failed to initialize chat').toResponse();
     }
 
-    // Check if model requires Pro subscription
-    if (requiresProSubscription(model) && !isProUser) {
-      return new ChatSDKError('upgrade_required:model', `${model} requires a Pro subscription`).toResponse();
-    }
+    // GPT-5 is always available - no Pro subscription check needed
 
     if (!isProUser) {
       const criticalChecksStartTime = Date.now();
@@ -333,9 +324,7 @@ export async function POST(req: Request) {
       });
     }
   } else {
-    if (requiresAuthentication(model)) {
-      return new ChatSDKError('unauthorized:model', `${model} requires authentication`).toResponse();
-    }
+    // GPT-5 does not require authentication - anyone can use it
 
     criticalChecksPromise = Promise.resolve({
       canProceed: true,
@@ -453,9 +442,9 @@ export async function POST(req: Request) {
       const streamStartTime = Date.now();
 
       const result = streamText({
-        model: scira.languageModel(model),
+        model: languageModel,
         messages: convertToModelMessages(messages),
-        ...getModelParameters(model),
+        ...getModelParameters(),
         stopWhen: stepCountIs(5),
         onAbort: ({ steps }) => {
           console.log('Stream aborted after', steps.length, 'steps');
@@ -470,31 +459,6 @@ export async function POST(req: Request) {
             : '\n') +
           (latitude && longitude ? `\n\nThe user's location is ${latitude}, ${longitude}.` : ''),
         toolChoice: 'auto',
-        providerOptions: {
-          openai: {
-            ...(model !== 'scira-qwen-coder'
-              ? {
-                  parallelToolCalls: false,
-                }
-              : {}),
-          },
-          groq: {
-            ...(model === 'scira-gpt-oss-20' || model === 'scira-gpt-oss-120'
-              ? {
-                  reasoningEffort: 'medium',
-                  reasoningFormat: 'hidden',
-                }
-              : {}),
-            ...(model === 'scira-qwen-32b'
-              ? {
-                  reasoningEffort: 'none',
-                }
-              : {}),
-            parallelToolCalls: false,
-            structuredOutputs: true,
-            serviceTier: 'auto',
-          } satisfies GroqProviderOptions,
-        },
         tools: (() => {
           const baseTools = {
             stock_chart: stockChartTool,
@@ -556,7 +520,7 @@ export async function POST(req: Request) {
           }
 
           const { object: repairedArgs } = await generateObject({
-            model: scira.languageModel('scira-grok-4-fast'),
+            model: languageModel, // Using GPT-5 for tool repair
             schema: tool.inputSchema,
             prompt: [
               `The model tried to call the tool "${toolCall.toolName}"` + ` with the following arguments:`,

@@ -193,6 +193,35 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 const WeatherChart: React.FC<WeatherChartProps> = React.memo(({ result }) => {
   const [selectedDay, setSelectedDay] = useState<string>('');
 
+  // Validate that result has the expected structure
+  if (!result || !result.list || !Array.isArray(result.list) || result.list.length === 0) {
+    // Check if there's a specific error message
+    const errorMessage = result?.error || 'Unable to load weather data. Please try again later.';
+    
+    return (
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle>Weather Data Unavailable</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">{errorMessage}</p>
+          {result?.error?.includes('API key') && (
+            <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                <strong>To fix this:</strong>
+              </p>
+              <ol className="mt-2 text-sm text-yellow-800 dark:text-yellow-200 list-decimal list-inside space-y-1">
+                <li>Get a free API key from <a href="https://openweathermap.org/api" target="_blank" rel="noopener noreferrer" className="underline">OpenWeatherMap</a></li>
+                <li>Add it to your <code className="bg-yellow-100 dark:bg-yellow-900/40 px-1 py-0.5 rounded">.env.local</code> file</li>
+                <li>Restart the development server</li>
+              </ol>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
   const {
     chartData,
     hourlyDataByDay,

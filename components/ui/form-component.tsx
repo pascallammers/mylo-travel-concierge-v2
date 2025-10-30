@@ -2619,7 +2619,7 @@ const FormComponent: React.FC<FormComponentProps> = ({
       }
 
       let validFiles: File[] = [...imageFiles];
-      if (hasPdfSupport(selectedModel) || pdfFiles.length > 0) {
+      if (hasPdfSupport() || pdfFiles.length > 0) {
         validFiles = [...validFiles, ...pdfFiles];
       }
 
@@ -2845,7 +2845,7 @@ const FormComponent: React.FC<FormComponentProps> = ({
       }
 
       let validFiles: File[] = [...imageFiles];
-      if (hasPdfSupport(selectedModel) || pdfFiles.length > 0) {
+      if (hasPdfSupport() || pdfFiles.length > 0) {
         validFiles = [...validFiles, ...pdfFiles];
       }
 
@@ -3425,45 +3425,10 @@ const FormComponent: React.FC<FormComponentProps> = ({
                   isRecording && '!bg-muted text-muted-foreground',
                 )}
               >
-                <div className={cn('flex items-center gap-2')}>
-                  <GroupModeToggle
-                    selectedGroup={selectedGroup}
-                    onGroupSelect={handleGroupSelect}
-                    status={status}
-                    onOpenSettings={onOpenSettings}
-                    isProUser={isProUser}
-                  />
+                {/* Model and search mode controls removed - using fixed GPT-5 and 'web' mode */}
 
-                  {selectedGroup === 'connectors' && setSelectedConnectors && (
-                    <ConnectorSelector
-                      selectedConnectors={selectedConnectors}
-                      onConnectorToggle={handleConnectorToggle}
-                      user={user}
-                      isProUser={isProUser}
-                    />
-                  )}
-
-                  <ModelSwitcher
-                    selectedModel={selectedModel}
-                    setSelectedModel={setSelectedModel}
-                    attachments={attachments}
-                    messages={messages}
-                    status={status}
-                    onModelSelect={(model) => {
-                      setSelectedModel(model.value);
-                      const isVisionModel = hasVisionSupport(model.value);
-                      toast.message(`Switched to ${model.label}`, {
-                        description: isVisionModel ? 'You can now upload images to the model.' : undefined,
-                        icon: <HugeiconsIcon icon={CpuIcon} size={16} color="currentColor" strokeWidth={2} />,
-                      });
-                    }}
-                    subscriptionData={subscriptionData}
-                    user={user}
-                  />
-                </div>
-
-                <div className={cn('flex items-center flex-shrink-0 gap-1')}>
-                  {hasVisionSupport(selectedModel) && (
+                <div className={cn('flex items-center flex-shrink-0 gap-1 ml-auto')}>
+                  {hasVisionSupport() && (
                     <Tooltip delayDuration={300}>
                       <TooltipTrigger asChild>
                         <Button
@@ -3492,7 +3457,7 @@ const FormComponent: React.FC<FormComponentProps> = ({
                         <div className="flex flex-col gap-0.5">
                           <span className="font-medium text-[11px]">Attach File</span>
                           <span className="text-[10px] text-accent leading-tight">
-                            {hasPdfSupport(selectedModel) ? 'Upload an image or PDF document' : 'Upload an image'}
+                            {hasPdfSupport() ? 'Upload an image or PDF document' : 'Upload an image'}
                           </span>
                         </div>
                       </TooltipContent>

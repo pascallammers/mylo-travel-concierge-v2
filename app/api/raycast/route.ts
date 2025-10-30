@@ -1,14 +1,7 @@
 import { webSearchTool } from '@/lib/tools';
 import { xSearchTool } from '@/lib/tools/x-search';
-import { groq } from '@ai-sdk/groq';
-import { xai } from '@ai-sdk/xai';
-import { convertToModelMessages, customProvider, generateText, stepCountIs } from 'ai';
-
-const scira = customProvider({
-  languageModels: {
-    'scira-default': groq('openai/gpt-oss-20b'),
-  },
-});
+import { convertToModelMessages, generateText, stepCountIs } from 'ai';
+import { languageModel } from '@/ai/providers';
 
 export const maxDuration = 800;
 
@@ -66,9 +59,9 @@ Remember, you are designed to be efficient and helpful in the Raycast environmen
 
 // Modify the POST function to use the new handler
 export async function POST(req: Request) {
-  const { messages, model, group = 'web' } = await req.json();
+  const { messages, model, group = 'web' } = await req.json(); // model parameter ignored - using GPT-5
 
-  console.log('Running with model: ', model.trim());
+  console.log('Running with model: GPT-5 (fixed)');
   console.log('Group: ', group);
 
   // Get the appropriate system prompt based on the group
@@ -83,7 +76,7 @@ export async function POST(req: Request) {
         : ['web_search' as const, 'x_search' as const];
 
   const { text, steps } = await generateText({
-    model: scira.languageModel(model),
+    model: languageModel,
     system: systemPrompt,
     stopWhen: stepCountIs(2),
     messages: convertToModelMessages(messages),
