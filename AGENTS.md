@@ -1,301 +1,194 @@
-# CLAUDE.md
+# 🧠 AGENTS.md — Modular Development Workflow
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+---
 
-## Project Overview
+## 🧩 Core Principles
 
-Scira is an AI-powered search engine built with Next.js 15 that provides multi-modal search capabilities across web, academic papers, YouTube, social media, and more. The application integrates with multiple LLM providers (xAI, Anthropic, Google, OpenAI, Groq) and offers specialized tools for code execution, financial analysis, weather, maps, and cryptocurrency data.
+All code must be modular. 
+The mission of this workflow is to ensure **clarity, modularity, and reusability** across all codebases and ease of maintenance by strictly limiting file size..  
+Agents must always act as disciplined contributors, not improvisers.
 
-## Development Commands
+---
 
-```bash
-# Install dependencies (pnpm 10.16.1 is pinned)
-pnpm install
+### 1. File Size & Structure
 
-# Development server with Turbopack (runs on http://localhost:3000)
-pnpm dev
+- **Limit:** Each file ≤ **600 lines** (ideal: 500–600).
+- **SRP:** One file = one clear responsibility.
+- **Barrel files:** Each feature folder must include an `index.ts` exporting its public API.
+- **Documentation:**  
+  Every public class/function requires JSDoc with `@param`, `@returns`, and a concise purpose line.
+- **Dependency Injection:**  
+  Never import internal dependencies inside the function — pass them as parameters.
 
-# Production build
-pnpm build
+---
 
-# Start production server
-pnpm start
+### 2. Defensive Rules
 
-# Linting and formatting
-pnpm lint          # Run ESLint with Next.js config
-pnpm fix           # Format code with Prettier
+- ❌ Never use `any`
+- ❌ Never use dynamic imports like `await import()`
+- ❌ No redundant `try/catch` or defensive guards unless the plan explicitly requires it
 
-# Dependency audit
-pnpm knip          # Find unused files, exports, and dependencies
+---
 
-# Docker deployment
-docker compose up  # Launch containerized stack
+### 3. Testing Standards
+
+- Every business logic file requires a `*.test.ts` alongside it.
+- Tests must validate all public interfaces and critical branches.
+- After implementation, run targeted tests using:
+  ```bash
+  npx tsx --test "<pattern>"
+  ```
+  and record outputs in the corresponding `/tasks/...` folder.
+
+---
+
+## ⚙️ Workflow Rules
+
+All development occurs through a **Task-Based Workflow**, separated into **Frontend**, **Backend**, or **Full-Stack**.
+
+---
+
+### 🔖 0. Task Handling
+
+#### General
+- Tasks are stored under:
+  - `tasks/frontend/DD-MM-YYYY/<task-id>/`
+  - `tasks/backend/DD-MM-YYYY/<task-id>/`
+- `<task-id>` must be a short **semantic slug** (e.g. `add-user-login`, `fix-modal-styling`).
+
+#### Multiple tasks per day
+- If you revisit a task on the same day, **append** to its existing folder instead of creating a new one.
+- Mini tasks (quick fixes, variable rename, config change) can be logged in `tasks/_quicklog/DD-MM-YYYY.md`  
+  with a short entry like:
+  ```
+  [10:42] fixed typo in useFetch hook
+  [14:17] adjusted env var naming in supabase config
+  ```
+
+#### Task completion
+Each task folder must include a `files-edited.md` listing:
+```
+File: /src/utils/dateFormatter.ts
+Lines: 45–63
+Summary: Added timezone normalization and tests
 ```
 
-## Database Management
+---
 
-The project uses Drizzle ORM with PostgreSQL:
+### 🧭 1. Research Phase
 
-```bash
-# Generate migrations after schema changes in lib/db/schema.ts
-npx drizzle-kit generate
+Goal: Understand context and patterns before coding.
 
-# Apply migrations to database
-npx drizzle-kit migrate
+- Investigate **existing implementations** in the codebase.
+- Research external standards or libraries if relevant.
+- Ask the user clarifying questions before proceeding.
 
-# Open Drizzle Studio for database inspection
-npx drizzle-kit studio
+Save findings as:
+```
+tasks/<type>/<date>/<task-id>/research-<task-id>.md
 ```
 
-Schema is located at `lib/db/schema.ts` with migrations in `drizzle/migrations/`. Manual indexes are in `create_indexes.sql`.
+---
 
-## Architecture Overview
+### 🧩 2. Planning Phase
 
-### Core Application Structure
+After research, create a `plan-<task-id>.md` that includes:
+- Overview of problem & context
+- Architecture or data flow if relevant
+- Steps for implementation
+- API contracts, interfaces, or dependencies
+- Risks or open questions
 
-- **`app/`** - Next.js 15 app router with route groups:
-  - `(auth)/` - Authentication pages (sign-in, sign-up)
-  - `(search)/` - Main search interface
-  - `api/` - API routes including `/api/search` (main chat endpoint)
-  - Route-level actions in `actions.ts` (server actions)
+---
 
-- **`ai/providers.ts`** - Central AI model registry defining all available LLM models through the `scira` custom provider. Models are prefixed with `scira-*` (e.g., `scira-grok-3`, `scira-anthropic`). Each model has metadata including pro/auth requirements, vision support, reasoning capabilities.
+### 🔨 3. Implementation Phase
 
-- **`lib/tools/`** - AI tools for search and data retrieval:
-  - Exports centralized in `index.ts`
-  - Each tool implements Vercel AI SDK tool format
-  - Tools: web-search, academic-search, youtube-search, extreme-search, code-interpreter, stock-chart, currency-converter, weather, map-tools, flight-tracker, crypto-tools, connectors-search, etc.
+Follow the `plan.md` strictly.
 
-- **`lib/auth.ts`** - Authentication using Better Auth with multiple providers (GitHub, Google, Twitter, Microsoft) and integrations with Polar.sh and DodoPayments for subscriptions
+- Create a **checklist** of implementation items and check them off.
+- For database changes or schema migrations, use the **MCP Server**.
+- Keep code modular and self-contained.
+- Group questions at the end rather than interrupt flow.
 
-- **`lib/subscription.ts`** - Subscription management combining Polar.sh (international) and DodoPayments (India) with caching via `performance-cache.ts`
+---
 
-- **`lib/connectors.tsx`** - Supermemory connector integrations for syncing external data sources (Notion, Google Drive, etc.)
+### ✅ 4. Verification Phase
 
-- **`components/`** - React components using shadcn/ui and Tailwind CSS
-  - shadcn components in `components/ui/`
-  - Custom components colocated with usage context
+After implementation:
+1. Run relevant test suites:
+   ```bash
+   npx tsx --test <pattern>
+   ```
+2. Record output in `/tasks/<type>/<date>/<task-id>/verification.md`
+3. Confirm that all lint and type checks pass.
 
-### Authentication & Authorization
+---
 
-Authentication is handled by Better Auth with session-based auth. Key files:
-- `lib/auth.ts` - Server-side auth config
-- `lib/auth-client.ts` - Client-side auth hooks
-- `middleware.ts` - Route protection (protectedRoutes: `/lookout`, `/xql`)
+## 🧠 Debugging & Fixing Rules
 
-Pro subscription is required for certain models and features. Check `ai/providers.ts` model definitions for `pro: true` and `requiresAuth: true` flags.
+When debugging:
 
-### Search Flow
+1. Identify 5–7 potential root causes.
+2. Narrow to 1–2 most likely hypotheses.
+3. Add temporary log statements to confirm the diagnosis.
+4. Ask the user to **confirm** the assumption before applying the fix.
 
-1. User sends message to `/api/search/route.ts`
-2. Route validates user, checks subscription/usage limits
-3. Determines search group config (`getGroupConfig`) which defines available tools
-4. Calls Vercel AI SDK's `streamText` with appropriate model and tools
-5. AI decides which tools to call based on query
-6. Results streamed back to client with markdown parsing via `lib/parser.ts`
-7. Messages saved to database in `lib/db/queries.ts`
+---
 
-### Search Groups
+## ⚡ Spec-Mode Exception (Factory.ai Droid Integration)
 
-Search groups define tool availability by context (defined in `app/actions.ts`):
-- **web** - General web search (Tavily)
-- **memory** - User's personal memory (requires auth)
-- **analysis** - Code execution, stocks, currency
-- **chat** - Direct AI conversation
-- **x** - X/Twitter search
-- **reddit** - Reddit search
-- **academic** - Academic papers (Exa)
-- **youtube** - YouTube videos (Exa)
-- **extreme** - Multi-step deep research
+When the Agent detects **Spec-Mode (Factory.ai / Droid)**:
+- **Skip file and folder creation** entirely (no `/tasks/...`).
+- **Skip Research & Planning Phases.**
+- Operate **inline only**, focusing on:
+  - Code analysis  
+  - Bug detection & refactor proposals  
+  - Lightweight diff suggestions  
+  - Unit test creation/adjustment
+- No filesystem operations are permitted in Spec-Mode.
+- Add a short summary comment at the end of the spec for context:
+  ```md
+  <!-- Spec-Mode: inline patch, no task folders created -->
+  ```
 
-### Tool Integration Pattern
+This ensures Spec-Mode remains fast, self-contained, and compliant with Droid’s restrictions.
 
-Tools follow this structure:
-```typescript
-export const myTool = coreTool({
-  description: "What this tool does",
-  parameters: z.object({...}),
-  execute: async (params, { toolCallId }) => {
-    // API calls, data processing
-    return { /* results */ };
-  },
-});
+---
+
+## 🧩 Philosophy
+
+> “Move fast — but build precisely.”
+
+Every commit or spec must:
+- Contribute toward long-term maintainability.
+- Be explainable by its task’s plan.md.
+- Be verifiable through tests.
+
+---
+
+### Example Workflow Summary
+
+| Phase | Output File | Example |
+|--------|--------------|---------|
+| Research | `research-fix-login-bug.md` | Notes & analysis of cause |
+| Planning | `plan-fix-login-bug.md` | Step-by-step implementation plan |
+| Implementation | `files-edited.md` | File paths + line ranges |
+| Verification | `verification.md` | Test output logs |
+
+---
+
+### Example Quicklog Entry (for fast iterative dev)
+
+File: `tasks/_quicklog/30-10-2025.md`
+```
+[09:12] Adjusted auth middleware for admin routes
+[11:07] Fixed broken import in dashboard.tsx
+[14:58] Refactored Supabase init to use env vars from config
 ```
 
-Tools are conditionally added to `streamText` based on search group and user permissions.
+---
 
-### Performance Optimizations
+### Closing Reminder
 
-- **`lib/performance-cache.ts`** - In-memory caching for user data, subscriptions, usage counts (5-15 min TTL)
-- **`lib/user-data-server.ts`** - Cached unified user data fetching
-- Custom instructions cached at 5 min TTL
-- Database queries use `$withCache()` where applicable
-- Upstash Redis for rate limiting and queue management
-
-### Database Schema
-
-Key tables (see `lib/db/schema.ts`):
-- `user`, `session`, `account`, `verification` - Auth tables
-- `chat`, `message`, `stream` - Conversation data
-- `subscription`, `payment` - Billing
-- `extremeSearchUsage`, `messageUsage` - Usage tracking
-- `customInstructions` - User preferences
-- `lookout` - Scheduled monitoring tasks
-
-## Environment Variables
-
-Copy `.env.example` to `.env.local`. Key variables:
-
-**Required for core functionality:**
-- `DATABASE_URL` - PostgreSQL connection string
-- `BETTER_AUTH_SECRET` - Auth secret key
-- AI provider keys: `XAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY`, `OPENAI_API_KEY`, `GROQ_API_KEY`
-- Search: `EXA_API_KEY`, `TAVILY_API_KEY`
-
-**OAuth providers:**
-- `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
-- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-- `TWITTER_CLIENT_ID`, `TWITTER_CLIENT_SECRET`
-- `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`
-
-**Billing:**
-- `POLAR_ACCESS_TOKEN` (Polar.sh for international)
-- `DODO_PAYMENTS_API_KEY` (DodoPayments for India)
-
-See README.md for complete list of optional service integrations (weather, maps, flights, etc.).
-
-## Important Code Patterns
-
-### Adding a New AI Model
-
-1. Add model to `ai/providers.ts` in the `scira.languageModels` object
-2. Add model metadata to `models` array with pro/auth/vision flags
-3. Model automatically available in UI model selector
-
-### Adding a New Tool
-
-1. Create tool file in `lib/tools/my-tool.ts`
-2. Export from `lib/tools/index.ts`
-3. Import and conditionally add to tool array in `/api/search/route.ts` based on search group
-4. Consider adding to appropriate search group config in `app/actions.ts`
-
-### Server Actions Pattern
-
-Server actions in `app/actions.ts` use `'use server'` directive. Common pattern:
-```typescript
-export async function myAction() {
-  'use server';
-  const user = await getUser();
-  if (!user) throw new Error('Unauthorized');
-  // ... action logic
-}
-```
-
-### Type Imports
-
-Use `@/` path alias for all imports:
-```typescript
-import { tool } from '@/lib/tools';
-import { db } from '@/lib/db';
-```
-
-## Testing & Validation
-
-Before committing:
-1. Run `pnpm lint` to check for linting errors
-2. Run `pnpm build` to verify production build
-3. Test key user flows: search, auth callbacks, tool invocations
-4. For schema changes, test migrations locally before committing
-
-No automated test suite exists yet. When adding tests, place unit tests beside source files (`lib/foo.test.ts`) and use Vitest or Playwright.
-
-## Deployment Notes
-
-- Primarily deployed on Vercel
-- Requires PostgreSQL database (Neon recommended)
-- Set all environment variables in Vercel dashboard
-- Production uses `NODE_ENV=production` to switch Polar.sh/DodoPayments to live mode
-- Edge Config (`@vercel/edge-config`) used for feature flags and discount configuration
-- Cron jobs via Upstash QStash for scheduled tasks (lookout monitoring)
-
-## Common Gotchas
-
-- **Turbopack:** Dev and build use `--turbopack` flag. Some webpack-specific configs may not work.
-- **Middleware:** Route protection in `middleware.ts` has specific exclusions for webhooks and public API endpoints.
-- **Better Auth:** Uses cookie-based sessions with 5-min cookie cache. Clear session cache when debugging auth issues.
-- **Tool execution:** Tools must return serializable data (no functions, class instances) since results are stored in DB.
-- **Model reasoning:** Some models (e.g., `scira-qwen-235-think`) extract reasoning into separate stream via middleware. Check `ai/providers.ts` for middleware wrappers.
-- **Subscription checks:** Always use `getComprehensiveUserData()` or `getCurrentUser()` to get cached user with pro status, not direct DB queries.
-
-## Code Style
-
-- TypeScript strict mode enabled
-- Use Tailwind CSS utility classes, not custom CSS
-- Prefer functional React components with hooks
-- Server components by default; use `'use client'` only when needed
-- PascalCase for components, camelCase for functions/variables, `use` prefix for hooks
-- Let Prettier handle formatting (no manual whitespace edits)
-
-
-# The Main Readme file is `documentation/README.md`
-
-
-## Your role
-Your role is to write code. You do NOT have access to the running app, so you cannot test the code. You MUST rely on me, the user, to test the code.
-
-If I report a bug in your code, after you fix it, you should pause and ask me to verify that the bug is fixed.
-
-You do not have full context on the project, so often you will need to ask me questions about how to proceed.
-
-Don't be shy to ask questions -- I'm here to help you!
-
-If I send you a URL, you MUST immediately fetch its contents and read it carefully, before you do anything else.
-
-
-## Testing
-always run "npm run build" after we implemented a new feature or code into our app so that it's save to deploy it to Vercel
-
-
-
-## Workflow
-We use GitHub issues to track work we need to do, and PRs to review code. Whenever you create an issue or a PR, tag it with "by-claude". Use the gh bash command to interact with GitHub.
-
-To start working on a feature, you should:
-
-1. Setup
-Read the relevant GitHub issue (or create one if needed)
-Checkout main and pull the latest changes
-Create a new branch like project-name/feature-name. NEVER commit to main. NEVER push to origin/main.
-
-2. Development
-Commit often as you write code, so that we can revert if needed.
-When you have a draft of what you're working on, ask me to test it in the app to confirm that it works as you expect. Do this early and often.
-
-3. Review
-When the work is done, verify that the diff looks good with git diff main
-While you should attempt to write code that adheres to our coding style, don't worry about manually linting or formatting your changes. There are Husky pre-commit Git hooks that will do this for you.
-Push the branch to GitHub
-Open a PR.
-The PR title should not include the issue number
-The PR description should start with the issue number and a brief description of the changes.
-Next, you should write a test plan. I (not you) will execute the test plan before merging the PR. If I can't check off any of the items, I will let you know. Make sure the test plan covers both new functionality and any EXISTING functionality that might be impacted by your changes
-
-4. Fixing issues
-To reconcile different branches, always rebase or cherry-pick. Do not merge.
-Sometimes, after you've been working on one feature, I will ask you to start work on an unrelated feature. If I do, you should probably repeat this process from the beginning (checkout main, pull changes, create a new branch). When in doubt, just ask.
-
-
-## Documentation Updates - IMPORTANT!
-
-**ALWAYS perform after changes:**
-1. Create a new Markdown file in the `documentation/PROGRESS` folder for each new features and fixed issues, using the current date (example: 2025-09-25_1)
-2. Create a new Markdown file in the `documentation/CHANGELOG` folder for all changes with the current date (example: 2025-09-25_[0.10.0])
-3. Update `package.json` version (semantic versioning)
-4. Run `npm run build` to verify everything works
-
-**Never forget to update the documentation!**
-
-
-## Old Data - NOT for your context
-
-In the `documentation/_olddata` folder there are files you should NOT add to your context. Otherwise, you will get confused and no longer know exactly what it’s about.
+> **Discipline creates speed.**
+> You don’t get faster by skipping steps — only by making them leaner and more consistent.
