@@ -2664,9 +2664,11 @@ const FormComponent: React.FC<FormComponentProps> = ({
           console.log('Images passed moderation check');
         } catch (error) {
           console.error('Error during image moderation:', error);
-          toast.error('Unable to verify image safety. Please try again.');
-          event.target.value = '';
-          return;
+          // Show warning but allow upload to proceed
+          toast.warning('Safety check unavailable - proceeding with upload', {
+            description: 'Please ensure your images comply with content guidelines.',
+          });
+          // Don't return - continue with upload
         }
       }
 
@@ -2888,8 +2890,11 @@ const FormComponent: React.FC<FormComponentProps> = ({
           console.log('Images passed moderation check');
         } catch (error) {
           console.error('Error during image moderation:', error);
-          toast.error('Unable to verify image safety. Please try again.');
-          return;
+          // Show warning but allow upload to proceed
+          toast.warning('Safety check unavailable - proceeding with upload', {
+            description: 'Please ensure your images comply with content guidelines.',
+          });
+          // Don't return - continue with upload
         }
       }
 
@@ -3013,8 +3018,11 @@ const FormComponent: React.FC<FormComponentProps> = ({
           console.log('Pasted images passed moderation check');
         } catch (error) {
           console.error('Error during pasted image moderation:', error);
-          toast.error('Unable to verify pasted image safety. Please try again.');
-          return;
+          // Show warning but allow upload to proceed
+          toast.warning('Safety check unavailable - proceeding with upload', {
+            description: 'Please ensure your images comply with content guidelines.',
+          });
+          // Don't return - continue with upload
         }
       }
 
@@ -3543,45 +3551,8 @@ const FormComponent: React.FC<FormComponentProps> = ({
                         <span className="font-medium text-[11px]">Stop Generation</span>
                       </TooltipContent>
                     </Tooltip>
-                  ) : input.length === 0 && attachments.length === 0 && !isEnhancing && !isTypewriting ? (
-                    /* Show Voice Recording Button when no input */
-                    <Tooltip delayDuration={300}>
-                      <TooltipTrigger asChild>
-                        <Button
-                          size="icon"
-                          variant={isRecording ? 'destructive' : 'default'}
-                          className={cn('group rounded-full m-auto transition-colors duration-200 !size-8')}
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            if (!isEnhancing && !isTypewriting) {
-                              handleRecord();
-                            }
-                          }}
-                          disabled={isEnhancing || isTypewriting}
-                        >
-                          <span className="block">
-                            <AudioLinesIcon ref={audioLinesRef} size={16} />
-                          </span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent
-                        side="bottom"
-                        sideOffset={6}
-                        className="border-0 backdrop-blur-xs py-2 px-3 !shadow-none"
-                      >
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-medium text-[11px]">
-                            {isRecording ? 'Stop Recording' : 'Voice Input'}
-                          </span>
-                          <span className="text-[10px] text-accent leading-tight">
-                            {isRecording ? 'Click to stop recording' : 'Record your voice message'}
-                          </span>
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
                   ) : (
-                    /* Show Send Button when there is input */
+                    /* Show Send Button - Voice Recording removed for MVP */
                     <Tooltip delayDuration={300}>
                       <TooltipTrigger asChild>
                         <Button
