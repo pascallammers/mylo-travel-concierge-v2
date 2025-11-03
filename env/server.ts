@@ -4,6 +4,15 @@ import { z } from 'zod';
 
 export const serverEnv = createEnv({
   server: {
+    // ============================================
+    // AI Provider Switch
+    // ============================================
+    USE_XAI: z
+      .string()
+      .optional()
+      .default('false')
+      .transform((val) => val === 'true'),
+    
     XAI_API_KEY: z.string().min(1),
     OPENAI_API_KEY: z.string().min(1),
     ANTHROPIC_API_KEY: z.string().min(1),

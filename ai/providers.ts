@@ -1,25 +1,59 @@
 import { createOpenAI } from '@ai-sdk/openai';
+import { createXai } from '@ai-sdk/xai';
 
-// OpenAI Provider configured with GPT-5
-const openai = createOpenAI({
+// ============================================
+// PROVIDER SWITCH - Single Boolean Control
+// ============================================
+// Set USE_XAI=true in environment to use xAI Grok 4 Fast
+// Set USE_XAI=false (or omit) to use OpenAI GPT-5
+// ============================================
+
+const USE_XAI = process.env.USE_XAI === 'true';
+
+// Provider clients
+const openaiClient = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Default model: GPT-5
-export const DEFAULT_MODEL = 'gpt-5';
+const xaiClient = createXai({
+  apiKey: process.env.XAI_API_KEY,
+  baseURL: 'https://api.x.ai/v1',
+});
 
-// Export the OpenAI language model
-export const languageModel = openai(DEFAULT_MODEL);
+// Model configurations
+const MODELS = {
+  openai: {
+    name: 'gpt-5',
+    displayName: 'GPT-5',
+    capabilities: {
+      vision: true,
+      reasoning: true,
+      pdf: true,
+      maxOutputTokens: 16000,
+    },
+  },
+  xai: {
+    name: 'grok-4-fast-reasoning',
+    displayName: 'Grok 4 Fast',
+    capabilities: {
+      vision: false,
+      reasoning: true,
+      pdf: false,
+      maxOutputTokens: 16000,
+    },
+  },
+} as const;
 
-// GPT-5 model capabilities
-export const MODEL_CAPABILITIES = {
-  vision: true,
-  reasoning: true,
-  pdf: true,
-  maxOutputTokens: 16000,
-};
+// Active configuration based on USE_XAI flag
+const activeConfig = USE_XAI ? MODELS.xai : MODELS.openai;
+const activeClient = USE_XAI ? xaiClient : openaiClient;
 
-// Simplified helper functions for GPT-5
+// Export active language model
+export const languageModel = activeClient(activeConfig.name);
+export const DEFAULT_MODEL = activeConfig.name;
+export const MODEL_CAPABILITIES = activeConfig.capabilities;
+
+// Helper functions
 export function hasVisionSupport(): boolean {
   return MODEL_CAPABILITIES.vision;
 }
@@ -40,12 +74,11 @@ export function getModelParameters() {
   return {};
 }
 
-// No authentication required for the app (as per plan)
-export function requiresAuthentication(): boolean {
+export function requiresAuthentication(modelValue?: string): boolean {
   return false;
 }
 
-export function requiresProSubscription(): boolean {
+export function requiresProSubscription(modelValue?: string): boolean {
   return false;
 }
 
@@ -55,10 +88,9 @@ export function getAcceptedFileTypes(): string {
 
 // Legacy exports for backward compatibility
 export function getModelConfig(modelValue?: string) {
-  // Return GPT-5 config regardless of input
   return {
-    value: 'gpt-5',
-    label: 'GPT-5',
+    value: activeConfig.name,
+    label: activeConfig.displayName,
     vision: MODEL_CAPABILITIES.vision,
     reasoning: MODEL_CAPABILITIES.reasoning,
     pdf: MODEL_CAPABILITIES.pdf,
@@ -67,7 +99,6 @@ export function getModelConfig(modelValue?: string) {
 }
 
 export function shouldBypassRateLimits(modelValue?: string, user?: any): boolean {
-  // No rate limit bypass needed with fixed GPT-5
   return false;
 }
 
@@ -78,3 +109,7 @@ export const scira = {
 
 // Empty models array for backward compatibility
 export const models: any[] = [];
+
+// Log active provider on startup
+console.log(`[AI Provider] Using ${USE_XAI ? 'xAI Grok 4 Fast' : 'OpenAI GPT-5'}`);
+console.log(`[AI Provider] Model: ${activeConfig.name}`);
