@@ -737,7 +737,7 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = React.memo(
                 >
                   {category} Models
                 </div>
-                {categoryModels.map((model) => {
+                {categoryModels.map((model: (typeof models)[0]) => {
                   const requiresAuth = requiresAuthentication(model.value) && !user;
                   const requiresPro = requiresProSubscription(model.value) && !isProUser;
                   const isLocked = requiresAuth || requiresPro;
@@ -3255,11 +3255,7 @@ const FormComponent: React.FC<FormComponentProps> = ({
             ref={fileInputRef}
             multiple
             onChange={handleFileChange}
-            accept={getAcceptedFileTypes(
-              selectedModel,
-              user?.isProUser ||
-                (subscriptionData?.hasSubscription && subscriptionData?.subscription?.status === 'active'),
-            )}
+            accept={getAcceptedFileTypes()}
             tabIndex={-1}
           />
           <input
@@ -3268,11 +3264,7 @@ const FormComponent: React.FC<FormComponentProps> = ({
             ref={postSubmitFileInputRef}
             multiple
             onChange={handleFileChange}
-            accept={getAcceptedFileTypes(
-              selectedModel,
-              user?.isProUser ||
-                (subscriptionData?.hasSubscription && subscriptionData?.subscription?.status === 'active'),
-            )}
+            accept={getAcceptedFileTypes()}
             tabIndex={-1}
           />
 

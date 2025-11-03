@@ -67,7 +67,7 @@ const ChatInterface = memo(
 
     // Fixed GPT-5 model - no user selection
     const selectedModel = DEFAULT_MODEL;
-    const setSelectedModel = () => {}; // Dummy setter for compatibility
+    const setSelectedModel = (_model: string) => {}; // Dummy setter for compatibility
     
     // Fixed to 'web' search mode - no user selection
     const selectedGroup: SearchGroupId = 'web';
