@@ -989,7 +989,7 @@ export const Message: React.FC<MessageProps> = ({
           <div className="w-full max-w-xl sm:max-w-2xl mt-4">
             <div className="flex items-center gap-1.5 mb-2 pr-3">
               <AlignLeft size={16} className="text-muted-foreground dark:text-muted-foreground" />
-              <h2 className="font-medium texl-lg text-foreground dark:text-foreground">Suggested questions</h2>
+              <h2 className="font-medium texl-lg text-foreground dark:text-foreground">Weitere Fragen</h2>
             </div>
             <div className="flex flex-col border-t border-border dark:border-border">
               {suggestedQuestions.map((question, i) => (

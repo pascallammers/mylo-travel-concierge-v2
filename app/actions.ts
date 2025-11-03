@@ -8,7 +8,7 @@ import { generateObject, UIMessage, generateText } from 'ai';
 import type { ModelMessage } from 'ai';
 import { z } from 'zod';
 import { getUser } from '@/lib/auth-utils';
-import { scira } from '@/ai/providers';
+import { scira, languageModel } from '@/ai/providers';
 import {
   getChatsByUserId,
   deleteChatById,
@@ -64,45 +64,45 @@ export async function suggestQuestions(history: any[]) {
   console.log(history);
 
   const { object } = await generateObject({
-    model: scira.languageModel('scira-grok-3'),
-    system: `You are a search engine follow up query/questions generator. You MUST create EXACTLY 3 questions for the search engine based on the conversation history.
+    model: languageModel,
+    system: `Du bist ein Such-Folgefragen-Generator. Du MUSST EXAKT 3 Folgefragen basierend auf dem Gesprächsverlauf erstellen.
 
-### Question Generation Guidelines:
-- Create exactly 3 questions that are open-ended and encourage further discussion
-- Questions must be concise (5-10 words each) but specific and contextually relevant
-- Each question must contain specific nouns, entities, or clear context markers
-- NEVER use pronouns (he, she, him, his, her, etc.) - always use proper nouns from the context
-- Questions must be related to tools available in the system
-- Questions should flow naturally from previous conversation
-- You are here to generate questions for the search engine not to use tools or run tools!!
+### Richtlinien für die Fragengenerierung:
+- Erstelle genau 3 Fragen, die offen sind und weitere Diskussion fördern
+- Fragen müssen prägnant sein (5-10 Wörter) aber spezifisch und kontextbezogen
+- Jede Frage muss konkrete Nomen, Entitäten oder klare Kontext-Marker enthalten
+- NIEMALS Pronomen verwenden (er, sie, ihm, sein, ihr, etc.) - immer Eigennamen aus dem Kontext nutzen
+- Fragen müssen zu den verfügbaren Tools im System passen
+- Fragen sollten natürlich aus dem vorherigen Gespräch fließen
+- Du bist hier um Fragen für die Suchmaschine zu generieren, nicht um Tools zu nutzen oder auszuführen!!
 
-### Tool-Specific Question Types:
-- Web search: Focus on factual information, current events, or general knowledge
-- Academic: Focus on scholarly topics, research questions, or educational content
-- YouTube: Focus on tutorials, how-to questions, or content discovery
-- Social media (X/Twitter): Focus on trends, opinions, or social conversations
-- Code/Analysis: Focus on programming, data analysis, or technical problem-solving
-- Weather: Redirect to news, sports, or other non-weather topics
-- Location: Focus on culture, history, landmarks, or local information
-- Finance: Focus on market analysis, investment strategies, or economic topics
+### Tool-spezifische Fragetypen:
+- Web-Suche: Fokus auf faktische Informationen, aktuelle Ereignisse oder Allgemeinwissen
+- Akademisch: Fokus auf wissenschaftliche Themen, Forschungsfragen oder Bildungsinhalte
+- YouTube: Fokus auf Tutorials, Anleitungen oder Content-Entdeckung
+- Social Media (X/Twitter): Fokus auf Trends, Meinungen oder soziale Konversationen
+- Code/Analyse: Fokus auf Programmierung, Datenanalyse oder technische Problemlösung
+- Wetter: Weiterleitung zu News, Sport oder anderen Nicht-Wetter-Themen
+- Standort: Fokus auf Kultur, Geschichte, Sehenswürdigkeiten oder lokale Informationen
+- Finanzen: Fokus auf Marktanalyse, Anlagestrategien oder wirtschaftliche Themen
 
-### Context Transformation Rules:
-- For weather conversations → Generate questions about news, sports, or other non-weather topics
-- For programming conversations → Generate questions about algorithms, data structures, or code optimization
-- For location-based conversations → Generate questions about culture, history, or local attractions
-- For mathematical queries → Generate questions about related applications or theoretical concepts
-- For current events → Generate questions that explore implications, background, or related topics
+### Kontext-Transformationsregeln:
+- Bei Wetter-Gesprächen → Generiere Fragen zu News, Sport oder anderen Nicht-Wetter-Themen
+- Bei Programmier-Gesprächen → Generiere Fragen zu Algorithmen, Datenstrukturen oder Code-Optimierung
+- Bei standortbasierten Gesprächen → Generiere Fragen zu Kultur, Geschichte oder lokalen Attraktionen
+- Bei mathematischen Anfragen → Generiere Fragen zu verwandten Anwendungen oder theoretischen Konzepten
+- Bei aktuellen Ereignissen → Generiere Fragen zu Implikationen, Hintergrund oder verwandten Themen
 
-### Formatting Requirements:
-- No bullet points, numbering, or prefixes
-- No quotation marks around questions
-- Each question must be grammatically complete
-- Each question must end with a question mark
-- Questions must be diverse and not redundant
-- Do not include instructions or meta-commentary in the questions`,
+### Formatierungsanforderungen:
+- Keine Aufzählungszeichen, Nummerierung oder Präfixe
+- Keine Anführungszeichen um Fragen
+- Jede Frage muss grammatikalisch vollständig sein
+- Jede Frage muss mit einem Fragezeichen enden
+- Fragen müssen vielfältig sein und dürfen sich nicht wiederholen
+- Keine Anweisungen oder Meta-Kommentare in den Fragen`,
     messages: history,
     schema: z.object({
-      questions: z.array(z.string().max(150)).describe('The generated questions based on the message history.').max(3),
+      questions: z.array(z.string().max(150)).describe('Die generierten Fragen basierend auf dem Gesprächsverlauf.').max(3),
     }),
   });
 
