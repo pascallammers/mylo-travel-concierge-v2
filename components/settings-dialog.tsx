@@ -50,7 +50,7 @@ import { Loader2, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { useIsProUser } from '@/contexts/user-context';
-import { SciraLogo } from './logos/scira-logo';
+import { MyloLogo } from './logos/mylo-logo';
 import Image from 'next/image';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -1187,7 +1187,7 @@ function SubscriptionSection({ subscriptionData, isProUser, user }: any) {
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
                         <p className={cn('font-medium truncate', isMobile ? 'text-xs' : 'text-sm')}>
-                          Scira Pro (DodoPayments)
+                          MYLO Pro (DodoPayments)
                         </p>
                         <div className="flex items-center gap-2">
                           <p className={cn('text-muted-foreground', isMobile ? 'text-[10px]' : 'text-xs')}>
@@ -1950,7 +1950,7 @@ export function SettingsDialog({
             {/* Header - more compact */}
             <DrawerHeader className="pb-2 px-4 pt-3 shrink-0">
               <DrawerTitle className="text-base font-medium flex items-center gap-2">
-                <SciraLogo className="size-6" />
+                <MyloLogo className="size-6" />
                 Settings
               </DrawerTitle>
             </DrawerHeader>
@@ -2012,7 +2012,7 @@ export function SettingsDialog({
       <DialogContent className="!max-w-4xl !w-full max-h-[85vh] !p-0 gap-0 overflow-hidden">
         <DialogHeader className="p-4 !m-0">
           <DialogTitle className="text-xl font-medium tracking-normal flex items-center gap-2">
-            <SciraLogo className="size-6" color="currentColor" />
+            <MyloLogo className="size-6" color="currentColor" />
             Settings
           </DialogTitle>
         </DialogHeader>

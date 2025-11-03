@@ -59,8 +59,8 @@ export default function SuccessPage() {
         </div>
 
         {/* Content */}
-        <h1 className="text-2xl font-light text-foreground mb-4 tracking-tight">Welcome to Scira Pro</h1>
-        <p className="text-muted-foreground mb-8">Your subscription is active. Start unlimited searching.</p>
+        <h1 className="text-2xl font-light text-foreground mb-4 tracking-tight">Willkommen bei MYLO Pro</h1>
+        <p className="text-muted-foreground mb-8">Dein Abonnement ist aktiv. Starte jetzt mit unbegrenzter Suche.</p>
 
         {/* Action */}
         <Button

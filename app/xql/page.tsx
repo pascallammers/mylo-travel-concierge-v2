@@ -18,7 +18,7 @@ import { TextShimmer } from '@/components/core/text-shimmer';
 import { cn } from '@/lib/utils';
 import { type XQLMessage } from '@/app/api/xql/route';
 import { highlight } from 'sugar-high';
-import { SciraLogo } from '@/components/logos/scira-logo';
+import { MyloLogo } from '@/components/logos/mylo-logo';
 
 export default function XQLPage() {
   const [input, setInput] = useState<string>('');
@@ -95,7 +95,7 @@ export default function XQLPage() {
         )}
       >
         <div className="flex items-center justify-center gap-2 sm:gap-3 mb-6 sm:mb-8 text-2xl sm:text-3xl md:text-5xl font-be-vietnam-pro -tracking-normal font-medium">
-          <span className="text-foreground">Scira</span>
+          <span className="text-foreground">MYLO</span>
           <div className="flex items-center relative">
             <XLogoIcon className="size-6 sm:size-8 md:size-12 text-foreground -mr-1 sm:-mr-2 font-medium" />
             <h1 className="text-foreground">QL</h1>
@@ -178,7 +178,7 @@ export default function XQLPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {[
                 {
-                  query: 'Scira AI tweets from last week',
+                  query: 'Travel deals tweets from last week',
                   description: 'Popular content with date range',
                 },
                 {
@@ -417,9 +417,9 @@ export default function XQLPage() {
                       <CardContent className="p-0">
                         <div className="flex flex-wrap items-center justify-between gap-2 p-3 sm:p-4">
                           <div className="flex items-center gap-2 min-w-0">
-                            <SciraLogo className="size-6 text-foreground flex-shrink-0" />
+                            <MyloLogo className="size-6 text-foreground flex-shrink-0" />
                             <span className="font-semibold text-foreground text-sm sm:text-base">
-                              Scira found {citations.length} Posts
+                              MYLO hat {citations.length} Posts gefunden
                             </span>
                           </div>
 

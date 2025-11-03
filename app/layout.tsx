@@ -15,14 +15,14 @@ import { Providers } from './providers';
 export const metadata: Metadata = {
   metadataBase: new URL('https://scira.ai'),
   title: {
-    default: 'Scira AI',
-    template: '%s | Scira AI',
-    absolute: 'Scira AI',
+    default: 'MYLO - Dein Travel-Concierge',
+    template: '%s | MYLO',
+    absolute: 'MYLO - Dein Travel-Concierge',
   },
-  description: 'Scira AI is a minimalistic AI-powered search engine that helps you find information on the internet.',
+  description: 'MYLO ist dein KI-gestützter Reiseassistent für optimale Flugsuche, Miles & Points Beratung und Premium-Cabin Upgrades.',
   openGraph: {
     url: 'https://scira.ai',
-    siteName: 'Scira AI',
+    siteName: 'MYLO - Dein Travel-Concierge',
   },
   keywords: [
     'scira.ai',

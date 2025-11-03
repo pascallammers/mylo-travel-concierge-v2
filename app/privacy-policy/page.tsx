@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ExternalLink } from 'lucide-react';
-import { SciraLogo } from '@/components/logos/scira-logo';
+import { MyloLogo } from '@/components/logos/mylo-logo';
 
 const container = {
   hidden: { opacity: 0 },
@@ -40,7 +40,7 @@ export default function PrivacyPage() {
             <motion.div variants={item} className="text-center">
               <Link href="/" className="inline-flex items-center gap-3 font-be-vietnam-pro font-bold">
                 <div className="relative w-14 h-14 rounded-full bg-background/90 shadow-sm flex items-center justify-center border">
-                  <SciraLogo className="size-8 opacity-90" />
+                  <MyloLogo className="size-8 opacity-90" />
                 </div>
               </Link>
             </motion.div>
@@ -57,7 +57,7 @@ export default function PrivacyPage() {
       <div className="py-16 px-4">
         <div className="container max-w-3xl mx-auto prose dark:prose-invert prose-neutral prose-headings:font-be-vietnam-pro prose-p:text-muted-foreground prose-a:text-foreground prose-a:no-underline hover:prose-a:text-foreground/80 prose-headings:tracking-tight">
           <p className="text-lg">
-            At Scira AI, we respect your privacy and are committed to protecting your personal data. This Privacy Policy
+            At MYLO - Dein Travel-Concierge, we respect your privacy and are committed to protecting your personal data. This Privacy Policy
             explains how we collect, use, and safeguard your information when you use our AI-powered search engine.
           </p>
 
@@ -88,7 +88,7 @@ export default function PrivacyPage() {
             </li>
           </ul>
           <p>
-            <strong>Important Note on Payment Data:</strong> Scira AI does not collect, store, or process any payment
+            <strong>Important Note on Payment Data:</strong> MYLO - Dein Travel-Concierge does not collect, store, or process any payment
             card details, bank information, UPI details, or other sensitive payment data. All payment information is
             handled directly by our payment processors (Polar and DodoPayments) and is subject to their respective
             privacy policies and security standards.
@@ -179,7 +179,7 @@ export default function PrivacyPage() {
 
           <div className="my-8 border-t pt-8">
             <p className="text-sm text-muted-foreground">
-              By using Scira AI, you agree to our Privacy Policy and our{' '}
+              By using MYLO - Dein Travel-Concierge, you agree to our Privacy Policy and our{' '}
               <Link href="/terms" className="underline">
                 Terms of Service
               </Link>
@@ -196,10 +196,10 @@ export default function PrivacyPage() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-background border flex items-center justify-center">
-                <SciraLogo className="size-4 opacity-80" />
+                <MyloLogo className="size-4 opacity-80" />
               </div>
               <div className="text-sm text-muted-foreground">
-                © {new Date().getFullYear()} Scira AI by Zaid Mukaddam
+                © {new Date().getFullYear()} MYLO - Dein Travel-Concierge by Zaid Mukaddam
               </div>
             </div>
             <div className="flex items-center gap-6 text-sm text-muted-foreground">

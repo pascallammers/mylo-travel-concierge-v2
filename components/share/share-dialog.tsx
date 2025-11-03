@@ -146,7 +146,7 @@ export function ShareDialog({
     console.log('📱 Using native share API:', shareUrl);
     try {
       await navigator.share({
-        title: 'Shared Scira Chat',
+        title: 'Shared MYLO Chat',
         url: shareUrl,
       });
       console.log('✅ Native share completed');

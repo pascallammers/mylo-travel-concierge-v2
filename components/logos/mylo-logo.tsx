@@ -1,4 +1,4 @@
-export function SciraLogo({
+export function MyloLogo({
   className,
   width,
   height,
