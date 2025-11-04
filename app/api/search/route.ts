@@ -445,7 +445,7 @@ export async function POST(req: Request) {
       // Create tool registry with proper filtering based on activeTools
       const createToolRegistry = (
         dataStream: any,
-        searchProvider: string,
+        searchProvider: 'parallel' | 'exa' | 'tavily' | 'firecrawl' | undefined,
         user: any,
         selectedConnectors: any[],
         timezone: string,
