@@ -4,30 +4,44 @@ import { searchSeatsAero, TravelClass } from '@/lib/api/seats-aero-client';
 import { searchAmadeus } from '@/lib/api/amadeus-client';
 import { recordToolCall, updateToolCall } from '@/lib/db/queries';
 import { mergeSessionState } from '@/lib/db/queries';
+import { resolveIATACode } from '@/lib/utils/airport-codes';
 
 /**
  * Flight Search Tool - Searches both award flights (Seats.aero) and cash flights (Amadeus)
  */
 export const flightSearchTool = tool({
-  description: `Search for flights using Seats.aero (award flights) and Amadeus (cash flights).
-  
-This tool searches both:
-- Seats.aero: Award flights bookable with miles/points
-- Amadeus: Regular cash flights
+  description: `Search for flights between any two cities or airports worldwide.
 
-Results include pricing, availability, and booking details.`,
+This tool automatically:
+- Searches BOTH award flights (bookable with miles/points via Seats.aero) AND cash flights (via Amadeus)
+- Converts city names to airport codes (e.g., "Frankfurt" → "FRA", "Phuket" → "HKT", "New York" → "JFK")
+- Handles flexible date ranges and cabin class preferences
+- Returns comprehensive pricing in both points/miles and cash
+
+Call this tool immediately when the user asks about:
+- Flight prices or availability between cities
+- Business/First class travel or upgrades
+- Award bookings with miles or points
+- Comparing flight options
+- Travel planning queries
+
+You do NOT need to know IATA airport codes - just pass city names and the tool will handle conversion automatically.
+
+Examples of queries that should trigger this tool:
+- "Flights from Frankfurt to Phuket in Business Class"
+- "How many miles do I need to fly to Tokyo?"
+- "Show me the cheapest flights to Bangkok"
+- "Find award flights from Berlin to New York"`,
 
   inputSchema: z.object({
     origin: z
       .string()
-      .length(3)
-      .toUpperCase()
-      .describe('Origin airport IATA code (3 letters, e.g., FRA)'),
+      .min(3)
+      .describe('Origin city or airport (e.g., "Frankfurt", "Berlin", "FRA", or "New York"). City names will be auto-converted to airport codes.'),
     destination: z
       .string()
-      .length(3)
-      .toUpperCase()
-      .describe('Destination airport IATA code (3 letters, e.g., JFK)'),
+      .min(3)
+      .describe('Destination city or airport (e.g., "Phuket", "Tokyo", "JFK", or "Bangkok"). City names will be auto-converted to airport codes.'),
     departDate: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -50,8 +64,8 @@ Results include pricing, availability, and booking details.`,
       .describe('Number of passengers'),
     awardOnly: z
       .boolean()
-      .default(true)
-      .describe('Search only award flights (true) or include cash flights (false)'),
+      .default(false)
+      .describe('Set to false (default) to search BOTH award and cash flights. Set to true ONLY when user explicitly asks for miles/points flights only.'),
     loyaltyPrograms: z
       .array(z.string())
       .optional()
@@ -76,11 +90,23 @@ Results include pricing, availability, and booking details.`,
 
     console.log('[Flight Search] Starting search:', params);
 
+    // Resolve city names to IATA codes
+    const origin = resolveIATACode(params.origin);
+    const destination = resolveIATACode(params.destination);
+
+    if (!origin || !destination) {
+      throw new Error(
+        `Could not resolve airport codes. Origin: "${params.origin}" → ${origin}, Destination: "${params.destination}" → ${destination}`
+      );
+    }
+
+    console.log(`[Flight Search] Resolved: ${params.origin} → ${origin}, ${params.destination} → ${destination}`);
+
     // 1. Record tool call
     const { id: toolCallId } = await recordToolCall({
       chatId,
       toolName: 'search_flights',
-      request: params,
+      request: { ...params, origin, destination },
     });
 
     await updateToolCall(toolCallId, {
@@ -93,8 +119,8 @@ Results include pricing, availability, and booking details.`,
       const [seatsResult, amadeusResult] = await Promise.all([
         // Seats.aero: Award flights
         searchSeatsAero({
-          origin: params.origin,
-          destination: params.destination,
+          origin,
+          destination,
           departureDate: params.departDate,
           travelClass: params.cabin as TravelClass,
           flexibility: params.flexibility,
@@ -108,8 +134,8 @@ Results include pricing, availability, and booking details.`,
         params.awardOnly
           ? Promise.resolve(null)
           : searchAmadeus({
-              origin: params.origin,
-              destination: params.destination,
+              origin,
+              destination,
               departureDate: params.departDate,
               returnDate: params.returnDate,
               travelClass: params.cabin,
@@ -158,8 +184,8 @@ Results include pricing, availability, and booking details.`,
       // 5. Update session state
       await mergeSessionState(chatId, {
         last_flight_request: {
-          origin: params.origin,
-          destination: params.destination,
+          origin,
+          destination,
           departDate: params.departDate,
           returnDate: params.returnDate,
           cabin: params.cabin,

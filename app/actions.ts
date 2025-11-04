@@ -217,6 +217,7 @@ const groupTools = {
     'text_translate',
     'nearby_places_search',
     'track_flight',
+    'search_flights',
     'movie_or_tv_search',
     'trending_movies',
     'find_place_on_map',
@@ -385,6 +386,24 @@ const groupInstructions = {
   - Do not use the 'translate' tool for general web searches
   - invoke the tool when the user mentions the word 'translate' in the query
   - do not mistake this tool as tts or the word 'tts' in the query and run tts query on the web search tool
+
+  #### Flight Search Tool:
+  - ⚠️ URGENT: Run search_flights tool IMMEDIATELY for ANY query about flights, airfare, or air travel
+  - Trigger keywords (ANY of these MUST trigger the tool):
+    * English: "flight", "flights", "fly", "flying", "airfare", "airline", "business class", "first class", "economy", "premium economy", "miles", "points", "award", "upgrade"
+    * German: "Flug", "Flüge", "fliegen", "Flugpreis", "Airline", "Business Class", "First Class", "Meilen", "Punkte", "Upgrade"
+  - The tool handles BOTH award flights (miles/points via Seats.aero) and cash flights (via Amadeus) automatically
+  - You do NOT need to convert city names to IATA codes - the tool will handle this automatically
+  - Run the tool with the user's query parameters as-is (city names are fine)
+  - Example queries that MUST trigger this tool:
+    * "Flüge von Frankfurt nach Phuket"
+    * "Show me flights from Berlin to New York in Business Class"
+    * "Wie viele Meilen brauche ich für einen Flug nach Tokyo?"
+    * "What's the cheapest way to fly to Bangkok?"
+    * "I want to upgrade to business class with points"
+    * "Find award flights from Munich to Los Angeles"
+  - Always respond in the SAME language as the user's query
+  - After tool execution, present both award (miles/points) and cash flight options unless user specified one type
 
   #### Movie/TV Show Queries:
   - These queries could include the words "movie" or "tv show", so use the 'movie_or_tv_search' tool for it
