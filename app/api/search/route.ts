@@ -67,6 +67,7 @@ import {
   extremeSearchTool,
   createConnectorsSearchTool,
 } from '@/lib/tools';
+import { flightSearchTool } from '@/lib/tools/flight-search';
 import { markdownJoinerTransform } from '@/lib/parser';
 import { ChatMessage } from '@/lib/types';
 
@@ -485,6 +486,7 @@ export async function POST(req: Request) {
             text_translate: textTranslateTool,
             code_interpreter: codeInterpreterTool,
             track_flight: flightTrackerTool,
+            search_flights: flightSearchTool,
             datetime: datetimeTool,
             extreme_search: extremeSearchTool(dataStream),
             greeting: greetingTool(timezone),
