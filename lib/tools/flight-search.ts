@@ -115,6 +115,9 @@ Examples of queries that should trigger this tool:
     });
 
     try {
+      console.log('[Flight Search] Calling Seats.aero with:', { origin, destination, departDate: params.departDate, cabin: params.cabin });
+      console.log('[Flight Search] Calling Amadeus with:', { origin, destination, departDate: params.departDate, returnDate: params.returnDate, cabin: params.cabin });
+      
       // 2. Parallel API calls
       const [seatsResult, amadeusResult] = await Promise.all([
         // Seats.aero: Award flights
@@ -125,8 +128,11 @@ Examples of queries that should trigger this tool:
           travelClass: params.cabin as TravelClass,
           flexibility: params.flexibility,
           maxResults: 5,
+        }).then((result) => {
+          console.log('[Flight Search] Seats.aero SUCCESS:', result ? `${result.length} flights` : 'null');
+          return result;
         }).catch((err) => {
-          console.warn('[Flight Search] Seats.aero failed:', err.message);
+          console.error('[Flight Search] Seats.aero FAILED:', err.message, err);
           return null;
         }),
 
@@ -141,8 +147,11 @@ Examples of queries that should trigger this tool:
               travelClass: params.cabin,
               passengers: params.passengers,
               nonStop: params.nonStop,
+            }).then((result) => {
+              console.log('[Flight Search] Amadeus SUCCESS:', result ? `${result.length} flights` : 'null');
+              return result;
             }).catch((err) => {
-              console.warn('[Flight Search] Amadeus failed:', err.message);
+              console.error('[Flight Search] Amadeus FAILED:', err.message, err);
               return null;
             }),
       ]);
