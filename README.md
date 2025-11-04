@@ -48,6 +48,16 @@ A minimalistic AI-powered search engine that helps you find information on the i
 - **Academic search**: Search for academic papers and research using Exa AI with abstracts and summaries
 - **YouTube search**: Find YouTube videos with detailed information, captions, and timestamps powered by Exa AI
 
+### Travel & Flight Search
+
+- **Flight search**: Search for flights using natural language queries in German
+  - **Award flights** via Seats.aero (miles/points search)
+  - **Cash flights** via Amadeus API (paid tickets)
+  - Multi-cabin class support (Economy, Premium, Business, First)
+  - Date flexibility (±3 days)
+  - Direct and connecting flights
+  - IATA code conversion from city names
+
 ### Entertainment & Media
 
 - **Movie & TV show search**: Get detailed information about movies and TV shows using TMDB API
