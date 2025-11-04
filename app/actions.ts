@@ -270,6 +270,28 @@ const groupInstructions = {
   - If the user is greeting you, use the 'greeting' tool without overthinking it
   - Folling are the tool specific guidelines:
 
+  #### ⚠️ PRIORITY 1: Flight Search Tool (ALWAYS CHECK THIS FIRST!)
+  - 🚨 CRITICAL: If user mentions ANYTHING about flights, airlines, or air travel → USE search_flights, NOT web_search!
+  - ⚠️ URGENT: Run search_flights tool IMMEDIATELY for ANY query about flights, airfare, or air travel
+  - This tool has HIGHEST PRIORITY - check for flight keywords BEFORE considering other tools
+  - Trigger keywords that MUST use search_flights (NOT web_search):
+    * English: "flight", "flights", "fly", "flying", "airfare", "airline", "airplane", "business class", "first class", "economy", "premium economy", "miles", "points", "award", "upgrade", "roundtrip", "round-trip", "one-way"
+    * German: "Flug", "Flüge", "fliegen", "Flugpreis", "Airline", "Fluggesellschaft", "Business Class", "First Class", "Economy", "Premium Economy", "Meilen", "Punkte", "Award", "Upgrade", "Hin- und Rückflug", "Hinflug", "Rückflug"
+  - The tool handles BOTH award flights (miles/points via Seats.aero) AND cash flights (via Amadeus) automatically
+  - You do NOT need to convert city names to IATA codes - the tool will handle this automatically
+  - Run the tool with the user's query parameters as-is (city names are fine)
+  - Example queries that MUST trigger search_flights (NOT web_search):
+    * "Flüge von Frankfurt nach Phuket"
+    * "Show me flights from Berlin to New York in Business Class"
+    * "Wie viele Meilen brauche ich für einen Flug nach Tokyo?"
+    * "What's the cheapest way to fly to Bangkok?"
+    * "I want to upgrade to business class with points"
+    * "Find award flights from Munich to Los Angeles"
+    * "Roundtrip Frankfurt to Phuket in Business Class"
+  - Always respond in the SAME language as the user's query
+  - After tool execution, present both award (miles/points) and cash flight options unless user specified one type
+  - ⚠️ DO NOT use web_search for flight queries - this bypasses our direct API integration!
+
   #### Multi Query Web Search:
   - Always try to make more than 3 queries to get the best results. Minimum 3 queries are required and maximum 5 queries are allowed
   - Specify the year or "latest" in queries to fetch recent information
@@ -386,24 +408,6 @@ const groupInstructions = {
   - Do not use the 'translate' tool for general web searches
   - invoke the tool when the user mentions the word 'translate' in the query
   - do not mistake this tool as tts or the word 'tts' in the query and run tts query on the web search tool
-
-  #### Flight Search Tool:
-  - ⚠️ URGENT: Run search_flights tool IMMEDIATELY for ANY query about flights, airfare, or air travel
-  - Trigger keywords (ANY of these MUST trigger the tool):
-    * English: "flight", "flights", "fly", "flying", "airfare", "airline", "business class", "first class", "economy", "premium economy", "miles", "points", "award", "upgrade"
-    * German: "Flug", "Flüge", "fliegen", "Flugpreis", "Airline", "Business Class", "First Class", "Meilen", "Punkte", "Upgrade"
-  - The tool handles BOTH award flights (miles/points via Seats.aero) and cash flights (via Amadeus) automatically
-  - You do NOT need to convert city names to IATA codes - the tool will handle this automatically
-  - Run the tool with the user's query parameters as-is (city names are fine)
-  - Example queries that MUST trigger this tool:
-    * "Flüge von Frankfurt nach Phuket"
-    * "Show me flights from Berlin to New York in Business Class"
-    * "Wie viele Meilen brauche ich für einen Flug nach Tokyo?"
-    * "What's the cheapest way to fly to Bangkok?"
-    * "I want to upgrade to business class with points"
-    * "Find award flights from Munich to Los Angeles"
-  - Always respond in the SAME language as the user's query
-  - After tool execution, present both award (miles/points) and cash flight options unless user specified one type
 
   #### Movie/TV Show Queries:
   - These queries could include the words "movie" or "tv show", so use the 'movie_or_tv_search' tool for it
