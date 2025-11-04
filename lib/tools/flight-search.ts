@@ -90,6 +90,31 @@ Examples of queries that should trigger this tool:
 
     console.log('[Flight Search] Starting search:', params);
 
+    // Validate dates are not in the past
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset to midnight for fair comparison
+    
+    const departDate = new Date(params.departDate);
+    if (departDate < today) {
+      throw new Error(
+        `Das Abflugdatum (${params.departDate}) liegt in der Vergangenheit. Bitte geben Sie ein zukünftiges Datum an. Heutiges Datum: ${today.toISOString().split('T')[0]}`
+      );
+    }
+
+    if (params.returnDate) {
+      const returnDate = new Date(params.returnDate);
+      if (returnDate < today) {
+        throw new Error(
+          `Das Rückflugdatum (${params.returnDate}) liegt in der Vergangenheit. Bitte geben Sie ein zukünftiges Datum an.`
+        );
+      }
+      if (returnDate < departDate) {
+        throw new Error(
+          `Das Rückflugdatum (${params.returnDate}) liegt vor dem Abflugdatum (${params.departDate}). Bitte überprüfen Sie die Daten.`
+        );
+      }
+    }
+
     // Resolve city names to IATA codes
     const origin = resolveIATACode(params.origin);
     const destination = resolveIATACode(params.destination);
