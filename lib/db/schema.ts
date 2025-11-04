@@ -241,6 +241,71 @@ export const lookout = pgTable('lookout', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
+// Tool calls tracking table
+export const toolCallStatus = ['queued', 'running', 'succeeded', 'failed', 'timeout', 'canceled'] as const;
+export type ToolCallStatus = (typeof toolCallStatus)[number];
+
+export const toolCalls = pgTable('tool_calls', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  chatId: text('chat_id')
+    .notNull()
+    .references(() => chat.id, { onDelete: 'cascade' }),
+  toolName: text('tool_name').notNull(),
+  status: text('status').$type<ToolCallStatus>().default('queued').notNull(),
+  request: json('request'),
+  response: json('response'),
+  error: text('error'),
+  dedupeKey: text('dedupe_key').unique(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  startedAt: timestamp('started_at'),
+  finishedAt: timestamp('finished_at'),
+});
+
+// Session state management table
+export interface SessionStateData {
+  last_flight_request?: {
+    origin: string;
+    destination: string;
+    departDate: string;
+    returnDate?: string | null;
+    cabin: string;
+    passengers?: number;
+    awardOnly?: boolean;
+    loyaltyPrograms?: string[];
+  };
+  pending_flight_request?: {
+    origin?: string;
+    destination?: string;
+    departDate?: string;
+    returnDate?: string | null;
+    cabin?: string;
+    passengers?: number;
+  } | null;
+  selected_itineraries?: Array<Record<string, unknown>>;
+  preferences?: Record<string, unknown>;
+  memory?: Array<{ type: string; content: string; created_at: string }>;
+}
+
+export const sessionStates = pgTable('session_states', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  chatId: text('chat_id')
+    .notNull()
+    .references(() => chat.id, { onDelete: 'cascade' })
+    .unique(),
+  state: json('state').$type<SessionStateData>().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Amadeus OAuth token storage
+export const amadeusTokens = pgTable('amadeus_tokens', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  environment: text('environment', { enum: ['test', 'prod'] }).notNull(),
+  accessToken: text('access_token').notNull(),
+  tokenType: text('token_type').notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 export type User = InferSelectModel<typeof user>;
 export type Session = InferSelectModel<typeof session>;
 export type Account = InferSelectModel<typeof account>;
@@ -254,3 +319,6 @@ export type ExtremeSearchUsage = InferSelectModel<typeof extremeSearchUsage>;
 export type MessageUsage = InferSelectModel<typeof messageUsage>;
 export type CustomInstructions = InferSelectModel<typeof customInstructions>;
 export type Lookout = InferSelectModel<typeof lookout>;
+export type ToolCall = InferSelectModel<typeof toolCalls>;
+export type SessionState = InferSelectModel<typeof sessionStates>;
+export type AmadeusToken = InferSelectModel<typeof amadeusTokens>;
