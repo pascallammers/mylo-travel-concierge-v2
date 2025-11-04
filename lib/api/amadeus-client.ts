@@ -70,7 +70,7 @@ export async function searchAmadeus(
     destinationLocationCode: params.destination,
     departureDate: params.departureDate,
     adults: String(params.passengers),
-    travelClass: params.travelClass.toLowerCase(),
+    travelClass: params.travelClass, // Amadeus expects uppercase: ECONOMY, BUSINESS, etc.
     currencyCode: 'EUR',
     max: String(params.maxResults || 10),
   });

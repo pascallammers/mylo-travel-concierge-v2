@@ -102,21 +102,29 @@ Examples of queries that should trigger this tool:
 
     console.log(`[Flight Search] Resolved: ${params.origin} → ${origin}, ${params.destination} → ${destination}`);
 
-    // 1. Record tool call
-    const { id: toolCallId } = await recordToolCall({
-      chatId,
-      toolName: 'search_flights',
-      request: { ...params, origin, destination },
-    });
+    // 1. Record tool call (non-blocking, don't let DB failures stop execution)
+    let toolCallId: string | null = null;
+    try {
+      const result = await recordToolCall({
+        chatId,
+        toolName: 'search_flights',
+        request: { ...params, origin, destination },
+      });
+      toolCallId = result.id;
 
-    await updateToolCall(toolCallId, {
-      status: 'running',
-      startedAt: new Date(),
-    });
+      await updateToolCall(toolCallId, {
+        status: 'running',
+        startedAt: new Date(),
+      });
+      console.log('[Flight Search] ✓ DB logging enabled');
+    } catch (dbError) {
+      console.warn('[Flight Search] ⚠️ DB logging failed (continuing anyway):', dbError instanceof Error ? dbError.message : dbError);
+      // Continue execution even if DB fails
+    }
 
     try {
-      console.log('[Flight Search] Calling Seats.aero with:', { origin, destination, departDate: params.departDate, cabin: params.cabin });
-      console.log('[Flight Search] Calling Amadeus with:', { origin, destination, departDate: params.departDate, returnDate: params.returnDate, cabin: params.cabin });
+      console.log('[Flight Search] 🔄 Calling Seats.aero with:', { origin, destination, departDate: params.departDate, cabin: params.cabin });
+      console.log('[Flight Search] 🔄 Calling Amadeus with:', { origin, destination, departDate: params.departDate, returnDate: params.returnDate, cabin: params.cabin });
       
       // 2. Parallel API calls
       const [seatsResult, amadeusResult] = await Promise.all([
@@ -183,38 +191,55 @@ Examples of queries that should trigger this tool:
         amadeusCount: result.amadeus.count,
       });
 
-      // 4. Update tool call status
-      await updateToolCall(toolCallId, {
-        status: 'succeeded',
-        response: result,
-        finishedAt: new Date(),
-      });
+      // 4. Update tool call status (if DB logging is enabled)
+      if (toolCallId) {
+        try {
+          await updateToolCall(toolCallId, {
+            status: 'succeeded',
+            response: result,
+            finishedAt: new Date(),
+          });
+        } catch (dbError) {
+          console.warn('[Flight Search] ⚠️ Failed to update DB status (non-critical):', dbError instanceof Error ? dbError.message : dbError);
+        }
+      }
 
-      // 5. Update session state
-      await mergeSessionState(chatId, {
-        last_flight_request: {
-          origin,
-          destination,
-          departDate: params.departDate,
-          returnDate: params.returnDate,
-          cabin: params.cabin,
-          passengers: params.passengers,
-          awardOnly: params.awardOnly,
-          loyaltyPrograms: params.loyaltyPrograms,
-        },
-        pending_flight_request: null,
-      });
+      // 5. Update session state (non-blocking - don't let this fail the tool)
+      try {
+        await mergeSessionState(chatId, {
+          last_flight_request: {
+            origin,
+            destination,
+            departDate: params.departDate,
+            returnDate: params.returnDate,
+            cabin: params.cabin,
+            passengers: params.passengers,
+            awardOnly: params.awardOnly,
+            loyaltyPrograms: params.loyaltyPrograms,
+          },
+          pending_flight_request: null,
+        });
+      } catch (sessionError) {
+        console.warn('[Flight Search] ⚠️ Failed to update session state (non-critical):', sessionError instanceof Error ? sessionError.message : sessionError);
+      }
 
       // 6. Format response for LLM
       return formatFlightResults(result, params);
     } catch (error) {
-      console.error('[Flight Search] Error:', error);
+      console.error('[Flight Search] ❌ Error:', error);
 
-      await updateToolCall(toolCallId, {
-        status: 'failed',
-        error: error instanceof Error ? error.message : String(error),
-        finishedAt: new Date(),
-      });
+      // Update DB status if logging is enabled
+      if (toolCallId) {
+        try {
+          await updateToolCall(toolCallId, {
+            status: 'failed',
+            error: error instanceof Error ? error.message : String(error),
+            finishedAt: new Date(),
+          });
+        } catch (dbError) {
+          console.warn('[Flight Search] ⚠️ Failed to update DB error status (non-critical):', dbError instanceof Error ? dbError.message : dbError);
+        }
+      }
 
       throw error;
     }

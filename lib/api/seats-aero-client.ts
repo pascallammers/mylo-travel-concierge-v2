@@ -89,7 +89,7 @@ export async function searchSeatsAero(
   try {
     const response = await fetch(searchUrl.toString(), {
       headers: {
-        'Partner-Authorization': `Bearer ${process.env.SEATSAERO_API_KEY}`,
+        'Partner-Authorization': process.env.SEATSAERO_API_KEY || '',
         'Content-Type': 'application/json',
       },
     });
@@ -106,21 +106,31 @@ export async function searchSeatsAero(
     const entries = Array.isArray(data.data) ? data.data : [];
     console.log(`[Seats.aero] Found ${entries.length} results`);
 
-    // Filter and sort by miles
-    const filtered = entries
-      .filter((entry: any) => hasAvailability(entry, key))
-      .sort((a: any, b: any) => getMiles(a, key) - getMiles(b, key))
-      .slice(0, params.maxResults || 10);
-
-    // Load trip details for each flight
-    const flights: SeatsAeroFlight[] = [];
-    for (const entry of filtered) {
-      const flight = await loadFlightDetails(entry, key, cabin);
-      if (flight) flights.push(flight);
+    // Extract and process all trips from all availability entries
+    const allTrips: SeatsAeroFlight[] = [];
+    
+    for (const entry of entries) {
+      const trips = entry.AvailabilityTrips || [];
+      
+      // Filter trips by cabin class
+      const cabinTrips = trips.filter((trip: any) => 
+        trip.Cabin === CLASS_MAP[params.travelClass].apiValue
+      );
+      
+      // Convert each trip to our format
+      for (const trip of cabinTrips) {
+        const flight = formatTripToFlight(trip, entry, cabin);
+        if (flight) allTrips.push(flight);
+      }
     }
 
-    console.log(`[Seats.aero] Returning ${flights.length} flights`);
-    return flights;
+    // Sort by miles and limit results
+    const sorted = allTrips
+      .sort((a, b) => (a.miles || 0) - (b.miles || 0))
+      .slice(0, params.maxResults || 10);
+
+    console.log(`[Seats.aero] Returning ${sorted.length} flights`);
+    return sorted;
   } catch (error) {
     console.error('[Seats.aero] Search failed:', error);
     throw error;
@@ -128,63 +138,65 @@ export async function searchSeatsAero(
 }
 
 /**
- * Load detailed flight information from trip endpoint
- * @param entry - Search result entry
- * @param cabinKey - Cabin class key (Y/W/J/F)
+ * Format trip data from AvailabilityTrips array to our SeatsAeroFlight format
+ * @param trip - Trip from AvailabilityTrips array
+ * @param entry - Parent availability entry
  * @param cabinName - Human-readable cabin name
  * @returns Formatted flight or null
  */
-async function loadFlightDetails(
+function formatTripToFlight(
+  trip: any,
   entry: any,
-  cabinKey: string,
   cabinName: string
-): Promise<SeatsAeroFlight | null> {
-  const tripId = entry[`${cabinKey.toLowerCase()}TripId`];
-  if (!tripId) return null;
-
+): SeatsAeroFlight | null {
   try {
-    const tripUrl = `${SEATSAERO_BASE_URL}/trip/${tripId}`;
-    const response = await fetch(tripUrl, {
-      headers: {
-        'Partner-Authorization': `Bearer ${process.env.SEATSAERO_API_KEY}`,
-      },
-    });
-
-    if (!response.ok) {
-      console.warn(`[Seats.aero] Failed to load trip ${tripId}`);
-      return null;
-    }
-
-    const trip = await response.json();
-
-    // Extract miles and taxes
-    const miles = getMiles(entry, cabinKey);
-    const taxAmount = trip.taxes?.amount || null;
-    const taxCurrency = trip.taxes?.currency || null;
+    // Extract miles and taxes from new API format
+    const miles = trip.MileageCost || 0;
+    const taxAmount = trip.TotalTaxes || 0;
+    const taxCurrency = trip.TaxesCurrency || 'EUR';
 
     // Format price string
-    const priceStr =
-      miles !== null && miles < Infinity
-        ? `${miles.toLocaleString()} miles${taxAmount ? ` + ${taxCurrency}${taxAmount}` : ''}`
-        : 'N/A';
+    const priceStr = `${miles.toLocaleString()} miles + ${taxCurrency} ${(taxAmount / 100).toFixed(2)}`;
+
+    // Parse departure and arrival times
+    const departTime = trip.DepartsAt ? new Date(trip.DepartsAt).toISOString() : '';
+    const arriveTime = trip.ArrivesAt ? new Date(trip.ArrivesAt).toISOString() : '';
+    
+    // Calculate duration in readable format
+    const durationMins = trip.TotalDuration || 0;
+    const hours = Math.floor(durationMins / 60);
+    const mins = durationMins % 60;
+    const durationStr = `${hours}h ${mins}m`;
 
     return {
-      id: tripId,
+      id: trip.ID,
       provider: 'seatsaero',
       price: priceStr,
       pricePerPerson: priceStr,
-      airline: trip.airline || 'Unknown',
+      airline: trip.Carriers?.split(',')[0]?.trim() || 'Unknown',
       cabin: cabinName,
-      tags: extractTags(trip),
-      totalStops: trip.segments?.length - 1 || 0,
-      miles: miles !== Infinity ? miles : null,
-      taxes: { amount: taxAmount, currency: taxCurrency },
-      seatsLeft: getSeatsLeft(entry, cabinKey),
-      bookingLinks: extractBookingLinks(trip),
-      outbound: formatSegment(trip),
+      tags: [],
+      totalStops: trip.Stops || 0,
+      miles: miles,
+      taxes: { amount: taxAmount / 100, currency: taxCurrency },
+      seatsLeft: trip.RemainingSeats || null,
+      bookingLinks: {},
+      outbound: {
+        departure: {
+          airport: trip.OriginAirport || '',
+          time: departTime,
+        },
+        arrival: {
+          airport: trip.DestinationAirport || '',
+          time: arriveTime,
+        },
+        duration: durationStr,
+        stops: trip.Stops === 0 ? 'Nonstop' : `${trip.Stops} stop${trip.Stops > 1 ? 's' : ''}`,
+        flightNumbers: trip.FlightNumbers || '',
+      },
     };
   } catch (error) {
-    console.warn(`[Seats.aero] Error loading trip ${tripId}:`, error);
+    console.warn(`[Seats.aero] Error formatting trip:`, error);
     return null;
   }
 }
