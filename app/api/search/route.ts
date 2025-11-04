@@ -67,6 +67,7 @@ import {
   extremeSearchTool,
   createConnectorsSearchTool,
 } from '@/lib/tools';
+import { flightSearchTool } from '@/lib/tools/flight-search';
 import { markdownJoinerTransform } from '@/lib/parser';
 import { ChatMessage } from '@/lib/types';
 
@@ -441,6 +442,72 @@ export async function POST(req: Request) {
 
       const streamStartTime = Date.now();
 
+      // Create tool registry with proper filtering based on activeTools
+      const createToolRegistry = (
+        dataStream: any,
+        searchProvider: 'parallel' | 'exa' | 'tavily' | 'firecrawl' | undefined,
+        user: any,
+        selectedConnectors: any[],
+        timezone: string,
+        activeTools: readonly string[]
+      ) => {
+        // All available tools
+        const allTools: Record<string, any> = {
+          stock_chart: stockChartTool,
+          currency_converter: currencyConverterTool,
+          coin_data: coinDataTool,
+          coin_data_by_contract: coinDataByContractTool,
+          coin_ohlc: coinOhlcTool,
+          x_search: xSearchTool,
+          web_search: webSearchTool(dataStream, searchProvider),
+          academic_search: academicSearchTool,
+          youtube_search: youtubeSearchTool,
+          reddit_search: redditSearchTool,
+          retrieve: retrieveTool,
+          movie_or_tv_search: movieTvSearchTool,
+          trending_movies: trendingMoviesTool,
+          trending_tv: trendingTvTool,
+          find_place_on_map: findPlaceOnMapTool,
+          nearby_places_search: nearbyPlacesSearchTool,
+          get_weather_data: weatherTool,
+          text_translate: textTranslateTool,
+          code_interpreter: codeInterpreterTool,
+          track_flight: flightTrackerTool,
+          search_flights: flightSearchTool,
+          datetime: datetimeTool,
+          extreme_search: extremeSearchTool(dataStream),
+          greeting: greetingTool(timezone),
+        };
+
+        // Filter to only include active tools
+        const filteredTools: Record<string, any> = {};
+        for (const [toolName, toolImpl] of Object.entries(allTools)) {
+          if (activeTools.includes(toolName as any)) {
+            filteredTools[toolName] = toolImpl;
+          }
+        }
+
+        // Add user-specific tools if authenticated
+        if (user) {
+          const memoryTools = createMemoryTools(user.id);
+
+          if (activeTools.includes('search_memories')) {
+            filteredTools.search_memories = memoryTools.searchMemories;
+          }
+          if (activeTools.includes('add_memory')) {
+            filteredTools.add_memory = memoryTools.addMemory;
+          }
+          if (activeTools.includes('connectors_search')) {
+            filteredTools.connectors_search = createConnectorsSearchTool(user.id, selectedConnectors);
+          }
+        }
+
+        console.log('🔧 Active Tools from Group Config:', activeTools);
+        console.log('🔧 Registered Tools:', Object.keys(filteredTools));
+
+        return filteredTools;
+      };
+
       const result = streamText({
         model: languageModel,
         messages: convertToModelMessages(messages),
@@ -459,49 +526,7 @@ export async function POST(req: Request) {
             : '\n') +
           (latitude && longitude ? `\n\nThe user's location is ${latitude}, ${longitude}.` : ''),
         toolChoice: 'auto',
-        tools: (() => {
-          const baseTools = {
-            stock_chart: stockChartTool,
-            currency_converter: currencyConverterTool,
-            coin_data: coinDataTool,
-            coin_data_by_contract: coinDataByContractTool,
-            coin_ohlc: coinOhlcTool,
-
-            x_search: xSearchTool,
-            web_search: webSearchTool(dataStream, searchProvider),
-            academic_search: academicSearchTool,
-            youtube_search: youtubeSearchTool,
-            reddit_search: redditSearchTool,
-            retrieve: retrieveTool,
-
-            movie_or_tv_search: movieTvSearchTool,
-            trending_movies: trendingMoviesTool,
-            trending_tv: trendingTvTool,
-
-            find_place_on_map: findPlaceOnMapTool,
-            nearby_places_search: nearbyPlacesSearchTool,
-            get_weather_data: weatherTool,
-
-            text_translate: textTranslateTool,
-            code_interpreter: codeInterpreterTool,
-            track_flight: flightTrackerTool,
-            datetime: datetimeTool,
-            extreme_search: extremeSearchTool(dataStream),
-            greeting: greetingTool(timezone),
-          };
-
-          if (!user) {
-            return baseTools;
-          }
-
-          const memoryTools = createMemoryTools(user.id);
-          return {
-            ...baseTools,
-            search_memories: memoryTools.searchMemories as any,
-            add_memory: memoryTools.addMemory as any,
-            connectors_search: createConnectorsSearchTool(user.id, selectedConnectors),
-          } as any;
-        })(),
+        tools: createToolRegistry(dataStream, searchProvider, user, selectedConnectors, timezone, activeTools),
         experimental_repairToolCall: async ({ toolCall, tools, inputSchema, error }) => {
           if (NoSuchToolError.isInstance(error)) {
             return null;

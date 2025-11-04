@@ -77,16 +77,16 @@ const SettingsIcon = forwardRef<SettingsIconHandle, SettingsIconProps>(
           strokeLinejoin="round"
         >
           <motion.line
-            x1="21"
-            x2="14"
             y1="4"
             y2="4"
-            initial={false}
+            initial="normal"
             variants={{
               normal: {
+                x1: 21,
                 x2: 14,
               },
               animate: {
+                x1: 21,
                 x2: 10,
               },
             }}
@@ -94,16 +94,17 @@ const SettingsIcon = forwardRef<SettingsIconHandle, SettingsIconProps>(
             transition={defaultTransition}
           />
           <motion.line
-            x1="10"
-            x2="3"
             y1="4"
             y2="4"
+            initial="normal"
             variants={{
               normal: {
                 x1: 10,
+                x2: 3,
               },
               animate: {
                 x1: 5,
+                x2: 3,
               },
             }}
             animate={controls}
@@ -111,15 +112,16 @@ const SettingsIcon = forwardRef<SettingsIconHandle, SettingsIconProps>(
           />
 
           <motion.line
-            x1="21"
-            x2="12"
             y1="12"
             y2="12"
+            initial="normal"
             variants={{
               normal: {
+                x1: 21,
                 x2: 12,
               },
               animate: {
+                x1: 21,
                 x2: 18,
               },
             }}
@@ -128,16 +130,17 @@ const SettingsIcon = forwardRef<SettingsIconHandle, SettingsIconProps>(
           />
 
           <motion.line
-            x1="8"
-            x2="3"
             y1="12"
             y2="12"
+            initial="normal"
             variants={{
               normal: {
                 x1: 8,
+                x2: 3,
               },
               animate: {
                 x1: 13,
+                x2: 3,
               },
             }}
             animate={controls}
@@ -145,15 +148,16 @@ const SettingsIcon = forwardRef<SettingsIconHandle, SettingsIconProps>(
           />
 
           <motion.line
-            x1="3"
-            x2="12"
             y1="20"
             y2="20"
+            initial="normal"
             variants={{
               normal: {
+                x1: 3,
                 x2: 12,
               },
               animate: {
+                x1: 3,
                 x2: 4,
               },
             }}
@@ -162,16 +166,17 @@ const SettingsIcon = forwardRef<SettingsIconHandle, SettingsIconProps>(
           />
 
           <motion.line
-            x1="16"
-            x2="21"
             y1="20"
             y2="20"
+            initial="normal"
             variants={{
               normal: {
                 x1: 16,
+                x2: 21,
               },
               animate: {
                 x1: 8,
+                x2: 21,
               },
             }}
             animate={controls}
@@ -179,18 +184,19 @@ const SettingsIcon = forwardRef<SettingsIconHandle, SettingsIconProps>(
           />
 
           <motion.line
-            x1="14"
-            x2="14"
-            y1="2"
-            y2="6"
+            initial="normal"
             variants={{
               normal: {
                 x1: 14,
                 x2: 14,
+                y1: 2,
+                y2: 6,
               },
               animate: {
                 x1: 9,
                 x2: 9,
+                y1: 2,
+                y2: 6,
               },
             }}
             animate={controls}
@@ -198,18 +204,19 @@ const SettingsIcon = forwardRef<SettingsIconHandle, SettingsIconProps>(
           />
 
           <motion.line
-            x1="8"
-            x2="8"
-            y1="10"
-            y2="14"
+            initial="normal"
             variants={{
               normal: {
                 x1: 8,
                 x2: 8,
+                y1: 10,
+                y2: 14,
               },
               animate: {
                 x1: 14,
                 x2: 14,
+                y1: 10,
+                y2: 14,
               },
             }}
             animate={controls}
@@ -217,18 +224,19 @@ const SettingsIcon = forwardRef<SettingsIconHandle, SettingsIconProps>(
           />
 
           <motion.line
-            x1="16"
-            x2="16"
-            y1="18"
-            y2="22"
+            initial="normal"
             variants={{
               normal: {
                 x1: 16,
                 x2: 16,
+                y1: 18,
+                y2: 22,
               },
               animate: {
                 x1: 8,
                 x2: 8,
+                y1: 18,
+                y2: 22,
               },
             }}
             animate={controls}

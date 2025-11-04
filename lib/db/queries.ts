@@ -928,3 +928,185 @@ export async function deleteLookout({ id }: { id: string }) {
     throw new ChatSDKError('bad_request:database', 'Failed to delete lookout');
   }
 }
+
+// ============================================
+// Tool Calls Registry
+// ============================================
+
+/**
+ * Generate SHA256 hash for deduplication
+ * @param data - Data to hash
+ * @returns Hash string
+ */
+async function sha256(data: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const dataBuffer = encoder.encode(data);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Record a new tool call in the database
+ * @param params - Tool call parameters
+ * @returns Tool call ID and dedupe key
+ */
+export async function recordToolCall(params: {
+  chatId: string;
+  toolName: string;
+  request: unknown;
+}): Promise<{ id: string; dedupeKey: string }> {
+  try {
+    const dedupeKey = await sha256(
+      JSON.stringify({
+        chatId: params.chatId,
+        toolName: params.toolName,
+        request: params.request,
+      })
+    );
+
+    // Check for existing tool call
+    const { toolCalls } = await import('./schema');
+    const existing = await db.query.toolCalls.findFirst({
+      where: eq(toolCalls.dedupeKey, dedupeKey),
+      columns: { id: true },
+    });
+
+    if (existing) {
+      return { id: existing.id, dedupeKey };
+    }
+
+    // Insert new tool call
+    const [result] = await db
+      .insert(toolCalls)
+      .values({
+        chatId: params.chatId,
+        toolName: params.toolName,
+        status: 'queued',
+        request: params.request as any,
+        dedupeKey,
+      })
+      .returning({ id: toolCalls.id });
+
+    return { id: result.id, dedupeKey };
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to record tool call');
+  }
+}
+
+/**
+ * Update tool call status and details
+ * @param id - Tool call ID
+ * @param update - Fields to update
+ */
+export async function updateToolCall(
+  id: string,
+  update: {
+    status?: 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout' | 'canceled';
+    response?: unknown;
+    error?: string;
+    startedAt?: Date;
+    finishedAt?: Date;
+  }
+): Promise<void> {
+  try {
+    const { toolCalls } = await import('./schema');
+    const updateData: Record<string, any> = {};
+    
+    if (update.status) updateData.status = update.status;
+    if (update.response) updateData.response = update.response;
+    if (update.error) updateData.error = update.error;
+    if (update.startedAt) updateData.startedAt = update.startedAt;
+    if (update.finishedAt) updateData.finishedAt = update.finishedAt;
+    
+    await db
+      .update(toolCalls)
+      .set(updateData)
+      .where(eq(toolCalls.id, id));
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to update tool call');
+  }
+}
+
+/**
+ * Get tool call by ID
+ * @param id - Tool call ID
+ * @returns Tool call or null
+ */
+export async function getToolCallById(id: string) {
+  try {
+    const { toolCalls } = await import('./schema');
+    return await db.query.toolCalls.findFirst({
+      where: eq(toolCalls.id, id),
+    });
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to get tool call by id');
+  }
+}
+
+// ============================================
+// Session State Management
+// ============================================
+
+/**
+ * Get session state for a chat
+ * @param chatId - Chat ID
+ * @returns Session state data or empty object
+ */
+export async function getSessionState(chatId: string) {
+  try {
+    const { sessionStates } = await import('./schema');
+    const result = await db.query.sessionStates.findFirst({
+      where: eq(sessionStates.chatId, chatId),
+    });
+
+    return result?.state || {};
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to get session state');
+  }
+}
+
+/**
+ * Merge session state with new data
+ * @param chatId - Chat ID
+ * @param patch - Partial session state to merge
+ * @returns Updated session state
+ */
+export async function mergeSessionState(chatId: string, patch: Record<string, unknown>) {
+  try {
+    const { sessionStates } = await import('./schema');
+    const current = await getSessionState(chatId);
+    const merged = { ...current, ...patch };
+
+    await db
+      .insert(sessionStates)
+      .values({
+        chatId,
+        state: merged as any,
+      })
+      .onConflictDoUpdate({
+        target: sessionStates.chatId,
+        set: {
+          state: merged as any,
+          updatedAt: new Date(),
+        },
+      });
+
+    return merged;
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to merge session state');
+  }
+}
+
+/**
+ * Clear session state for a chat
+ * @param chatId - Chat ID
+ */
+export async function clearSessionState(chatId: string): Promise<void> {
+  try {
+    const { sessionStates } = await import('./schema');
+    await db.delete(sessionStates).where(eq(sessionStates.chatId, chatId));
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to clear session state');
+  }
+}

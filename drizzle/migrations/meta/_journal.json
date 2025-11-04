@@ -57,6 +57,13 @@
       "when": 1752217695953,
       "tag": "0007_easy_frank_castle",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1762252485960,
+      "tag": "0008_peaceful_sunfire",
+      "breakpoints": true
     }
   ]
 }
