@@ -17,7 +17,7 @@ This tool searches both:
 
 Results include pricing, availability, and booking details.`,
 
-  parameters: z.object({
+  inputSchema: z.object({
     origin: z
       .string()
       .length(3)
