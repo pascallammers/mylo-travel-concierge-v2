@@ -1,6 +1,6 @@
-import { db } from '@/lib/db/drizzle';
+import { db } from '@/lib/db';
 import { amadeusTokens } from '@/lib/db/schema';
-import { desc, eq, and, gt } from 'drizzle-orm';
+import { desc, eq, and, gt, lt } from 'drizzle-orm';
 
 /**
  * Get or refresh Amadeus OAuth2 token
@@ -11,10 +11,11 @@ export async function getAmadeusToken(
   environment: 'test' | 'prod' = 'test'
 ): Promise<string> {
   // 1. Check for cached valid token
+  const now = new Date();
   const cached = await db.query.amadeusTokens.findFirst({
     where: and(
       eq(amadeusTokens.environment, environment),
-      gt(amadeusTokens.expiresAt, new Date())
+      gt(amadeusTokens.expiresAt, now)
     ),
     orderBy: desc(amadeusTokens.createdAt),
   });
@@ -68,9 +69,10 @@ export async function getAmadeusToken(
  * Clear expired tokens from database
  */
 export async function cleanupExpiredTokens(): Promise<void> {
+  const now = new Date();
   const deleted = await db
     .delete(amadeusTokens)
-    .where(gt(new Date(), amadeusTokens.expiresAt))
+    .where(lt(amadeusTokens.expiresAt, now))
     .returning({ id: amadeusTokens.id });
 
   console.log(`[Amadeus] Cleaned up ${deleted.length} expired tokens`);

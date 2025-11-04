@@ -108,8 +108,8 @@ export async function searchSeatsAero(
 
     // Filter and sort by miles
     const filtered = entries
-      .filter((entry) => hasAvailability(entry, key))
-      .sort((a, b) => getMiles(a, key) - getMiles(b, key))
+      .filter((entry: any) => hasAvailability(entry, key))
+      .sort((a: any, b: any) => getMiles(a, key) - getMiles(b, key))
       .slice(0, params.maxResults || 10);
 
     // Load trip details for each flight

@@ -1011,15 +1011,17 @@ export async function updateToolCall(
 ): Promise<void> {
   try {
     const { toolCalls } = await import('./schema');
+    const updateData: Record<string, any> = {};
+    
+    if (update.status) updateData.status = update.status;
+    if (update.response) updateData.response = update.response;
+    if (update.error) updateData.error = update.error;
+    if (update.startedAt) updateData.startedAt = update.startedAt;
+    if (update.finishedAt) updateData.finishedAt = update.finishedAt;
+    
     await db
       .update(toolCalls)
-      .set({
-        ...(update.status && { status: update.status }),
-        ...(update.response && { response: update.response as any }),
-        ...(update.error && { error: update.error }),
-        ...(update.startedAt && { startedAt: update.startedAt }),
-        ...(update.finishedAt && { finishedAt: update.finishedAt }),
-      })
+      .set(updateData)
       .where(eq(toolCalls.id, id));
   } catch (error) {
     throw new ChatSDKError('bad_request:database', 'Failed to update tool call');
