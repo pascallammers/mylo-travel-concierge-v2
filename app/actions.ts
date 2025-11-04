@@ -274,6 +274,16 @@ const groupInstructions = {
   - 🚨 CRITICAL: If user mentions ANYTHING about flights, airlines, or air travel → USE search_flights, NOT web_search!
   - ⚠️ URGENT: Run search_flights tool IMMEDIATELY for ANY query about flights, airfare, or air travel
   - This tool has HIGHEST PRIORITY - check for flight keywords BEFORE considering other tools
+  
+  **📅 IMPORTANT - Date Validation (Check BEFORE calling the tool):**
+  - Today's date is: ${new Date().toISOString().split('T')[0]}
+  - BEFORE calling search_flights, check if the user's requested dates are in the PAST
+  - If dates are in the past (e.g., "March 2024" when it's November 2025):
+    * Politely inform the user that flights can only be searched for FUTURE dates
+    * Ask if they meant a different year or if they'd like to search for upcoming dates
+    * Example: "Ich sehe, dass Sie nach Flügen im März 2024 fragen, aber dieses Datum liegt in der Vergangenheit. Meinten Sie vielleicht März 2026? Gerne kann ich für Sie nach zukünftigen Daten suchen."
+  - The tool will reject past dates automatically, but better UX is to catch this BEFORE the tool call
+  
   - Trigger keywords that MUST use search_flights (NOT web_search):
     * English: "flight", "flights", "fly", "flying", "airfare", "airline", "airplane", "business class", "first class", "economy", "premium economy", "miles", "points", "award", "upgrade", "roundtrip", "round-trip", "one-way"
     * German: "Flug", "Flüge", "fliegen", "Flugpreis", "Airline", "Fluggesellschaft", "Business Class", "First Class", "Economy", "Premium Economy", "Meilen", "Punkte", "Award", "Upgrade", "Hin- und Rückflug", "Hinflug", "Rückflug"
