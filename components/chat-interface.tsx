@@ -469,13 +469,11 @@ const ChatInterface = memo(
         type: 'SET_ANY_DIALOG_OPEN',
         payload:
           chatState.commandDialogOpen ||
-          chatState.showSignInPrompt ||
           chatState.showUpgradeDialog ||
           chatState.showAnnouncementDialog,
       });
     }, [
       chatState.commandDialogOpen,
-      chatState.showSignInPrompt,
       chatState.showUpgradeDialog,
       chatState.showAnnouncementDialog,
     ]);

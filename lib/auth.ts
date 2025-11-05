@@ -83,7 +83,7 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false, // No signup = no verification needed
-    sendResetPasswordEmail: async ({ user, url, token }) => {
+    sendResetPasswordEmail: async ({ user, url, token }: { user: any; url: string; token: string }) => {
       // Import email service dynamically to avoid circular dependencies
       const { sendPasswordResetEmail } = await import('./email');
       await sendPasswordResetEmail(user.email, url);
