@@ -70,12 +70,18 @@ export async function POST(req: NextRequest) {
     const password = crypto.randomBytes(12).toString('base64').slice(0, 12);
 
     // 5. Create user in database
+    const userId = crypto.randomBytes(16).toString('hex');
+    const now = new Date();
+    
     const [newUser] = await db
       .insert(user)
       .values({
+        id: userId,
         email,
         name: firstName && lastName ? `${firstName} ${lastName}` : firstName || email.split('@')[0],
         emailVerified: true, // Auto-verified since created via webhook
+        createdAt: now,
+        updatedAt: now,
       })
       .returning();
 
@@ -84,11 +90,16 @@ export async function POST(req: NextRequest) {
     // 6. Create account entry for email/password auth
     // Note: Better Auth will handle password hashing automatically when user logs in
     // We store the plain password temporarily to send via email
+    const accountId = crypto.randomBytes(16).toString('hex');
+    
     await db.insert(account).values({
+      id: accountId,
       userId: newUser.id,
       accountId: email,
       providerId: 'credential',
       password: password, // Better Auth will hash this on first login
+      createdAt: now,
+      updatedAt: now,
     });
 
     console.log('✅ Account entry created for user:', newUser.id);
