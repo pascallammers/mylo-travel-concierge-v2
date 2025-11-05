@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { forgetPassword } from '@/lib/auth-client';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { MyloLogo } from '@/components/logos/mylo-logo';
 
 export default function ResetPasswordPage() {
   const [email, setEmail] = useState('');
@@ -35,14 +36,23 @@ export default function ResetPasswordPage() {
   if (sent) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="w-full max-w-[380px] text-center space-y-4">
-          <h1 className="text-2xl font-medium">E-Mail gesendet</h1>
-          <p className="text-muted-foreground">Prüfe dein Postfach für weitere Anweisungen.</p>
-          <Link href="/sign-in">
-            <Button variant="outline" className="w-full">
-              Zurück zum Login
-            </Button>
-          </Link>
+        <div className="w-full max-w-md mx-auto space-y-12">
+          {/* Logo */}
+          <div className="flex items-center justify-center gap-3">
+            <MyloLogo className="size-8" />
+            <h2 className="text-2xl font-normal font-be-vietnam-pro">MYLO</h2>
+          </div>
+
+          {/* Success Message */}
+          <div className="space-y-6 text-center">
+            <h1 className="text-2xl font-medium">E-Mail gesendet</h1>
+            <p className="text-muted-foreground">Prüfe dein Postfach für weitere Anweisungen.</p>
+            <Link href="/sign-in">
+              <Button variant="outline" className="w-full">
+                Zurück zum Login
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -50,9 +60,16 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="w-full max-w-[380px]">
+      <div className="w-full max-w-md mx-auto space-y-12">
+        {/* Logo */}
+        <div className="flex items-center justify-center gap-3">
+          <MyloLogo className="size-8" />
+          <h2 className="text-2xl font-normal font-be-vietnam-pro">MYLO</h2>
+        </div>
+
+        {/* Reset Form */}
         <div className="space-y-6">
-          <div className="text-center space-y-3">
+          <div className="text-center space-y-2">
             <h1 className="text-2xl font-medium">Passwort zurücksetzen</h1>
             <p className="text-sm text-muted-foreground">Gib deine E-Mail-Adresse ein</p>
           </div>
