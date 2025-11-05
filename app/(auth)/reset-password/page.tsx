@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useState } from 'react';
-import { resetPassword } from '@/lib/auth-client';
+import { forgetPassword } from '@/lib/auth-client';
 import { toast } from 'sonner';
 import Link from 'next/link';
 
@@ -18,11 +18,15 @@ export default function ResetPasswordPage() {
     setLoading(true);
 
     try {
-      await resetPassword({ email });
+      await forgetPassword({
+        email,
+        redirectTo: '/reset-password/confirm',
+      });
       setSent(true);
       toast.success('Passwort-Reset E-Mail wurde gesendet!');
     } catch (error) {
       toast.error('Fehler beim Senden der E-Mail.');
+      console.error('Password reset error:', error);
     } finally {
       setLoading(false);
     }
