@@ -1,32 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionCookie } from 'better-auth/cookies';
 
-const authRoutes = ['/sign-in', '/sign-up'];
-const protectedRoutes = ['/lookout', '/xql'];
+const authRoutes = ['/sign-in', '/reset-password'];
+const publicRoutes = ['/terms', '/privacy-policy'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   console.log('Pathname: ', pathname);
-  if (pathname === '/api/search') return NextResponse.next();
-  if (pathname.startsWith('/new') || pathname.startsWith('/api/search')) {
+
+  // Allow all API routes including webhooks and auth
+  if (pathname.startsWith('/api')) {
     return NextResponse.next();
   }
 
-  // /api/payments/webhooks is a webhook endpoint that should be accessible without authentication
-  if (pathname.startsWith('/api/payments/webhooks')) {
+  // Allow public routes
+  if (publicRoutes.some((route) => pathname.startsWith(route))) {
     return NextResponse.next();
   }
 
-  // /api/auth/polar/webhooks
-  if (pathname.startsWith('/api/auth/polar/webhooks')) {
-    return NextResponse.next();
-  }
-
-  if (pathname.startsWith('/api/auth/dodopayments/webhooks')) {
-    return NextResponse.next();
-  }
-
-  if (pathname.startsWith('/api/raycast')) {
+  // Allow /new routes
+  if (pathname.startsWith('/new')) {
     return NextResponse.next();
   }
 
@@ -40,14 +33,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/#settings', request.url));
   }
 
-  // If user is authenticated but trying to access auth routes
+  // If user is authenticated but trying to access auth routes, redirect to home
   if (sessionCookie && authRoutes.some((route) => pathname.startsWith(route))) {
-    console.log('Redirecting to home');
-    console.log('Session cookie: ', sessionCookie);
+    console.log('Redirecting authenticated user to home');
     return NextResponse.redirect(new URL('/', request.url));
   }
 
-  if (!sessionCookie && protectedRoutes.some((route) => pathname.startsWith(route))) {
+  // If user is NOT authenticated and trying to access protected routes, redirect to sign-in
+  // All routes except auth routes and public routes are protected
+  if (!sessionCookie && !authRoutes.some((route) => pathname.startsWith(route))) {
+    console.log('Redirecting unauthenticated user to sign-in');
     return NextResponse.redirect(new URL('/sign-in', request.url));
   }
 

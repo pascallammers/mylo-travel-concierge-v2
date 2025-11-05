@@ -80,26 +80,13 @@ export const auth = betterAuth({
       lookout,
     },
   }),
-  socialProviders: {
-    github: {
-      clientId: serverEnv.GITHUB_CLIENT_ID,
-      clientSecret: serverEnv.GITHUB_CLIENT_SECRET,
-    },
-    google: {
-      clientId: serverEnv.GOOGLE_CLIENT_ID,
-      clientSecret: serverEnv.GOOGLE_CLIENT_SECRET,
-    },
-    twitter: {
-      clientId: serverEnv.TWITTER_CLIENT_ID,
-      clientSecret: serverEnv.TWITTER_CLIENT_SECRET,
-    },
-    microsoft: {
-      clientId: process.env.MICROSOFT_CLIENT_ID as string,
-      clientSecret: process.env.MICROSOFT_CLIENT_SECRET as string,
-      // Optional
-      tenantId: 'common',
-      authority: 'https://login.microsoftonline.com', // Authentication authority URL
-      prompt: 'select_account', // Forces account selection
+  emailAndPassword: {
+    enabled: true,
+    requireEmailVerification: false, // No signup = no verification needed
+    sendResetPasswordEmail: async ({ user, url }) => {
+      // Import email service dynamically to avoid circular dependencies
+      const { sendPasswordResetEmail } = await import('./email');
+      await sendPasswordResetEmail(user.email, url);
     },
   },
   pluginRoutes: {
