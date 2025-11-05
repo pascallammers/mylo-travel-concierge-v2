@@ -1,7 +1,15 @@
 import { Resend } from 'resend';
+import SearchCompletedEmail from '@/components/emails/lookout-completed';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = 'MYLO <noreply@scira.ai>'; // TODO: Update domain after deployment
+
+interface SendLookoutCompletionEmailParams {
+  to: string;
+  chatTitle: string;
+  assistantResponse: string;
+  chatId: string;
+}
 
 /**
  * Send welcome email with login credentials to new users
@@ -173,5 +181,38 @@ export async function sendPasswordResetEmail(email: string, url: string) {
     console.log('✅ Password reset email sent to:', email);
   } catch (error) {
     console.error('❌ Failed to send password reset email:', error);
+  }
+}
+
+/**
+ * Send lookout completion email
+ * @param params - Email parameters including recipient, chat title, response, and chat ID
+ */
+export async function sendLookoutCompletionEmail({
+  to,
+  chatTitle,
+  assistantResponse,
+  chatId,
+}: SendLookoutCompletionEmailParams) {
+  try {
+    const data = await resend.emails.send({
+      from: 'Scira AI <noreply@scira.ai>',
+      to: [to],
+      subject: `Lookout Complete: ${chatTitle}`,
+      react: SearchCompletedEmail({
+        chatTitle,
+        assistantResponse,
+        chatId,
+      }),
+    });
+
+    console.log('✅ Lookout completion email sent successfully:', data.data?.id);
+    return { success: true, id: data.data?.id };
+  } catch (error) {
+    console.error('❌ Failed to send lookout completion email:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
   }
 }
