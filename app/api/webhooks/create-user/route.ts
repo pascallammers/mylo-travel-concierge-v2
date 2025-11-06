@@ -4,6 +4,7 @@ import { user, account } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { sendWelcomeEmail } from '@/lib/email';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 
 // Webhook secret for security
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || '';
@@ -88,16 +89,16 @@ export async function POST(req: NextRequest) {
     console.log('✅ User created:', newUser.id, email);
 
     // 6. Create account entry for email/password auth
-    // Note: Better Auth will handle password hashing automatically when user logs in
-    // We store the plain password temporarily to send via email
+    // Hash password with bcrypt before storing
     const accountId = crypto.randomBytes(16).toString('hex');
+    const hashedPassword = bcrypt.hashSync(password, 10);
     
     await db.insert(account).values({
       id: accountId,
       userId: newUser.id,
       accountId: email,
       providerId: 'credential',
-      password: password, // Better Auth will hash this on first login
+      password: hashedPassword,
       createdAt: now,
       updatedAt: now,
     });

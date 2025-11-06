@@ -25,17 +25,27 @@ export default function AuthCard() {
     setLoading(true);
 
     try {
-      await signIn.email({
-        email,
-        password,
-        callbackURL: '/',
-      });
-      toast.success('Erfolgreich eingeloggt!');
-      router.push('/');
-    } catch (error) {
-      toast.error('Login fehlgeschlagen. Bitte prüfe deine Zugangsdaten.');
+      await signIn.email(
+        {
+          email,
+          password,
+          callbackURL: '/',
+        },
+        {
+          onSuccess: () => {
+            toast.success('Erfolgreich eingeloggt!');
+            // Use window.location for full page reload to ensure session cookie is recognized
+            window.location.href = '/';
+          },
+          onError: (ctx) => {
+            toast.error(ctx.error.message || 'Login fehlgeschlagen. Bitte prüfe deine Zugangsdaten.');
+            setLoading(false);
+          },
+        },
+      );
+    } catch (error: any) {
+      toast.error(error?.message || 'Login fehlgeschlagen. Bitte prüfe deine Zugangsdaten.');
       console.error('Auth error:', error);
-    } finally {
       setLoading(false);
     }
   };

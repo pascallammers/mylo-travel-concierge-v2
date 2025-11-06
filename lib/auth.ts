@@ -31,6 +31,7 @@ import DodoPayments from 'dodopayments';
 import { eq } from 'drizzle-orm';
 import { invalidateUserCaches } from './performance-cache';
 import { clearUserDataCache } from './user-data-server';
+import bcrypt from 'bcryptjs';
 
 config({
   path: '.env.local',
@@ -83,6 +84,11 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false, // No signup = no verification needed
+    password: {
+      // Support bcrypt hashes for users created via webhook
+      hash: async (password: string) => bcrypt.hash(password, 10),
+      verify: async ({ hash, password }: { hash: string; password: string }) => bcrypt.compare(password, hash),
+    },
     sendResetPasswordEmail: async ({ user, url, token }: { user: any; url: string; token: string }) => {
       // Import email service dynamically to avoid circular dependencies
       const { sendPasswordResetEmail } = await import('./email');
