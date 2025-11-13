@@ -13,7 +13,6 @@ import {
   payment,
   customInstructions,
   stream,
-  lookout,
 } from '@/lib/db/schema';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { db } from '@/lib/db';
@@ -78,7 +77,6 @@ export const auth = betterAuth({
       payment,
       customInstructions,
       stream,
-      lookout,
     },
   }),
   emailAndPassword: {

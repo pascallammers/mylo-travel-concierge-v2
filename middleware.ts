@@ -24,10 +24,15 @@ export async function middleware(request: NextRequest) {
   }
 
   const sessionCookie = getSessionCookie(request);
+  
+  // Debug logging for production
+  console.log('Session cookie present:', !!sessionCookie);
+  console.log('Is auth route:', authRoutes.some((route) => pathname.startsWith(route)));
 
   // Redirect /settings to /#settings to open settings dialog (only if authenticated)
   if (pathname === '/settings') {
     if (!sessionCookie) {
+      console.log('Redirecting to sign-in from settings');
       return NextResponse.redirect(new URL('/sign-in', request.url));
     }
     return NextResponse.redirect(new URL('/#settings', request.url));
@@ -42,7 +47,7 @@ export async function middleware(request: NextRequest) {
   // If user is NOT authenticated and trying to access protected routes, redirect to sign-in
   // All routes except auth routes and public routes are protected
   if (!sessionCookie && !authRoutes.some((route) => pathname.startsWith(route))) {
-    console.log('Redirecting unauthenticated user to sign-in');
+    console.log('Redirecting unauthenticated user to sign-in from:', pathname);
     return NextResponse.redirect(new URL('/sign-in', request.url));
   }
 
