@@ -129,10 +129,6 @@ const ChatInterface = memo(
       'scira-upgrade-prompt-shown',
       false,
     );
-    const [persistedHasShownLookoutAnnouncement, setPersitedHasShownLookoutAnnouncement] = useLocalStorage(
-      'scira-lookout-announcement-shown',
-      false,
-    );
 
     const [searchProvider, _] = useLocalStorage<'exa' | 'parallel' | 'tavily' | 'firecrawl'>(
       'scira-search-provider-v2',
@@ -145,7 +141,6 @@ const ChatInterface = memo(
       createInitialState(
         initialVisibility,
         persistedHasShownUpgradeDialog,
-        persistedHasShownLookoutAnnouncement,
       ),
     );
 
@@ -205,18 +200,7 @@ const ChatInterface = memo(
 
     // Model is fixed to GPT-5 - no auto-switching needed
 
-    // Timer for lookout announcement - show after 30 seconds for authenticated users
-    useEffect(() => {
-      if (user && !chatState.hasShownAnnouncementDialog) {
-        const timer = setTimeout(() => {
-          dispatch({ type: 'SET_SHOW_ANNOUNCEMENT_DIALOG', payload: true });
-          dispatch({ type: 'SET_HAS_SHOWN_ANNOUNCEMENT_DIALOG', payload: true });
-          setPersitedHasShownLookoutAnnouncement(true);
-        }, 3000);
 
-        return () => clearTimeout(timer);
-      }
-    }, [user, chatState.hasShownAnnouncementDialog, setPersitedHasShownLookoutAnnouncement]);
 
     type VisibilityType = 'public' | 'private';
 
@@ -469,13 +453,11 @@ const ChatInterface = memo(
         type: 'SET_ANY_DIALOG_OPEN',
         payload:
           chatState.commandDialogOpen ||
-          chatState.showUpgradeDialog ||
-          chatState.showAnnouncementDialog,
+          chatState.showUpgradeDialog,
       });
     }, [
       chatState.commandDialogOpen,
       chatState.showUpgradeDialog,
-      chatState.showAnnouncementDialog,
     ]);
 
     // Keyboard shortcut for command dialog
@@ -593,13 +575,6 @@ const ChatInterface = memo(
           setHasShownUpgradeDialog={(value) => {
             dispatch({ type: 'SET_HAS_SHOWN_UPGRADE_DIALOG', payload: value });
             setPersitedHasShownUpgradeDialog(value);
-          }}
-          showLookoutAnnouncement={chatState.showAnnouncementDialog}
-          setShowLookoutAnnouncement={(open) => dispatch({ type: 'SET_SHOW_ANNOUNCEMENT_DIALOG', payload: open })}
-          hasShownLookoutAnnouncement={chatState.hasShownAnnouncementDialog}
-          setHasShownLookoutAnnouncement={(value) => {
-            dispatch({ type: 'SET_HAS_SHOWN_ANNOUNCEMENT_DIALOG', payload: value });
-            setPersitedHasShownLookoutAnnouncement(value);
           }}
           user={user}
           setAnyDialogOpen={(open) => dispatch({ type: 'SET_ANY_DIALOG_OPEN', payload: open })}
