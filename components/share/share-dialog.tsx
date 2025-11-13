@@ -39,7 +39,9 @@ export function ShareDialog({
   const [isChangingVisibility, setIsChangingVisibility] = useState(false);
 
   // Generate the share URL
-  const shareUrl = chatId ? `https://scira.ai/search/${chatId}` : '';
+  const shareUrl = chatId
+    ? `${process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://chat.never-economy-again.com')}/search/${chatId}`
+    : '';
 
   // Reset copied state when dialog opens/closes
   useEffect(() => {

@@ -27,7 +27,9 @@ export function ShareIconDialog({
   const [copied, setCopied] = useState(false);
 
   // Generate the share URL
-  const shareUrl = chatId ? `https://scira.ai/search/${chatId}` : '';
+  const shareUrl = chatId
+    ? `${process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://chat.never-economy-again.com')}/search/${chatId}`
+    : '';
 
   const handleMakePublic = async () => {
     if (currentVisibility === 'public') return;

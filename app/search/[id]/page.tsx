@@ -37,6 +37,10 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const id = (await params).id;
   const chat = await fetchChatWithBackoff(id);
   const user = await getUser();
+
+  // Get base URL from environment variable with fallback
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://chat.never-economy-again.com';
+
   // if not chat, return MYLO Chat
   if (!chat) {
     return { title: 'MYLO Chat' };
@@ -58,15 +62,15 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   }
   return {
     title: title,
-    description: 'A search in scira.ai',
+    description: 'A search in MYLO',
     openGraph: {
       title: title,
-      url: `https://scira.ai/search/${id}`,
-      description: 'A search in scira.ai',
-      siteName: 'scira.ai',
+      url: `${baseUrl}/search/${id}`,
+      description: 'A search in MYLO',
+      siteName: 'MYLO Travel Concierge',
       images: [
         {
-          url: `https://scira.ai/api/og/chat/${id}`,
+          url: `${baseUrl}/api/og/chat/${id}`,
           width: 1200,
           height: 630,
         },
@@ -75,20 +79,20 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     twitter: {
       card: 'summary_large_image',
       title: title,
-      url: `https://scira.ai/search/${id}`,
-      description: 'A search in scira.ai',
-      siteName: 'scira.ai',
-      creator: '@sciraai',
+      url: `${baseUrl}/search/${id}`,
+      description: 'A search in MYLO',
+      siteName: 'MYLO Travel Concierge',
+      creator: '@mylo',
       images: [
         {
-          url: `https://scira.ai/api/og/chat/${id}`,
+          url: `${baseUrl}/api/og/chat/${id}`,
           width: 1200,
           height: 630,
         },
       ],
     },
     alternates: {
-      canonical: `https://scira.ai/search/${id}`,
+      canonical: `${baseUrl}/search/${id}`,
     },
   } as Metadata;
 }
