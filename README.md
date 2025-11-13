@@ -1,207 +1,781 @@
-# Scira
+# 🤖 Droidz - Claude Code Orchestration Framework
 
-![Scira](/app/opengraph-image.png)
+> **Complete AI development framework with parallel execution, persistent memory, and intelligent automation**
 
-A minimalistic AI-powered search engine that helps you find information on the internet.
+Transform complex projects into coordinated, parallel workflows using git worktrees, specialist agents, auto-activating skills, and persistent memory across sessions.
 
-🔗 **[Try Scira at scira.ai](https://scira.ai)**
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/version-2.1.1-blue.svg)](https://github.com/korallis/Droidz)
+[![Status](https://img.shields.io/badge/status-production%20ready-green.svg)](https://github.com/korallis/Droidz)
 
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/zaidmukaddam/scira)
+---
 
-## Powered By
+## 💬 Join Our Discord Community
 
-<div align="center">
+This framework was **built specifically for Ray Fernando's Discord members!** 🎯
 
-|          [Vercel AI SDK](https://sdk.vercel.ai/docs)          |                [Exa AI](https://exa.ai)                |
-| :-----------------------------------------------------------: | :----------------------------------------------------: |
-| <img src="/public/one.svg" alt="Vercel AI SDK" height="40" /> | <img src="/public/exa.png" alt="Exa AI" height="40" /> |
-|            For AI model integration and streaming             |          For web search and content retrieval          |
+Join our exclusive community to:
+- 🚀 Get early access to new features
+- 💡 Share tips and best practices with other developers
+- 🤝 Connect with the framework creator and contributors
+- 🆘 Get priority help and support
+- 📢 Influence future development
+- 🎓 Access exclusive tutorials and workflows
 
-</div>
+[![Join Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2.svg?style=for-the-badge&logo=discord&logoColor=white)](https://polar.sh/checkout/polar_c_Pse3hFdgwFUqomhsOL8wIN5ETXT6UsxNWTvx11BdyFW)
 
-## Special Thanks
+**[Sign up here →](https://polar.sh/checkout/polar_c_Pse3hFdgwFUqomhsOL8wIN5ETXT6UsxNWTvx11BdyFW)**
 
-<div align="center" markdown="1">
+*This framework was created to supercharge coding workflows for our Discord community!*
 
-[![Warp](https://github.com/user-attachments/assets/2bda420d-4211-4900-a37e-e3c7056d799c)](https://www.warp.dev/?utm_source=github&utm_medium=referral&utm_campaign=scira)<br>
+---
 
-### **[Warp, the intelligent terminal](https://www.warp.dev/?utm_source=github&utm_medium=referral&utm_campaign=scira)**<br>
+## 💝 Support This Project
 
-[Available for MacOS, Linux, & Windows](https://www.warp.dev/?utm_source=github&utm_medium=referral&utm_campaign=scira)<br>
-[Visit warp.dev to learn more](https://www.warp.dev/?utm_source=github&utm_medium=referral&utm_campaign=scira)
+If this framework saves you time and makes your coding better, consider buying me a coffee! ☕
 
-</div>
+[![PayPal](https://img.shields.io/badge/PayPal-Donate-blue.svg?style=for-the-badge&logo=paypal)](https://www.paypal.com/paypalme/gideonapp)
 
-## Features
+**PayPal:** @gideonapp
 
-### Core Search & Information
+Your support helps maintain and improve this framework for everyone! 🙏
 
-- **AI-powered search**: Get answers to your questions using multiple AI models including xAI's Grok, Anthropic's Claude, Google's Gemini, and OpenAI's GPT models
-- **Web search**: Search the web using Exa's API with support for multiple queries, search depths, and topics
-- **URL content retrieval**: Extract and analyze content from any URL using Exa AI with live crawling capabilities
-- **Reddit search**: Search Reddit content with time range filtering using Tavily API
-- **X (Twitter) search**: Search X posts with date ranges and specific handle filtering using xAI Live Search
-- **Extreme search**: Advanced multi-step search capability for complex queries
+---
 
-### Academic & Research
+## 📋 Table of Contents
 
-- **Academic search**: Search for academic papers and research using Exa AI with abstracts and summaries
-- **YouTube search**: Find YouTube videos with detailed information, captions, and timestamps powered by Exa AI
+- [What Is Droidz?](#what-is-droidz)
+- [Quick Start](#quick-start)
+- [Core Features](#core-features)
+- [Complete Command Reference](#complete-command-reference)
+- [Auto-Activating Skills](#auto-activating-skills)
+- [Specialist Agents](#specialist-agents)
+- [Hooks System](#hooks-system)
+- [Memory System](#memory-system)
+- [How It Works](#how-it-works)
+- [Complete Workflows](#complete-workflows)
+- [Architecture](#architecture)
+- [Best Practices](#best-practices)
+- [Troubleshooting](#troubleshooting)
 
-### Travel & Flight Search
+---
 
-- **Flight search**: Search for flights using natural language queries in German
-  - **Award flights** via Seats.aero (miles/points search)
-  - **Cash flights** via Amadeus API (paid tickets)
-  - Multi-cabin class support (Economy, Premium, Business, First)
-  - Date flexibility (±3 days)
-  - Direct and connecting flights
-  - IATA code conversion from city names
+## What Is Droidz?
 
-### Entertainment & Media
+Droidz is a **production-ready Claude Code framework** that provides:
 
-- **Movie & TV show search**: Get detailed information about movies and TV shows using TMDB API
-- **Trending movies**: Discover trending movies with cast, ratings, and detailed information
-- **Trending TV shows**: Find popular TV shows with comprehensive metadata
+### 🎯 Core Capabilities
 
-### Financial & Data Analysis
+**Parallel Execution**
+- ✅ True parallel task execution via git worktrees
+- ✅ Tmux session management for real-time monitoring
+- ✅ 515-line orchestration engine with dependency tracking
+- ✅ Realistic 1.5-2.5x speedup for parallelizable work
 
-- **Stock charts**: Generate interactive stock charts with news integration using yfinance and Tavily
-- **Currency converter**: Convert between currencies with real-time exchange rates using yfinance
-- **Code interpreter**: Write and execute Python code with chart generation capabilities using Daytona sandbox
+**Intelligent Automation**
+- ✅ 4 auto-activating skills (spec-shaper, auto-orchestrator, memory-manager, graphite-stacked-diffs)
+- ✅ 7 specialist agents (codegen, test, refactor, infra, integration, orchestrator, generalist)
+- ✅ 10 slash commands for complete workflow control
+- ✅ 7 hook types for lifecycle automation
 
-### Location & Travel
+**Persistent Intelligence**
+- ✅ Organization memory (decisions, patterns, tech-stack)
+- ✅ User memory (preferences, context, work-in-progress)
+- ✅ Cross-session context persistence
+- ✅ Automatic tech stack detection
 
-- **Weather information**: Get current weather and forecasts for any location using OpenWeather API
-- **Maps & geocoding**: Find places and get coordinates using Google Maps API
-- **Nearby places search**: Discover nearby restaurants, attractions, and services with Google Places API
-- **Flight tracking**: Track real-time flight information using Aviation Stack API
+**Developer Experience**
+- ✅ Spec-driven development with templates
+- ✅ Context window optimization (60-80% reduction)
+- ✅ Standards enforcement with auto-fix
+- ✅ Smart update system preserves customizations
 
-### Productivity & Utilities
+---
 
-- **Text translation**: Translate text between languages using AI models
-- **Date & time**: Get current date and time in user's timezone with multiple format options
-- **Memory management**: Add and search personal memories using Mem0 AI
-- **MCP server search**: Search for Model Context Protocol servers using Smithery Registry
+## Quick Start
 
-### Search Groups
+### Prerequisites
 
-- **Web**: Search across the entire internet powered by Tavily
-- **Memory**: Your personal memory companion (requires authentication)
-- **Analysis**: Code execution, stock charts, and currency conversion
-- **Chat**: Direct conversation with AI models
-- **X**: Search X (Twitter) posts
-- **Reddit**: Search Reddit posts
-- **Academic**: Search academic papers powered by Exa
-- **YouTube**: Search YouTube videos powered by Exa
-- **Extreme**: Deep research with multiple sources and analysis
+**No manual installation required!** The installer automatically detects your OS and offers to install missing dependencies.
 
-## LLM Models Supported
+<details>
+<summary>🔧 <strong>Optional: Manual Installation</strong> (if you prefer to install dependencies yourself)</summary>
 
-- **xAI**: Grok 3, Grok 3 Mini, Grok 2 Vision
-- **Google**: Gemini 2.5 Flash (Preview), Gemini 2.5 Pro (Preview)
-- **Anthropic**: Claude 4 Sonnet
-- **OpenAI**: GPT-4o, o4-mini, o3 (with reasoning capabilities)
-- **Groq**: Qwen QwQ 32B, Qwen 3 32B, Meta's Llama 4 Maverick
+**macOS**:
+```bash
+brew install git jq tmux
+```
 
-## Built with
+**Windows/WSL2**:
+```bash
+sudo apt update && sudo apt install -y git jq tmux
+```
 
-- [Next.js](https://nextjs.org/) - React framework
-- [Tailwind CSS](https://tailwindcss.com/) - Styling
-- [Vercel AI SDK](https://sdk.vercel.ai/docs) - AI model integration
-- [Shadcn/UI](https://ui.shadcn.com/) - UI components
-- [Exa.AI](https://exa.ai/) - Web search and content retrieval
-- [Tavily](https://tavily.com/) - Search grounding for reddit search
-- [OpenWeather](https://openweathermap.org/) - Weather data
-- [Daytona](https://daytona.io/) - Code execution sandbox
-- [Google Maps](https://developers.google.com/maps) - Location services
-- [Aviation Stack](https://aviationstack.com/) - Flight tracking
-- [TMDB](https://www.themoviedb.org/) - Movie and TV data
-- [Mem0](https://mem0.ai/) - Memory management
-- [Better Auth](https://github.com/better-auth/better-auth) - Authentication
-- [Drizzle ORM](https://orm.drizzle.team/) - Database management
+**Linux (Debian/Ubuntu)**:
+```bash
+sudo apt update && sudo apt install -y git jq tmux
+```
 
-### Deploy your own
+**Linux (Fedora/RHEL)**:
+```bash
+sudo dnf install -y git jq tmux
+```
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fzaidmukaddam%2Fscira&env=XAI_API_KEY,OPENAI_API_KEY,ANTHROPIC_API_KEY,GROQ_API_KEY,GOOGLE_GENERATIVE_AI_API_KEY,DAYTONA_API_KEY,DATABASE_URL,BETTER_AUTH_SECRET,GITHUB_CLIENT_ID,GITHUB_CLIENT_SECRET,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,TWITTER_CLIENT_ID,TWITTER_CLIENT_SECRET,REDIS_URL,ELEVENLABS_API_KEY,TAVILY_API_KEY,EXA_API_KEY,TMDB_API_KEY,YT_ENDPOINT,FIRECRAWL_API_KEY,OPENWEATHER_API_KEY,GOOGLE_MAPS_API_KEY,MAPBOX_ACCESS_TOKEN,AVIATION_STACK_API_KEY,CRON_SECRET,BLOB_READ_WRITE_TOKEN,MEM0_API_KEY,MEM0_ORG_ID,MEM0_PROJECT_ID,SMITHERY_API_KEY,NEXT_PUBLIC_MAPBOX_TOKEN,NEXT_PUBLIC_POSTHOG_KEY,NEXT_PUBLIC_POSTHOG_HOST,NEXT_PUBLIC_SCIRA_PUBLIC_API_KEY,SCIRA_API_KEY&envDescription=API%20keys%20and%20configuration%20required%20for%20Scira%20to%20function)
+**Linux (Arch)**:
+```bash
+sudo pacman -S git jq tmux
+```
 
-## Set Scira as your default search engine
+**Supported Package Managers**: apt, dnf, yum, pacman, zypper, apk, brew
 
-1. **Open the Chrome browser settings**:
-   - Click on the three vertical dots in the upper right corner of the browser.
-   - Select "Settings" from the dropdown menu.
+</details>
 
-2. **Go to the search engine settings**:
-   - In the left sidebar, click on "Search engine."
-   - Then select "Manage search engines and site search."
+### One-Line Installation
 
-3. **Add a new search engine**:
-   - Click on "Add" next to "Site search."
+**Start from anywhere** - even an empty directory!
 
-4. **Set the search engine name**:
-   - Enter `Scira` in the "Search engine" field.
+```bash
+curl -fsSL https://raw.githubusercontent.com/korallis/Droidz/Claude-Code/install-claude-code.sh | bash
+```
 
-5. **Set the search engine URL**:
-   - Enter `https://scira.ai?q=%s` in the "URL with %s in place of query" field.
+**What happens automatically**:
+- 🔍 Detects your OS and package manager
+- 📦 Offers to install missing dependencies (git, jq, tmux)
+- 📁 Offers to initialize git repository if needed
+- ✅ Installs framework to `.claude/`
+- 💾 Initializes memory system (5 JSON files)
+- 🔒 Creates secure .gitignore
+- 🎯 Preserves custom files on updates
 
-6. **Set the search engine shortcut**:
-   - Enter `sh` in the "Shortcut" field.
+**Interactive prompts for**:
+- Git installation (if missing)
+- Git repository initialization (if not a repo)
+- Optional dependencies (jq, tmux for orchestration)
 
-7. **Set Default**:
-   - Click on the three dots next to the search engine you just added.
-   - Select "Make default" from the dropdown menu.
+**Setup time**: 1-2 minutes (fully automated with your permission)
 
-After completing these steps, you should be able to use Scira as your default search engine in Chrome.
+**Supported Platforms**:
+- ✅ macOS (Homebrew)
+- ✅ Ubuntu/Debian (apt)
+- ✅ Fedora (dnf)
+- ✅ CentOS/RHEL (yum)
+- ✅ Arch Linux (pacman)
+- ✅ openSUSE (zypper)
+- ✅ Alpine Linux (apk)
+- ✅ WSL2
 
-### Local development
+### First Time Setup
 
-#### Run via Docker
+```bash
+# Start Claude Code
+claude
 
-The application can be run using Docker in two ways:
+# Run initialization wizard
+/droidz-init
+```
 
-##### Using Docker Compose (Recommended)
+The wizard will:
+- ✅ Verify dependencies
+- ✅ Create directory structure
+- ✅ Initialize memory system
+- ✅ Validate orchestration engine
 
-1. Make sure you have Docker and Docker Compose installed on your system
-2. Create a `.env` file based on `.env.example` with your API keys
-3. Run the following command in the project root:
-   ```bash
-   docker compose up
-   ```
-4. The application will be available at `http://localhost:3000`
+### Example Installation Flow
 
-##### Using Docker Directly
+**Starting from an empty directory:**
 
-1. Create a `.env` file based on `.env.example` with your API keys
-2. Build the Docker image:
-   ```bash
-   docker build -t scira.app .
-   ```
-3. Run the container:
-   ```bash
-   docker run --env-file .env -p 3000:3000 scira.app
-   ```
+```bash
+$ mkdir my-awesome-app && cd my-awesome-app
+$ curl -fsSL https://raw.githubusercontent.com/.../install-claude-code.sh | bash
 
-The application uses a multi-stage build process to minimize the final image size and implements security best practices. The production image runs on Node.js LTS with Alpine Linux for a minimal footprint.
+ℹ Detected OS: macos (Package manager: brew)
+✓ Git found
 
-#### Run with Node.js
+⚠ Not in a git repository.
+Would you like to initialize this directory as a git repository?
+  [Y] Yes, initialize git repository (recommended)
+  [N] No, I'll do it manually
 
-To run the application locally without Docker:
+Choice [Y/n]: Y
+ℹ Initializing git repository...
+✓ Git repository initialized
+✓ Created .gitignore
+✓ Created initial commit
 
-1. Sign up for accounts with the required AI providers:
-   - OpenAI (required)
-   - Anthropic (required)
-   - Exa (required for web search feature)
-2. Copy `.env.example` to `.env.local` and fill in your API keys
-3. Install dependencies:
-   ```bash
-   pnpm install
-   ```
-4. Start the development server:
-   ```bash
-   pnpm dev
-   ```
-5. Open `http://localhost:3000` in your browser
+✓ curl found
 
-# License
+⚠ Missing optional dependencies: jq tmux
+Would you like to automatically install these dependencies?
+  [Y] Yes, install automatically (recommended)
+  [N] No, I'll install manually
 
-This project is licensed under the AGPLv3 License - see the [LICENSE](LICENSE) file for details.
+Choice [Y/n]: Y
+✓ jq installed successfully
+✓ tmux installed successfully
+
+ℹ Installing Droidz Framework...
+✓ Framework downloaded
+✓ Framework files installed to .claude/
+✓ Memory system initialized
+✓ All required files present
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎉 Droidz Installation Complete!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Next Steps:
+  1. Initialize:  claude then /droidz-init
+  2. Read guide:  cat README.md
+  3. Quick start: cat QUICK_START.md
+
+Happy building with Droidz! 🚀
+```
+
+**What just happened?**
+1. ✅ Installer detected your OS and package manager
+2. ✅ Created a new git repository automatically
+3. ✅ Installed missing dependencies (jq, tmux)
+4. ✅ Set up the complete Droidz framework
+5. ✅ Ready to start coding in under 2 minutes!
+
+---
+
+## Core Features
+
+### 🔧 10 Slash Commands
+
+| Command | Description | Usage |
+|---------|-------------|-------|
+| `/droidz-init` | Initialize Droidz framework | `/droidz-init` |
+| `/create-spec` | Create specification from template | `/create-spec feature auth-system` |
+| `/validate-spec` | Validate spec completeness | `/validate-spec .claude/specs/active/auth.md` |
+| `/spec-to-tasks` | Convert spec to orchestration tasks | `/spec-to-tasks .claude/specs/active/auth.md` |
+| `/orchestrate` | Execute tasks in parallel | `/orchestrate file:tasks.json` |
+| `/analyze-tech-stack` | Detect stack & generate standards | `/analyze-tech-stack --regenerate` |
+| `/check-standards` | Validate code against standards | `/check-standards --fix` |
+| `/save-decision` | Record architectural decision | `/save-decision architecture "Use PostgreSQL"` |
+| `/load-memory` | Load persistent memory | `/load-memory org` |
+| `/optimize-context` | Reduce context window usage | `/optimize-context --aggressive` |
+
+### 🎨 4 Auto-Activating Skills
+
+Skills automatically activate based on triggers - no manual invocation needed!
+
+| Skill | Auto-Activates When | What It Does |
+|-------|---------------------|--------------|
+| **spec-shaper** | User has fuzzy/incomplete ideas | Transforms vague requests into structured specs |
+| **auto-orchestrator** | Complex multi-task requests (3+ tasks) | Analyzes complexity, recommends parallel execution |
+| **memory-manager** | Important decisions/patterns discovered | Persists context, decisions, patterns to memory |
+| **graphite-stacked-diffs** | User mentions "stacked diffs", "Graphite", "gt" | Guides through complete Graphite workflow |
+
+**Activation Examples**:
+```
+User: "I want to build a dashboard with charts and filters"
+→ spec-shaper activates (fuzzy idea)
+
+User: "Implement user auth, API endpoints, and tests"
+→ auto-orchestrator activates (3+ tasks)
+
+User: "We're using PostgreSQL for better type safety"
+→ memory-manager activates (decision made)
+
+User: "Create stacked PRs for this feature"
+→ graphite-stacked-diffs activates (workflow guidance)
+```
+
+### 🤖 7 Specialist Agents
+
+| Agent | Specialty | When Used |
+|-------|-----------|-----------|
+| **droidz-orchestrator** | Task coordination, dependency management | Orchestration planning |
+| **droidz-codegen** | Feature implementation, bug fixes | Code generation tasks |
+| **droidz-test** | Test writing, coverage, fixtures | Testing tasks |
+| **droidz-refactor** | Code cleanup, performance, maintainability | Refactoring tasks |
+| **droidz-infra** | CI/CD, Docker, deployment configs | Infrastructure tasks |
+| **droidz-integration** | API integration, webhooks, external services | Integration tasks |
+| **droidz-generalist** | Miscellaneous, multi-domain tasks | General-purpose work |
+
+### 🪝 7 Hook Types
+
+Hooks automate actions at key lifecycle points:
+
+| Hook | Triggers | Use Cases |
+|------|----------|-----------|
+| **SessionStart** | Claude Code starts | Load project context, check tech stack |
+| **UserPromptSubmit** | User submits message | Monitor context usage |
+| **PreToolUse** | Before tool execution | Validate dangerous commands |
+| **PostToolUse** | After tool execution | Auto-lint, check standards |
+| **SubagentStop** | Specialist agent finishes | Update Linear tickets, save memory |
+| **Notification** | Error/warning received | Analyze errors, suggest fixes |
+| **Stop** | Session ending | Summarize work, save decisions |
+
+### 🧠 Memory System
+
+**Organization Memory** (Team-wide)
+- `decisions.json` - Architectural & technical decisions
+- `patterns.json` - Code patterns & conventions
+- `tech-stack.json` - Detected frameworks, tools, libraries
+
+**User Memory** (Personal)
+- `preferences.json` - User-specific settings
+- `context.json` - Session state, work-in-progress
+
+**Features**:
+- ✅ Persists across sessions
+- ✅ Searchable by category
+- ✅ Auto-saves important context
+- ✅ Loads on-demand with `/load-memory`
+
+### 📐 Spec Templates
+
+Located in `.claude/specs/templates/`:
+
+| Template | Use Case | Sections |
+|----------|----------|----------|
+| **feature-spec.md** | Single features | Overview, User Stories, Implementation Plan, Tests |
+| **epic-spec.md** | Large initiatives | Vision, Features, Phases, Success Metrics |
+
+**Workflow**:
+```bash
+# 1. Create spec
+/create-spec feature user-dashboard
+
+# 2. Fill in sections (auto-opens editor)
+# 3. Validate
+/validate-spec .claude/specs/active/user-dashboard.md
+
+# 4. Generate tasks
+/spec-to-tasks .claude/specs/active/user-dashboard.md
+
+# 5. Execute
+/orchestrate file:user-dashboard-tasks.json
+```
+
+---
+
+## Complete Command Reference
+
+### `/droidz-init`
+
+**Purpose**: Initialize or verify Droidz framework setup
+
+**Usage**:
+```bash
+/droidz-init                    # Full interactive setup
+/droidz-init --quick            # Minimal setup (skip optional)
+/droidz-init --full             # Comprehensive validation
+```
+
+**What It Does**:
+1. Checks dependencies (git, jq, tmux)
+2. Creates directory structure
+3. Initializes memory files
+4. Validates orchestrator
+5. Sets up .gitignore
+
+**Output**: Verification report + setup recommendations
+
+---
+
+### `/create-spec`
+
+**Purpose**: Create specification from template
+
+**Usage**:
+```bash
+/create-spec feature <name>     # Feature spec
+/create-spec epic <name>        # Epic spec
+/create-spec refactor <name>    # Refactor spec
+/create-spec integration <name> # Integration spec
+```
+
+**Examples**:
+```bash
+/create-spec feature auth-system
+/create-spec epic mobile-app
+/create-spec refactor legacy-api
+```
+
+**What It Does**:
+1. Copies template to `.claude/specs/active/`
+2. Fills in metadata (date, author, etc.)
+3. Opens in editor for completion
+4. Saves with proper naming
+
+---
+
+### `/validate-spec`
+
+**Purpose**: Validate specification completeness and quality
+
+**Usage**:
+```bash
+/validate-spec <spec-file>
+/validate-spec <spec-file> --strict
+```
+
+**Example**:
+```bash
+/validate-spec .claude/specs/active/auth-system.md
+```
+
+**Checks**:
+- ✅ Required sections present
+- ✅ Clear acceptance criteria
+- ✅ Realistic implementation plan
+- ✅ Dependencies identified
+- ✅ Test scenarios defined
+
+**Output**: Validation report with pass/fail + recommendations
+
+---
+
+### `/spec-to-tasks`
+
+**Purpose**: Convert specification to orchestration tasks JSON
+
+**Usage**:
+```bash
+/spec-to-tasks <spec-file>
+/spec-to-tasks <spec-file> --output custom-tasks.json
+```
+
+**Example**:
+```bash
+/spec-to-tasks .claude/specs/active/auth-system.md
+```
+
+**What It Does**:
+1. Parses spec implementation plan
+2. Identifies independent vs dependent tasks
+3. Assigns specialist agents
+4. Creates phased execution plan
+5. Generates `<name>-tasks.json`
+
+**Output**: Structured tasks JSON ready for `/orchestrate`
+
+---
+
+### `/orchestrate`
+
+**Purpose**: Execute tasks in parallel via git worktrees
+
+**Usage**:
+```bash
+/orchestrate file:tasks.json              # From JSON file
+/orchestrate spec:.claude/specs/active/   # From spec
+/orchestrate linear:"sprint:current"      # From Linear query
+/orchestrate list                         # List active sessions
+/orchestrate cleanup:<session-id>         # Clean up session
+```
+
+**Examples**:
+```bash
+# Execute from tasks file
+/orchestrate file:auth-tasks.json
+
+# Execute from spec directly
+/orchestrate spec:.claude/specs/active/auth-system.md
+
+# Execute Linear tickets
+/orchestrate linear:"label:auto-droidz AND sprint:current"
+
+# Check status
+/orchestrate list
+
+# Cleanup after merge
+/orchestrate cleanup:20251112-143022
+```
+
+**What It Does**:
+1. Creates `.runs/<session-id>/` directory
+2. Sets up git worktrees for each task
+3. Spawns tmux session per task
+4. Launches specialist agents
+5. Tracks progress & dependencies
+6. Monitors completion
+
+**Monitoring**:
+```bash
+# Attach to tmux session
+tmux attach -t droidz-20251112-143022
+
+# View orchestration log
+tail -f .runs/.coordination/orchestration.log
+```
+
+---
+
+### `/analyze-tech-stack`
+
+**Purpose**: Detect project tech stack and generate framework-specific standards
+
+**Usage**:
+```bash
+/analyze-tech-stack                      # Auto-detect everything
+/analyze-tech-stack --regenerate         # Force regeneration
+/analyze-tech-stack --framework react    # Specific framework
+```
+
+**What It Detects**:
+- ✅ Package manager (bun, pnpm, yarn, npm)
+- ✅ Runtime (Node, Bun, Deno)
+- ✅ Frameworks (React, Next.js, Vue, etc.)
+- ✅ Libraries (testing, state, routing)
+- ✅ Build tools (Vite, webpack, etc.)
+- ✅ Language (TypeScript, JavaScript)
+
+**What It Generates**:
+- `.claude/standards/react.md` - React best practices
+- `.claude/standards/typescript.md` - TS conventions
+- `.claude/standards/testing.md` - Test patterns
+- `.claude/memory/org/tech-stack.json` - Detection results
+
+**Example Output**:
+```
+✓ Detected: React 18.2.0
+✓ Detected: TypeScript 5.3.2
+✓ Detected: Vite 5.0.0
+✓ Generated: .claude/standards/react.md
+✓ Generated: .claude/standards/typescript.md
+✓ Saved: .claude/memory/org/tech-stack.json
+```
+
+---
+
+### `/check-standards`
+
+**Purpose**: Validate code against project standards and best practices
+
+**Usage**:
+```bash
+/check-standards                         # Check current file
+/check-standards <file-path>             # Check specific file
+/check-standards --fix                   # Auto-fix issues
+/check-standards --severity critical     # Filter by severity
+```
+
+**Examples**:
+```bash
+/check-standards src/components/LoginForm.tsx
+/check-standards --fix
+/check-standards --severity high
+```
+
+**What It Checks**:
+- 🔒 **Security**: SQL injection, XSS, secrets in code
+- 📐 **Standards**: Framework conventions, patterns
+- ⚡ **Performance**: N+1 queries, large bundles
+- 🎨 **Style**: Formatting, naming conventions
+
+**Severity Levels**:
+- **Critical**: Security vulnerabilities, blocking issues
+- **High**: Bad practices, performance problems
+- **Medium**: Conventions, style issues
+- **Low**: Suggestions, optimizations
+
+**Output**:
+```
+Checking: src/components/LoginForm.tsx
+
+[CRITICAL] Hardcoded API key on line 15
+  → Move to environment variable
+  → Fix: Use process.env.API_KEY
+
+[HIGH] Missing error boundary on line 42
+  → Wrap component with ErrorBoundary
+  → Fix: <ErrorBoundary><LoginForm /></ErrorBoundary>
+
+[MEDIUM] Non-semantic HTML on line 28
+  → Use <button> instead of <div>
+  → Fix: <button onClick={handleLogin}>
+
+Summary: 1 critical, 1 high, 1 medium
+```
+
+---
+
+### `/save-decision`
+
+**Purpose**: Record architectural and technical decisions
+
+**Usage**:
+```bash
+/save-decision <category> <decision> [rationale]
+```
+
+**Categories**:
+- `architecture` - System design choices
+- `security` - Security policies
+- `performance` - Performance guidelines
+- `testing` - Test strategies
+- `deployment` - Deployment decisions
+- `tooling` - Tool selections
+
+**Examples**:
+```bash
+/save-decision architecture "Use PostgreSQL for database" "Strong typing, excellent migrations, ACID compliance"
+
+/save-decision security "Require MFA for all users" "SOC2 compliance requirement"
+
+/save-decision performance "API responses must be <200ms" "User experience target, P95 latency"
+
+/save-decision testing "Maintain 80% code coverage" "Quality gate for CI/CD"
+```
+
+**What It Does**:
+1. Appends to `.claude/memory/org/decisions.json`
+2. Timestamps decision
+3. Links to author (if available)
+4. Makes searchable for future reference
+
+**Retrieval**:
+```bash
+/load-memory org --category architecture
+```
+
+---
+
+### `/load-memory`
+
+**Purpose**: Load persistent memory into current context
+
+**Usage**:
+```bash
+/load-memory org                          # Organization memory
+/load-memory user                         # User memory
+/load-memory all                          # Both
+/load-memory org --category architecture  # Specific category
+```
+
+**Examples**:
+```bash
+# Load all team decisions
+/load-memory org
+
+# Load personal preferences
+/load-memory user
+
+# Load architecture decisions only
+/load-memory org --category architecture
+```
+
+**Organization Memory**:
+- Architectural decisions
+- Code patterns & conventions
+- Tech stack detection results
+
+**User Memory**:
+- Personal preferences
+- Recent session context
+- Work-in-progress state
+
+**Output**:
+```
+Loaded Organization Memory:
+
+📊 Tech Stack:
+  - Runtime: Node.js 20.10.0
+  - Framework: React 18.2.0
+  - Package Manager: bun
+
+📋 Decisions (5):
+  - [Architecture] Use PostgreSQL for database
+  - [Security] Require MFA for all users
+  - [Performance] API responses <200ms
+  - [Testing] 80% code coverage minimum
+  - [Deployment] Use AWS ECS Fargate
+
+🎨 Patterns (3):
+  - Repository pattern for data access
+  - Custom useApi hook for API calls
+  - Functional components with TypeScript
+```
+
+---
+
+### `/optimize-context`
+
+**Purpose**: Reduce context window usage while preserving quality
+
+**Usage**:
+```bash
+/optimize-context                         # Standard optimization
+/optimize-context --analyze-only          # Show analysis only
+/optimize-context --aggressive            # Aggressive optimization
+/optimize-context --checkpoint            # Create backup first
+```
+
+**What It Does**:
+1. **Analyzes Context**:
+   - System prompt (CLAUDE.md + standards)
+   - Conversation history (all turns)
+   - Code context (loaded files)
+   - Tool results (command outputs)
+
+2. **Applies Optimization**:
+   - Keep last 10 turns verbatim
+   - Summarize older conversation (11-50 turns)
+   - Ultra-compact ancient history (50+ turns)
+   - Remove old file contents (can re-read)
+   - Compress tool results
+
+3. **Preserves**:
+   - All CLAUDE.md standards
+   - Current task context
+   - Recent changes
+   - Critical decisions
+
+**Example Output**:
+```
+📊 Context Window Analysis
+
+Current Usage: 142,847 / 200,000 tokens (71.4%) ⚠️
+
+Breakdown:
+├─ System Prompt: 8,234 tokens (5.8%)
+├─ Conversation: 89,456 tokens (62.6%)
+├─ Code Context: 38,291 tokens (26.8%)
+└─ Tool Results: 6,866 tokens (4.8%)
+
+Recommendations:
+1. Compact conversation (turns 1-40) → Save 45k tokens
+2. Remove old files (6 files, 20+ turns old) → Save 18k tokens
+3. Compress tool results → Save 4k tokens
+
+Total Savings: ~67k tokens (47% reduction)
+New Usage: ~75k tokens (37.5%)
+
+Apply? (y/n)
+```
+
+**Reduction Targets**:
+- Standard: 60-70% reduction
+- Aggressive: 70-80% reduction
+
+---
+
+## Auto-Activating Skills
+
+### spec-shaper
+
+**Auto-Activates**: When user has fuzzy ideas or incomplete requirements
+
+**Triggers**:
+- "I want to build..."
+- "Can you help me create..."
+- "Add a feature for..."
+- Vague descriptions without clear requirements
+
+**What It Does**:
+1. Asks clarifying questions
+2. Identifies missing requirements
+3. Suggests structure
+4. Guides spec creation
+5. Validates completeness
+
+**Example Interaction**:
+```
+User: "I want to build a dashboard"
+
+[spec-shaper activates]

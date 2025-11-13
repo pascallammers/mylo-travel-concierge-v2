@@ -1,0 +1,46 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-11-13",
+  "detected": true,
+  "framework": "Next.js",
+  "stack": {
+    "runtime": "Node.js",
+    "packageManager": "pnpm",
+    "frameworks": [
+      "Next.js 15.6.0-canary.25",
+      "React 19.1.1"
+    ],
+    "libraries": [
+      "TypeScript",
+      "Tailwind CSS 4.1.13",
+      "Radix UI",
+      "Drizzle ORM",
+      "Better Auth",
+      "AI SDK (Vercel)",
+      "Vercel AI SDK",
+      "Tanstack Query",
+      "React Hook Form",
+      "Zod"
+    ],
+    "buildTools": [
+      "Turbopack",
+      "ESLint",
+      "Prettier",
+      "PostCSS"
+    ],
+    "testFrameworks": [
+      "Node.js native test runner (tsx)"
+    ]
+  },
+  "features": {
+    "authentication": "Better Auth with bcrypt",
+    "database": "PostgreSQL with Drizzle ORM",
+    "ai": "AI SDK with multiple providers (Anthropic, OpenAI, Google, etc.)",
+    "styling": "Tailwind CSS v4",
+    "forms": "React Hook Form + Zod validation",
+    "state": "Tanstack Query",
+    "email": "Resend + React Email",
+    "storage": "AWS S3 + Vercel Blob",
+    "analytics": "Vercel Analytics + Speed Insights"
+  }
+}

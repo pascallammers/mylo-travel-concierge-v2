@@ -37,3 +37,10 @@ yarn-error.log*
 next-env.d.ts
 
 certificates
+
+# Droidz Framework - User-specific files
+.claude/memory/user/
+.runs/
+*.backup.*
+*-tasks.json
+.claude-*-backup*
