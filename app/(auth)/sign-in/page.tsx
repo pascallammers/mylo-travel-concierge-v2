@@ -3,5 +3,9 @@
 import AuthCard from '@/components/auth-card';
 
 export default function SignInPage() {
-  return <AuthCard title="Willkommen zurück" description="Melde dich an um fortzufahren" mode="sign-in" />;
+  return (
+    <div className="flex min-h-screen items-center justify-center p-4">
+      <AuthCard />
+    </div>
+  );
 }

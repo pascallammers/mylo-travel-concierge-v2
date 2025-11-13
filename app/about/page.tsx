@@ -45,7 +45,6 @@ import { models } from '@/ai/providers';
 import { VercelLogo } from '@/components/logos/vercel-logo';
 import { ExaLogo } from '@/components/logos/exa-logo';
 import { ElevenLabsLogo } from '@/components/logos/elevenlabs-logo';
-import { LOOKOUT_LIMITS } from '@/app/lookout/constants';
 import { PRICING, SEARCH_LIMITS } from '@/lib/constants';
 
 import { ThemeSwitcher } from '@/components/theme-switcher';

@@ -88,41 +88,7 @@ const Navbar = memo(
                 <span className="text-sm ml-1.5 group-hover:block hidden animate-in fade-in duration-300">New</span>
               </Button>
             </Link>
-
-            {/* Mobile-only Upgrade (avoids overlap with share on small screens) */}
-            {user && !hasActiveSubscription && !showProLoading && (
-              <Button
-                variant="default"
-                size="sm"
-                className="rounded-md h-7 px-2 text-xs sm:hidden"
-                onClick={() => router.push('/pricing')}
-              >
-                Upgrade
-              </Button>
-            )}
           </div>
-
-          {/* Centered Upgrade Button */}
-          {user && !hasActiveSubscription && !showProLoading && (
-            <div
-              className={cn(
-                'hidden sm:flex items-center justify-center absolute left-1/2 transform -translate-x-1/2',
-                isDialogOpen ? 'pointer-events-auto' : '',
-              )}
-            >
-              <div className="flex items-center bg-muted/50 rounded-lg border border-border">
-                <span className="px-2 py-1.5 text-sm font-medium text-muted-foreground">Free Plan</span>
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="rounded-md mr-1.5 h-6"
-                  onClick={() => router.push('/pricing')}
-                >
-                  Upgrade
-                </Button>
-              </div>
-            </div>
-          )}
           <div className={cn('flex items-center gap-1', isDialogOpen ? 'pointer-events-auto' : '')}>
             {/* Share functionality using unified component */}
             {chatId && (

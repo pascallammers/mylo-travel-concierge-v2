@@ -6,8 +6,8 @@ import { upstashCache } from 'drizzle-orm/cache/upstash';
 import { neon } from '@neondatabase/serverless';
 
 const sql = neon(serverEnv.DATABASE_URL);
-const sqlread1 = neon(process.env.READ_DB_1!);
-const sqlread2 = neon(process.env.READ_DB_2!);
+const sqlread1 = neon(serverEnv.DATABASE_URL);
+const sqlread2 = neon(serverEnv.DATABASE_URL);
 
 export const maindb = drizzle(sql, {
   schema,

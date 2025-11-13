@@ -129,14 +129,6 @@ const ChatInterface = memo(
       'scira-upgrade-prompt-shown',
       false,
     );
-    const [persistedHasShownSignInPrompt, setPersitedHasShownSignInPrompt] = useLocalStorage(
-      'scira-signin-prompt-shown',
-      false,
-    );
-    const [persistedHasShownLookoutAnnouncement, setPersitedHasShownLookoutAnnouncement] = useLocalStorage(
-      'scira-lookout-announcement-shown',
-      false,
-    );
 
     const [searchProvider, _] = useLocalStorage<'exa' | 'parallel' | 'tavily' | 'firecrawl'>(
       'scira-search-provider-v2',
@@ -149,8 +141,6 @@ const ChatInterface = memo(
       createInitialState(
         initialVisibility,
         persistedHasShownUpgradeDialog,
-        persistedHasShownSignInPrompt,
-        persistedHasShownLookoutAnnouncement,
       ),
     );
 
@@ -195,9 +185,6 @@ const ChatInterface = memo(
     // Use clean React Query hooks for all data fetching
     const { data: usageData, refetch: refetchUsage } = useUsageData(user || null);
 
-    // Sign-in prompt timer
-    const signInTimerRef = useRef<NodeJS.Timeout | null>(null);
-
     // Generate a consistent ID for new chats
     const chatId = useMemo(() => initialChatId ?? uuidv4(), []);
 
@@ -213,54 +200,7 @@ const ChatInterface = memo(
 
     // Model is fixed to GPT-5 - no auto-switching needed
 
-    // Timer for sign-in prompt for unauthenticated users
-    useEffect(() => {
-      // If user becomes authenticated, reset the prompt flag and clear timer
-      if (user) {
-        if (signInTimerRef.current) {
-          clearTimeout(signInTimerRef.current);
-          signInTimerRef.current = null;
-        }
-        // Reset the flag so it can show again in future sessions if they log out
-        setPersitedHasShownSignInPrompt(false);
-        return;
-      }
 
-      // Only start timer if user is not authenticated and hasn't been shown the prompt yet
-      if (!user && !chatState.hasShownSignInPrompt) {
-        // Clear any existing timer
-        if (signInTimerRef.current) {
-          clearTimeout(signInTimerRef.current);
-        }
-
-        // Set timer for 1 minute (60000 ms)
-        signInTimerRef.current = setTimeout(() => {
-          dispatch({ type: 'SET_SHOW_SIGNIN_PROMPT', payload: true });
-          dispatch({ type: 'SET_HAS_SHOWN_SIGNIN_PROMPT', payload: true });
-          setPersitedHasShownSignInPrompt(true);
-        }, 60000);
-      }
-
-      // Cleanup timer on unmount
-      return () => {
-        if (signInTimerRef.current) {
-          clearTimeout(signInTimerRef.current);
-        }
-      };
-    }, [user, chatState.hasShownSignInPrompt, setPersitedHasShownSignInPrompt]);
-
-    // Timer for lookout announcement - show after 30 seconds for authenticated users
-    useEffect(() => {
-      if (user && !chatState.hasShownAnnouncementDialog) {
-        const timer = setTimeout(() => {
-          dispatch({ type: 'SET_SHOW_ANNOUNCEMENT_DIALOG', payload: true });
-          dispatch({ type: 'SET_HAS_SHOWN_ANNOUNCEMENT_DIALOG', payload: true });
-          setPersitedHasShownLookoutAnnouncement(true);
-        }, 3000);
-
-        return () => clearTimeout(timer);
-      }
-    }, [user, chatState.hasShownAnnouncementDialog, setPersitedHasShownLookoutAnnouncement]);
 
     type VisibilityType = 'public' | 'private';
 
@@ -513,15 +453,11 @@ const ChatInterface = memo(
         type: 'SET_ANY_DIALOG_OPEN',
         payload:
           chatState.commandDialogOpen ||
-          chatState.showSignInPrompt ||
-          chatState.showUpgradeDialog ||
-          chatState.showAnnouncementDialog,
+          chatState.showUpgradeDialog,
       });
     }, [
       chatState.commandDialogOpen,
-      chatState.showSignInPrompt,
       chatState.showUpgradeDialog,
-      chatState.showAnnouncementDialog,
     ]);
 
     // Keyboard shortcut for command dialog
@@ -633,26 +569,12 @@ const ChatInterface = memo(
         <ChatDialogs
           commandDialogOpen={chatState.commandDialogOpen}
           setCommandDialogOpen={(open) => dispatch({ type: 'SET_COMMAND_DIALOG_OPEN', payload: open })}
-          showSignInPrompt={chatState.showSignInPrompt}
-          setShowSignInPrompt={(open) => dispatch({ type: 'SET_SHOW_SIGNIN_PROMPT', payload: open })}
-          hasShownSignInPrompt={chatState.hasShownSignInPrompt}
-          setHasShownSignInPrompt={(value) => {
-            dispatch({ type: 'SET_HAS_SHOWN_SIGNIN_PROMPT', payload: value });
-            setPersitedHasShownSignInPrompt(value);
-          }}
           showUpgradeDialog={chatState.showUpgradeDialog}
           setShowUpgradeDialog={(open) => dispatch({ type: 'SET_SHOW_UPGRADE_DIALOG', payload: open })}
           hasShownUpgradeDialog={chatState.hasShownUpgradeDialog}
           setHasShownUpgradeDialog={(value) => {
             dispatch({ type: 'SET_HAS_SHOWN_UPGRADE_DIALOG', payload: value });
             setPersitedHasShownUpgradeDialog(value);
-          }}
-          showLookoutAnnouncement={chatState.showAnnouncementDialog}
-          setShowLookoutAnnouncement={(open) => dispatch({ type: 'SET_SHOW_ANNOUNCEMENT_DIALOG', payload: open })}
-          hasShownLookoutAnnouncement={chatState.hasShownAnnouncementDialog}
-          setHasShownLookoutAnnouncement={(value) => {
-            dispatch({ type: 'SET_HAS_SHOWN_ANNOUNCEMENT_DIALOG', payload: value });
-            setPersitedHasShownLookoutAnnouncement(value);
           }}
           user={user}
           setAnyDialogOpen={(open) => dispatch({ type: 'SET_ANY_DIALOG_OPEN', payload: open })}

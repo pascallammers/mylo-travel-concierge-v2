@@ -13,7 +13,6 @@ import {
   payment,
   customInstructions,
   stream,
-  lookout,
 } from '@/lib/db/schema';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { db } from '@/lib/db';
@@ -31,6 +30,7 @@ import DodoPayments from 'dodopayments';
 import { eq } from 'drizzle-orm';
 import { invalidateUserCaches } from './performance-cache';
 import { clearUserDataCache } from './user-data-server';
+import bcrypt from 'bcryptjs';
 
 config({
   path: '.env.local',
@@ -77,29 +77,20 @@ export const auth = betterAuth({
       payment,
       customInstructions,
       stream,
-      lookout,
     },
   }),
-  socialProviders: {
-    github: {
-      clientId: serverEnv.GITHUB_CLIENT_ID,
-      clientSecret: serverEnv.GITHUB_CLIENT_SECRET,
+  emailAndPassword: {
+    enabled: true,
+    requireEmailVerification: false, // No signup = no verification needed
+    password: {
+      // Support bcrypt hashes for users created via webhook
+      hash: async (password: string) => bcrypt.hash(password, 10),
+      verify: async ({ hash, password }: { hash: string; password: string }) => bcrypt.compare(password, hash),
     },
-    google: {
-      clientId: serverEnv.GOOGLE_CLIENT_ID,
-      clientSecret: serverEnv.GOOGLE_CLIENT_SECRET,
-    },
-    twitter: {
-      clientId: serverEnv.TWITTER_CLIENT_ID,
-      clientSecret: serverEnv.TWITTER_CLIENT_SECRET,
-    },
-    microsoft: {
-      clientId: process.env.MICROSOFT_CLIENT_ID as string,
-      clientSecret: process.env.MICROSOFT_CLIENT_SECRET as string,
-      // Optional
-      tenantId: 'common',
-      authority: 'https://login.microsoftonline.com', // Authentication authority URL
-      prompt: 'select_account', // Forces account selection
+    sendResetPasswordEmail: async ({ user, url, token }: { user: any; url: string; token: string }) => {
+      // Import email service dynamically to avoid circular dependencies
+      const { sendPasswordResetEmail } = await import('./email');
+      await sendPasswordResetEmail(user.email, url);
     },
   },
   pluginRoutes: {
@@ -434,6 +425,18 @@ export const auth = betterAuth({
     }),
     nextCookies(),
   ],
-  trustedOrigins: ['http://localhost:3000', 'https://scira.ai', 'https://www.scira.ai'],
-  allowedOrigins: ['http://localhost:3000', 'https://scira.ai', 'https://www.scira.ai'],
+  trustedOrigins: [
+    'http://localhost:3000',
+    'https://scira.ai',
+    'https://www.scira.ai',
+    'https://mylo-travel-concierge-v2.vercel.app',
+    'https://mylo-travel-concierge-v2-*.vercel.app', // Preview deployments
+  ],
+  allowedOrigins: [
+    'http://localhost:3000',
+    'https://scira.ai',
+    'https://www.scira.ai',
+    'https://mylo-travel-concierge-v2.vercel.app',
+    'https://mylo-travel-concierge-v2-*.vercel.app', // Preview deployments
+  ],
 });

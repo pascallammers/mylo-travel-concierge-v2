@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "1.0.0",
+  "lastUpdated": null,
+  "decisions": [],
+  "metadata": {
+    "description": "Architectural and technical decisions for this project"
+  }
+}
