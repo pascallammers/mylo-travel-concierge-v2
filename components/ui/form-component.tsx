@@ -1689,8 +1689,8 @@ const GroupModeToggle: React.FC<GroupSelectorProps> = React.memo(
     const isMobile = useIsMobile();
     const isExtreme = selectedGroup === 'extreme';
 
-    // Get search provider from localStorage with reactive updates
-    const [searchProvider] = useLocalStorage<SearchProvider>('scira-search-provider', 'firecrawl');
+    // Search provider is hardcoded to Exa
+    const searchProvider = 'exa';
 
     // Get dynamic search groups based on the selected search provider
     const dynamicSearchGroups = useMemo(() => getSearchGroups(searchProvider), [searchProvider]);

@@ -155,134 +155,6 @@ function ProfileSection({ user, subscriptionData, isProUser, isProStatusLoading 
   );
 }
 
-// Icon components for search providers
-const ParallelIcon = ({ className }: { className?: string }) => (
-  <Image
-    src="/parallel-icon.svg"
-    alt="Parallel AI"
-    width={16}
-    height={16}
-    className={cn('bg-white rounded-full p-0.5', className)}
-  />
-);
-
-const ExaIcon = ({ className }: { className?: string }) => (
-  <Image src="/exa-color.svg" alt="Exa" width={16} height={16} className={className} />
-);
-
-const TavilyIcon = ({ className }: { className?: string }) => (
-  <Image src="/tavily-color.svg" alt="Tavily" width={16} height={16} className={className} />
-);
-
-const FirecrawlIcon = ({ className }: { className?: string }) => (
-  <span className={cn('text-base sm:text-lg !mb-3 !pr-1', className)}>🔥</span>
-);
-
-// Search Provider Options
-const searchProviders = [
-  {
-    value: 'firecrawl',
-    label: 'Firecrawl',
-    description: 'Web, news, and image search with content scraping capabilities',
-    icon: FirecrawlIcon,
-    default: true,
-  },
-  {
-    value: 'exa',
-    label: 'Exa',
-    description: 'Enhanced and faster web search with images and advanced filtering',
-    icon: ExaIcon,
-    default: false,
-  },
-  {
-    value: 'parallel',
-    label: 'Parallel AI',
-    description: 'Base and premium web search along with Firecrawl image search support',
-    icon: ParallelIcon,
-    default: false,
-  },
-  {
-    value: 'tavily',
-    label: 'Tavily',
-    description: 'Wide web search with comprehensive results and analysis',
-    icon: TavilyIcon,
-    default: false,
-  },
-] as const;
-
-// Search Provider Selector Component
-function SearchProviderSelector({
-  value,
-  onValueChange,
-  disabled,
-  className,
-}: {
-  value: string;
-  onValueChange: (value: 'exa' | 'parallel' | 'tavily' | 'firecrawl') => void;
-  disabled?: boolean;
-  className?: string;
-}) {
-  const isMobile = useMediaQuery('(max-width: 768px)');
-  const currentProvider = searchProviders.find((provider) => provider.value === value);
-
-  return (
-    <div className="w-full">
-      <Select value={value} onValueChange={onValueChange} disabled={disabled}>
-        <SelectTrigger
-          className={cn(
-            'w-full h-auto min-h-18 sm:min-h-14 p-4',
-            'border border-input bg-background',
-            'transition-all duration-200',
-            'focus:outline-none focus:ring-0 focus:ring-offset-0',
-            disabled && 'opacity-50 cursor-not-allowed',
-            className,
-          )}
-        >
-          <div className="flex items-center gap-2.5 min-w-0 flex-1">
-            {currentProvider && (
-              <>
-                <currentProvider.icon className="text-muted-foreground size-4 flex-shrink-0" />
-                <div className="text-left flex-1 min-w-0">
-                  <div className="font-medium text-sm flex items-center gap-2 mb-0.5">
-                    {currentProvider.label}
-                    {currentProvider.default && (
-                      <Badge variant="secondary" className="text-[9px] px-1 py-0.5 bg-primary/10 text-primary border-0">
-                        Default
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="text-xs text-muted-foreground leading-tight line-clamp-2 text-wrap">
-                    {currentProvider.description}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </SelectTrigger>
-        <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-32px)]">
-          {searchProviders.map((provider) => (
-            <SelectItem key={provider.value} value={provider.value}>
-              <div className="flex items-center gap-2.5">
-                <provider.icon className="text-muted-foreground size-4 flex-shrink-0" />
-                <div className="flex flex-col">
-                  <div className="font-medium text-sm flex items-center gap-2">
-                    {provider.label}
-                    {provider.default && (
-                      <Badge variant="secondary" className="text-[9px] px-1 py-0.5 bg-primary/10 text-primary border-0">
-                        Default
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="text-xs text-muted-foreground">{provider.description}</div>
-                </div>
-              </div>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
-}
 
 // Component for Combined Preferences (Search + Custom Instructions)
 function PreferencesSection({
@@ -295,31 +167,12 @@ function PreferencesSection({
   setIsCustomInstructionsEnabled?: (value: boolean | ((val: boolean) => boolean)) => void;
 }) {
   const isMobile = useMediaQuery('(max-width: 768px)');
-  const [searchProvider, setSearchProvider] = useLocalStorage<'exa' | 'parallel' | 'tavily' | 'firecrawl'>(
-    'scira-search-provider',
-    'firecrawl',
-  );
 
   const [content, setContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   const enabled = isCustomInstructionsEnabled ?? true;
   const setEnabled = setIsCustomInstructionsEnabled ?? (() => {});
-
-  const handleSearchProviderChange = (newProvider: 'exa' | 'parallel' | 'tavily' | 'firecrawl') => {
-    setSearchProvider(newProvider);
-    toast.success(
-      `Search provider changed to ${
-        newProvider === 'exa'
-          ? 'Exa'
-          : newProvider === 'parallel'
-            ? 'Parallel AI'
-            : newProvider === 'tavily'
-              ? 'Tavily'
-              : 'Firecrawl'
-      }`,
-    );
-  };
 
   // Custom Instructions queries and handlers
   const {
@@ -383,31 +236,8 @@ function PreferencesSection({
       <div>
         <h3 className={cn('font-semibold mb-1.5', isMobile ? 'text-sm' : 'text-base')}>Preferences</h3>
         <p className={cn('text-muted-foreground', isMobile ? 'text-xs leading-relaxed' : 'text-xs')}>
-          Configure your search provider and customize how the AI responds to your questions.
+          Customize how the AI responds to your questions.
         </p>
-      </div>
-
-      {/* Search Provider Section */}
-      <div className="space-y-3">
-        <div className="space-y-2.5">
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-lg bg-primary/10">
-              <HugeiconsIcon icon={GlobalSearchIcon} className="h-3.5 w-3.5 text-primary" />
-            </div>
-            <div>
-              <h4 className="font-semibold text-sm">Search Provider</h4>
-              <p className="text-xs text-muted-foreground">Choose your preferred search engine</p>
-            </div>
-          </div>
-
-          <div className="space-y-2.5">
-            <SearchProviderSelector value={searchProvider} onValueChange={handleSearchProviderChange} />
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Select your preferred search provider for web searches. Changes take effect immediately and will be used
-              for all future searches.
-            </p>
-          </div>
-        </div>
       </div>
 
       {/* Custom Instructions Section */}
