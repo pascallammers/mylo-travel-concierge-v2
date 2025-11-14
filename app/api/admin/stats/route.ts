@@ -27,13 +27,13 @@ export async function GET(request: NextRequest) {
 
     // Get active users (users with messages in last 30 days)
     const activeUsersResult = await db
-      .select({ userId: message.id })
+      .select({ userId: chat.userId })
       .from(message)
       .innerJoin(chat, eq(message.chatId, chat.id))
       .where(gte(message.createdAt, thirtyDaysAgo))
       .groupBy(chat.userId);
 
-    const activeUsers = new Set(activeUsersResult.map((r) => r.userId)).size;
+    const activeUsers = activeUsersResult.length;
 
     // Get total documents (chats)
     const [totalDocumentsResult] = await db.select({ count: count() }).from(chat);
