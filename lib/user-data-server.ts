@@ -19,6 +19,7 @@ export type ComprehensiveUserData = {
   image: string | null;
   createdAt: Date;
   updatedAt: Date;
+  role: 'user' | 'admin';
   isProUser: boolean;
   proSource: 'polar' | 'dodo' | 'none';
   subscriptionStatus: 'active' | 'canceled' | 'expired' | 'none';
@@ -176,6 +177,7 @@ export async function getComprehensiveUserData(): Promise<ComprehensiveUserData 
       image: userData.image,
       createdAt: userData.createdAt,
       updatedAt: userData.updatedAt,
+      role: (userData.role as 'user' | 'admin') || 'user',
       isProUser,
       proSource,
       subscriptionStatus,

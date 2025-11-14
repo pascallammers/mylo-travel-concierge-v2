@@ -11,6 +11,7 @@ export const user = pgTable('user', {
   image: text('image'),
   createdAt: timestamp('created_at').notNull(),
   updatedAt: timestamp('updated_at').notNull(),
+  role: text('role', { enum: ['user', 'admin'] }).notNull().default('user'),
 });
 
 export const session = pgTable('session', {

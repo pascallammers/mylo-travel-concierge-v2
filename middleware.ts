@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionCookie } from 'better-auth/cookies';
+import { auth } from '@/lib/auth';
 
 const authRoutes = ['/sign-in', '/reset-password'];
 const publicRoutes = ['/terms', '/privacy-policy'];
+const adminRoutes = ['/admin'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -28,6 +30,32 @@ export async function middleware(request: NextRequest) {
   // Debug logging for production
   console.log('Session cookie present:', !!sessionCookie);
   console.log('Is auth route:', authRoutes.some((route) => pathname.startsWith(route)));
+  console.log('Is admin route:', adminRoutes.some((route) => pathname.startsWith(route)));
+
+  // Check admin routes (requires authentication and admin role)
+  if (adminRoutes.some((route) => pathname.startsWith(route))) {
+    if (!sessionCookie) {
+      console.log('Redirecting unauthenticated user to sign-in from admin route');
+      return NextResponse.redirect(new URL('/sign-in', request.url));
+    }
+
+    // Get user role from session
+    try {
+      const session = await auth.api.getSession({
+        headers: request.headers,
+      });
+
+      const userRole = (session?.user as { role?: string })?.role;
+
+      if (userRole !== 'admin') {
+        console.log('Redirecting non-admin user from admin route');
+        return NextResponse.redirect(new URL('/', request.url));
+      }
+    } catch (error) {
+      console.error('Error checking admin role:', error);
+      return NextResponse.redirect(new URL('/sign-in', request.url));
+    }
+  }
 
   // Redirect /settings to /#settings to open settings dialog (only if authenticated)
   if (pathname === '/settings') {
