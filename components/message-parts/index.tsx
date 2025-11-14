@@ -13,10 +13,9 @@ import { toast } from 'sonner';
 import { Wave } from '@foobar404/wave';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
-import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { ShareButton } from '@/components/share';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { RepeatIcon, Copy01Icon, CpuIcon } from '@hugeicons/core-free-icons';
+import { RepeatIcon, Copy01Icon } from '@hugeicons/core-free-icons';
 import { ChatMessage, CustomUIDataTypes, DataQueryCompletionPart, DataExtremeSearchPart, ChatTools } from '@/lib/types';
 import { UseChatHelpers } from '@ai-sdk/react';
 import { MyloLogoHeader } from '@/components/mylo-logo-header';
@@ -47,18 +46,13 @@ import {
   TextIcon,
   Pause,
   Play as PlayIcon,
-  Info,
 } from 'lucide-react';
 import {
   RedditLogoIcon,
   XLogoIcon,
   ClockIcon as PhosphorClockIcon,
   MemoryIcon,
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  SigmaIcon,
 } from '@phosphor-icons/react';
-import { getModelConfig } from '@/ai/providers';
 import { ComprehensiveUserData } from '@/lib/user-data-server';
 
 // Lazy load tool components
@@ -355,13 +349,6 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
         return <div key={`${messageIndex}-${partIndex}-empty`}></div>;
       }
 
-      // Pre-compute metadata presentation values
-      const meta = message?.metadata;
-      const modelConfig = meta?.model ? getModelConfig(meta.model) : null;
-      const modelLabel = modelConfig?.label ?? meta?.model ?? null;
-      const tokenTotal = (meta?.totalTokens ?? (meta?.inputTokens ?? 0) + (meta?.outputTokens ?? 0)) || null;
-      const inputCount = meta?.inputTokens ?? null;
-      const outputCount = meta?.outputTokens ?? null;
 
       // Detect text sandwiched between step-start and tool-invocation
       const prevPart = parts[partIndex - 1];
@@ -466,95 +453,6 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
                   </Tooltip>
                 </TooltipProvider>
               </div>
-
-              {/* Right side - Message metadata stats popover */}
-              {meta && (
-                <div className="flex items-center">
-                  <HoverCard openDelay={100} closeDelay={100}>
-                    <HoverCardTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 p-0 rounded-full touch-manipulation"
-                        onTouchStart={() => {}} // Enable touch events
-                      >
-                        <Info className="h-4 w-4" />
-                      </Button>
-                    </HoverCardTrigger>
-                    <HoverCardContent
-                      className="w-72 max-w-[calc(100vw-2rem)]"
-                      side="top"
-                      align="end"
-                      sideOffset={8}
-                      alignOffset={-8}
-                      avoidCollisions={true}
-                      collisionPadding={16}
-                    >
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <Info className="h-4 w-4" />
-                          <h4 className="font-semibold text-sm">Response Info</h4>
-                        </div>
-
-                        {modelLabel && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Model</span>
-                            <div className="flex items-center gap-1 text-xs bg-primary text-primary-foreground rounded-lg px-2 py-1">
-                              <HugeiconsIcon icon={CpuIcon} size={12} />
-                              {modelLabel}
-                            </div>
-                          </div>
-                        )}
-
-                        {typeof meta.completionTime === 'number' && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Generation Time</span>
-                            <div className="flex items-center gap-1 text-xs">
-                              <Clock className="h-3 w-3" />
-                              {meta.completionTime.toFixed(1)}s
-                            </div>
-                          </div>
-                        )}
-
-                        {(inputCount != null || outputCount != null) && (
-                          <div className="space-y-2">
-                            <span className="text-sm text-muted-foreground">Token Usage</span>
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                              {inputCount != null && (
-                                <div className="flex items-center justify-between bg-muted rounded-lg px-2 py-1">
-                                  <span className="flex items-center gap-1">
-                                    <ArrowLeftIcon weight="regular" className="h-3 w-3" />
-                                    Input
-                                  </span>
-                                  <span className="font-medium">{inputCount.toLocaleString()}</span>
-                                </div>
-                              )}
-                              {outputCount != null && (
-                                <div className="flex items-center justify-between bg-muted rounded-lg px-2 py-1">
-                                  <span className="flex items-center gap-1">
-                                    <ArrowRightIcon weight="regular" className="h-3 w-3" />
-                                    Output
-                                  </span>
-                                  <span className="font-medium">{outputCount.toLocaleString()}</span>
-                                </div>
-                              )}
-                            </div>
-                            {tokenTotal != null && (
-                              <div className="flex items-center justify-between bg-accent rounded-lg px-2 py-1 text-xs">
-                                <span className="flex items-center gap-1 font-medium">
-                                  <SigmaIcon className="h-3 w-3" weight="regular" />
-                                  Total
-                                </span>
-                                <span className="font-semibold">{tokenTotal.toLocaleString()}</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </HoverCardContent>
-                  </HoverCard>
-                </div>
-              )}
             </div>
           )}
         </div>
