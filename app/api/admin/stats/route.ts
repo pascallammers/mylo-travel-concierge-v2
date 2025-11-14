@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isCurrentUserAdmin } from '@/lib/auth-utils';
 import { db } from '@/lib/db';
-import { user, chat, message, subscription } from '@/lib/db/schema';
-import { count, eq, gte, sql } from 'drizzle-orm';
+import { user, chat, message } from '@/lib/db/schema';
+import { count, eq, gte } from 'drizzle-orm';
 
 /**
  * GET /api/admin/stats
@@ -40,15 +40,13 @@ export async function GET(request: NextRequest) {
     const totalDocuments = totalDocumentsResult?.count || 0;
 
     // Get total media files (count attachments in messages)
-    const messagesWithAttachments = await db
-      .select({ attachments: message.attachments })
-      .from(message)
-      .where(sql`${message.attachments} IS NOT NULL AND ${message.attachments} != '[]'`);
+    const messagesWithAttachments = await db.select({ attachments: message.attachments }).from(message);
 
     let totalMedia = 0;
     messagesWithAttachments.forEach((msg) => {
-      if (Array.isArray(msg.attachments)) {
-        totalMedia += msg.attachments.length;
+      const attachmentsValue = msg.attachments as unknown;
+      if (Array.isArray(attachmentsValue)) {
+        totalMedia += attachmentsValue.length;
       }
     });
 
