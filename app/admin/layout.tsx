@@ -1,5 +1,5 @@
 import { AdminNav } from '@/components/admin/admin-nav';
-import { getUser } from '@/lib/auth-utils';
+import { getUser, getUserRole } from '@/lib/auth-utils';
 import { redirect } from 'next/navigation';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -10,7 +10,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect('/sign-in');
   }
 
-  if (user.role !== 'admin') {
+  // Get role directly from database (session might not have it after role was added)
+  const userRole = await getUserRole(user.id);
+
+  if (userRole !== 'admin') {
     redirect('/');
   }
 

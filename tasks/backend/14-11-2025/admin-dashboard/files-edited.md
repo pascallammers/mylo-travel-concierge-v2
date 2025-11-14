@@ -197,7 +197,32 @@ pnpm add recharts
 
 ---
 
-## Critical Bugfix: Middleware Edge Runtime Issue
+## Critical Bugfix 2: Admin Role Check - Session vs Database
+
+### File: `/app/admin/layout.tsx`
+**Lines:** 2, 13-16  
+**Summary:** Fixed admin redirect issue by fetching role from database instead of session
+
+**Problem:**
+- Better Auth session doesn't contain the `role` field for existing sessions
+- Field was added after user logged in
+- `user.role` was `undefined`, causing redirect to home page
+
+**Solution:**
+- Import `getUserRole` from auth-utils
+- Fetch role directly from database: `const userRole = await getUserRole(user.id)`
+- Check `userRole` (from DB) instead of `user.role` (from session)
+- Added comment explaining why we fetch from DB
+
+**Why this works:**
+- Works with old and new sessions
+- Always current (from DB)
+- No re-login required
+- Secure (no session manipulation possible)
+
+---
+
+## Critical Bugfix 1: Middleware Edge Runtime Issue
 
 ### File: `/middleware.ts`
 **Lines:** 3, 35-41  
