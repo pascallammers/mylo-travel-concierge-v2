@@ -197,6 +197,38 @@ pnpm add recharts
 
 ---
 
+## Critical Bugfix: Middleware Edge Runtime Issue
+
+### File: `/middleware.ts`
+**Lines:** 3, 35-41  
+**Summary:** Fixed MIDDLEWARE_INVOCATION_FAILED error by removing auth.api.getSession() call
+
+**Problem:**
+- Middleware tried to call `auth.api.getSession()` which doesn't work in Edge Runtime
+- Caused 500 error when accessing `/admin` routes
+
+**Solution:**
+- Removed `import { auth } from '@/lib/auth'`
+- Removed role check from middleware
+- Middleware now only checks if session cookie exists
+- Role check moved to Server Component (layout)
+
+---
+
+### File: `/app/admin/layout.tsx`
+**Lines:** 2-3, 5-16  
+**Summary:** Added server-side authentication and role check
+
+**Changes:**
+- Changed to `async function`
+- Added `import { getUser } from '@/lib/auth-utils'`
+- Added `import { redirect } from 'next/navigation'`
+- Check if user is authenticated
+- Check if user has admin role
+- Redirect if not authorized
+
+---
+
 ## Build Fixes Applied
 
 ### File: `/app/admin/users/page.tsx`
