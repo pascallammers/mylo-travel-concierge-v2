@@ -44,3 +44,14 @@ certificates
 *.backup.*
 *-tasks.json
 .claude-*-backup*
+
+# Configuration file with API keys (NEVER commit this!)
+config.yml
+
+# Keep the example template
+!config.example.yml
+
+# Dependency artifacts
+node_modules/
+
+bun.lockb
