@@ -197,9 +197,9 @@ async function saveWithRetry(
   
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      const result = await supermemoryClient.memories.create({
+      const result = await supermemoryClient.memories.add({
         content,
-        containerTags: [userId],
+        containerTag: userId,
         metadata,
       });
       

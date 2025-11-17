@@ -192,8 +192,13 @@ const Messages: React.FC<MessagesProps> = ({
   // Memory save handler with loading state
   const [isSavingMemory, setIsSavingMemory] = useState(false);
 
-  const handleAddToMemory = useCallback(async (text: string, messageId: string, messageRole: 'user' | 'assistant') => {
+  const handleAddToMemory = useCallback(async (text: string, messageId: string, messageRole: 'user' | 'assistant' | 'system') => {
     if (isSavingMemory) return;
+    
+    // Skip system messages
+    if (messageRole === 'system') {
+      return;
+    }
     
     setIsSavingMemory(true);
     
@@ -201,7 +206,7 @@ const Messages: React.FC<MessagesProps> = ({
       const context: MemoryContext = {
         conversationId: chatId || messageId,
         messageId: messageId,
-        messageRole: messageRole,
+        messageRole: messageRole as 'user' | 'assistant',
         timestamp: new Date().toISOString(),
       };
       
