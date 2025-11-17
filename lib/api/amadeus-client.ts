@@ -21,10 +21,10 @@ export interface AmadeusSearchParams {
 
 /**
  * Formatted flight result from Amadeus
+ * Note: provider field removed to hide data source from end users
  */
 export interface AmadeusFlight {
   id: string;
-  provider: 'amadeus';
   airline: string;
   price: {
     total: string;
@@ -136,7 +136,7 @@ function formatAmadeusOffer(offer: any): AmadeusFlight {
 
   return {
     id: offer.id,
-    provider: 'amadeus',
+    // provider field removed to hide data source from end users
     airline: offer.validatingAirlineCodes?.[0] || 'Unknown',
     price: {
       total: offer.price.grandTotal,

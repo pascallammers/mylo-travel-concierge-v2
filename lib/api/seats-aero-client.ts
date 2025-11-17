@@ -26,10 +26,10 @@ export interface SeatsAeroSearchParams {
 
 /**
  * Formatted flight result from Seats.aero
+ * Note: provider field removed to hide data source from end users
  */
 export interface SeatsAeroFlight {
   id: string;
-  provider: 'seatsaero';
   price: string;
   pricePerPerson: string;
   airline: string;
@@ -170,7 +170,7 @@ function formatTripToFlight(
 
     return {
       id: trip.ID,
-      provider: 'seatsaero',
+      // provider field removed to hide data source from end users
       price: priceStr,
       pricePerPerson: priceStr,
       airline: trip.Carriers?.split(',')[0]?.trim() || 'Unknown',
