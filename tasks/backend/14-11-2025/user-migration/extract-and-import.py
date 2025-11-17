@@ -42,7 +42,7 @@ def generate_import_sql(users):
         for i, user_data in enumerate(users, 1):
             full_name = user_data.get('full_name') or user_data['email'].split('@')[0]
             last_sign_in = user_data.get('last_sign_in_at')
-            activation_status = 'active' if last_sign_in else 'pending_activation'
+            activation_status = 'active' if last_sign_in else 'inactive'
             
             # Escape single quotes
             full_name = full_name.replace("'", "''")

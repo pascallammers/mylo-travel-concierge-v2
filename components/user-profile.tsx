@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils';
 import { ThemeSwitcher } from './theme-switcher';
 import { useRouter } from 'next/navigation';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { User } from '@/lib/db/schema';
+import { ComprehensiveUserData } from '@/lib/user-data';
 import { SettingsDialog } from './settings-dialog';
 import { SettingsIcon, type SettingsIconHandle } from '@/components/ui/settings';
 
@@ -97,7 +97,7 @@ const UserProfile = memo(
     settingsInitialTab,
   }: {
     className?: string;
-    user?: User | null;
+    user?: ComprehensiveUserData | null;
     subscriptionData?: any;
     isProUser?: boolean;
     isProStatusLoading?: boolean;

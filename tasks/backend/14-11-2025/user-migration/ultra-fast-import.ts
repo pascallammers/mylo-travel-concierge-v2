@@ -7,6 +7,7 @@ import { db } from '@/lib/db';
 import { user, account } from '@/lib/db/schema';
 import { randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
+import { isNotNull } from 'drizzle-orm';
 
 // Lese die exportierten User aus dem Artifact-Log
 const ARTIFACT_PATH = '/Users/pascallammers/.factory/artifacts/tool-outputs/mcp_supabase-pointpilot-chat_execute_sql-toolu_01S88MKo5DGwjnsD5vRXoGt7-36131729.log';
@@ -42,7 +43,7 @@ async function ultraFastImport() {
       const emailVerified = supaUser.raw_user_meta_data?.email_verified || false;
       
       // Activation Status
-      const activationStatus = supaUser.last_sign_in_at ? 'active' : 'pending_activation';
+      const activationStatus = supaUser.last_sign_in_at ? 'active' : 'inactive';
       
       // User erstellen
       await db.insert(user).values({
@@ -94,7 +95,7 @@ async function ultraFastImport() {
   
   // Final Check
   const totalCount = await db.select().from(user).then(rows => rows.length);
-  const migratedCount = await db.select().from(user).where({ supabaseUserId: { $ne: null } }).then(rows => rows.length);
+  const migratedCount = await db.select().from(user).where(isNotNull(user.supabaseUserId)).then(rows => rows.length);
   
   console.log(`\n📈 Neon Database Status:`);
   console.log(`   Total Users: ${totalCount}`);

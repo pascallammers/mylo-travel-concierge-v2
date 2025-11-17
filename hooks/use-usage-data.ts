@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { getUserMessageCount } from '@/app/actions';
-import { User } from '@/lib/db/schema';
+import { ComprehensiveUserData } from '@/lib/user-data';
 
-export function useUsageData(user: User | null, enabled: boolean = true) {
+export function useUsageData(user: ComprehensiveUserData | null, enabled: boolean = true) {
   return useQuery({
     queryKey: ['user-usage', user?.id],
     queryFn: () => getUserMessageCount(),

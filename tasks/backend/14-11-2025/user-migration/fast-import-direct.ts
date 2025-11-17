@@ -71,7 +71,7 @@ async function fastImport() {
         const requiresPasswordChange = supaUser.raw_user_meta_data?.requires_password_change || false;
         
         // Activation Status basierend auf last_sign_in_at
-        const activationStatus = supaUser.last_sign_in_at ? 'active' : 'pending_activation';
+        const activationStatus = supaUser.last_sign_in_at ? 'active' : 'inactive';
 
         // User erstellen
         await db.insert(user).values({
