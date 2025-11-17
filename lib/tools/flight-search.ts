@@ -5,6 +5,7 @@ import { searchAmadeus } from '@/lib/api/amadeus-client';
 import { recordToolCall, updateToolCall } from '@/lib/db/queries';
 import { mergeSessionState } from '@/lib/db/queries';
 import { resolveIATACode } from '@/lib/utils/airport-codes';
+import { buildGoogleFlightsUrl, buildSkyscannerUrl } from '@/lib/utils/flight-search-links';
 
 /**
  * Flight Search Tool - Searches both award flights (Seats.aero) and cash flights (Amadeus)
@@ -277,9 +278,9 @@ Examples of queries that should trigger this tool:
 function formatFlightResults(result: any, params: any): string {
   const sections: string[] = [];
 
-  // Award Flights Section
+  // Award Flights Section (renamed from "Award-Flüge" to hide Seats.aero source)
   if (result.seats.count > 0) {
-    sections.push(`## Award-Flüge (${result.seats.count} Ergebnisse)\n`);
+    sections.push(`## Flüge mit Meilen/Punkten (${result.seats.count} Ergebnisse)\n`);
 
     result.seats.flights.forEach((flight: any, idx: number) => {
       sections.push(
@@ -295,9 +296,9 @@ function formatFlightResults(result: any, params: any): string {
     });
   }
 
-  // Cash Flights Section
+  // Cash Flights Section (renamed from "Cash-Flüge" to hide Amadeus source)
   if (result.amadeus.count > 0) {
-    sections.push(`## Cash-Flüge (${result.amadeus.count} Ergebnisse)\n`);
+    sections.push(`## Flüge mit Barzahlung (${result.amadeus.count} Ergebnisse)\n`);
 
     result.amadeus.flights.forEach((flight: any, idx: number) => {
       sections.push(
@@ -313,6 +314,35 @@ function formatFlightResults(result: any, params: any): string {
           `**Stops:** ${flight.stops === 0 ? 'Nonstop' : `${flight.stops} Stop(s)`}\n\n`
       );
     });
+  }
+
+  // External Search Links Section
+  if (result.seats.count > 0 || result.amadeus.count > 0) {
+    sections.push(`\n---\n\n## Weitere Suchoptionen\n`);
+    sections.push(`Durchsuchen Sie auch diese Plattformen:\n\n`);
+
+    // Build Google Flights link
+    const googleFlightsUrl = buildGoogleFlightsUrl({
+      origin: params.origin,
+      destination: params.destination,
+      departDate: params.departDate,
+      returnDate: params.returnDate,
+      cabin: params.cabin,
+      passengers: params.passengers,
+    });
+
+    // Build Skyscanner link
+    const skyscannerUrl = buildSkyscannerUrl({
+      origin: params.origin,
+      destination: params.destination,
+      departDate: params.departDate,
+      returnDate: params.returnDate,
+      cabin: params.cabin,
+      passengers: params.passengers,
+    });
+
+    sections.push(`- [🔍 Auf Google Flights suchen](${googleFlightsUrl})\n`);
+    sections.push(`- [🔍 Auf Skyscanner suchen](${skyscannerUrl})\n`);
   }
 
   // No results
