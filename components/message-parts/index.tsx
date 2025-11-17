@@ -1992,6 +1992,55 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
             }
             break;
 
+          case 'tool-search_flights':
+            switch (part.state) {
+              case 'input-streaming':
+                return (
+                  <React.Fragment key={`${messageIndex}-${partIndex}`}>
+                    <MyloLogoHeader />
+                    <div className="flex space-x-2 ml-8 mt-2">
+                      <div
+                        className="w-2 h-2 rounded-full bg-muted-foreground dark:bg-muted-foreground animate-bounce"
+                        style={{ animationDelay: '0ms' }}
+                      />
+                      <div
+                        className="w-2 h-2 rounded-full bg-muted-foreground dark:bg-muted-foreground animate-bounce"
+                        style={{ animationDelay: '150ms' }}
+                      />
+                      <div
+                        className="w-2 h-2 rounded-full bg-muted-foreground dark:bg-muted-foreground animate-bounce"
+                        style={{ animationDelay: '300ms' }}
+                      />
+                    </div>
+                  </React.Fragment>
+                );
+              case 'input-available':
+                return (
+                  <React.Fragment key={`${messageIndex}-${partIndex}`}>
+                    <MyloLogoHeader />
+                    <div className="flex space-x-2 ml-8 mt-2">
+                      <div
+                        className="w-2 h-2 rounded-full bg-muted-foreground dark:bg-muted-foreground animate-bounce"
+                        style={{ animationDelay: '0ms' }}
+                      />
+                      <div
+                        className="w-2 h-2 rounded-full bg-muted-foreground dark:bg-muted-foreground animate-bounce"
+                        style={{ animationDelay: '150ms' }}
+                      />
+                      <div
+                        className="w-2 h-2 rounded-full bg-muted-foreground dark:bg-muted-foreground animate-bounce"
+                        style={{ animationDelay: '300ms' }}
+                      />
+                    </div>
+                  </React.Fragment>
+                );
+              case 'output-available':
+                // Flight search results are rendered as text by the AI
+                // This state should not render anything special
+                return null;
+            }
+            break;
+
           case 'tool-greeting':
             switch (part.state) {
               case 'input-streaming':

@@ -143,6 +143,49 @@ export async function generateTitleFromUserMessage({ message }: { message: UIMes
   return title;
 }
 
+/**
+ * Detects the language of input text using simple heuristic
+ * @param text - Input text to analyze
+ * @returns 'de' for German, 'en' for English (default)
+ */
+function detectLanguage(text: string): 'de' | 'en' {
+  const germanWords = [
+    'der',
+    'die',
+    'das',
+    'und',
+    'oder',
+    'ich',
+    'du',
+    'sie',
+    'wir',
+    'für',
+    'auf',
+    'mit',
+    'von',
+    'nach',
+    'bei',
+    'zu',
+    'in',
+    'ist',
+    'sind',
+    'war',
+    'waren',
+    'haben',
+    'hat',
+    'können',
+    'kann',
+    'möchte',
+    'gerne',
+  ];
+
+  const words = text.toLowerCase().split(/\s+/);
+  const germanMatches = words.filter((w) => germanWords.includes(w)).length;
+
+  // If >30% German words → German, otherwise English
+  return germanMatches / words.length > 0.3 ? 'de' : 'en';
+}
+
 export async function enhancePrompt(raw: string) {
   try {
     const user = await getComprehensiveUserData();
@@ -150,7 +193,28 @@ export async function enhancePrompt(raw: string) {
       return { success: false, error: 'Pro subscription required' };
     }
 
-    const system = `You are an expert prompt engineer. You are given a prompt and you need to enhance it.
+    const language = detectLanguage(raw);
+
+    const systemPrompts = {
+      de: `Du bist ein Experte für Prompt-Optimierung. Du erhältst einen Prompt und sollst ihn verbessern.
+
+Heutiges Datum: ${new Date().toLocaleDateString('de-DE', { year: 'numeric', month: 'short', day: '2-digit', weekday: 'short' })}.
+
+Richtlinien (ZWINGEND):
+- Bewahre die ursprüngliche Absicht und Einschränkungen des Nutzers
+- Mache den Prompt spezifisch, eindeutig und umsetzbar
+- Füge fehlenden Kontext hinzu: Entitäten, Zeitrahmen, Ort, Format/Einschränkungen falls impliziert
+- Entferne Füllwörter, Pronomen und vage Sprache; nutze konkrete Begriffe wenn möglich
+- Halte es prägnant (max. 1-2 zusätzliche Sätze) aber informationsdicht
+- Stelle KEINE Rückfragen
+- Stelle sicher, dass es die besten und umfassendsten Ergebnisse für die Anfrage des Nutzers liefert
+- Behalte die Perspektive des Nutzers bei
+- Deine Aufgabe ist es, den Prompt zu verbessern, nicht ihn zu beantworten!!
+- Stelle sicher, dass der Prompt keine Antwort auf die Anfrage des Nutzers ist!!
+- Gib NUR den verbesserten Prompt-Text zurück, ohne Anführungszeichen, Kommentare oder Antworten auf die Anfrage des Nutzers!!
+- Gib einfach den verbesserten Prompt-Text im Klartext zurück, ohne weiteren Text, Kommentare, Markdown oder ähnliches!!`,
+
+      en: `You are an expert prompt engineer. You are given a prompt and you need to enhance it.
 
 Today's Date: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit', weekday: 'short' })}.
 
@@ -166,14 +230,15 @@ Guidelines (MANDATORY):
 - Your job is to enhance the prompt, not to answer the prompt!!
 - Make sure the prompt is not an answer to the user's query!!
 - Return ONLY the improved prompt text, with no quotes or commentary or answer to the user's query!!
-- Just return the improved prompt text in plain text format, no other text or commentary or markdown or anything else!!`;
+- Just return the improved prompt text in plain text format, no other text or commentary or markdown or anything else!!`,
+    };
 
     const { text } = await generateText({
       model: scira.languageModel('scira-enhance'),
       temperature: 0.6,
       topP: 0.95,
       maxOutputTokens: 1024,
-      system,
+      system: systemPrompts[language],
       prompt: raw,
     });
 
