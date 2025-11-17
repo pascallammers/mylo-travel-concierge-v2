@@ -18,6 +18,7 @@ import type {
   findPlaceOnMapTool,
   nearbyPlacesSearchTool,
   flightTrackerTool,
+  flightSearchTool,
   datetimeTool,
   // mcpSearchTool,
   extremeSearchTool,
@@ -121,6 +122,7 @@ type xSearchTool = InferUITool<typeof xSearchTool>;
 type stockChartTool = InferUITool<typeof stockChartTool>;
 type greetingTool = InferUITool<ReturnType<typeof greetingTool>>;
 type flightTrackerTool = InferUITool<typeof flightTrackerTool>;
+type flightSearchTool = InferUITool<typeof flightSearchTool>;
 type findPlaceOnMapTool = InferUITool<typeof findPlaceOnMapTool>;
 type nearbyPlacesSearchTool = InferUITool<typeof nearbyPlacesSearchTool>;
 type webSearch = InferUITool<ReturnType<typeof webSearchTool>>;
@@ -164,6 +166,7 @@ export type ChatTools = {
   text_translate: textTranslateTool;
   code_interpreter: codeInterpreterTool;
   track_flight: flightTrackerTool;
+  search_flights: flightSearchTool;
   datetime: datetimeTool;
   // mcp_search: mcpSearchTool;
   extreme_search: extremeSearch;

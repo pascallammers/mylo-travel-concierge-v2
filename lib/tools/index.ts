@@ -13,6 +13,7 @@ export { weatherTool } from './weather';
 export { codeInterpreterTool } from './code-interpreter';
 export { findPlaceOnMapTool, nearbyPlacesSearchTool } from './map-tools';
 export { flightTrackerTool } from './flight-tracker';
+export { flightSearchTool } from './flight-search';
 export { coinDataTool, coinDataByContractTool, coinOhlcTool } from './crypto-tools';
 export { datetimeTool } from './datetime';
 // export { mcpSearchTool } from './mcp-search';
