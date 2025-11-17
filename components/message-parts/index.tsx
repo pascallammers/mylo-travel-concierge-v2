@@ -283,6 +283,7 @@ interface MessagePartRendererProps {
   setSuggestedQuestions: (questions: string[]) => void;
   regenerate: UseChatHelpers<ChatMessage>['regenerate'];
   onHighlight?: (text: string) => void;
+  onAddToMemory?: (text: string) => void | Promise<void>;
   annotations?: DataUIPart<CustomUIDataTypes>[];
 }
 
@@ -309,6 +310,7 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
     setSuggestedQuestions,
     regenerate,
     onHighlight,
+    onAddToMemory,
     annotations,
   }) => {
     // Handle text parts
@@ -360,7 +362,11 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
       return (
         <div key={`${messageIndex}-${partIndex}-text`} className="mt-2">
           <div>
-            <ChatTextHighlighter onHighlight={onHighlight} removeHighlightOnClick={true}>
+            <ChatTextHighlighter 
+              onHighlight={onHighlight} 
+              onAddToMemory={user || selectedVisibilityType === 'private' ? onAddToMemory : undefined}
+              removeHighlightOnClick={true}
+            >
               <MarkdownRenderer content={part.text} />
             </ChatTextHighlighter>
           </div>

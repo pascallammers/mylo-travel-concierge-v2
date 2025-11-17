@@ -30,6 +30,7 @@ import { MarkdownRenderer } from '@/components/markdown';
 import { ChatTextHighlighter } from '@/components/chat-text-highlighter';
 import { deleteTrailingMessages } from '@/app/actions';
 import { getErrorActions, getErrorIcon, isSignInRequired, isProRequired, isRateLimited } from '@/lib/errors';
+import { saveMemoryFromChat, MemoryContext } from '@/lib/memory-actions';
 import { UserIcon } from '@phosphor-icons/react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
@@ -539,6 +540,43 @@ export const Message: React.FC<MessageProps> = ({
   const messageContentRef = React.useRef<HTMLDivElement>(null);
   // Mode state for editing
   const [mode, setMode] = useState<'view' | 'edit'>('view');
+  // State for memory save loading
+  const [isSavingMemory, setIsSavingMemory] = useState(false);
+
+  // Handler for saving text to memory
+  const handleAddToMemory = useCallback(async (text: string) => {
+    if (isSavingMemory) return;
+    
+    setIsSavingMemory(true);
+    
+    try {
+      const context: MemoryContext = {
+        conversationId: message.id,
+        messageId: message.id,
+        messageRole: message.role as 'user' | 'assistant',
+        timestamp: new Date().toISOString(),
+      };
+      
+      const result = await saveMemoryFromChat(text, context);
+      
+      if (result.success) {
+        toast.success('Memory saved successfully', {
+          description: 'View your memories in Settings',
+        });
+      } else {
+        toast.error('Failed to save memory', {
+          description: result.error || 'Please try again',
+        });
+      }
+    } catch (error) {
+      console.error('Error saving memory:', error);
+      toast.error('Failed to save memory', {
+        description: 'Check your connection and try again',
+      });
+    } finally {
+      setIsSavingMemory(false);
+    }
+  }, [message, isSavingMemory]);
 
 
   // Determine if user message should top-align avatar based on combined text length
@@ -654,6 +692,7 @@ export const Message: React.FC<MessageProps> = ({
                               <ChatTextHighlighter
                                 className={`${getDynamicFontSize(part.text)}`}
                                 onHighlight={onHighlight}
+                                onAddToMemory={user || selectedVisibilityType === 'private' ? handleAddToMemory : undefined}
                                 removeHighlightOnClick={true}
                               >
                                 <MarkdownRenderer content={part.text} isUserMessage={true} />
@@ -703,7 +742,11 @@ export const Message: React.FC<MessageProps> = ({
                           />
                         )}
                         <div className="min-w-0">
-                          <ChatTextHighlighter onHighlight={onHighlight} removeHighlightOnClick={true}>
+                          <ChatTextHighlighter 
+                            onHighlight={onHighlight} 
+                            onAddToMemory={user || selectedVisibilityType === 'private' ? handleAddToMemory : undefined}
+                            removeHighlightOnClick={true}
+                          >
                             <MarkdownRenderer
                               content={
                                 message.parts

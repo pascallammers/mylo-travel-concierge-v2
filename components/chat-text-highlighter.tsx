@@ -2,10 +2,12 @@
 
 import React, { useCallback, useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
+import { BookmarkPlus, Loader2 } from 'lucide-react';
 
 interface ChatTextHighlighterProps {
   children: React.ReactNode;
   onHighlight?: (text: string) => void;
+  onAddToMemory?: (text: string) => void | Promise<void>;
   className?: string;
   removeHighlightOnClick?: boolean;
 }
@@ -19,9 +21,11 @@ interface PopupPosition {
 export const ChatTextHighlighter: React.FC<ChatTextHighlighterProps> = ({
   children,
   onHighlight,
+  onAddToMemory,
   className,
 }) => {
   const [popup, setPopup] = useState<PopupPosition | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
 
@@ -58,6 +62,25 @@ export const ChatTextHighlighter: React.FC<ChatTextHighlighterProps> = ({
     },
     [onHighlight],
   );
+
+  const closePopup = useCallback(() => {
+    setPopup(null);
+    setIsSaving(false);
+    window.getSelection()?.removeAllRanges();
+  }, []);
+
+  const handleAddToMemory = useCallback(async () => {
+    if (!popup || !onAddToMemory || isSaving) return;
+    
+    setIsSaving(true);
+    try {
+      await Promise.resolve(onAddToMemory(popup.text));
+      closePopup();
+    } catch (error) {
+      console.error('Failed to add to memory:', error);
+      setIsSaving(false);
+    }
+  }, [popup, onAddToMemory, isSaving, closePopup]);
 
   const handlePointerUp = useCallback(() => {
     const selection = window.getSelection();
@@ -99,15 +122,17 @@ export const ChatTextHighlighter: React.FC<ChatTextHighlighterProps> = ({
     setPopup(null);
   }, []);
 
-  const closePopup = useCallback(() => {
-    setPopup(null);
-    window.getSelection()?.removeAllRanges();
-  }, []);
-
   useEffect(() => {
     const handleScrollOrResize = () => setPopup(null);
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setPopup(null);
+      if (e.key === 'Escape') {
+        setPopup(null);
+      }
+      // Cmd/Ctrl + M to save to memory
+      if ((e.metaKey || e.ctrlKey) && e.key === 'm' && popup && onAddToMemory && !isSaving) {
+        e.preventDefault();
+        handleAddToMemory();
+      }
     };
     window.addEventListener('scroll', handleScrollOrResize, true);
     window.addEventListener('resize', handleScrollOrResize);
@@ -117,7 +142,7 @@ export const ChatTextHighlighter: React.FC<ChatTextHighlighterProps> = ({
       window.removeEventListener('resize', handleScrollOrResize);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [popup, onAddToMemory, isSaving, handleAddToMemory]);
 
   return (
     <div 
@@ -160,6 +185,24 @@ export const ChatTextHighlighter: React.FC<ChatTextHighlighterProps> = ({
             >
               Quote
             </button>
+            
+            {onAddToMemory && (
+              <button
+                onClick={handleAddToMemory}
+                disabled={isSaving}
+                className="px-2 py-1 text-xs font-medium bg-accent text-accent-foreground rounded hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
+                aria-label="Save to memory"
+              >
+                {isSaving ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <>
+                    <BookmarkPlus className="h-3 w-3" />
+                    <span className="hidden sm:inline">Save</span>
+                  </>
+                )}
+              </button>
+            )}
             
             <button
               onClick={closePopup}

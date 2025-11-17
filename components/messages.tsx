@@ -5,6 +5,8 @@ import { EnhancedErrorDisplay } from '@/components/message';
 import { MessagePartRenderer } from '@/components/message-parts';
 import { MyloLogoHeader } from '@/components/mylo-logo-header';
 import { deleteTrailingMessages } from '@/app/actions';
+import { saveMemoryFromChat, MemoryContext } from '@/lib/memory-actions';
+import { toast } from 'sonner';
 import { ChatMessage, CustomUIDataTypes } from '@/lib/types';
 import { UseChatHelpers } from '@ai-sdk/react';
 import { ComprehensiveUserData } from '@/lib/user-data-server';
@@ -187,6 +189,43 @@ const Messages: React.FC<MessagesProps> = ({
     }
   }, [messages, user, setMessages, setSuggestedQuestions, regenerate]);
 
+  // Memory save handler with loading state
+  const [isSavingMemory, setIsSavingMemory] = useState(false);
+
+  const handleAddToMemory = useCallback(async (text: string, messageId: string, messageRole: 'user' | 'assistant') => {
+    if (isSavingMemory) return;
+    
+    setIsSavingMemory(true);
+    
+    try {
+      const context: MemoryContext = {
+        conversationId: chatId || messageId,
+        messageId: messageId,
+        messageRole: messageRole,
+        timestamp: new Date().toISOString(),
+      };
+      
+      const result = await saveMemoryFromChat(text, context);
+      
+      if (result.success) {
+        toast.success('Memory saved successfully', {
+          description: 'View your memories in Settings',
+        });
+      } else {
+        toast.error('Failed to save memory', {
+          description: result.error || 'Please try again',
+        });
+      }
+    } catch (error) {
+      console.error('Error saving memory:', error);
+      toast.error('Failed to save memory', {
+        description: 'Check your connection and try again',
+      });
+    } finally {
+      setIsSavingMemory(false);
+    }
+  }, [chatId, isSavingMemory]);
+
   // Handle rendering of message parts - using the new MessagePartRenderer component
   const renderPart = useCallback(
     (
@@ -224,6 +263,7 @@ const Messages: React.FC<MessagesProps> = ({
           setSuggestedQuestions={setSuggestedQuestions}
           regenerate={regenerate}
           onHighlight={onHighlight}
+          onAddToMemory={(text: string) => handleAddToMemory(text, message.id, message.role)}
           annotations={annotations}
         />
       );
@@ -245,6 +285,7 @@ const Messages: React.FC<MessagesProps> = ({
       setReasoningVisibilityMap,
       setReasoningFullscreenMap,
       onHighlight,
+      handleAddToMemory,
     ],
   );
 

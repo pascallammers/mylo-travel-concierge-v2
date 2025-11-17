@@ -40,7 +40,7 @@ import {
   RobotIcon,
 } from '@phosphor-icons/react';
 
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
@@ -1101,6 +1101,7 @@ function MemoriesSection() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [deletingMemoryIds, setDeletingMemoryIds] = useState<Set<string>>(new Set());
+  const [expandedMemoryId, setExpandedMemoryId] = useState<string | null>(null);
 
   const {
     data: memoriesData,
@@ -1149,6 +1150,7 @@ function MemoriesSection() {
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return 'Unknown';
     const date = new Date(dateString);
     return new Intl.DateTimeFormat('en-US', {
       month: 'short',
@@ -1158,12 +1160,35 @@ function MemoriesSection() {
     }).format(date);
   };
 
-  const getMemoryContent = (memory: MemoryItem): string => {
-    if (memory.summary) return memory.summary;
-    if (memory.title) return memory.title;
-    if (memory.memory) return memory.memory;
-    if (memory.name) return memory.name;
-    return 'No content available';
+  const parseMemoryMetadata = (memory: MemoryItem): {
+    text: string;
+    conversationId?: string;
+    messageRole: 'user' | 'assistant';
+    savedAt: string;
+  } => {
+    const content = memory.content || memory.summary || '';
+    
+    // Extract conversation ID: [Conversation: chat-id-123]
+    const conversationMatch = content.match(/\[Conversation: ([^\]]+)\]/);
+    const conversationId = conversationMatch?.[1];
+    
+    // Extract role: [Source: user message] or [Source: assistant message]
+    const roleMatch = content.match(/\[Source: (user|assistant) message\]/);
+    const messageRole = (roleMatch?.[1] as 'user' | 'assistant') || 'user';
+    
+    // Extract timestamp: [Saved: 2025-01-17T10:30:00Z]
+    const timestampMatch = content.match(/\[Saved: ([^\]]+)\]/);
+    const savedAt = timestampMatch?.[1] || memory.createdAt || '';
+    
+    // Clean text (remove all metadata tags)
+    const text = content
+      .replace(/\[Conversation: [^\]]+\]/g, '')
+      .replace(/\[Source: [^\]]+\]/g, '')
+      .replace(/\[Saved: [^\]]+\]/g, '')
+      .replace(/\[Context: [^\]]+\]/g, '')
+      .trim() || memory.summary || memory.title || 'No content available';
+    
+    return { text, conversationId, messageRole, savedAt };
   };
 
   const displayedMemories = memoriesData?.pages.flatMap((page) => page.memories) || [];
@@ -1186,55 +1211,111 @@ function MemoriesSection() {
         ) : displayedMemories.length === 0 ? (
           <div className="flex flex-col justify-center items-center h-32 border border-dashed rounded-lg bg-muted/20">
             <HugeiconsIcon icon={Brain02Icon} className="h-6 w-6 text-muted-foreground mb-2" />
-            <p className="text-sm text-muted-foreground">No memories found</p>
+            <p className="text-sm text-muted-foreground">No memories saved yet</p>
+            <p className="text-xs text-muted-foreground/70 mt-1">Highlight text in conversations to save memories</p>
           </div>
         ) : (
           <>
-            {displayedMemories.map((memory: MemoryItem) => (
-              <div
-                key={memory.id}
-                className="group relative p-3 rounded-lg border bg-card/50 hover:bg-card transition-all"
-              >
-                <div className="pr-8">
-                  {memory.title && <h4 className="text-sm font-medium mb-1 text-foreground">{memory.title}</h4>}
-                  <p className="text-sm leading-relaxed text-muted-foreground">
-                    {memory.content || getMemoryContent(memory)}
-                  </p>
-                  <div className="flex items-center gap-3 text-[10px] text-muted-foreground mt-2">
-                    <div className="flex items-center gap-1">
-                      <CalendarIcon className="h-3 w-3" />
-                      <span>{formatDate(memory.createdAt || memory.created_at || '')}</span>
-                    </div>
-                    {memory.type && (
-                      <div className="px-1.5 py-0.5 bg-muted/50 rounded text-[9px] font-medium">{memory.type}</div>
-                    )}
-                    {memory.status && memory.status !== 'done' && (
-                      <div className="px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 rounded text-[9px] font-medium">
-                        {memory.status}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleDeleteMemory(memory.id)}
-                  disabled={deletingMemoryIds.has(memory.id)}
-                  className={cn(
-                    'absolute right-2 top-2 h-6 w-6 text-muted-foreground hover:text-destructive',
-                    'opacity-0 group-hover:opacity-100 transition-opacity',
-                    'touch-manipulation', // Better touch targets on mobile
-                  )}
-                  style={{ opacity: 1 }} // Always visible on mobile
+            {displayedMemories.map((memory: MemoryItem) => {
+              const metadata = parseMemoryMetadata(memory);
+              const isExpanded = expandedMemoryId === memory.id;
+              
+              return (
+                <div
+                  key={memory.id}
+                  className="group relative p-3 rounded-lg border bg-card/50 hover:bg-card transition-all"
                 >
-                  {deletingMemoryIds.has(memory.id) ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <TrashIcon className="h-3 w-3" />
-                  )}
-                </Button>
-              </div>
-            ))}
+                  <div className="pr-8">
+                    {/* Header with badges and link */}
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <Badge 
+                        variant={metadata.messageRole === 'assistant' ? 'default' : 'secondary'}
+                        className="text-[9px] px-1.5 py-0.5"
+                      >
+                        {metadata.messageRole === 'assistant' ? '🤖 AI' : '👤 You'}
+                      </Badge>
+                      
+                      {metadata.conversationId && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          asChild
+                          className="h-5 text-[10px] px-1.5 hover:bg-primary/10"
+                        >
+                          <Link href={`/chat/${metadata.conversationId}`}>
+                            <ExternalLink className="h-3 w-3 mr-1" />
+                            View chat
+                          </Link>
+                        </Button>
+                      )}
+                    </div>
+                    
+                    {/* Content */}
+                    <p className={cn(
+                      "text-sm leading-relaxed text-muted-foreground",
+                      !isExpanded && metadata.text.length > 200 && "line-clamp-3"
+                    )}>
+                      {metadata.text}
+                    </p>
+                    
+                    {/* Show more/less button */}
+                    {metadata.text.length > 200 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setExpandedMemoryId(isExpanded ? null : memory.id)}
+                        className="text-xs mt-1 h-6 px-2"
+                      >
+                        {isExpanded ? (
+                          <>
+                            <ChevronUp className="h-3 w-3 mr-1" />
+                            Show less
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="h-3 w-3 mr-1" />
+                            Show more
+                          </>
+                        )}
+                      </Button>
+                    )}
+                    
+                    {/* Footer with metadata */}
+                    <div className="flex items-center gap-3 text-[10px] text-muted-foreground mt-2">
+                      <div className="flex items-center gap-1">
+                        <CalendarIcon className="h-3 w-3" />
+                        <span>{formatDate(metadata.savedAt)}</span>
+                      </div>
+                      {memory.type && (
+                        <div className="px-1.5 py-0.5 bg-muted/50 rounded text-[9px] font-medium">
+                          {memory.type}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Delete button */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDeleteMemory(memory.id)}
+                    disabled={deletingMemoryIds.has(memory.id)}
+                    className={cn(
+                      'absolute right-2 top-2 h-6 w-6 text-muted-foreground hover:text-destructive',
+                      'opacity-0 group-hover:opacity-100 transition-opacity',
+                      'touch-manipulation',
+                    )}
+                    style={{ opacity: 1 }}
+                  >
+                    {deletingMemoryIds.has(memory.id) ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <TrashIcon className="h-3 w-3" />
+                    )}
+                  </Button>
+                </div>
+              );
+            })}
 
             {hasNextPage && !searchQuery.trim() && (
               <div className="pt-2 flex justify-center">
