@@ -1710,16 +1710,6 @@ export function SettingsDialog({
       icon: ({ className }: { className?: string }) => <HugeiconsIcon icon={Crown02Icon} className={className} />,
     },
     {
-      value: 'preferences',
-      label: 'Preferences',
-      icon: ({ className }: { className?: string }) => <HugeiconsIcon icon={Settings02Icon} className={className} />,
-    },
-    {
-      value: 'connectors',
-      label: 'Connectors',
-      icon: ({ className }: { className?: string }) => <HugeiconsIcon icon={ConnectIcon} className={className} />,
-    },
-    {
       value: 'memories',
       label: 'Memories',
       icon: ({ className }: { className?: string }) => <HugeiconsIcon icon={Brain02Icon} className={className} />,
@@ -1743,21 +1733,6 @@ export function SettingsDialog({
 
       <TabsContent value="subscription" className="mt-0">
         <SubscriptionSection subscriptionData={subscriptionData} isProUser={isProUser} user={user} />
-      </TabsContent>
-
-      <TabsContent
-        value="preferences"
-        className="mt-0 !scrollbar-thin !scrollbar-track-transparent !scrollbar-thumb-muted-foreground/20 hover:!scrollbar-thumb-muted-foreground/30"
-      >
-        <PreferencesSection
-          user={user}
-          isCustomInstructionsEnabled={isCustomInstructionsEnabled}
-          setIsCustomInstructionsEnabled={setIsCustomInstructionsEnabled}
-        />
-      </TabsContent>
-
-      <TabsContent value="connectors" className="mt-0">
-        <ConnectorsSection user={user} />
       </TabsContent>
 
       <TabsContent value="memories" className="mt-0">
@@ -1800,12 +1775,10 @@ export function SettingsDialog({
               <div
                 className={cn(
                   'border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shrink-0',
-                  currentTab === 'preferences' || currentTab === 'connectors'
-                    ? 'pb-[calc(env(safe-area-inset-bottom)+2.5rem)]'
-                    : 'pb-[calc(env(safe-area-inset-bottom)+1rem)]',
+                  'pb-[calc(env(safe-area-inset-bottom)+1rem)]',
                 )}
               >
-                <TabsList className="w-full py-1 h-14 bg-transparent rounded-none grid grid-cols-6 gap-1 !mb-2 px-4">
+                <TabsList className="w-full py-1 h-14 bg-transparent rounded-none grid grid-cols-4 gap-1 !mb-2 px-4">
                   {tabItems.map((item) => (
                     <TabsTrigger
                       key={item.value}
