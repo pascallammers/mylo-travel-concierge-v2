@@ -1,0 +1,17 @@
+{
+  "name": "user-migration",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Supabase → Neon User Migration Scripts",
+  "scripts": {
+    "complete": "node --env-file=../../../../.env.local complete-migration.js",
+    "validate": "npx tsx validate.ts"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.1",
+    "@supabase/supabase-js": "^2.81.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0"
+  }
+}

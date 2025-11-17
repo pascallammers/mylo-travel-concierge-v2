@@ -12,6 +12,15 @@ export const user = pgTable('user', {
   createdAt: timestamp('created_at').notNull(),
   updatedAt: timestamp('updated_at').notNull(),
   role: text('role', { enum: ['user', 'admin'] }).notNull().default('user'),
+  // Migration fields from Supabase
+  isActive: boolean('is_active').default(true),
+  activationStatus: text('activation_status', { 
+    enum: ['active', 'inactive', 'grace_period', 'suspended'] 
+  }).default('active'),
+  deactivatedAt: timestamp('deactivated_at'),
+  lastActiveAt: timestamp('last_active_at'),
+  supabaseUserId: uuid('supabase_user_id'), // Mapping to Supabase auth.users.id
+  rawUserMetaData: json('raw_user_meta_data').default({}), // Preserve Supabase metadata
 });
 
 export const session = pgTable('session', {
@@ -99,7 +108,7 @@ export const stream = pgTable('stream', {
   createdAt: timestamp('createdAt').notNull().defaultNow(),
 });
 
-// Subscription table for Polar webhook data
+// Subscription table for Polar webhook data (extended for ThriveCard migration)
 export const subscription = pgTable('subscription', {
   id: text('id').primaryKey(),
   createdAt: timestamp('createdAt').notNull(),
@@ -124,6 +133,22 @@ export const subscription = pgTable('subscription', {
   metadata: text('metadata'), // JSON string
   customFieldData: text('customFieldData'), // JSON string
   userId: text('userId').references(() => user.id),
+  // ThriveCard migration fields
+  thrivecardCustomerId: text('thrivecard_customer_id'),
+  thrivecardSubscriptionId: text('thrivecard_subscription_id'),
+  planType: text('plan_type'), // e.g. 'starter', 'premium', 'pro'
+  planName: text('plan_name'),
+  // Access Control & Grace Period
+  gracePeriodEnd: timestamp('grace_period_end'),
+  accessLevel: text('access_level').default('basic'),
+  features: json('features').default({}),
+  // Subscription Management
+  autoRenew: boolean('auto_renew').default(true),
+  isTrial: boolean('is_trial').default(false),
+  trialEndDate: timestamp('trial_end_date'),
+  lastPaymentDate: timestamp('last_payment_date'),
+  nextPaymentDate: timestamp('next_payment_date'),
+  paymentMethod: text('payment_method'),
 });
 
 // Extreme search usage tracking table
@@ -204,6 +229,11 @@ export const payment = pgTable('payment', {
   refunds: json('refunds'), // Refunds array
   // Foreign key to user
   userId: text('user_id').references(() => user.id),
+  // ThriveCard migration fields (for Phase 2)
+  thrivecardPaymentId: text('thrivecard_payment_id'),
+  thrivecardCustomerId: text('thrivecard_customer_id'),
+  paymentProvider: text('payment_provider').default('thrivecard'), // 'thrivecard', 'polar', 'dodo'
+  webhookSource: text('webhook_source'), // 'zapier', 'direct', etc.
 });
 
 // Lookout table for scheduled searches
@@ -307,6 +337,27 @@ export const amadeusTokens = pgTable('amadeus_tokens', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+// User Access Control table for granular access management (migrated from Supabase)
+export const userAccessControl = pgTable('user_access_control', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => generateId()),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  subscriptionId: text('subscription_id').references(() => subscription.id, { onDelete: 'set null' }),
+  hasAccess: boolean('has_access').default(false),
+  accessLevel: text('access_level').default('basic'),
+  gracePeriodEnd: timestamp('grace_period_end'),
+  features: json('features').default({}),
+  lastAccessCheck: timestamp('last_access_check').defaultNow(),
+  accessGrantedAt: timestamp('access_granted_at'),
+  accessRevokedAt: timestamp('access_revoked_at'),
+  statusFlag: integer('status_flag').default(1), // smallint equivalent
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 export type User = InferSelectModel<typeof user>;
 export type Session = InferSelectModel<typeof session>;
 export type Account = InferSelectModel<typeof account>;
@@ -323,3 +374,4 @@ export type Lookout = InferSelectModel<typeof lookout>;
 export type ToolCall = InferSelectModel<typeof toolCalls>;
 export type SessionState = InferSelectModel<typeof sessionStates>;
 export type AmadeusToken = InferSelectModel<typeof amadeusTokens>;
+export type UserAccessControl = InferSelectModel<typeof userAccessControl>;
