@@ -199,4 +199,5 @@ export interface Attachment {
   url: string;
   contentType?: string;
   mediaType?: string;
+  size?: number;
 }

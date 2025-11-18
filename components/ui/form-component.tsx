@@ -11,7 +11,7 @@ import {
   requiresProSubscription,
   shouldBypassRateLimits,
 } from '@/ai/providers';
-import { X, Check, ChevronsUpDown, Wand2, CheckIcon, Zap, Sparkles } from 'lucide-react';
+import { X, Check, ChevronsUpDown, Wand2, CheckIcon, Zap, Sparkles, FileText, Upload } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription } from '@/components/ui/dialog';
 import { cn, SearchGroup, SearchGroupId, getSearchGroups, SearchProvider } from '@/lib/utils';
 
@@ -30,6 +30,7 @@ import {
   AtomicPowerIcon,
   Crown02Icon,
   ConnectIcon,
+  DocumentAttachmentIcon,
 } from '@hugeicons/core-free-icons';
 import { AudioLinesIcon } from '@/components/ui/audio-lines';
 import { GripIcon } from '@/components/ui/grip';
@@ -38,7 +39,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
 import { Switch } from '@/components/ui/switch';
 import { UseChatHelpers } from '@ai-sdk/react';
-import { ChatMessage } from '@/lib/types';
+import { ChatMessage, Attachment } from '@/lib/types';
 import { useLocation } from '@/hooks/use-location';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -55,6 +56,47 @@ const ProBadge = ({ className = '' }: { className?: string }) => (
   </span>
 );
 
+// Attachment Preview Component
+interface AttachmentPreviewProps {
+  attachment: Attachment;
+  onRemove: () => void;
+  isUploading: boolean;
+}
+
+const AttachmentPreview: React.FC<AttachmentPreviewProps> = ({ attachment, onRemove, isUploading }) => {
+  const isImage = attachment.contentType?.startsWith('image/');
+  const isPdf = attachment.contentType === 'application/pdf' || attachment.name.toLowerCase().endsWith('.pdf');
+
+  return (
+    <div className="relative group min-w-[80px]">
+      <div className="relative overflow-hidden rounded-lg border border-border bg-muted/40 p-2">
+        {isImage && attachment.url ? (
+          <img src={attachment.url} alt={attachment.name} className="h-16 w-16 object-cover rounded" />
+        ) : (
+          <div className="h-16 w-16 flex items-center justify-center">
+            <FileText className="h-8 w-8 text-muted-foreground" />
+          </div>
+        )}
+        {isUploading && (
+          <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
+          </div>
+        )}
+      </div>
+      {!isUploading && (
+        <button
+          onClick={onRemove}
+          className="absolute -top-2 -right-2 rounded-full bg-destructive text-destructive-foreground p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+          type="button"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
+      <p className="text-xs text-muted-foreground truncate mt-1 max-w-[80px]">{attachment.name}</p>
+    </div>
+  );
+};
+
 interface ModelSwitcherProps {
   selectedModel: string;
   setSelectedModel: (value: string) => void;
@@ -64,6 +106,7 @@ interface ModelSwitcherProps {
   onModelSelect?: (model: (typeof models)[0]) => void;
   subscriptionData?: any;
   user?: ComprehensiveUserData | null;
+  attachments?: Attachment[];
 }
 
 const ModelSwitcher: React.FC<ModelSwitcherProps> = React.memo(
@@ -76,6 +119,7 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = React.memo(
     onModelSelect,
     subscriptionData,
     user,
+    attachments = [],
   }) => {
     const isProUser = useMemo(
       () =>
@@ -570,7 +614,7 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = React.memo(
                                   isMobile ? 'p-1' : 'p-0.5',
                                 )}
                               >
-                                <FilePdf className={cn('text-muted-foreground', isMobile ? 'size-2.5' : 'size-2')} />
+                                <FileText className={cn('text-muted-foreground', isMobile ? 'size-2.5' : 'size-2')} />
                               </div>
                             )}
                           </div>
@@ -692,7 +736,7 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = React.memo(
                                 isMobile ? 'p-1' : 'p-0.5',
                               )}
                             >
-                              <FilePdf className={cn('text-muted-foreground', isMobile ? 'size-2.5' : 'size-2')} />
+                              <FileText className={cn('text-muted-foreground', isMobile ? 'size-2.5' : 'size-2')} />
                             </div>
                           )}
                         </div>
@@ -814,7 +858,7 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = React.memo(
                                   isMobile ? 'p-1' : 'p-0.5',
                                 )}
                               >
-                                <FilePdf className={cn('text-muted-foreground', isMobile ? 'size-2.5' : 'size-2')} />
+                                <FileText className={cn('text-muted-foreground', isMobile ? 'size-2.5' : 'size-2')} />
                               </div>
                             )}
                           </div>
@@ -936,7 +980,7 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = React.memo(
                                 isMobile ? 'p-1' : 'p-0.5',
                               )}
                             >
-                              <FilePdf className={cn('text-muted-foreground', isMobile ? 'size-2.5' : 'size-2')} />
+                              <FileText className={cn('text-muted-foreground', isMobile ? 'size-2.5' : 'size-2')} />
                             </div>
                           )}
                         </div>
@@ -1289,6 +1333,8 @@ const StopIcon = ({ size = 16 }: { size?: number }) => {
 };
 
 const MAX_INPUT_CHARS = 50000;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+const MAX_FILES = 10;
 
 // Debounce utility function
 const debounce = <T extends (...args: any[]) => any>(func: T, wait: number): T => {
@@ -1842,6 +1888,8 @@ const FormComponent: React.FC<FormComponentProps> = ({
 }) => {
   const isMounted = useRef(true);
   const isCompositionActive = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const postSubmitFileInputRef = useRef<HTMLInputElement>(null);
 
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -1849,6 +1897,9 @@ const FormComponent: React.FC<FormComponentProps> = ({
   const [isTypewriting, setIsTypewriting] = useState(false);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [discountConfig, setDiscountConfig] = useState<DiscountConfig | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [uploadQueue, setUploadQueue] = useState<string[]>([]);
 
   // Combined state for animations to avoid restart issues
   const isEnhancementActive = isEnhancing || isTypewriting;
@@ -2316,6 +2367,64 @@ const FormComponent: React.FC<FormComponentProps> = ({
     return models.find((model) => model.vision)?.value || selectedModel;
   }, [selectedModel]);
 
+  const hasPdfSupport = useCallback(() => {
+    const currentModel = models.find((m) => m.value === selectedModel);
+    return currentModel?.pdf || false;
+  }, [selectedModel]);
+
+  const hasVisionSupport = useCallback(() => {
+    const currentModel = models.find((m) => m.value === selectedModel);
+    return currentModel?.vision || false;
+  }, [selectedModel]);
+
+  const fileToDataURL = useCallback((file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
+  const checkImageModeration = useCallback(async (imageDataURLs: string[]): Promise<string> => {
+    // TODO: Implement actual moderation check
+    return 'safe';
+  }, []);
+
+  const uploadFile = useCallback(async (file: File): Promise<Attachment> => {
+    // TODO: Implement actual file upload
+    const dataUrl = await fileToDataURL(file);
+    return {
+      name: file.name,
+      url: dataUrl,
+      contentType: file.type,
+      size: file.size,
+    };
+  }, [fileToDataURL]);
+
+  const removeAttachment = useCallback((index: number) => {
+    setAttachments((current) => current.filter((_, i) => i !== index));
+  }, []);
+
+  const getAcceptedFileTypes = useCallback(() => {
+    if (hasPdfSupport()) {
+      return 'image/*,application/pdf';
+    }
+    return 'image/*';
+  }, [hasPdfSupport]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
   const handleDrop = useCallback(
     async (e: React.DragEvent) => {
       e.preventDefault();
@@ -2724,6 +2833,26 @@ const FormComponent: React.FC<FormComponentProps> = ({
       }
     }, 500),
     [onSubmit, resetSuggestedQuestions, inputRef],
+  );
+
+  const handleFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files || []);
+      if (files.length === 0) return;
+
+      // Reuse the drop handler logic
+      const fakeEvent = {
+        preventDefault: () => {},
+        stopPropagation: () => {},
+        dataTransfer: { files },
+      } as unknown as React.DragEvent;
+
+      await handleDrop(fakeEvent);
+
+      // Reset input
+      e.target.value = '';
+    },
+    [handleDrop],
   );
 
   const triggerFileInput = useCallback(() => {
