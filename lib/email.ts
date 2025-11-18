@@ -1,7 +1,7 @@
 import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_EMAIL = 'MYLO <noreply@scira.ai>'; // TODO: Update domain after deployment
+const FROM_EMAIL = 'MYLO <support@never-economy-again.com>'; // TODO: Update domain after deployment
 
 /**
  * Send welcome email with login credentials to new users
