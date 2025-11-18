@@ -2,7 +2,9 @@
 
 **Transform vague ideas into production-ready code with AI-generated specifications, parallel task execution, and comprehensive coding standards.**
 
-> **v0.5.0** - **COMPLETE DEVELOPMENT LIFECYCLE**: 40 comprehensive skills (35,552 lines)! 21 framework skills (React, Prisma, PostgreSQL, etc.) + 19 workflow skills (TDD, systematic debugging, code reviews, planning, etc.). **Complete development lifecycle** from idea → design → implementation → testing → review → deployment. **Production-ready guidance auto-loads based on your code.**
+**Discord:** https://polar.sh/checkout/polar_c_Pse3hFdgwFUqomhsOL8wIN5ETXT6UsxNWTvx11BdyFW | **Donate (PayPal - Gideonapp):** https://www.paypal.com/paypalme/gideonapp
+
+> **v0.5.8** - **Reliability & Transparency**: no phantom parallel starts, structured progress (step/next action/files/tests/heartbeat), stall detection, validation-gated completion, and headless guidance (`droid exec --auto high`)—all while keeping the user’s selected model.
 
 ---
 
@@ -11,7 +13,7 @@
 ### Install (One Command)
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/korallis/Droidz/factory-ai/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/korallis/Droidz/main/install.sh | bash
 ```
 
 ### Enable & Use
@@ -43,7 +45,11 @@ Droidz is a framework for [Factory.ai](https://factory.ai) that adds:
 3. **⚡ Parallel Task Execution** - Work on 3-5 tasks simultaneously using specialist droids
 4. **📊 Live Progress Tracking** - See what's happening every 60 seconds
 
-### 🔥 NEW in v0.5.0: Complete Development Lifecycle
+### 🔥 NEW in v0.5.8: Reliable Parallel Execution
+
+**Highlights:** no phantom task starts (Task IDs recorded), rich progress (step, next action, files touched, test results, heartbeat), stall detection, validation gating (lint/type/tests must pass), and headless readiness via `droid exec --auto high` using the user-selected model.
+
+### 🔥 Previously in v0.5.0: Complete Development Lifecycle
 
 Factory.ai automatically loads **production-ready coding standards** based on your code context:
 
@@ -554,7 +560,9 @@ MIT License - see [LICENSE](LICENSE) file for details
 - **Factory.ai:** https://factory.ai
 - **Issues:** https://github.com/korallis/Droidz/issues
 - **Discussions:** https://github.com/korallis/Droidz/discussions
-- **Latest Release:** https://github.com/korallis/Droidz/releases/tag/v0.2.0
+- **Discord:** https://polar.sh/checkout/polar_c_Pse3hFdgwFUqomhsOL8wIN5ETXT6UsxNWTvx11BdyFW
+- **Donate (PayPal - Gideonapp):** https://www.paypal.com/paypalme/gideonapp
+- **Latest Release:** https://github.com/korallis/Droidz/releases/tag/v0.5.8
 
 ---
 
@@ -580,8 +588,7 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ## 💬 Community
 
-- **Discord:** Coming soon
-- **Twitter:** Coming soon
+- **Discord:** https://polar.sh/checkout/polar_c_Pse3hFdgwFUqomhsOL8wIN5ETXT6UsxNWTvx11BdyFW
 - **GitHub Discussions:** https://github.com/korallis/Droidz/discussions
 
 ---
@@ -612,7 +619,7 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 **Built with ❤️ for the Factory.ai community**
 
-**Current Version:** v0.3.0 | **Last Updated:** 2025-01-16
+**Current Version:** v0.5.8 | **Last Updated:** 2025-11-17
 
 ---
 

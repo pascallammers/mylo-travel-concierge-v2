@@ -50,8 +50,12 @@ export interface FlightSearchLinkParams {
 /**
  * Build Google Flights search URL with pre-filled parameters
  * 
+ * Uses Google Flights' query-based search format for reliable parameter passing.
+ * This format is more robust than path-based URLs and ensures all search
+ * parameters are properly transmitted to Google Flights.
+ * 
  * @param params - Flight search parameters
- * @returns Complete Google Flights URL
+ * @returns Complete Google Flights URL with query parameters
  * 
  * @example
  * ```typescript
@@ -63,41 +67,39 @@ export interface FlightSearchLinkParams {
  *   cabin: 'BUSINESS',
  *   passengers: 2
  * });
- * // Returns: https://www.google.com/travel/flights/FRA/HKT/2025-12-15/2025-12-22?passengers=2&cabin=business
+ * // Returns: https://www.google.com/travel/flights?q=Flights+to+HKT+from+FRA+on+2025-12-15+through+2025-12-22&adults=2
  * ```
  */
 export function buildGoogleFlightsUrl(params: FlightSearchLinkParams): string {
   const { origin, destination, departDate, returnDate, cabin, passengers } = params;
 
-  // Validate cabin class
-  const cabinKey = cabin.toUpperCase() as CabinClass;
-  const googleCabin = CABIN_CLASS_MAP[cabinKey]?.google || 'economy';
+  // Base URL
+  const baseUrl = 'https://www.google.com/travel/flights';
 
-  // Base URL structure
-  let url = 'https://www.google.com/travel/flights';
-
-  // Add route: /origin/destination/departDate[/returnDate]
-  url += `/${origin}/${destination}/${departDate}`;
+  // Build natural language search query (Google's preferred format)
+  let query = `Flights to ${destination} from ${origin} on ${departDate}`;
   
   if (returnDate) {
-    url += `/${returnDate}`;
+    query += ` through ${returnDate}`;
   }
 
-  // Add query parameters
-  const queryParams = new URLSearchParams();
-  
+  // Build query parameters
+  const searchParams = new URLSearchParams({
+    q: query,
+    hl: 'en', // Interface language
+  });
+
+  // Add passenger count if more than 1
   if (passengers > 1) {
-    queryParams.set('passengers', passengers.toString());
-  }
-  
-  queryParams.set('cabin', googleCabin);
-
-  const queryString = queryParams.toString();
-  if (queryString) {
-    url += `?${queryString}`;
+    searchParams.set('adults', passengers.toString());
   }
 
-  return url;
+  // Add cabin class hint (optional, may not always be respected by Google)
+  const cabinKey = cabin.toUpperCase() as CabinClass;
+  const googleCabin = CABIN_CLASS_MAP[cabinKey]?.google || 'economy';
+  searchParams.set('cabin', googleCabin);
+
+  return `${baseUrl}?${searchParams.toString()}`;
 }
 
 /**

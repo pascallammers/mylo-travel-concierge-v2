@@ -2,7 +2,7 @@ import { describe, test, expect } from 'bun:test';
 import { buildGoogleFlightsUrl, buildSkyscannerUrl } from './flight-search-links';
 
 describe('buildGoogleFlightsUrl', () => {
-  test('builds one-way flight URL correctly', () => {
+  test('builds one-way flight URL with query parameter correctly', () => {
     const url = buildGoogleFlightsUrl({
       origin: 'FRA',
       destination: 'HKT',
@@ -13,12 +13,13 @@ describe('buildGoogleFlightsUrl', () => {
     });
 
     expect(url).toContain('google.com/travel/flights');
-    expect(url).toContain('/FRA/HKT/2025-12-15');
+    expect(url).toContain('q=Flights+to+HKT+from+FRA+on+2025-12-15');
     expect(url).toContain('cabin=business');
-    expect(url).not.toContain('passengers='); // Single passenger omitted
+    expect(url).not.toContain('adults='); // Single passenger omitted
+    expect(url).toContain('hl=en'); // Language parameter
   });
 
-  test('builds round-trip flight URL correctly', () => {
+  test('builds round-trip flight URL with query parameter correctly', () => {
     const url = buildGoogleFlightsUrl({
       origin: 'FRA',
       destination: 'HKT',
@@ -29,8 +30,9 @@ describe('buildGoogleFlightsUrl', () => {
     });
 
     expect(url).toContain('google.com/travel/flights');
-    expect(url).toContain('/FRA/HKT/2025-12-15/2025-12-22');
+    expect(url).toContain('q=Flights+to+HKT+from+FRA+on+2025-12-15+through+2025-12-22');
     expect(url).toContain('cabin=economy');
+    expect(url).toContain('hl=en');
   });
 
   test('includes passenger count for multiple passengers', () => {
@@ -43,7 +45,8 @@ describe('buildGoogleFlightsUrl', () => {
       passengers: 3,
     });
 
-    expect(url).toContain('passengers=3');
+    expect(url).toContain('adults=3');
+    expect(url).toContain('q=Flights+to+JFK+from+BER');
     expect(url).toContain('cabin=economy');
   });
 
@@ -58,7 +61,8 @@ describe('buildGoogleFlightsUrl', () => {
     });
 
     expect(url).toContain('cabin=premium_economy');
-    expect(url).toContain('passengers=2');
+    expect(url).toContain('adults=2');
+    expect(url).toContain('q=Flights+to+HKT+from+FRA');
   });
 
   test('handles first class cabin', () => {
@@ -72,6 +76,7 @@ describe('buildGoogleFlightsUrl', () => {
     });
 
     expect(url).toContain('cabin=first');
+    expect(url).toContain('q=Flights+to+SYD+from+LAX');
   });
 
   test('defaults to economy for invalid cabin class', () => {
@@ -98,6 +103,22 @@ describe('buildGoogleFlightsUrl', () => {
     });
 
     expect(url).toContain('cabin=business');
+  });
+
+  test('properly encodes query parameters', () => {
+    const url = buildGoogleFlightsUrl({
+      origin: 'FRA',
+      destination: 'HKT',
+      departDate: '2025-12-15',
+      returnDate: '2025-12-22',
+      cabin: 'BUSINESS',
+      passengers: 2,
+    });
+
+    // URL should use query parameter format with proper encoding
+    expect(url).toContain('?q=Flights+to');
+    expect(url).toContain('from+FRA');
+    expect(url).not.toContain('/FRA/HKT/'); // Should NOT use path format
   });
 });
 
@@ -216,7 +237,7 @@ describe('buildSkyscannerUrl', () => {
 });
 
 describe('URL format validation', () => {
-  test('Google Flights URLs are properly formatted', () => {
+  test('Google Flights URLs are properly formatted with query parameters', () => {
     const url = buildGoogleFlightsUrl({
       origin: 'FRA',
       destination: 'HKT',
@@ -229,8 +250,11 @@ describe('URL format validation', () => {
     // Should be a valid URL
     expect(() => new URL(url)).not.toThrow();
     
-    // Should use HTTPS
+    // Should use HTTPS and query parameter format
     expect(url).toStartWith('https://');
+    expect(url).toContain('?q='); // Query-based format
+    expect(url).toContain('hl=en'); // Language parameter
+    expect(url).toContain('cabin='); // Cabin parameter
   });
 
   test('Skyscanner URLs are properly formatted', () => {
