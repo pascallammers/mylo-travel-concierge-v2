@@ -9,12 +9,9 @@ import {
   models,
   requiresAuthentication,
   requiresProSubscription,
-  hasVisionSupport,
-  hasPdfSupport,
-  getAcceptedFileTypes,
   shouldBypassRateLimits,
 } from '@/ai/providers';
-import { X, Check, ChevronsUpDown, Wand2, Upload, CheckIcon, Zap, Sparkles } from 'lucide-react';
+import { X, Check, ChevronsUpDown, Wand2, CheckIcon, Zap, Sparkles } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription } from '@/components/ui/dialog';
 import { cn, SearchGroup, SearchGroupId, getSearchGroups, SearchProvider } from '@/lib/utils';
 
@@ -22,17 +19,16 @@ import { track } from '@vercel/analytics';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ComprehensiveUserData } from '@/hooks/use-user-data';
 import { useSession } from '@/lib/auth-client';
-import { checkImageModeration, enhancePrompt, getDiscountConfigAction } from '@/app/actions';
+import { enhancePrompt, getDiscountConfigAction } from '@/app/actions';
 import { DiscountConfig } from '@/lib/discount';
 import { PRICING } from '@/lib/constants';
-import { LockIcon, Eye, Brain, FilePdf } from '@phosphor-icons/react';
+import { LockIcon, Eye, Brain } from '@phosphor-icons/react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   CpuIcon,
   GlobalSearchIcon,
   AtomicPowerIcon,
   Crown02Icon,
-  DocumentAttachmentIcon,
   ConnectIcon,
 } from '@hugeicons/core-free-icons';
 import { AudioLinesIcon } from '@/components/ui/audio-lines';
@@ -63,7 +59,6 @@ interface ModelSwitcherProps {
   selectedModel: string;
   setSelectedModel: (value: string) => void;
   className?: string;
-  attachments: Array<Attachment>;
   messages: Array<ChatMessage>;
   status: UseChatHelpers<ChatMessage>['status'];
   onModelSelect?: (model: (typeof models)[0]) => void;
@@ -76,7 +71,6 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = React.memo(
     selectedModel,
     setSelectedModel,
     className,
-    attachments,
     messages,
     status,
     onModelSelect,
@@ -1273,14 +1267,6 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = React.memo(
 
 ModelSwitcher.displayName = 'ModelSwitcher';
 
-interface Attachment {
-  name: string;
-  contentType?: string;
-  mediaType?: string;
-  url: string;
-  size: number;
-}
-
 const ArrowUpIcon = ({ size = 16 }: { size?: number }) => {
   return (
     <svg height={size} strokeLinejoin="round" viewBox="0 0 16 16" width={size} style={{ color: 'currentcolor' }}>
@@ -1302,18 +1288,7 @@ const StopIcon = ({ size = 16 }: { size?: number }) => {
   );
 };
 
-const MAX_FILES = 4;
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const MAX_INPUT_CHARS = 50000;
-
-const fileToDataURL = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => resolve(e.target?.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-};
 
 // Debounce utility function
 const debounce = <T extends (...args: any[]) => any>(func: T, wait: number): T => {
@@ -1324,182 +1299,15 @@ const debounce = <T extends (...args: any[]) => any>(func: T, wait: number): T =
   }) as T;
 };
 
-const truncateFilename = (filename: string, maxLength: number = 20) => {
-  if (filename.length <= maxLength) return filename;
-  const extension = filename.split('.').pop();
-  const name = filename.substring(0, maxLength - 4);
-  return `${name}...${extension}`;
-};
 
-const AttachmentPreview: React.FC<{
-  attachment: Attachment | UploadingAttachment;
-  onRemove: () => void;
-  isUploading: boolean;
-}> = React.memo(({ attachment, onRemove, isUploading }) => {
-  const formatFileSize = useCallback((bytes: number): string => {
-    if (bytes < 1024) return bytes + ' bytes';
-    else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-    else return (bytes / 1048576).toFixed(1) + ' MB' + (bytes > MAX_FILE_SIZE ? ' (exceeds 5MB limit)' : '');
-  }, []);
 
-  const isUploadingAttachment = useCallback(
-    (attachment: Attachment | UploadingAttachment): attachment is UploadingAttachment => {
-      return 'progress' in attachment;
-    },
-    [],
-  );
-
-  const isPdf = useCallback(
-    (attachment: Attachment | UploadingAttachment): boolean => {
-      if (isUploadingAttachment(attachment)) {
-        return attachment.file.type === 'application/pdf';
-      }
-      return (attachment as Attachment).contentType === 'application/pdf';
-    },
-    [isUploadingAttachment],
-  );
-
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, scale: 0.8 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.8 }}
-      transition={{ duration: 0.2 }}
-      className={cn(
-        'relative flex items-center',
-        'bg-background/90 backdrop-blur-xs',
-        'border border-border/80',
-        'rounded-lg p-2 pr-8 gap-2.5',
-        'shrink-0 z-0',
-        'hover:bg-background',
-        'transition-all duration-200',
-        'group',
-        '!shadow-none',
-      )}
-    >
-      {isUploading ? (
-        <div className="w-8 h-8 flex items-center justify-center">
-          <svg
-            className="animate-spin h-4 w-4 text-muted-foreground"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            ></path>
-          </svg>
-        </div>
-      ) : isUploadingAttachment(attachment) ? (
-        <div className="w-8 h-8 flex items-center justify-center">
-          <div className="relative w-6 h-6">
-            <svg className="w-full h-full" viewBox="0 0 100 100">
-              <circle
-                className="text-muted stroke-current"
-                strokeWidth="8"
-                cx="50"
-                cy="50"
-                r="40"
-                fill="transparent"
-              ></circle>
-              <circle
-                className="text-primary stroke-current"
-                strokeWidth="8"
-                strokeLinecap="round"
-                cx="50"
-                cy="50"
-                r="40"
-                fill="transparent"
-                strokeDasharray={`${attachment.progress * 251.2}, 251.2`}
-                transform="rotate(-90 50 50)"
-              ></circle>
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-[10px] font-medium text-foreground">{Math.round(attachment.progress * 100)}%</span>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="w-8 h-8 rounded-lg overflow-hidden bg-muted shrink-0 ring-1 ring-border flex items-center justify-center">
-          {isPdf(attachment) ? (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-red-500"
-            >
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-              <path d="M9 15v-2h6v2"></path>
-              <path d="M12 18v-5"></path>
-            </svg>
-          ) : (
-            <img
-              src={(attachment as Attachment).url}
-              alt={`Preview of ${attachment.name}`}
-              className="h-full w-full object-cover"
-            />
-          )}
-        </div>
-      )}
-      <div className="grow min-w-0">
-        {!isUploadingAttachment(attachment) && (
-          <p className="text-xs font-medium truncate text-foreground">{truncateFilename(attachment.name)}</p>
-        )}
-        <p className="text-[10px] text-muted-foreground">
-          {isUploadingAttachment(attachment) ? 'Uploading...' : formatFileSize((attachment as Attachment).size)}
-        </p>
-      </div>
-      <motion.button
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        onClick={(e) => {
-          e.stopPropagation();
-          onRemove();
-        }}
-        className={cn(
-          'absolute -top-1.5 -right-1.5 p-0.5 m-0 rounded-full',
-          'bg-background/90 backdrop-blur-xs',
-          'border border-border/80',
-          'transition-all duration-200 z-20',
-          'opacity-0 group-hover:opacity-100',
-          'scale-75 group-hover:scale-100',
-          'hover:bg-muted/50',
-          '!shadow-none',
-        )}
-      >
-        <X className="h-3 w-3 text-muted-foreground" />
-      </motion.button>
-    </motion.div>
-  );
-});
-
-AttachmentPreview.displayName = 'AttachmentPreview';
-
-interface UploadingAttachment {
-  file: File;
-  progress: number;
-}
 
 interface FormComponentProps {
   input: string;
   setInput: (input: string) => void;
-  attachments: Array<Attachment>;
-  setAttachments: React.Dispatch<React.SetStateAction<Array<Attachment>>>;
   chatId: string;
   user: ComprehensiveUserData | null;
   subscriptionData?: any;
-  fileInputRef: React.RefObject<HTMLInputElement>;
   inputRef: React.RefObject<HTMLTextAreaElement>;
   stop: () => void;
   messages: Array<ChatMessage>;
@@ -2015,10 +1823,7 @@ const FormComponent: React.FC<FormComponentProps> = ({
   subscriptionData,
   input,
   setInput,
-  attachments,
-  setAttachments,
   sendMessage,
-  fileInputRef,
   inputRef,
   stop,
   selectedModel,
@@ -2035,11 +1840,8 @@ const FormComponent: React.FC<FormComponentProps> = ({
   selectedConnectors = [],
   setSelectedConnectors,
 }) => {
-  const [uploadQueue, setUploadQueue] = useState<Array<string>>([]);
   const isMounted = useRef(true);
   const isCompositionActive = useRef(false);
-  const postSubmitFileInputRef = useRef<HTMLInputElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
 
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -2506,240 +2308,9 @@ const FormComponent: React.FC<FormComponentProps> = ({
     [setSelectedConnectors],
   );
 
-  const uploadFile = useCallback(async (file: File): Promise<Attachment> => {
-    const formData = new FormData();
-    formData.append('file', file);
 
-    try {
-      console.log('Uploading file:', file.name, file.type, file.size);
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Upload successful:', data);
-        return data;
-      } else {
-        const errorText = await response.text();
-        console.error('Upload failed with status:', response.status, errorText);
-        throw new Error(`Failed to upload file: ${response.status} ${errorText}`);
-      }
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      toast.error(`Failed to upload ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      throw error;
-    }
-  }, []);
 
-  const handleFileChange = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(event.target.files || []);
-      if (files.length === 0) {
-        console.log('No files selected in file input');
-        return;
-      }
-
-      console.log(
-        'Files selected:',
-        files.map((f) => `${f.name} (${f.type})`),
-      );
-
-      const imageFiles: File[] = [];
-      const pdfFiles: File[] = [];
-      const unsupportedFiles: File[] = [];
-      const oversizedFiles: File[] = [];
-      const blockedPdfFiles: File[] = [];
-
-      files.forEach((file) => {
-        if (file.size > MAX_FILE_SIZE) {
-          oversizedFiles.push(file);
-          return;
-        }
-
-        if (file.type.startsWith('image/')) {
-          imageFiles.push(file);
-        } else if (file.type === 'application/pdf') {
-          if (!isProUser) {
-            blockedPdfFiles.push(file);
-          } else {
-            pdfFiles.push(file);
-          }
-        } else {
-          unsupportedFiles.push(file);
-        }
-      });
-
-      if (unsupportedFiles.length > 0) {
-        console.log(
-          'Unsupported files:',
-          unsupportedFiles.map((f) => `${f.name} (${f.type})`),
-        );
-        toast.error(`Some files are not supported: ${unsupportedFiles.map((f) => f.name).join(', ')}`);
-      }
-
-      if (blockedPdfFiles.length > 0) {
-        console.log(
-          'Blocked PDF files for non-Pro user:',
-          blockedPdfFiles.map((f) => f.name),
-        );
-        toast.error(`PDF uploads require Pro subscription. Upgrade to access PDF analysis.`, {
-          action: {
-            label: 'Upgrade',
-            onClick: () => (window.location.href = '/pricing'),
-          },
-        });
-      }
-
-      if (imageFiles.length === 0 && pdfFiles.length === 0) {
-        console.log('No supported files found');
-        event.target.value = '';
-        return;
-      }
-
-      const currentModelData = models.find((m) => m.value === selectedModel);
-      if (pdfFiles.length > 0 && (!currentModelData || !currentModelData.pdf)) {
-        console.log('PDFs detected, switching to compatible model');
-
-        const compatibleModel = models.find((m) => m.pdf && m.vision);
-
-        if (compatibleModel) {
-          console.log('Switching to compatible model:', compatibleModel.value);
-          setSelectedModel(compatibleModel.value);
-        } else {
-          console.warn('No PDF-compatible model found');
-          toast.error('PDFs are only supported by Gemini and Claude models');
-
-          if (imageFiles.length === 0) {
-            event.target.value = '';
-            return;
-          }
-        }
-      }
-
-      let validFiles: File[] = [...imageFiles];
-      if (hasPdfSupport() || pdfFiles.length > 0) {
-        validFiles = [...validFiles, ...pdfFiles];
-      }
-
-      console.log(
-        'Valid files for upload:',
-        validFiles.map((f) => f.name),
-      );
-
-      const totalAttachments = attachments.length + validFiles.length;
-      if (totalAttachments > MAX_FILES) {
-        toast.error(`You can only attach up to ${MAX_FILES} files.`);
-        event.target.value = '';
-        return;
-      }
-
-      if (validFiles.length === 0) {
-        console.error('No valid files to upload');
-        event.target.value = '';
-        return;
-      }
-
-      if (imageFiles.length > 0) {
-        try {
-          console.log('Checking image moderation for', imageFiles.length, 'images');
-          toast.info('Checking images for safety...');
-
-          const imageDataURLs = await Promise.all(imageFiles.map((file) => fileToDataURL(file)));
-
-          const moderationResult = await checkImageModeration(imageDataURLs);
-          console.log('Moderation result:', moderationResult);
-
-          if (moderationResult !== 'safe') {
-            const [status, category] = moderationResult.split('\n');
-            if (status === 'unsafe') {
-              console.warn('Unsafe image detected, category:', category);
-              toast.error(`Image content violates safety guidelines (${category}). Please choose different images.`);
-              event.target.value = '';
-              return;
-            }
-          }
-
-          console.log('Images passed moderation check');
-        } catch (error) {
-          console.error('Error during image moderation:', error);
-          // Show warning but allow upload to proceed
-          toast.warning('Safety check unavailable - proceeding with upload', {
-            description: 'Please ensure your images comply with content guidelines.',
-          });
-          // Don't return - continue with upload
-        }
-      }
-
-      setUploadQueue(validFiles.map((file) => file.name));
-
-      try {
-        console.log('Starting upload of', validFiles.length, 'files');
-
-        const uploadedAttachments: Attachment[] = [];
-        for (const file of validFiles) {
-          try {
-            console.log(`Uploading file: ${file.name} (${file.type})`);
-            const attachment = await uploadFile(file);
-            uploadedAttachments.push(attachment);
-            console.log(`Successfully uploaded: ${file.name}`);
-          } catch (err) {
-            console.error(`Failed to upload ${file.name}:`, err);
-          }
-        }
-
-        console.log('Upload completed for', uploadedAttachments.length, 'files');
-
-        if (uploadedAttachments.length > 0) {
-          setAttachments((currentAttachments) => [...currentAttachments, ...uploadedAttachments]);
-
-          toast.success(
-            `${uploadedAttachments.length} file${uploadedAttachments.length > 1 ? 's' : ''} uploaded successfully`,
-          );
-        } else {
-          toast.error('No files were successfully uploaded');
-        }
-      } catch (error) {
-        console.error('Error uploading files!', error);
-        toast.error('Failed to upload one or more files. Please try again.');
-      } finally {
-        setUploadQueue([]);
-        event.target.value = '';
-      }
-    },
-    [attachments.length, setAttachments, selectedModel, setSelectedModel, isProUser, uploadFile],
-  );
-
-  const removeAttachment = useCallback(
-    (index: number) => {
-      setAttachments((prev) => prev.filter((_, i) => i !== index));
-    },
-    [setAttachments],
-  );
-
-  const handleDragOver = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      if (attachments.length >= MAX_FILES) return;
-
-      if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
-        const hasFile = Array.from(e.dataTransfer.items).some((item) => item.kind === 'file');
-        if (hasFile) {
-          setIsDragging(true);
-        }
-      }
-    },
-    [attachments.length],
-  );
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  }, []);
 
   const getFirstVisionModel = useCallback(() => {
     return models.find((model) => model.vision)?.value || selectedModel;

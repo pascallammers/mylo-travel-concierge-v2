@@ -9,16 +9,7 @@ export interface ChatState {
 
   // Chat data
   suggestedQuestions: string[];
-  attachments: Attachment[];
   selectedVisibilityType: 'public' | 'private';
-}
-
-interface Attachment {
-  name: string;
-  contentType?: string;
-  mediaType?: string;
-  url: string;
-  size: number;
 }
 
 export type ChatAction =
@@ -29,7 +20,6 @@ export type ChatAction =
   | { type: 'SET_COMMAND_DIALOG_OPEN'; payload: boolean }
   | { type: 'SET_ANY_DIALOG_OPEN'; payload: boolean }
   | { type: 'SET_SUGGESTED_QUESTIONS'; payload: string[] }
-  | { type: 'SET_ATTACHMENTS'; payload: Attachment[] }
   | { type: 'SET_VISIBILITY_TYPE'; payload: 'public' | 'private' }
   | { type: 'RESET_SUGGESTED_QUESTIONS' }
   | { type: 'RESET_UI_STATE' };
@@ -56,9 +46,6 @@ export const chatReducer = (state: ChatState, action: ChatAction): ChatState => 
 
     case 'SET_SUGGESTED_QUESTIONS':
       return { ...state, suggestedQuestions: action.payload };
-
-    case 'SET_ATTACHMENTS':
-      return { ...state, attachments: action.payload };
 
     case 'SET_VISIBILITY_TYPE':
       return { ...state, selectedVisibilityType: action.payload };
@@ -90,6 +77,5 @@ export const createInitialState = (
   commandDialogOpen: false,
   anyDialogOpen: false,
   suggestedQuestions: [],
-  attachments: [],
   selectedVisibilityType: initialVisibility,
 });

@@ -161,7 +161,6 @@ const ChatInterface = memo(
 
     const lastSubmittedQueryRef = useRef(initialState.query);
     const bottomRef = useRef<HTMLDivElement>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null!);
     const inputRef = useRef<HTMLTextAreaElement>(null!);
     const initializedRef = useRef(false);
 
@@ -704,13 +703,6 @@ const ChatInterface = memo(
                   subscriptionData={subscriptionData}
                   input={input}
                   setInput={setInput}
-                  attachments={chatState.attachments}
-                  setAttachments={(attachments) => {
-                    const newAttachments =
-                      typeof attachments === 'function' ? attachments(chatState.attachments) : attachments;
-                    dispatch({ type: 'SET_ATTACHMENTS', payload: newAttachments });
-                  }}
-                  fileInputRef={fileInputRef}
                   inputRef={inputRef}
                   stop={stop}
                   messages={messages as ChatMessage[]}
