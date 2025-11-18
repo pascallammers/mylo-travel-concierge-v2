@@ -1119,7 +1119,7 @@ export function ChatHistoryButton({ onClickAction }: { onClickAction: () => void
         </Button>
       </TooltipTrigger>
       <TooltipContent side="bottom" sideOffset={4}>
-        Chat History
+        Verlauf
       </TooltipContent>
     </Tooltip>
   );
