@@ -145,11 +145,6 @@ function ProfileSection({ user, subscriptionData, isProUser, isProStatusLoading 
           </div>
         </div>
 
-        <div className={cn('bg-muted/30 rounded-lg border border-border', isMobile ? 'p-2.5' : 'p-3')}>
-          <p className={cn('text-muted-foreground', isMobile ? 'text-[11px]' : 'text-xs')}>
-            Profile information is managed through your authentication provider. Contact support to update your details.
-          </p>
-        </div>
       </div>
     </div>
   );
@@ -450,7 +445,7 @@ function UsageSection({ user }: any) {
   return (
     <div className={cn(isMobile ? 'space-y-3' : 'space-y-4', isMobile && !isProUser ? 'pb-4' : '')}>
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold">Daily Search Usage</h3>
+        <h3 className="text-sm font-semibold">Tägliches Suchvolumen</h3>
         <Button
           variant="ghost"
           size="sm"
@@ -469,7 +464,7 @@ function UsageSection({ user }: any) {
       <div className={cn('grid grid-cols-2', isMobile ? 'gap-2' : 'gap-3')}>
         <div className={cn('bg-muted/50 rounded-lg space-y-1', isMobile ? 'p-2.5' : 'p-3')}>
           <div className="flex items-center justify-between">
-            <span className={cn('text-muted-foreground', isMobile ? 'text-[11px]' : 'text-xs')}>Today</span>
+            <span className={cn('text-muted-foreground', isMobile ? 'text-[11px]' : 'text-xs')}>Heute</span>
             <MagnifyingGlassIcon className={isMobile ? 'h-3 w-3' : 'h-3.5 w-3.5'} />
           </div>
           {usageLoading ? (
@@ -477,12 +472,12 @@ function UsageSection({ user }: any) {
           ) : (
             <div className={cn('font-semibold', isMobile ? 'text-base' : 'text-lg')}>{searchCount?.count || 0}</div>
           )}
-          <p className="text-[10px] text-muted-foreground">Regular searches</p>
+          <p className="text-[10px] text-muted-foreground">Suche(n)</p>
         </div>
 
         <div className={cn('bg-muted/50 rounded-lg space-y-1', isMobile ? 'p-2.5' : 'p-3')}>
           <div className="flex items-center justify-between">
-            <span className={cn('text-muted-foreground', isMobile ? 'text-[11px]' : 'text-xs')}>Extreme</span>
+            <span className={cn('text-muted-foreground', isMobile ? 'text-[11px]' : 'text-xs')}>Extrem</span>
             <LightningIcon className={isMobile ? 'h-3 w-3' : 'h-3.5 w-3.5'} />
           </div>
           {usageLoading ? (
@@ -492,7 +487,7 @@ function UsageSection({ user }: any) {
               {extremeSearchCount?.count || 0}
             </div>
           )}
-          <p className="text-[10px] text-muted-foreground">This month</p>
+          <p className="text-[10px] text-muted-foreground">Diesen Monat</p>
         </div>
       </div>
 
@@ -542,7 +537,7 @@ function UsageSection({ user }: any) {
       {!usageLoading && (
         <div className={cn('space-y-2', isMobile && !isProUser ? 'pb-4' : '')}>
           <h4 className={cn('font-semibold text-muted-foreground', isMobile ? 'text-[11px]' : 'text-xs')}>
-            Activity (Past 9 Months)
+            Aktivität (Letzte 9 Monate)
           </h4>
           <div className={cn('bg-muted/50 dark:bg-card rounded-lg p-3')}>
             {historicalLoading ? (
@@ -553,10 +548,10 @@ function UsageSection({ user }: any) {
                   blockMargin={isMobile ? 3 : 4}
                   fontSize={isMobile ? 9 : 12}
                   labels={{
-                    totalCount: 'Loading activity data...',
+                    totalCount: 'Lade Aktivitätsdaten...',
                     legend: {
-                      less: 'Less',
-                      more: 'More',
+                      less: 'Weniger',
+                      more: 'Mehr',
                     },
                   }}
                   className="w-full opacity-60"
@@ -620,10 +615,10 @@ function UsageSection({ user }: any) {
                   blockMargin={isMobile ? 3 : 4}
                   fontSize={isMobile ? 9 : 12}
                   labels={{
-                    totalCount: '{{count}} total messages in {{year}}',
+                    totalCount: '{{count}} Nachrichten in {{year}}',
                     legend: {
-                      less: 'Less',
-                      more: 'More',
+                      less: 'Weniger',
+                      more: 'Mehr',
                     },
                   }}
                   className="w-full"
@@ -679,17 +674,17 @@ function UsageSection({ user }: any) {
                         const getTooltipText = (level: number) => {
                           switch (level) {
                             case 0:
-                              return 'No messages';
+                              return 'Keine Nachrichten';
                             case 1:
-                              return '1-3 messages';
+                              return '1-3 Nachrichten';
                             case 2:
-                              return '4-7 messages';
+                              return '4-7 Nachrichten';
                             case 3:
-                              return '8-12 messages';
+                              return '8-12 Nachrichten';
                             case 4:
-                              return '13+ messages';
+                              return '13+ Nachrichten';
                             default:
-                              return `${level} messages`;
+                              return `${level} Nachrichten`;
                           }
                         };
 
@@ -875,13 +870,13 @@ function SubscriptionSection({ subscriptionData, isProUser, user }: any) {
               </Badge>
             </div>
             <div className={cn('opacity-90 mb-3', isMobile ? 'text-[11px]' : 'text-xs')}>
-              <p className="mb-1">Unlimited access to all premium features</p>
+              <p className="mb-1">Unlimitierter Zugang zu allen Premium Features</p>
               {hasActiveSubscription && subscription && (
                 <div className="flex gap-4 text-[10px] opacity-75">
                   <span>
                     ${(subscription.amount / 100).toFixed(2)}/{subscription.recurringInterval}
                   </span>
-                  <span>Next billing: {new Date(subscription.currentPeriodEnd).toLocaleDateString()}</span>
+                  <span>Nächste Zahlung: {new Date(subscription.currentPeriodEnd).toLocaleDateString()}</span>
                 </div>
               )}
               {hasDodoProStatus && !hasActiveSubscription && (
@@ -1002,7 +997,7 @@ function SubscriptionSection({ subscriptionData, isProUser, user }: any) {
       )}
 
       <div className={isMobile ? 'space-y-2' : 'space-y-3'}>
-        <h4 className={cn('font-semibold', isMobile ? 'text-xs' : 'text-sm')}>Billing History</h4>
+        <h4 className={cn('font-semibold', isMobile ? 'text-xs' : 'text-sm')}>Zahlungshistorie</h4>
         {ordersLoading ? (
           <div className={cn('border rounded-lg flex items-center justify-center', isMobile ? 'p-3 h-16' : 'p-4 h-20')}>
             <Loader2 className={cn(isMobile ? 'w-3.5 h-3.5' : 'w-4 h-4', 'animate-spin')} />
@@ -1017,7 +1012,7 @@ function SubscriptionSection({ subscriptionData, isProUser, user }: any) {
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
                         <p className={cn('font-medium truncate', isMobile ? 'text-xs' : 'text-sm')}>
-                          MYLO Pro (DodoPayments)
+                          MYLO Pro
                         </p>
                         <div className="flex items-center gap-2">
                           <p className={cn('text-muted-foreground', isMobile ? 'text-[10px]' : 'text-xs')}>
