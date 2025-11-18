@@ -53,13 +53,14 @@ export async function POST(request: NextRequest) {
     console.log('⏰ Token expires at:', expiresAt);
 
     // 3. Store verification token in database
+    // Note: Better-Auth's verification table uses 'identifier' (email) to link to user
     await db.insert(verification).values({
+      id: crypto.randomUUID(), // Generate unique ID for verification record
       identifier: targetUser.email,
       value: token,
       expiresAt,
-      // Better-Auth compatible fields
-      // @ts-ignore - verification table schema
-      userId: targetUser.id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
     console.log('💾 Token stored in database');
