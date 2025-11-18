@@ -14,7 +14,7 @@ import { clearUserDataCache } from '@/lib/user-data-server';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check if user is admin
@@ -23,7 +23,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    const userId = params.id;
+    const { id: userId } = await params;
 
     // Get user data
     const userData = await db.query.user.findFirst({
@@ -59,7 +59,7 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check if user is admin
@@ -68,7 +68,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    const userId = params.id;
+    const { id: userId } = await params;
     const body = await request.json();
 
     // Validate input
@@ -122,7 +122,7 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check if user is admin
@@ -131,7 +131,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    const userId = params.id;
+    const { id: userId } = await params;
 
     // Soft delete: set isActive = false and activationStatus = 'suspended'
     const [deactivatedUser] = await db

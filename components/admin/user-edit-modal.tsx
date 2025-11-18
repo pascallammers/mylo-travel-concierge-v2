@@ -31,8 +31,8 @@ interface User {
   name: string;
   email: string;
   role: 'user' | 'admin';
-  isActive: boolean | null;
-  activationStatus: 'active' | 'inactive' | 'grace_period' | 'suspended' | null;
+  isActive?: boolean | null;
+  activationStatus?: 'active' | 'inactive' | 'grace_period' | 'suspended' | null;
   subscriptionStatus?: 'active' | 'inactive' | 'cancelled' | 'none';
   subscriptionValidUntil?: string | null;
 }
@@ -315,7 +315,7 @@ export function UserEditModal({
 
             <Alert>
               <AlertDescription className="text-sm">
-                <strong>Hinweis:</strong> Wenn "Gültig bis" in der Vergangenheit liegt,
+                <strong>Hinweis:</strong> Wenn &quot;Gültig bis&quot; in der Vergangenheit liegt,
                 wird der Zugriff des Benutzers beim nächsten Login-Versuch blockiert.
               </AlertDescription>
             </Alert>

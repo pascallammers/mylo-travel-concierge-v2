@@ -15,7 +15,7 @@ import { clearUserDataCache } from '@/lib/user-data-server';
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check if user is admin
@@ -24,7 +24,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    const userId = params.id;
+    const { id: userId } = await params;
     const body = await request.json();
 
     // Get current subscription

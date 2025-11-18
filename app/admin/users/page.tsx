@@ -19,6 +19,8 @@ interface User {
   subscriptionStatus: 'active' | 'inactive' | 'cancelled' | 'none';
   subscriptionPlan: string | null;
   subscriptionValidUntil: string | null;
+  isActive?: boolean | null;
+  activationStatus?: 'active' | 'inactive' | 'grace_period' | 'suspended' | null;
 }
 
 interface UsersResponse {
