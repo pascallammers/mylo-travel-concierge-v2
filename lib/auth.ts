@@ -88,9 +88,21 @@ export const auth = betterAuth({
       verify: async ({ hash, password }: { hash: string; password: string }) => bcrypt.compare(password, hash),
     },
     sendResetPasswordEmail: async ({ user, url, token }: { user: any; url: string; token: string }) => {
-      // Import email service dynamically to avoid circular dependencies
-      const { sendPasswordResetEmail } = await import('./email');
-      await sendPasswordResetEmail(user.email, url);
+      console.log('🔔 Better-Auth: sendResetPasswordEmail callback triggered');
+      console.log('👤 User:', user.email);
+      console.log('🔗 Reset URL:', url);
+      console.log('🎫 Token:', token);
+
+      try {
+        // Import email service dynamically to avoid circular dependencies
+        const { sendPasswordResetEmail } = await import('./email');
+        await sendPasswordResetEmail(user.email, url);
+        console.log('✅ Better-Auth: Password reset email sent successfully');
+      } catch (error) {
+        console.error('❌ Better-Auth: Failed to send password reset email:', error);
+        // Important: Re-throw error so Better-Auth knows it failed
+        throw error;
+      }
     },
   },
   pluginRoutes: {

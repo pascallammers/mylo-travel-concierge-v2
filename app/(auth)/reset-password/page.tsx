@@ -25,9 +25,17 @@ export default function ResetPasswordPage() {
       });
       setSent(true);
       toast.success('Passwort-Reset E-Mail wurde gesendet!');
-    } catch (error) {
-      toast.error('Fehler beim Senden der E-Mail.');
+    } catch (error: any) {
       console.error('Password reset error:', error);
+
+      // Detailed error message for user
+      const errorMessage = error?.message || 'Fehler beim Senden der E-Mail. Bitte versuche es später erneut.';
+      toast.error(errorMessage);
+
+      // User-specific error handling
+      if (errorMessage.toLowerCase().includes('not found')) {
+        toast.error('Diese E-Mail-Adresse ist nicht registriert.');
+      }
     } finally {
       setLoading(false);
     }

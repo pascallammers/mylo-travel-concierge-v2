@@ -119,8 +119,12 @@ export async function sendWelcomeEmail(email: string, password: string, firstNam
  * @param url - Password reset URL with token
  */
 export async function sendPasswordResetEmail(email: string, url: string) {
+  console.log('📧 Preparing password reset email for:', email);
+  console.log('🔑 Resend API Key present:', !!process.env.RESEND_API_KEY);
+  console.log('🔗 Reset URL:', url);
+
   try {
-    await resend.emails.send({
+    const result = await resend.emails.send({
       from: FROM_EMAIL,
       to: email,
       subject: 'Passwort zurücksetzen - MYLO',
@@ -170,9 +174,19 @@ export async function sendPasswordResetEmail(email: string, url: string) {
         </html>
       `,
     });
-    console.log('✅ Password reset email sent to:', email);
+
+    console.log('✅ Password reset email sent successfully');
+    console.log('📧 Resend response:', JSON.stringify(result, null, 2));
+
+    return result;
   } catch (error) {
-    console.error('❌ Failed to send password reset email:', error);
+    console.error('❌ Failed to send password reset email');
+    console.error('📧 Target email:', email);
+    console.error('🔗 Reset URL:', url);
+    console.error('💥 Error details:', error);
+
+    // IMPORTANT: Re-throw error so Better-Auth knows it failed!
+    throw error;
   }
 }
 
