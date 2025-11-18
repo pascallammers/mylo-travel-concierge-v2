@@ -19,10 +19,21 @@ export default function ResetPasswordPage() {
     setLoading(true);
 
     try {
-      await forgetPassword({
-        email,
-        redirectTo: '/reset-password/confirm',
+      // Use custom API route instead of Better-Auth client to ensure Resend delivery
+      const response = await fetch('/api/auth/forget-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
       });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Fehler beim Senden der E-Mail');
+      }
+
       setSent(true);
       toast.success('Passwort-Reset E-Mail wurde gesendet!');
     } catch (error: any) {
@@ -31,11 +42,6 @@ export default function ResetPasswordPage() {
       // Detailed error message for user
       const errorMessage = error?.message || 'Fehler beim Senden der E-Mail. Bitte versuche es später erneut.';
       toast.error(errorMessage);
-
-      // User-specific error handling
-      if (errorMessage.toLowerCase().includes('not found')) {
-        toast.error('Diese E-Mail-Adresse ist nicht registriert.');
-      }
     } finally {
       setLoading(false);
     }
