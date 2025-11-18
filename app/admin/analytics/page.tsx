@@ -83,9 +83,12 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Analytics</h1>
-          <p className="text-muted-foreground">Interaktionen und Token-Verbrauch</p>
+        <div className="relative">
+          <h1 className="font-['Playfair_Display'] text-4xl font-bold tracking-tight">Analytics</h1>
+          <p className="mt-2 font-['Be_Vietnam_Pro'] text-base text-muted-foreground/80">
+            Interaktionen und Token-Verbrauch
+          </p>
+          <div className="mt-3 h-1 w-24 rounded-full bg-gradient-to-r from-accent via-primary to-transparent" />
         </div>
         <Select value={range} onValueChange={setRange} disabled={loading}>
           <SelectTrigger className="w-full md:w-48">
@@ -134,24 +137,28 @@ export default function AnalyticsPage() {
                 value={tokenAnalytics.totalTokens.toLocaleString()}
                 description={`Zeitraum: ${range} Tage`}
                 icon={Activity}
+                delay={0}
               />
               <StatsCard
                 title="API-Kosten"
                 value={`$${tokenAnalytics.totalCost.toFixed(2)}`}
                 description="Basispreis $0.002 / 1K Tokens"
                 icon={Clock}
+                delay={100}
               />
               <StatsCard
                 title="Aktive Nutzer"
                 value={activityAnalytics.uniqueActiveUsers}
                 description="Interagiert im Zeitraum"
                 icon={Users}
+                delay={200}
               />
               <StatsCard
                 title="Ø Interaktionen"
                 value={activityAnalytics.avgInteractionsPerUser}
                 description="pro aktivem Nutzer"
                 icon={Activity}
+                delay={300}
               />
             </>
           )

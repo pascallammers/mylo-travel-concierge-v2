@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isCurrentUserAdmin } from '@/lib/auth-utils';
 import { db } from '@/lib/db';
-import { user, chat, message, session } from '@/lib/db/schema';
-import { count, desc, ilike, or, sql, gte } from 'drizzle-orm';
+import { user, chat, message, session, subscription } from '@/lib/db/schema';
+import { count, desc, ilike, or, sql, gte, eq } from 'drizzle-orm';
 
 /**
  * GET /api/admin/users
@@ -67,6 +67,40 @@ export async function GET(request: NextRequest) {
           .from(session)
           .where(sql`${session.userId} = ${u.id}`);
 
+        // Get subscription data
+        const userSubscription = await db.query.subscription.findFirst({
+          where: eq(subscription.userId, u.id),
+          orderBy: [desc(subscription.createdAt)],
+          columns: {
+            status: true,
+            planName: true,
+            currentPeriodEnd: true,
+            cancelAtPeriodEnd: true,
+          },
+        });
+
+        // Determine subscription status
+        let subscriptionStatus: 'active' | 'inactive' | 'cancelled' | 'none' = 'none';
+        let subscriptionValidUntil: string | null = null;
+
+        if (userSubscription) {
+          const now = new Date();
+          const periodEnd = userSubscription.currentPeriodEnd;
+
+          if (userSubscription.status === 'active' && periodEnd > now) {
+            subscriptionStatus = 'active';
+            subscriptionValidUntil = periodEnd.toISOString();
+          } else if (userSubscription.cancelAtPeriodEnd) {
+            subscriptionStatus = 'cancelled';
+            subscriptionValidUntil = periodEnd.toISOString();
+          } else if (userSubscription.status === 'canceled' || periodEnd < now) {
+            subscriptionStatus = 'inactive';
+          } else {
+            subscriptionStatus = 'active';
+            subscriptionValidUntil = periodEnd.toISOString();
+          }
+        }
+
         // Get messages in last 30 days and calculate tokens
         const userChats = await db.query.chat.findMany({
           where: (chat, { eq }) => eq(chat.userId, u.id),
@@ -102,10 +136,14 @@ export async function GET(request: NextRequest) {
           email: u.email,
           role: u.role || 'user',
           createdAt: u.createdAt.toISOString(),
+          registeredAt: u.createdAt.toISOString(),
           lastLogin: lastSessionResult?.createdAt.toISOString() || null,
           activeDays,
           sessions: sessionCountResult?.count || 0,
           tokensUsed,
+          subscriptionStatus,
+          subscriptionPlan: userSubscription?.planName || null,
+          subscriptionValidUntil,
         };
       }),
     );

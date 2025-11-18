@@ -3,7 +3,7 @@ import 'katex/dist/katex.min.css';
 import 'leaflet/dist/leaflet.css';
 
 import { Metadata, Viewport } from 'next';
-import { Be_Vietnam_Pro, Inter, Baumans } from 'next/font/google';
+import { Be_Vietnam_Pro, Inter, Baumans, Playfair_Display, JetBrains_Mono } from 'next/font/google';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import { Toaster } from '@/components/ui/sonner';
 import { Analytics } from '@vercel/analytics/react';
@@ -100,6 +100,22 @@ const baumans = Baumans({
   weight: ['400'],
 });
 
+const playfairDisplay = Playfair_Display({
+  subsets: ['latin'],
+  variable: '--font-playfair-display',
+  preload: true,
+  display: 'swap',
+  weight: ['400', '500', '600', '700', '800', '900'],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-jetbrains-mono',
+  preload: true,
+  display: 'swap',
+  weight: ['100', '200', '300', '400', '500', '600', '700', '800'],
+});
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -108,7 +124,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${beVietnamPro.variable} ${baumans.variable} font-sans antialiased`}
+        className={`${inter.variable} ${beVietnamPro.variable} ${baumans.variable} ${playfairDisplay.variable} ${jetbrainsMono.variable} font-sans antialiased`}
         suppressHydrationWarning
       >
         <NuqsAdapter>

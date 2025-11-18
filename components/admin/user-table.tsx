@@ -11,8 +11,9 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { RoleBadge } from './role-badge';
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, MoreHorizontal, Mail, Loader2 } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -20,6 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface User {
   id: string;
@@ -27,10 +34,14 @@ interface User {
   email: string;
   role: 'user' | 'admin';
   createdAt: string;
+  registeredAt: string;
   lastLogin: string | null;
   activeDays: number;
   sessions: number;
   tokensUsed: number;
+  subscriptionStatus: 'active' | 'inactive' | 'cancelled' | 'none';
+  subscriptionPlan: string | null;
+  subscriptionValidUntil: string | null;
 }
 
 interface UserTableProps {
@@ -41,6 +52,7 @@ interface UserTableProps {
   onPageChange: (page: number) => void;
   onSearch: (search: string) => void;
   onRoleUpdate: (userId: string, newRole: 'user' | 'admin') => Promise<void>;
+  onPasswordReset?: (userId: string) => Promise<void>;
 }
 
 /**
@@ -54,9 +66,11 @@ export function UserTable({
   onPageChange,
   onSearch,
   onRoleUpdate,
+  onPasswordReset,
 }: UserTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [updatingRoles, setUpdatingRoles] = useState<Set<string>>(new Set());
+  const [sendingReset, setSendingReset] = useState<Set<string>>(new Set());
 
   const handleSearch = () => {
     onSearch(searchTerm);
@@ -73,6 +87,46 @@ export function UserTable({
         return next;
       });
     }
+  };
+
+  const handlePasswordReset = async (userId: string) => {
+    if (!onPasswordReset) return;
+    
+    setSendingReset((prev) => new Set(prev).add(userId));
+    try {
+      await onPasswordReset(userId);
+    } finally {
+      setSendingReset((prev) => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
+    }
+  };
+
+  const getSubscriptionBadge = (status: User['subscriptionStatus']) => {
+    switch (status) {
+      case 'active':
+        return <Badge variant="green">Aktiv</Badge>;
+      case 'cancelled':
+        return <Badge variant="destructive">Gekündigt</Badge>;
+      case 'inactive':
+        return <Badge variant="secondary">Inaktiv</Badge>;
+      case 'none':
+        return <Badge variant="outline">Keine</Badge>;
+      default:
+        return <Badge variant="outline">Unbekannt</Badge>;
+    }
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('de-DE', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
   };
 
   const totalPages = Math.ceil(total / limit);
@@ -99,19 +153,21 @@ export function UserTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>User</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Last Login</TableHead>
-              <TableHead className="text-right">Active Days</TableHead>
-              <TableHead className="text-right">Sessions</TableHead>
-              <TableHead className="text-right">Tokens (30d)</TableHead>
+              <TableHead>Benutzer</TableHead>
+              <TableHead>Rolle</TableHead>
+              <TableHead>Zugriff</TableHead>
+              <TableHead>Registriert</TableHead>
+              <TableHead>Letzter Login</TableHead>
+              <TableHead>Gültig bis</TableHead>
+              <TableHead className="text-right">Tokens (30T)</TableHead>
+              <TableHead className="text-center">Aktionen</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground">
-                  No users found
+                <TableCell colSpan={8} className="text-center text-muted-foreground">
+                  Keine Benutzer gefunden
                 </TableCell>
               </TableRow>
             ) : (
@@ -140,15 +196,42 @@ export function UserTable({
                       </SelectContent>
                     </Select>
                   </TableCell>
+                  <TableCell>{getSubscriptionBadge(user.subscriptionStatus)}</TableCell>
+                  <TableCell>{formatDate(user.registeredAt)}</TableCell>
+                  <TableCell>{formatDate(user.lastLogin)}</TableCell>
                   <TableCell>
-                    {user.lastLogin
-                      ? new Date(user.lastLogin).toLocaleDateString()
-                      : 'Never'}
+                    {user.subscriptionStatus === 'active' && user.subscriptionValidUntil
+                      ? formatDate(user.subscriptionValidUntil)
+                      : '-'}
                   </TableCell>
-                  <TableCell className="text-right">{user.activeDays}</TableCell>
-                  <TableCell className="text-right">{user.sessions}</TableCell>
                   <TableCell className="text-right">
                     {user.tokensUsed.toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={sendingReset.has(user.id)}
+                        >
+                          {sendingReset.has(user.id) ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <MoreHorizontal className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => handlePasswordReset(user.id)}
+                          disabled={!onPasswordReset || sendingReset.has(user.id)}
+                        >
+                          <Mail className="mr-2 h-4 w-4" />
+                          Password Reset senden
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))

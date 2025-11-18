@@ -88,9 +88,12 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">System overview and statistics</p>
+      <div className="relative">
+        <h1 className="font-['Playfair_Display'] text-4xl font-bold tracking-tight">Dashboard</h1>
+        <p className="mt-2 font-['Be_Vietnam_Pro'] text-base text-muted-foreground/80">
+          System overview and statistics
+        </p>
+        <div className="mt-3 h-1 w-24 rounded-full bg-gradient-to-r from-primary via-accent to-transparent" />
       </div>
 
       {/* Stats Cards */}
@@ -115,31 +118,36 @@ export default function AdminDashboard() {
               value={stats.totalDocuments}
               description="Testdokumente"
               icon={FileText}
+              delay={0}
             />
             <StatsCard
               title="Media"
               value={stats.totalMedia}
               description="Audio/Video Dateien"
               icon={Image}
+              delay={100}
             />
             <StatsCard
               title="Storage"
               value={`${stats.storageUsed} MB`}
               description="Gesamtspeicher"
               icon={HardDrive}
+              delay={200}
             />
             <StatsCard
               title="Status"
               value={stats.systemStatus === 'active' ? 'Active' : 'Maintenance'}
               description="System läuft"
               icon={Activity}
-              iconClassName="text-green-500"
+              iconClassName="text-teal-500"
+              delay={300}
             />
             <StatsCard
               title="Users"
               value={stats.totalUsers}
               description="Registrierte User"
               icon={Users}
+              delay={400}
             />
           </>
         ) : null}
@@ -147,7 +155,9 @@ export default function AdminDashboard() {
 
       {/* Token Usage Section */}
       <div>
-        <h2 className="mb-4 text-xl font-semibold">Token-Nutzung</h2>
+        <h2 className="mb-4 font-['Playfair_Display'] text-2xl font-semibold tracking-tight">
+          Token-Nutzung
+        </h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {loading ? (
             <>
@@ -172,24 +182,28 @@ export default function AdminDashboard() {
                   value={stats.totalUsers}
                   description={`davon ${stats.activeUsers} aktiv in 30 Tagen`}
                   icon={Users}
+                  delay={0}
                 />
                 <StatsCard
                   title="Token Usage (30 Days)"
                   value={tokenAnalytics.totalTokens.toLocaleString()}
                   description="Gesamte Tokens aller aktiven Nutzer"
                   icon={Activity}
+                  delay={100}
                 />
                 <StatsCard
                   title="Costs (30 Days)"
                   value={`$${tokenAnalytics.totalCost.toFixed(2)}`}
                   description="Aggregierte API-Kosten"
                   icon={HardDrive}
+                  delay={200}
                 />
                 <StatsCard
                   title="Ø Interactions"
                   value={activityAnalytics.avgInteractionsPerUser}
                   description="pro aktivem Nutzer / 30 Tage"
                   icon={Activity}
+                  delay={300}
                 />
               </>
             )

@@ -10,10 +10,14 @@ interface User {
   email: string;
   role: 'user' | 'admin';
   createdAt: string;
+  registeredAt: string;
   lastLogin: string | null;
   activeDays: number;
   sessions: number;
   tokensUsed: number;
+  subscriptionStatus: 'active' | 'inactive' | 'cancelled' | 'none';
+  subscriptionPlan: string | null;
+  subscriptionValidUntil: string | null;
 }
 
 interface UsersResponse {
@@ -86,18 +90,42 @@ export default function UsersPage() {
         throw new Error('Failed to update user role');
       }
 
-      toast.success('Role updated', {
-        description: `User role has been updated to ${newRole}`,
+      toast.success('Rolle aktualisiert', {
+        description: `Benutzerrolle wurde auf ${newRole} geändert`,
       });
 
       // Refresh data
       fetchUsers(page, search);
     } catch (err) {
       console.error('Error updating role:', err);
-      toast.error('Error', {
-        description: err instanceof Error ? err.message : 'Failed to update user role',
+      toast.error('Fehler', {
+        description: err instanceof Error ? err.message : 'Rolle konnte nicht aktualisiert werden',
       });
       throw err; // Re-throw to let UserTable handle loading state
+    }
+  };
+
+  const handlePasswordReset = async (userId: string) => {
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/reset-password`, {
+        method: 'POST',
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result.message || 'Failed to send password reset email');
+      }
+
+      toast.success('E-Mail gesendet', {
+        description: 'Password Reset E-Mail wurde erfolgreich versendet',
+      });
+    } catch (err) {
+      console.error('Error sending password reset:', err);
+      toast.error('Fehler', {
+        description: err instanceof Error ? err.message : 'E-Mail konnte nicht gesendet werden',
+      });
+      throw err;
     }
   };
 
@@ -123,7 +151,7 @@ export default function UsersPage() {
 
       {loading && !data ? (
         <div className="flex items-center justify-center py-12">
-          <div className="text-sm text-muted-foreground">Loading users...</div>
+          <div className="text-sm text-muted-foreground">Benutzer werden geladen...</div>
         </div>
       ) : data ? (
         <UserTable
@@ -134,6 +162,7 @@ export default function UsersPage() {
           onPageChange={handlePageChange}
           onSearch={handleSearch}
           onRoleUpdate={handleRoleUpdate}
+          onPasswordReset={handlePasswordReset}
         />
       ) : null}
     </div>
