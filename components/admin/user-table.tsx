@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { RoleBadge } from './role-badge';
-import { Search, ChevronLeft, ChevronRight, MoreHorizontal, Mail, Loader2 } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Mail, Loader2, Pencil, Ban } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -21,12 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 interface User {
   id: string;
@@ -53,6 +47,8 @@ interface UserTableProps {
   onSearch: (search: string) => void;
   onRoleUpdate: (userId: string, newRole: 'user' | 'admin') => Promise<void>;
   onPasswordReset?: (userId: string) => Promise<void>;
+  onEditUser?: (user: User) => void;
+  onDeactivateUser?: (userId: string) => Promise<void>;
 }
 
 /**
@@ -67,10 +63,13 @@ export function UserTable({
   onSearch,
   onRoleUpdate,
   onPasswordReset,
+  onEditUser,
+  onDeactivateUser,
 }: UserTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [updatingRoles, setUpdatingRoles] = useState<Set<string>>(new Set());
   const [sendingReset, setSendingReset] = useState<Set<string>>(new Set());
+  const [deactivatingUsers, setDeactivatingUsers] = useState<Set<string>>(new Set());
 
   const handleSearch = () => {
     onSearch(searchTerm);
@@ -97,6 +96,21 @@ export function UserTable({
       await onPasswordReset(userId);
     } finally {
       setSendingReset((prev) => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
+    }
+  };
+
+  const handleDeactivate = async (userId: string) => {
+    if (!onDeactivateUser) return;
+    
+    setDeactivatingUsers((prev) => new Set(prev).add(userId));
+    try {
+      await onDeactivateUser(userId);
+    } finally {
+      setDeactivatingUsers((prev) => {
         const next = new Set(prev);
         next.delete(userId);
         return next;
@@ -208,30 +222,48 @@ export function UserTable({
                     {user.tokensUsed.toLocaleString()}
                   </TableCell>
                   <TableCell className="text-center">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={sendingReset.has(user.id)}
-                        >
-                          {sendingReset.has(user.id) ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <MoreHorizontal className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => handlePasswordReset(user.id)}
-                          disabled={!onPasswordReset || sendingReset.has(user.id)}
-                        >
-                          <Mail className="mr-2 h-4 w-4" />
-                          Password Reset senden
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="flex items-center justify-center gap-1">
+                      {/* Mail Icon - Direct Password Reset */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handlePasswordReset(user.id)}
+                        disabled={!onPasswordReset || sendingReset.has(user.id)}
+                        title="Password Reset senden"
+                      >
+                        {sendingReset.has(user.id) ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Mail className="h-4 w-4" />
+                        )}
+                      </Button>
+
+                      {/* Edit Icon - Opens Modal */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onEditUser?.(user)}
+                        disabled={!onEditUser}
+                        title="Benutzer bearbeiten"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+
+                      {/* Ban Icon - Deactivate User */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeactivate(user.id)}
+                        disabled={!onDeactivateUser || deactivatingUsers.has(user.id)}
+                        title="Benutzer deaktivieren"
+                      >
+                        {deactivatingUsers.has(user.id) ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Ban className="h-4 w-4 text-destructive" />
+                        )}
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

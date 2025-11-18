@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { UserTable } from '@/components/admin/user-table';
+import { UserEditModal } from '@/components/admin/user-edit-modal';
 import { toast } from 'sonner';
 
 interface User {
@@ -33,6 +34,8 @@ export default function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   const fetchUsers = async (currentPage: number, searchQuery: string) => {
     try {
@@ -129,6 +132,52 @@ export default function UsersPage() {
     }
   };
 
+  const handleEditUser = (user: User) => {
+    setSelectedUser(user);
+    setEditModalOpen(true);
+  };
+
+  const handleDeactivateUser = async (userId: string) => {
+    const userToDeactivate = data?.users.find((u) => u.id === userId);
+    if (!userToDeactivate) return;
+
+    if (!confirm(`Möchtest du den Account von ${userToDeactivate.name} wirklich deaktivieren?`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to deactivate user');
+      }
+
+      toast.success('Benutzer deaktiviert', {
+        description: `${userToDeactivate.name} kann sich nicht mehr einloggen`,
+      });
+
+      // Refresh data
+      fetchUsers(page, search);
+    } catch (err) {
+      console.error('Error deactivating user:', err);
+      toast.error('Fehler', {
+        description: err instanceof Error ? err.message : 'Benutzer konnte nicht deaktiviert werden',
+      });
+      throw err;
+    }
+  };
+
+  const handleModalClose = () => {
+    setEditModalOpen(false);
+    setSelectedUser(null);
+  };
+
+  const handleModalSuccess = () => {
+    fetchUsers(page, search);
+  };
+
   if (error) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -154,16 +203,28 @@ export default function UsersPage() {
           <div className="text-sm text-muted-foreground">Benutzer werden geladen...</div>
         </div>
       ) : data ? (
-        <UserTable
-          users={data.users}
-          total={data.total}
-          page={data.page}
-          limit={data.limit}
-          onPageChange={handlePageChange}
-          onSearch={handleSearch}
-          onRoleUpdate={handleRoleUpdate}
-          onPasswordReset={handlePasswordReset}
-        />
+        <>
+          <UserTable
+            users={data.users}
+            total={data.total}
+            page={data.page}
+            limit={data.limit}
+            onPageChange={handlePageChange}
+            onSearch={handleSearch}
+            onRoleUpdate={handleRoleUpdate}
+            onPasswordReset={handlePasswordReset}
+            onEditUser={handleEditUser}
+            onDeactivateUser={handleDeactivateUser}
+          />
+          
+          <UserEditModal
+            user={selectedUser}
+            open={editModalOpen}
+            onClose={handleModalClose}
+            onSuccess={handleModalSuccess}
+            onPasswordReset={handlePasswordReset}
+          />
+        </>
       ) : null}
     </div>
   );

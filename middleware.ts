@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionCookie } from 'better-auth/cookies';
+import { checkUserAccess } from '@/lib/access-control';
 
 const authRoutes = ['/sign-in', '/reset-password'];
-const publicRoutes = ['/terms', '/privacy-policy'];
+const publicRoutes = ['/terms', '/privacy-policy', '/subscription-expired', '/pricing'];
 const adminRoutes = ['/admin'];
 
 export async function middleware(request: NextRequest) {
@@ -30,6 +31,7 @@ export async function middleware(request: NextRequest) {
   console.log('Session cookie present:', !!sessionCookie);
   console.log('Is auth route:', authRoutes.some((route) => pathname.startsWith(route)));
   console.log('Is admin route:', adminRoutes.some((route) => pathname.startsWith(route)));
+  console.log('Is public route:', publicRoutes.some((route) => pathname.startsWith(route)));
 
   // For admin routes, just check if user is authenticated
   // The actual role check will happen in the page component
@@ -63,6 +65,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/sign-in', request.url));
   }
 
+  // NOTE: Subscription access control is implemented at the component/API level
+  // because Better-Auth's session decoding in middleware Edge runtime is complex.
+  // Access checks happen in:
+  // 1. Page components via getUser() and checkUserAccess()
+  // 2. API routes via isCurrentUserAdmin() and checkUserAccess()
+  // 3. Client-side via useUser() hooks
+  
   return NextResponse.next();
 }
 

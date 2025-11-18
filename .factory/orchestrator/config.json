@@ -30,11 +30,38 @@
   },
   "routing": {
     "rules": [
-      { "labels": ["frontend"], "droid": "codegen" },
-      { "labels": ["backend"], "droid": "codegen" },
-      { "labels": ["infra", "ci"], "droid": "infra" },
-      { "labels": ["refactor"], "droid": "refactor" },
-      { "labels": ["test", "qa"], "droid": "test" }
+      {
+        "labels": [
+          "frontend"
+        ],
+        "droid": "codegen"
+      },
+      {
+        "labels": [
+          "backend"
+        ],
+        "droid": "codegen"
+      },
+      {
+        "labels": [
+          "infra",
+          "ci"
+        ],
+        "droid": "infra"
+      },
+      {
+        "labels": [
+          "refactor"
+        ],
+        "droid": "refactor"
+      },
+      {
+        "labels": [
+          "test",
+          "qa"
+        ],
+        "droid": "test"
+      }
     ],
     "fallback": "generalist"
   }

@@ -90,14 +90,6 @@ Then DO NOT continue with orchestration. Let Claude Code handle it directly.
 
 ### If YES - Continue to Step 2
 
-### Reliability & Preflight (run before Step 2)
-
-- Confirm `Task` and `TodoWrite` tools are available; if not, stay sequential and state the blocker.
-- Ensure ≥2 independent streams remain; if not, proceed sequentially and call out why.
-- Check workspace constraints (sandbox/read-only, missing deps, dirty git status). If blocked, surface the issue and avoid claiming background work.
-- Announce parallel start **only after Task calls succeed** and you have recorded task ids.
-- Maintain a local registry for each stream: name, Task id, start time, status (pending/in_progress/blocked/completed), last heartbeat timestamp.
-
 ---
 
 ## Step 2: Decompose Into Parallel Streams
@@ -213,6 +205,8 @@ All agents will automatically:
 ✓ Auto-lint on file changes
 ✓ Save architectural decisions to memory
 
+⚠️ **Important:** Agents work silently with no live progress updates. They'll return results when complete (typically 5-10 minutes for parallel execution). You can continue other work in the meantime.
+
 Ready to proceed with parallel execution?
 ```
 
@@ -220,14 +214,7 @@ Ready to proceed with parallel execution?
 
 ## Step 4: Spawn Parallel Agents
 
-**CRITICAL:** Spawn Task agents **in a single response** for true parallel execution. Each agent works in the main repository - no git worktrees or tmux sessions needed!
-
-**Before Spawning: Reliability Checklist**
-- Confirm each stream is independent; merge/remove if not.
-- Prepare retry-once per spawn with short backoff; if a stream fails twice, mark it **blocked** with the error, continue others.
-- Record Task id, stream name, and start time in your registry; only report a stream as "started" after Task returns successfully.
-- Require spawned droids to emit structured progress: step, next action, files touched, commands/tests run with pass/fail, runtime/heartbeat.
-- If no streams can be spawned, fall back to sequential and explain why (tool missing, sandbox limits, etc.).
+**CRITICAL:** Use the Task tool to spawn multiple agents **in a single response** for true parallel execution.
 
 ### Task Tool Syntax:
 ```
@@ -237,16 +224,17 @@ Call Task tool multiple times in ONE response:
 ### Example - Authentication System:
 
 ```
-Spawning 3 specialist agents in parallel now...
+I'm spawning 3 specialist agents in parallel now...
 ```
 
-Make these Task tool calls **in a single response**:
+Then make these Task tool calls **in a single response**:
 
 **Task 1: Backend API**
 ```
 Task({
   subagent_type: "droidz-codegen",
   description: "Build authentication API",
+  model: "sonnet",
   prompt: `# Task: Build Authentication API
 
 ## Context
@@ -272,28 +260,6 @@ Build a complete JWT-based authentication API with:
    - Verify JWT tokens
    - Extract user ID from token
    - Attach user to request object
-
-## CRITICAL: Progress Reporting
-⏰ **USE TodoWrite EVERY 60 SECONDS** to report what you're doing!
-
-Users need to see progress during long-running work. Update your todo list:
-- At task start (create initial todos)
-- Every 60 seconds during work
-- After each major step completes
-- When running long commands
-
-Example:
-\`\`\`typescript
-TodoWrite({
-  todos: [
-    {id: "1", content: "Analyze codebase ✅", status: "completed", priority: "high"},
-    {id: "2", content: "Implement login endpoint (creating route...)", status: "in_progress", priority: "high"},
-    {id: "3", content: "Write tests", status: "pending", priority: "medium"}
-  ]
-});
-\`\`\`
-
-This prevents users from waiting with no feedback!
 
 ## Standards to Follow
 Read .factory/standards/templates/nextjs.md and typescript.md for patterns.
@@ -328,6 +294,7 @@ Report back when complete with file list and any issues encountered.`
 Task({
   subagent_type: "droidz-codegen",
   description: "Build authentication UI components",
+  model: "sonnet",
   prompt: `# Task: Build Authentication UI
 
 ## Context
@@ -388,6 +355,7 @@ Report back when complete.`
 Task({
   subagent_type: "droidz-test",
   description: "Write authentication tests",
+  model: "sonnet",
   prompt: `# Task: Write Authentication Tests
 
 ## Context
@@ -447,81 +415,186 @@ Report back when complete with test results.`
 
 ---
 
-## Step 5: Monitor Progress (Real-Time Visibility)
+## Step 5: Actively Monitor and Provide Progress Updates
 
-**Factory.ai Task tool automatically streams progress!** Each spawned agent reports progress using TodoWrite every 60 seconds (they're instructed to do this in their prompts).
+**CRITICAL: The Task tool provides NO streaming updates - YOU must actively monitor!**
 
-### What You'll See
+The Task tool does NOT provide streaming progress. Here's the reality:
 
-As agents work, their TodoWrite updates appear in the conversation:
+1. You spawn agents (Task tool calls)
+2. **Agents work silently for 2-10 minutes** (no output from Task tool)
+3. When agents finish, they return complete results
+4. **During the silence, users are confused and anxious**
 
-2. **Detect stalls** - If no heartbeat for 10 minutes, mark the stream stalled and surface which step hung
-3. **Wait for completion** - Task tool will return results when done
-4. **Update your TodoWrite** - Show overall orchestration progress with stream status, task id, latest step, files changed, and test/command results:
-
-✅ Analyze backend structure (completed)
-⏳ Implement login API (creating endpoints...)
-⏸ Write tests (pending)
-```
-
-```
-TODO LIST UPDATED (from droidz-test)
-
-✅ Analyze code to test (completed)
-⏳ Write unit tests (8/12 tests written)
-⏸ Run test suite (pending)
-```
-
-### Your Role in Monitoring
-
-1. **Trust the droids** - They're instructed to update every 60 seconds
-2. **Wait for completion** - Task tool will return results when done
-3. **Update your TodoWrite** - Show overall orchestration progress:
-
-```typescript
-TodoWrite({
-  todos: [
-    {content: "Stream A: Auth API (✅ completed - id 123, 5 files, tests passing)", status: "completed"},
-    {content: "Stream B: Auth UI (⏳ id 124, implementing forms, 3 files so far)", status: "in_progress"},
-    {content: "Stream C: Tests (⏸ pending - waiting on API schema)", status: "pending"}
-  ]
-});
-```
-
-### No Monitoring Scripts Needed!
-
-Factory.ai handles all the streaming. You don't need to:
-- ❌ Poll for updates
-- ❌ Monitor tmux sessions (we don't use them)
-- ❌ Check worktree status (we don't use them)
-- ❌ Run external monitoring scripts
-
-Just wait for agents to complete and report back!
+**YOUR JOB**: Break the silence with active monitoring!
 
 ---
 
-## Step 6: Synthesize Results
+### Active Monitoring Strategy (REQUIRED)
 
-**CRITICAL UX RULE**: NEVER use Execute tool with echo commands to display progress/summaries. Always output directly in your response text or use TodoWrite.
+**DO NOT just spawn agents and wait silently!** Follow this pattern:
 
-Before claiming completion:
-- Run lightweight validation if available (lint/typecheck/unit subset). If any command fails, keep status **blocked** and surface the failing output.
-- Cross-check your registry: only summarize streams that actually returned; if any stalled/failed, call them out explicitly.
+#### Step 5A: Set Expectations and Spawn
 
-As agents complete (they'll return their results automatically):
+**CRITICAL: Be honest about the limitation!**
 
-1. **Update TodoWrite** in real-time:
+The Task tool is blocking - once you spawn agents, your response ends and you can't actively monitor. Instead, **give the user agency to check progress**.
+
+```
+I'm spawning 3 specialist agents to work in parallel:
+
+🤖 Agent 1 (droidz-codegen): Building Auth API
+🤖 Agent 2 (droidz-codegen): Building Login UI  
+🤖 Agent 3 (droidz-test): Writing tests
+
+**Expected completion:** 5-8 minutes (all working simultaneously)
+
+⚠️ **Important:** Agents will work in the background. I can't actively monitor while they run, but you can check progress anytime by asking:
+- "How's it going?"
+- "Check on the agents"
+- "Show me progress"
+
+I'll check the file system for observable changes (new files, git status) and report back.
+
+[Spawning agents now...]
+```
+
+Then make your Task tool calls to spawn all agents.
+
+**After spawning, your response will end.** The user must prompt you again to check progress.
+
+#### Step 5B: When User Asks for Progress Update
+
+**When the user prompts you to check progress** (e.g., "How's it going?" or "Check on the agents"), you should:
+
+**Check for observable progress:**
+
+1. **Check file system changes:**
+   ```typescript
+   // Use LS or Execute to see what files have been created/modified
+   Execute({command: "cd /path/to/project && git status --short"})
+   Execute({command: "cd /path/to/project && ls -lt app/api/auth/ | head -10"})
+   ```
+
+2. **Report what you observe:**
+   ```
+   ⏱️ **Progress Update (2 minutes in)**
+   
+   Observable changes:
+   - ✅ Agent 1: Created app/api/auth/register/route.ts (visible in git status)
+   - ✅ Agent 1: Created lib/auth.ts
+   - 🔄 Agent 2: Working... (no new files yet)
+   - 🔄 Agent 3: Working... (no new files yet)
+   
+   Still monitoring... next update in 60 seconds.
+   ```
+
+3. **Continue monitoring until agents return:**
+   - Check again at 3-4 minutes
+   - Check again at 5-6 minutes
+   - When Task tool returns, agents are done
+
+#### Step 5C: What to Monitor
+
+**Observable Signals of Progress:**
+
+1. **Git Status** - New/modified files appear
+   ```bash
+   git status --short
+   # Shows: M app/file.tsx (modified)
+   #        ?? components/new.tsx (new file)
+   ```
+
+2. **File Timestamps** - Recently modified files
+   ```bash
+   ls -lt directory/ | head -10
+   # Shows most recently modified files first
+   ```
+
+3. **File Counts** - New files in target directories
+   ```bash
+   ls app/api/auth/ | wc -l
+   # Count increases as agent creates files
+   ```
+
+4. **TypeScript Compilation** - Check for syntax errors
+   ```bash
+   npx tsc --noEmit 2>&1 | grep -c "error"
+   # Agents may introduce errors initially, then fix them
+   ```
+
+**Example Progress Check Flow:**
+
+```
+[You spawn agents at T=0, response ends]
+
+--- 2 minutes later ---
+
+USER: "How's it going?"
+
+YOU: [Check: git status, ls -lt key directories]
+
+Report: "⏱️ Update (2min elapsed):
+- ✅ Agent 1: Created 4 files in app/api/auth/
+- 🔄 Agent 2: Working (no files visible yet)
+- 🔄 Agent 3: Working (no files visible yet)
+
+Agents are still running. Check back in 2-3 minutes or I'll notify when complete!"
+
+--- 3 minutes later (5min total) ---
+
+USER: "Check on the agents"
+
+YOU: [Check again]
+
+Report: "⏱️ Update (5min elapsed):
+- ✅ Agent 1: Completed! (no new changes)
+- ✅ Agent 2: Created 3 components in components/
+- 🔄 Agent 3: Created 2 test files, still working
+
+Almost done! Should complete in 1-2 minutes."
+
+--- Agents complete ---
+
+YOU: "✅ All agents complete! Synthesizing results..."
+```
+
+**Key Point:** You can't proactively check - you respond when the user asks. But you provide useful observable progress each time.
+
+---
+
+### Set Accurate Expectations (Still Important)
+
+**✅ CORRECT messaging to users:**
+- "Agents will work in background - ask 'How's it going?' anytime to check progress"
+- "You can check progress by asking me to check on the agents"
+- "I'll check file changes when you ask and report observable progress"
+- "Expected completion: 5-8 minutes - check back then or sooner to see progress"
+
+**❌ NEVER say:**
+- "I'll monitor progress every 60-90 seconds" (FALSE - you can't, you're not running)
+- "I'll check in shortly" (FALSE - your response ends after spawning)
+- "Updates will appear automatically" (FALSE - user must ask)
+- "Agents will report progress" (FALSE - they won't report anything)
+- "Just wait silently" (BAD UX - tell them they can check anytime)
+
+### When Agents Return Results
+
+All agents will return their results simultaneously (or near-simultaneously). At that point:
+
+1. **Review all agent reports** - Read what each agent accomplished
+2. **Update TodoWrite** with final status:
    ```typescript
    TodoWrite({
      todos: [
-       {content: "Stream A - Auth API (12 files modified)", activeForm: "Building Auth API", status: "completed"},
-       {content: "Stream B - Login UI", activeForm: "Building Login UI", status: "in_progress"},
-       {content: "Stream C - Tests (24 tests passing)", activeForm: "Writing Tests", status: "completed"}
+       {content: "Stream A - Auth API (12 files modified)", status: "completed"},
+       {content: "Stream B - Login UI (8 files modified)", status: "completed"},
+       {content: "Stream C - Tests (24 tests passing)", status: "completed"}
      ]
    });
    ```
 
-2. **Display final summary** when all complete - OUTPUT DIRECTLY, do NOT use Execute + echo:
+3. **Display comprehensive summary** - OUTPUT DIRECTLY, do NOT use Execute + echo:
    ```
    ## 🎉 Parallel Execution Complete
 
@@ -554,6 +627,98 @@ As agents complete (they'll return their results automatically):
    ```
 
 **IMPORTANT**: Output summaries as plain text/markdown in your response. Do NOT run bash commands like `echo "summary text"` - that creates messy UX.
+
+---
+
+## Step 5D: Complete Real-World Flow Example
+
+Here's exactly how parallel agent execution works with user-initiated progress checks:
+
+```
+USER: "Build authentication system"
+
+YOU (Orchestrator): I'll break this into 3 parallel streams for 3x speedup.
+
+[Show execution plan via TodoWrite]
+
+I'm spawning 3 specialist agents now:
+
+🤖 Agent 1 (droidz-codegen): Backend Auth API
+🤖 Agent 2 (droidz-codegen): Frontend Auth UI
+🤖 Agent 3 (droidz-test): Authentication Tests
+
+**Expected completion:** 6-8 minutes (all working simultaneously)
+
+⚠️ **Important:** Agents will work in the background. You can check progress anytime by asking:
+- "How's it going?"
+- "Check on the agents"
+- "Show me progress"
+
+I'll check the file system and report observable changes when you ask.
+
+[Spawning agents now...]
+
+[Make 3 Task tool calls - response ends]
+
+--- 2 MINUTES LATER ---
+
+USER: "How's it going?"
+
+YOU: Let me check what's been created so far...
+
+[Check: git status --short, ls -lt key directories]
+
+⏱️ **Progress Update (2 minutes elapsed):**
+
+Observable changes:
+- ✅ Agent 1: Created 3 files in app/api/auth/
+  - register/route.ts
+  - login/route.ts  
+  - lib/auth.ts
+- 🔄 Agent 2: Working (no files visible yet)
+- 🔄 Agent 3: Working (no files visible yet)
+
+Agents are still running. Check back in 2-3 minutes or I'll notify when they complete!
+
+--- 3 MINUTES LATER (5 MIN TOTAL) ---
+
+USER: "Check on the agents"
+
+YOU: Checking progress...
+
+[Check: git status, ls -lt again]
+
+⏱️ **Progress Update (5 minutes elapsed):**
+
+Observable progress since last check:
+- ✅ Agent 1: Completed! (no new changes)
+- ✅ Agent 2: Created 4 component files
+  - components/auth/LoginForm.tsx
+  - components/auth/RegisterForm.tsx
+  - components/auth/ProtectedRoute.tsx
+  - hooks/useAuth.ts
+- 🔄 Agent 3: Created 2 test files, still working
+  - __tests__/api/auth.test.ts
+  - __tests__/components/LoginForm.test.tsx
+
+Almost done! Should complete in 1-2 minutes.
+
+--- AGENTS COMPLETE (Task tool returns) ---
+
+YOU: ✅ All agents completed! Let me synthesize the results...
+
+[Read agent reports, update TodoWrite, create final summary]
+
+## 🎉 Parallel Execution Complete
+
+[... comprehensive summary of all work done ...]
+```
+
+**Key Points:**
+- **Honest about limitation:** Can't proactively monitor, but user can check anytime
+- **User has agency:** They control when to check progress
+- **Useful updates:** Each check shows observable file system changes
+- **Better UX:** No false promises, clear expectations, actionable instructions
 
 ---
 
@@ -619,8 +784,9 @@ Route tasks to the right specialist:
 2. **Communicate Clearly** - Show the user WHY you're orchestrating (or not)
 3. **Parallel by Default** - If 2+ streams are independent, run them simultaneously
 4. **Standards Inheritance** - All spawned agents automatically use .factory/standards/
-5. **Real-time Updates** - Keep TodoWrite current as agents complete
-6. **Synthesize Results** - Present unified summary of all parallel work
+5. **HONEST ABOUT MONITORING** - You can't proactively monitor (Task tool is blocking), so tell users they can check progress by asking "How's it going?"
+6. **USER-INITIATED CHECKS** - When users ask for progress, check file system changes and report observable updates
+7. **Synthesize Results** - Present unified summary of all parallel work when agents complete
 
 ---
 
