@@ -8,7 +8,6 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MyloLogo } from '@/components/logos/mylo-logo';
-import { resetPassword } from '@/lib/auth-client';
 
 function ResetPasswordForm() {
   const [password, setPassword] = useState('');
@@ -49,11 +48,24 @@ function ResetPasswordForm() {
     setLoading(true);
 
     try {
-      // Use Better-Auth's resetPassword with our custom token
-      await resetPassword({
-        newPassword: password,
-        token,
+      // Use custom API route instead of Better-Auth client
+      // This ensures our custom tokens are properly validated
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          token,
+          newPassword: password,
+        }),
       });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Fehler beim Zurücksetzen des Passworts');
+      }
 
       toast.success('Passwort erfolgreich zurückgesetzt!');
       router.push('/sign-in');
