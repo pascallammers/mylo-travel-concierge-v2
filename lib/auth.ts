@@ -87,8 +87,8 @@ export const auth = betterAuth({
       hash: async (password: string) => bcrypt.hash(password, 10),
       verify: async ({ hash, password }: { hash: string; password: string }) => bcrypt.compare(password, hash),
     },
-    sendResetPasswordEmail: async ({ user, url, token }: { user: any; url: string; token: string }) => {
-      console.log('🔔 Better-Auth: sendResetPasswordEmail callback triggered');
+    sendResetPassword: async ({ user, url, token }: { user: any; url: string; token: string }) => {
+      console.log('🔔 Better-Auth: sendResetPassword callback triggered');
       console.log('👤 User:', user.email);
       console.log('🔗 Reset URL:', url);
       console.log('🎫 Token:', token);

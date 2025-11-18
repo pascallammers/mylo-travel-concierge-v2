@@ -11,12 +11,13 @@
 ### 1. `lib/auth.ts`
 **Lines:** 90-106  
 **Changes:**
-- Added comprehensive logging to `sendResetPasswordEmail` callback
+- **CRITICAL FIX:** Renamed `sendResetPasswordEmail` to `sendResetPassword` (Better-Auth expects this exact name)
+- Added comprehensive logging to callback
 - Added try-catch block with error re-throwing
 - Logs callback trigger, user email, reset URL, and token
 - Ensures errors are properly propagated to Better-Auth
 
-**Summary:** Improved visibility into Better-Auth callback execution and proper error handling
+**Summary:** Fixed function name to match Better-Auth's expected API and improved visibility into callback execution
 
 ---
 
@@ -47,26 +48,32 @@
 
 ## Root Cause
 
-The password reset email functionality had two critical issues:
+The password reset email functionality had **THREE** critical issues:
 
-1. **Silent Error Handling**: The `sendPasswordResetEmail` function caught errors but didn't re-throw them, causing Better-Auth to think the email was sent successfully even when it failed.
+1. **WRONG FUNCTION NAME** ⚠️: Better-Auth expects `sendResetPassword` but we had `sendResetPasswordEmail`. This caused the error:
+   ```
+   ERROR [Better Auth]: Reset password isn't enabled. Please pass an emailAndPassword.sendResetPassword function in your auth config!
+   ```
 
-2. **No Visibility**: There was no logging to confirm if:
+2. **Silent Error Handling**: The `sendPasswordResetEmail` function in `lib/email.ts` caught errors but didn't re-throw them, causing Better-Auth to think the email was sent successfully even when it failed.
+
+3. **No Visibility**: There was no logging to confirm if:
    - The Better-Auth callback was being triggered
    - The Resend API was being called
    - What errors were occurring
 
 ## Fix Applied
 
-1. Added comprehensive logging at every step
-2. Changed error handling to re-throw errors
-3. Improved frontend error messages
+1. **Renamed function** from `sendResetPasswordEmail` to `sendResetPassword` to match Better-Auth API
+2. Added comprehensive logging at every step
+3. Changed error handling to re-throw errors
+4. Improved frontend error messages
 
 ## Testing
 
 After deployment, monitor server logs for:
 ```
-🔔 Better-Auth: sendResetPasswordEmail callback triggered
+🔔 Better-Auth: sendResetPassword callback triggered
 👤 User: [email]
 🔗 Reset URL: [url]
 📧 Preparing password reset email for: [email]
@@ -75,3 +82,12 @@ After deployment, monitor server logs for:
 ```
 
 Any errors will now be visible and properly handled.
+
+## Error Found in Production
+
+**Error from Vercel logs:**
+```
+ERROR [Better Auth]: Reset password isn't enabled. Please pass an emailAndPassword.sendResetPassword function in your auth config!
+```
+
+**Resolution:** Changed function name from `sendResetPasswordEmail` to `sendResetPassword` to match Better-Auth's expected API.
