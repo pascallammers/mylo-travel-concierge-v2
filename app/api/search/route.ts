@@ -66,6 +66,7 @@ import {
   redditSearchTool,
   extremeSearchTool,
   createConnectorsSearchTool,
+  knowledgeBaseTool,
 } from '@/lib/tools';
 import { flightSearchTool } from '@/lib/tools/flight-search';
 import { markdownJoinerTransform } from '@/lib/parser';
@@ -294,9 +295,9 @@ export async function POST(req: Request) {
           isProUser: false,
           subscriptionData: user.polarSubscription
             ? {
-                hasSubscription: true,
-                subscription: { ...user.polarSubscription, organizationId: null },
-              }
+              hasSubscription: true,
+              subscription: { ...user.polarSubscription, organizationId: null },
+            }
             : { hasSubscription: false },
           shouldBypassLimits,
           extremeSearchUsage: extremeSearchUsage.count,
@@ -316,9 +317,9 @@ export async function POST(req: Request) {
         isProUser: true,
         subscriptionData: user.polarSubscription
           ? {
-              hasSubscription: true,
-              subscription: { ...user.polarSubscription, organizationId: null },
-            }
+            hasSubscription: true,
+            subscription: { ...user.polarSubscription, organizationId: null },
+          }
           : { hasSubscription: false },
         shouldBypassLimits: true,
         extremeSearchUsage: 0,
@@ -477,6 +478,7 @@ export async function POST(req: Request) {
           datetime: datetimeTool,
           extreme_search: extremeSearchTool(dataStream),
           greeting: greetingTool(timezone),
+          knowledge_base: knowledgeBaseTool,
         };
 
         // Filter to only include active tools

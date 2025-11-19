@@ -448,10 +448,10 @@ const MessageEditor: React.FC<MessageEditorProps> = ({
               disabled={
                 isSubmitting ||
                 draftContent.trim() ===
-                  message.parts
-                    ?.map((part) => (part.type === 'text' ? part.text : ''))
-                    .join('')
-                    .trim()
+                message.parts
+                  ?.map((part) => (part.type === 'text' ? part.text : ''))
+                  .join('')
+                  .trim()
               }
             >
               {isSubmitting ? (
@@ -546,9 +546,9 @@ export const Message: React.FC<MessageProps> = ({
   // Handler for saving text to memory
   const handleAddToMemory = useCallback(async (text: string) => {
     if (isSavingMemory) return;
-    
+
     setIsSavingMemory(true);
-    
+
     try {
       const context: MemoryContext = {
         conversationId: message.id,
@@ -556,9 +556,9 @@ export const Message: React.FC<MessageProps> = ({
         messageRole: message.role as 'user' | 'assistant',
         timestamp: new Date().toISOString(),
       };
-      
+
       const result = await saveMemoryFromChat(text, context);
-      
+
       if (result.success) {
         toast.success('Memory saved successfully', {
           description: 'View your memories in Settings',
@@ -663,9 +663,8 @@ export const Message: React.FC<MessageProps> = ({
                         <div
                           key={`user-${index}-${partIndex}`}
                           ref={messageContentRef}
-                          className={`mt-2 prose prose-sm sm:prose-base prose-neutral dark:prose-invert prose-p:my-1 sm:prose-p:my-2 prose-p:mt-0 sm:prose-p:mt-0 prose-pre:my-1 sm:prose-pre:my-2 prose-code:before:hidden prose-code:after:hidden [&>*]:!font-be-vietnam-pro font-normal max-w-none ${getDynamicFontSize(part.text)} text-foreground dark:text-foreground overflow-hidden relative ${
-                            !isExpanded && exceedsMaxHeight ? 'max-h-[120px]' : ''
-                          }`}
+                          className={`mt-2 prose prose-sm sm:prose-base prose-neutral dark:prose-invert prose-p:my-1 sm:prose-p:my-2 prose-p:mt-0 sm:prose-p:mt-0 prose-pre:my-1 sm:prose-pre:my-2 prose-code:before:hidden prose-code:after:hidden [&>*]:!font-be-vietnam-pro font-normal max-w-none ${getDynamicFontSize(part.text)} text-foreground dark:text-foreground overflow-hidden relative ${!isExpanded && exceedsMaxHeight ? 'max-h-[120px]' : ''
+                            }`}
                         >
                           <div
                             className={`flex ${shouldTopAlignUser ? 'items-start' : 'items-center'} justify-start gap-2`}
@@ -718,9 +717,8 @@ export const Message: React.FC<MessageProps> = ({
                           ?.map((part) => (part.type === 'text' ? part.text : ''))
                           .join('')
                           .trim() || '',
-                      )} text-foreground dark:text-foreground pr-12 sm:pr-14 overflow-hidden relative ${
-                        !isExpanded && exceedsMaxHeight ? 'max-h-[120px]' : ''
-                      }`}
+                      )} text-foreground dark:text-foreground pr-12 sm:pr-14 overflow-hidden relative ${!isExpanded && exceedsMaxHeight ? 'max-h-[120px]' : ''
+                        }`}
                     >
                       <div className="flex items-start gap-1">
                         {user ? (
@@ -742,8 +740,8 @@ export const Message: React.FC<MessageProps> = ({
                           />
                         )}
                         <div className="min-w-0">
-                          <ChatTextHighlighter 
-                            onHighlight={onHighlight} 
+                          <ChatTextHighlighter
+                            onHighlight={onHighlight}
                             onAddToMemory={user || selectedVisibilityType === 'private' ? handleAddToMemory : undefined}
                             removeHighlightOnClick={true}
                           >
@@ -808,11 +806,10 @@ export const Message: React.FC<MessageProps> = ({
                         );
                         toast.success('Copied to clipboard');
                       }}
-                      className={`h-7 w-7 ${
-                        (!user || !isOwner) && selectedVisibilityType === 'public'
+                      className={`h-7 w-7 ${(!user || !isOwner) && selectedVisibilityType === 'public'
                           ? 'rounded-md'
                           : 'rounded-r-md rounded-l-none'
-                      } text-muted-foreground dark:text-muted-foreground hover:text-primary hover:bg-muted dark:hover:bg-muted transition-colors`}
+                        } text-muted-foreground dark:text-muted-foreground hover:text-primary hover:bg-muted dark:hover:bg-muted transition-colors`}
                       aria-label="Copy message"
                     >
                       <HugeiconsIcon icon={Copy01Icon} size={24} className="flex-shrink-0 pr-1 size-6" />
@@ -856,9 +853,8 @@ export const Message: React.FC<MessageProps> = ({
                       ?.map((part) => (part.type === 'text' ? part.text : ''))
                       .join('')
                       .trim() || '',
-                  )} text-foreground dark:text-foreground pr-12 sm:pr-14 overflow-hidden relative ${
-                    !isExpanded && exceedsMaxHeight ? 'max-h-[120px]' : ''
-                  }`}
+                  )} text-foreground dark:text-foreground pr-12 sm:pr-14 overflow-hidden relative ${!isExpanded && exceedsMaxHeight ? 'max-h-[120px]' : ''
+                    }`}
                 >
                   <div className="flex items-start gap-1">
                     {user ? (
@@ -940,11 +936,10 @@ export const Message: React.FC<MessageProps> = ({
                       );
                       toast.success('Copied to clipboard');
                     }}
-                    className={`h-7 w-7 ${
-                      (!user || !isOwner) && selectedVisibilityType === 'public'
+                    className={`h-7 w-7 ${(!user || !isOwner) && selectedVisibilityType === 'public'
                         ? 'rounded-md'
                         : 'rounded-r-md rounded-l-none'
-                    } text-muted-foreground dark:text-muted-foreground hover:text-primary hover:bg-muted dark:hover:bg-muted transition-colors`}
+                      } text-muted-foreground dark:text-muted-foreground hover:text-primary hover:bg-muted dark:hover:bg-muted transition-colors`}
                     aria-label="Copy message"
                   >
                     <HugeiconsIcon icon={Copy01Icon} size={24} className="flex-shrink-0 pr-1 size-6" />
@@ -970,6 +965,21 @@ export const Message: React.FC<MessageProps> = ({
         {message.parts?.map((part: ChatMessage['parts'][number], partIndex: number) => {
           console.log(`🔧 Rendering part ${partIndex}:`, { type: part.type, hasText: part.type === 'text' });
           const key = `${message.id || index}-part-${partIndex}-${part.type}`;
+
+          // Check for Knowledge Base prefix in text parts
+          if (part.type === 'text' && part.text.startsWith('[Knowledge Base] ')) {
+            const content = part.text.replace('[Knowledge Base] ', '');
+            const newPart = { ...part, text: content };
+            return (
+              <div key={key}>
+                <div className="mb-2 inline-flex items-center rounded-full border border-transparent bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                  Knowledge Base
+                </div>
+                {renderPart(newPart, index, partIndex, message.parts as ChatMessage['parts'][number][], message)}
+              </div>
+            );
+          }
+
           return (
             <div key={key}>
               {renderPart(part, index, partIndex, message.parts as ChatMessage['parts'][number][], message)}
@@ -1308,11 +1318,10 @@ export const EditableAttachmentsBadge = ({
                     <button
                       key={idx}
                       onClick={() => setSelectedIndex(idx)}
-                      className={`relative h-10 w-10 rounded-md overflow-hidden shrink-0 transition-all ${
-                        selectedIndex === idx
+                      className={`relative h-10 w-10 rounded-md overflow-hidden shrink-0 transition-all ${selectedIndex === idx
                           ? 'ring-2 ring-primary ring-offset-1 ring-offset-background'
                           : 'opacity-70 hover:opacity-100'
-                      }`}
+                        }`}
                     >
                       {isPdf(attachment) ? (
                         <div className="h-full w-full flex items-center justify-center bg-neutral-100 dark:bg-neutral-800">
@@ -1595,11 +1604,10 @@ export const AttachmentsBadge = ({ attachments }: { attachments: Attachment[] })
                     <button
                       key={idx}
                       onClick={() => setSelectedIndex(idx)}
-                      className={`relative h-10 w-10 rounded-md overflow-hidden shrink-0 transition-all ${
-                        selectedIndex === idx
+                      className={`relative h-10 w-10 rounded-md overflow-hidden shrink-0 transition-all ${selectedIndex === idx
                           ? 'ring-2 ring-primary ring-offset-1 ring-offset-background'
                           : 'opacity-70 hover:opacity-100'
-                      }`}
+                        }`}
                     >
                       {isPdf(attachment) ? (
                         <div className="h-full w-full flex items-center justify-center bg-muted dark:bg-muted">

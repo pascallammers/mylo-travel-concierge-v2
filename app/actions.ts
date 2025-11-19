@@ -280,6 +280,7 @@ const groupTools = {
     'find_place_on_map',
     'trending_tv',
     'datetime',
+    'knowledge_base',
     // 'mcp_search',
   ] as const,
   academic: ['academic_search', 'code_interpreter', 'datetime'] as const,
@@ -1459,9 +1460,9 @@ export async function getSubDetails() {
 
   return userData.polarSubscription
     ? {
-        hasSubscription: true,
-        subscription: userData.polarSubscription,
-      }
+      hasSubscription: true,
+      subscription: userData.polarSubscription,
+    }
     : { hasSubscription: false };
 }
 
