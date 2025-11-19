@@ -119,30 +119,30 @@ const formatCompactTime = (() => {
 
     let result: string;
     if (seconds < 60) {
-      result = `${seconds}s ago`;
+      result = `vor ${seconds}s`;
     } else {
       const minutes = differenceInMinutes(now, date);
       if (minutes < 60) {
-        result = `${minutes}m ago`;
+        result = `vor ${minutes}m`;
       } else {
         const hours = differenceInHours(now, date);
         if (hours < 24) {
-          result = `${hours}h ago`;
+          result = `vor ${hours}h`;
         } else {
           const days = differenceInDays(now, date);
           if (days < 7) {
-            result = `${days}d ago`;
+            result = `vor ${days}T`;
           } else {
             const weeks = differenceInWeeks(now, date);
             if (weeks < 4) {
-              result = `${weeks}w ago`;
+              result = `vor ${weeks}W`;
             } else {
               const months = differenceInMonths(now, date);
               if (months < 12) {
-                result = `${months}mo ago`;
+                result = `vor ${months}Mo`;
               } else {
                 const years = differenceInYears(now, date);
-                result = `${years}y ago`;
+                result = `vor ${years}J`;
               }
             }
           }
@@ -437,7 +437,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
       await deleteChat(id);
     },
     onSuccess: (_, id) => {
-      toast.success('Chat deleted');
+      toast.success('Chat gelöscht');
       // Update cache after successful deletion
       queryClient.setQueryData(['chats', user?.id], (oldData: any) => {
         if (!oldData) return oldData;
@@ -452,7 +452,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
     },
     onError: (error) => {
       console.error('Failed to delete chat:', error);
-      toast.error('Failed to delete chat. Please try again.');
+      toast.error('Fehler beim Löschen des Chats. Bitte versuchen Sie es erneut.');
       queryClient.invalidateQueries({ queryKey: ['chats', user?.id] });
     },
   });
@@ -463,7 +463,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
     },
     onSuccess: (updatedChat, { id, title }) => {
       if (updatedChat) {
-        toast.success('Title updated');
+        toast.success('Titel aktualisiert');
         // Update cache after successful title update
         queryClient.setQueryData(['chats', user?.id], (oldData: any) => {
           if (!oldData) return oldData;
@@ -476,12 +476,12 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
           };
         });
       } else {
-        toast.error('Failed to update title. Please try again.');
+        toast.error('Fehler beim Aktualisieren des Titels. Bitte versuchen Sie es erneut.');
       }
     },
     onError: (error) => {
       console.error('Failed to update chat title:', error);
-      toast.error('Failed to update title. Please try again.');
+      toast.error('Fehler beim Aktualisieren des Titels. Bitte versuchen Sie es erneut.');
     },
   });
 
@@ -541,8 +541,8 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
   const handleSelectChat = useCallback(
     (id: string, title: string) => {
       setNavigating(id);
-      const displayTitle = title || 'Untitled Conversation';
-      toast.info(`Opening "${displayTitle}"...`);
+      const displayTitle = title || 'Unbenannte Unterhaltung';
+      toast.info(`Öffne "${displayTitle}"...`);
       invalidateChatsCache();
       onOpenChange(false);
       router.push(`/search/${id}`);
@@ -610,12 +610,12 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
       e.stopPropagation();
 
       if (!editingTitle.trim()) {
-        toast.error('Title cannot be empty');
+        toast.error('Titel darf nicht leer sein');
         return;
       }
 
       if (editingTitle.trim().length > 100) {
-        toast.error('Title is too long (max 100 characters)');
+        toast.error('Titel ist zu lang (max 100 Zeichen)');
         return;
       }
 
@@ -654,14 +654,14 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
   const getSearchModeInfo = (mode: SearchMode) => {
     switch (mode) {
       case 'title':
-        return { icon: Hash, label: 'Title' };
+        return { icon: Hash, label: 'Titel' };
       case 'date':
-        return { icon: Calendar, label: 'Date' };
+        return { icon: Calendar, label: 'Datum' };
       case 'visibility':
-        return { icon: Globe, label: 'Visibility' };
+        return { icon: Globe, label: 'Sichtbarkeit' };
       case 'all':
       default:
-        return { icon: Search, label: 'All' };
+        return { icon: Search, label: 'Alle' };
     }
   };
 
@@ -683,7 +683,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
     const isPublic = chat.visibility === 'public';
     const isDeleting = deletingChatId === chat.id;
     const isEditing = editingChatId === chat.id;
-    const displayTitle = chat.title || 'Untitled Conversation';
+    const displayTitle = chat.title || 'Unbenannte Unterhaltung';
 
     return (
       <CommandItem
@@ -702,10 +702,10 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
         role="option"
         aria-label={
           isDeleting
-            ? `Delete ${displayTitle}? Press Enter to confirm, Escape to cancel`
+            ? `${displayTitle} löschen? Drücken Sie Enter zum Bestätigen, Escape zum Abbrechen`
             : isEditing
-              ? `Editing title: ${displayTitle}`
-              : `Open chat: ${displayTitle}`
+              ? `Titel bearbeiten: ${displayTitle}`
+              : `Chat öffnen: ${displayTitle}`
         }
       >
         <div className="grid grid-cols-[auto_1fr_auto] w-full gap-3 items-center">
@@ -714,7 +714,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
             {navigating === chat.id ? (
               <div
                 className="h-4 w-4 shrink-0 animate-spin rounded-full border-b-2 border-foreground"
-                aria-label="Loading"
+                aria-label="Lädt"
               ></div>
             ) : isPublic ? (
               <Globe
@@ -722,12 +722,12 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                   'h-4 w-4 shrink-0',
                   isCurrentChat ? 'text-blue-600 dark:text-blue-400' : 'text-blue-500/70 dark:text-blue-500/70',
                 )}
-                aria-label="Public chat"
+                aria-label="Öffentlicher Chat"
               />
             ) : (
               <Lock
                 className={cn('h-4 w-4 shrink-0', isCurrentChat ? 'text-foreground' : 'text-muted-foreground')}
-                aria-label="Private chat"
+                aria-label="Privater Chat"
               />
             )}
           </div>
@@ -742,7 +742,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                 onKeyDown={(e) => handleTitleKeyPress(e, chat.id)}
                 onClick={(e) => e.stopPropagation()}
                 className="w-full bg-background border border-muted-foreground/10 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-muted-foreground/20 focus:border-muted-foreground/20"
-                placeholder="Enter title..."
+                placeholder="Titel eingeben..."
                 autoFocus
                 maxLength={100}
               />
@@ -755,7 +755,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                   isEditing && 'text-muted-foreground',
                 )}
               >
-                {isDeleting ? `Delete "${displayTitle}"?` : displayTitle}
+                {isDeleting ? `"${displayTitle}" löschen?` : displayTitle}
               </span>
             )}
           </div>
@@ -770,7 +770,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                   size="icon"
                   className="h-7 w-7 flex-shrink-0 text-red-600 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/30"
                   onClick={(e) => confirmDeleteChat(e, chat.id)}
-                  aria-label="Confirm delete"
+                  aria-label="Löschen bestätigen"
                   disabled={deleteMutation.isPending}
                 >
                   {deleteMutation.isPending ? (
@@ -784,7 +784,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                   size="icon"
                   className="h-7 w-7 flex-shrink-0 text-muted-foreground hover:text-muted-foreground hover:bg-muted/50"
                   onClick={cancelDeleteChat}
-                  aria-label="Cancel delete"
+                  aria-label="Löschen abbrechen"
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -797,7 +797,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                   size="icon"
                   className="h-7 w-7 flex-shrink-0 text-foreground hover:text-foreground hover:bg-muted"
                   onClick={(e) => saveEditedTitle(e, chat.id)}
-                  aria-label="Save title"
+                  aria-label="Titel speichern"
                   disabled={updateTitleMutation.isPending}
                 >
                   {updateTitleMutation.isPending ? (
@@ -811,7 +811,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                   size="icon"
                   className="h-7 w-7 flex-shrink-0 text-muted-foreground hover:text-muted-foreground hover:bg-muted/50"
                   onClick={cancelEditTitle}
-                  aria-label="Cancel edit"
+                  aria-label="Bearbeiten abbrechen"
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -840,7 +840,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                       'opacity-50 pointer-events-none',
                   )}
                   onClick={(e) => handleEditTitle(e, chat.id, chat.title)}
-                  aria-label={`Edit title of ${displayTitle}`}
+                  aria-label={`Titel von ${displayTitle} bearbeiten`}
                   disabled={
                     navigating === chat.id ||
                     deleteMutation.isPending ||
@@ -866,7 +866,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                       'opacity-50 pointer-events-none',
                   )}
                   onClick={(e) => handleDeleteChat(e, chat.id, chat.title)}
-                  aria-label={`Delete ${displayTitle}`}
+                  aria-label={`${displayTitle} löschen`}
                   disabled={
                     navigating === chat.id ||
                     deleteMutation.isPending ||
@@ -879,7 +879,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                 </Button>
                 <div className="w-6 flex justify-end">
                   {isCurrentChat ? (
-                    <span className="text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded-sm">Current</span>
+                    <span className="text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded-sm">Aktuell</span>
                   ) : (
                     <ArrowUpRight className="h-3 w-3" />
                   )}
@@ -904,17 +904,17 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
       <CommandDialog open={open} onOpenChange={onOpenChange}>
         <div className="flex flex-col items-center justify-center p-6 text-center h-full min-h-[250px]">
           <History className="size-8 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-1">Access Your Chat History</h3>
+          <h3 className="text-lg font-semibold mb-1">Greifen Sie auf Ihren Chatverlauf zu</h3>
           <p className="text-sm text-muted-foreground mb-6 max-w-xs">
-            Sign in to view, search, and manage all your previous conversations seamlessly.
+            Melden Sie sich an, um alle Ihre früheren Unterhaltungen nahtlos anzuzeigen, zu durchsuchen und zu verwalten.
           </p>
 
           <Button onClick={handleSignIn} className="w-full max-w-[200px]">
-            Sign In
+            Anmelden
           </Button>
 
           <p className="text-xs text-muted-foreground mt-4">
-            Your conversations are automatically saved when you are signed in.
+            Ihre Unterhaltungen werden automatisch gespeichert, wenn Sie angemeldet sind.
           </p>
         </div>
       </CommandDialog>
@@ -931,7 +931,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
             <input
               ref={inputRef}
               className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 pr-2"
-              placeholder={`Search ${currentModeInfo.label.toLowerCase()}...`}
+              placeholder={`Suche ${currentModeInfo.label}...`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => {
@@ -963,7 +963,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
           >
             {isLoading ? (
               <div>
-                <CommandGroup heading="Recent Conversations">
+                <CommandGroup heading="Kürzliche Unterhaltungen">
                   {Array(5)
                     .fill(0)
                     .map((_, i) => (
@@ -990,12 +990,12 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                 {allChats.length > 0 ? (
                   <>
                     {[
-                      { key: 'today', heading: 'Today' },
-                      { key: 'yesterday', heading: 'Yesterday' },
-                      { key: 'thisWeek', heading: 'This Week' },
-                      { key: 'lastWeek', heading: 'Last Week' },
-                      { key: 'thisMonth', heading: 'This Month' },
-                      { key: 'older', heading: 'Older' },
+                      { key: 'today', heading: 'Heute' },
+                      { key: 'yesterday', heading: 'Gestern' },
+                      { key: 'thisWeek', heading: 'Diese Woche' },
+                      { key: 'lastWeek', heading: 'Letzte Woche' },
+                      { key: 'thisMonth', heading: 'Diesen Monat' },
+                      { key: 'older', heading: 'Älter' },
                     ].map(({ key, heading }) => {
                       const chats = categorizedChats[key as keyof typeof categorizedChats];
                       return (
@@ -1017,7 +1017,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                         {isFetchingNextPage ? (
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <ClassicLoader size="sm" />
-                            Loading more...
+                            Lade mehr...
                           </div>
                         ) : (
                           <div className="h-1"></div>
@@ -1029,28 +1029,28 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                   <CommandEmpty>
                     <div className="py-6 px-4 text-center flex flex-col items-center">
                       <History className="size-10 text-muted-foreground mb-3" />
-                      <p className="text-sm font-medium">No conversations found</p>
+                      <p className="text-sm font-medium">Keine Unterhaltungen gefunden</p>
                       {searchQuery && (
                         <div className="text-xs text-muted-foreground mt-2 space-y-1">
-                          <p>Try a different search term or change search mode</p>
+                          <p>Versuchen Sie einen anderen Suchbegriff oder ändern Sie den Suchmodus</p>
                           <div className="text-xs text-muted-foreground/70">
-                            <p>Search tips:</p>
+                            <p>Suchtipps:</p>
                             <p>
-                              • <code>public:</code> or <code>private:</code> for visibility
+                              • <code>public:</code> oder <code>private:</code> für Sichtbarkeit
                             </p>
                             <p>
-                              • <code>today:</code>, <code>week:</code>, <code>month:</code> for dates
+                              • <code>today:</code>, <code>week:</code>, <code>month:</code> für Datum
                             </p>
                             <p>
-                              • <code>date:22/05/25</code> for specific date (DD/MM/YY)
+                              • <code>date:22/05/25</code> für spezifisches Datum (TT/MM/JJ)
                             </p>
                             <p>
-                              • Switch to Date mode and type <code>22/05/25</code>
+                              • Wechseln Sie in den Datumsmodus und geben Sie <code>22/05/25</code> ein
                             </p>
                           </div>
                         </div>
                       )}
-                      {!searchQuery && <p className="text-xs text-muted-foreground mt-1">Start a new chat to begin</p>}
+                      {!searchQuery && <p className="text-xs text-muted-foreground mt-1">Starten Sie einen neuen Chat, um zu beginnen</p>}
                     </div>
                   </CommandEmpty>
                 )}
@@ -1061,11 +1061,11 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
           {/* Mobile hints */}
           <div className="block sm:hidden bottom-0 left-0 right-0 p-3 text-xs text-center text-muted-foreground border-t border-border bg-background/90">
             <div className="flex justify-center items-center gap-3">
-              <span>Tap to open</span>
+              <span>Tippen zum Öffnen</span>
               <span>•</span>
-              <span>Edit to rename</span>
+              <span>Umbenennen</span>
               <span>•</span>
-              <span>Trash to delete</span>
+              <span>Löschen</span>
             </div>
           </div>
 
@@ -1075,23 +1075,23 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
               {/* Important navigation shortcuts on the left */}
               <div className="flex items-center gap-4">
                 <span className="flex items-center gap-1.5">
-                  <kbd className="rounded border px-1.5 py-0.5 bg-muted text-xs">⏎</kbd> open
+                  <kbd className="rounded border px-1.5 py-0.5 bg-muted text-xs">⏎</kbd> öffnen
                 </span>
                 <span className="flex items-center gap-1.5">
                   <kbd className="rounded border px-1.5 py-0.5 bg-muted text-xs">↑</kbd>
                   <kbd className="rounded border px-1.5 py-0.5 bg-muted text-xs">↓</kbd>
-                  navigate
+                  navigieren
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <kbd className="rounded border px-1.5 py-0.5 bg-muted text-xs">Tab</kbd> toggle mode
+                  <kbd className="rounded border px-1.5 py-0.5 bg-muted text-xs">Tab</kbd> Modus wechseln
                 </span>
               </div>
 
               {/* Less critical shortcuts on the right */}
               <div className="flex items-center gap-4">
-                <span className="text-muted-foreground/80">Click edit to rename • Click trash to delete</span>
+                <span className="text-muted-foreground/80">Klicken zum Umbenennen • Klicken zum Löschen</span>
                 <span className="flex items-center gap-1.5">
-                  <kbd className="rounded border px-1.5 py-0.5 bg-muted text-xs">Esc</kbd> close
+                  <kbd className="rounded border px-1.5 py-0.5 bg-muted text-xs">Esc</kbd> schließen
                 </span>
               </div>
             </div>
