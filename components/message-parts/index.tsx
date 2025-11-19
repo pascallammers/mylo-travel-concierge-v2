@@ -1322,8 +1322,11 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
               case 'input-available':
                 return <SearchLoadingState icon={MemoryIcon} text="Searching memories..." color="blue" />;
               case 'output-available':
+                // Type-safe output handling
+                const output = part.output as { success: boolean; results?: any[]; count?: number; error?: string };
+                
                 // Handle error responses
-                if (!part.output.success) {
+                if (!output.success) {
                   return (
                     <div className="w-full my-4 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950">
                       <div className="p-4">
@@ -1333,7 +1336,7 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
                           </div>
                           <div className="flex-1">
                             <h3 className="text-sm font-medium text-red-900 dark:text-red-100">Memory search failed</h3>
-                            <p className="text-xs text-red-700 dark:text-red-300 mt-1">{part.output.error}</p>
+                            <p className="text-xs text-red-700 dark:text-red-300 mt-1">{output.error}</p>
                           </div>
                         </div>
                       </div>
@@ -1341,7 +1344,7 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
                   );
                 }
 
-                const { results, count } = part.output;
+                const { results, count } = output;
                 if (!results || results.length === 0) {
                   return (
                     <div className="w-full my-4 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950">
@@ -1411,8 +1414,11 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
               case 'input-available':
                 return <SearchLoadingState icon={MemoryIcon} text="Adding memory..." color="green" />;
               case 'output-available':
+                // Type-safe output handling for add_memory
+                const addOutput = part.output as { success: boolean; memory?: any; error?: string };
+                
                 // Handle error responses
-                if (!part.output.success) {
+                if (!addOutput.success) {
                   return (
                     <div className="w-full my-4 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950">
                       <div className="p-4">
@@ -1422,7 +1428,7 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
                           </div>
                           <div className="flex-1">
                             <h3 className="text-sm font-medium text-red-900 dark:text-red-100">Failed to add memory</h3>
-                            <p className="text-xs text-red-700 dark:text-red-300 mt-1">{part.output.error}</p>
+                            <p className="text-xs text-red-700 dark:text-red-300 mt-1">{addOutput.error}</p>
                           </div>
                         </div>
                       </div>
@@ -1430,7 +1436,10 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
                   );
                 }
 
-                const { memory: addedMemory } = part.output;
+                const { memory: addedMemory } = addOutput;
+                // Type-safe input handling
+                const addInput = part.input as { memory?: string };
+                
                 return (
                   <div className="w-full my-4 rounded-2xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950 shadow-sm overflow-hidden">
                     <div className="px-4 py-3">
@@ -1465,7 +1474,7 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
                             </h4>
                           )}
                           <p className="text-xs text-green-700 dark:text-green-300">
-                            {addedMemory.summary || addedMemory.content || part.input.memory || 'Memory stored'}
+                            {addedMemory.summary || addedMemory.content || addInput.memory || 'Memory stored'}
                           </p>
                           {addedMemory.type && (
                             <div className="flex items-center gap-2 mt-2">
