@@ -439,15 +439,11 @@ export const auth = betterAuth({
   ],
   trustedOrigins: [
     'http://localhost:3000',
-    'https://scira.ai',
-    'https://www.scira.ai',
     'https://mylo-travel-concierge-v2.vercel.app',
     'https://mylo-travel-concierge-v2-*.vercel.app', // Preview deployments
   ],
   allowedOrigins: [
     'http://localhost:3000',
-    'https://scira.ai',
-    'https://www.scira.ai',
     'https://mylo-travel-concierge-v2.vercel.app',
     'https://mylo-travel-concierge-v2-*.vercel.app', // Preview deployments
   ],

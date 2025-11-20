@@ -109,7 +109,7 @@ export default function AuthCard() {
         <div className="pt-4">
           <p className="text-xs text-center text-muted-foreground">
             Noch kein Zugang?{' '}
-            <Link href="https://scira.ai" className="text-foreground hover:underline" target="_blank">
+            <Link href="https://chat.never-economy-again.com" className="text-foreground hover:underline" target="_blank">
               MYLO jetzt kaufen
             </Link>
           </p>
