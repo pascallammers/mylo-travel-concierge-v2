@@ -1,4 +1,4 @@
-import { GoogleAIFileManager, FileState } from '@google/generative-ai/server';
+import { GoogleAIFileManager, FileState, type FileMetadataResponse } from '@google/generative-ai/server';
 
 if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
   throw new Error('GOOGLE_GENERATIVE_AI_API_KEY is not set');
@@ -6,17 +6,7 @@ if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
 
 const fileManager = new GoogleAIFileManager(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
 
-export interface GeminiFile {
-  name: string;
-  displayName: string;
-  mimeType: string;
-  sizeBytes: string;
-  createTime: string;
-  updateTime: string;
-  expirationTime: string;
-  uri: string;
-  state: FileState;
-}
+export type GeminiFile = FileMetadataResponse;
 
 export class GeminiFileManager {
   static async uploadFile(path: string, displayName: string, mimeType: string) {
