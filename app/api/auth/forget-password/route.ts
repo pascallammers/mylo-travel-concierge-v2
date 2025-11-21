@@ -4,6 +4,7 @@ import { user, verification } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { sendPasswordResetEmail } from '@/lib/email';
 import crypto from 'crypto';
+import { buildResetPasswordUrl, resolveBaseUrl } from '@/lib/password-reset';
 
 /**
  * POST /api/auth/forget-password
@@ -66,8 +67,12 @@ export async function POST(request: NextRequest) {
     console.log('💾 Token stored in database');
 
     // 4. Build reset URL
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const resetUrl = `${baseUrl}/reset-password/confirm?token=${token}&email=${encodeURIComponent(targetUser.email)}`;
+    const baseUrl = resolveBaseUrl(process.env.NEXT_PUBLIC_APP_URL);
+    const resetUrl = buildResetPasswordUrl({
+      baseUrl,
+      token,
+      email: targetUser.email,
+    });
 
     console.log('🔗 Reset URL generated:', resetUrl.substring(0, 50) + '...');
 

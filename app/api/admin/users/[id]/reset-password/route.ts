@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isCurrentUserAdmin } from '@/lib/auth-utils';
 import { db } from '@/lib/db';
-import { user } from '@/lib/db/schema';
+import { user, verification } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { sendPasswordResetEmail } from '@/lib/email';
+import crypto from 'crypto';
+import { buildResetPasswordUrl, resolveBaseUrl } from '@/lib/password-reset';
 
 /**
  * POST /api/admin/users/[id]/reset-password
@@ -44,14 +46,14 @@ export async function POST(
 
     // 3. Generate password reset token via Better-Auth
     // Better-Auth's forgetPassword creates a verification token
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    
+    const baseUrl = resolveBaseUrl(process.env.NEXT_PUBLIC_APP_URL);
+
     try {
       // Use Better-Auth's built-in forget password mechanism
       await auth.api.forgetPassword({
         body: {
           email: targetUser.email,
-          redirectTo: `${baseUrl}/reset-password`,
+          redirectTo: `${baseUrl}/reset-password/confirm`,
         },
       });
 
@@ -64,14 +66,25 @@ export async function POST(
     } catch (authError) {
       console.error('❌ Better-Auth error:', authError);
       
-      // If Better-Auth fails, fall back to direct token generation
-      // This ensures admin can always send reset emails
-      const token = Math.random().toString(36).substring(2, 15) + 
-                    Math.random().toString(36).substring(2, 15);
-      
-      const resetUrl = `${baseUrl}/reset-password?token=${token}&email=${encodeURIComponent(targetUser.email)}`;
-      
-      // Send email directly
+      // If Better-Auth fails, fall back to direct token generation (same flow as custom endpoint)
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+      await db.insert(verification).values({
+        id: crypto.randomUUID(),
+        identifier: targetUser.email,
+        value: token,
+        expiresAt,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const resetUrl = buildResetPasswordUrl({
+        baseUrl,
+        token,
+        email: targetUser.email,
+      });
+
       await sendPasswordResetEmail(targetUser.email, resetUrl);
       
       return NextResponse.json({

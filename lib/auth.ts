@@ -31,6 +31,7 @@ import { eq } from 'drizzle-orm';
 import { invalidateUserCaches } from './performance-cache';
 import { clearUserDataCache } from './user-data-server';
 import bcrypt from 'bcryptjs';
+import { buildResetPasswordUrl, resolveBaseUrl } from './password-reset';
 
 config({
   path: '.env.local',
@@ -94,9 +95,17 @@ export const auth = betterAuth({
       console.log('🎫 Token:', token);
 
       try {
+        const baseUrl = resolveBaseUrl(process.env.NEXT_PUBLIC_APP_URL);
+        const resetUrl = buildResetPasswordUrl({
+          baseUrl,
+          token,
+          email: user.email,
+        });
+        console.log('🔗 Normalized reset URL:', resetUrl);
+
         // Import email service dynamically to avoid circular dependencies
         const { sendPasswordResetEmail } = await import('./email');
-        await sendPasswordResetEmail(user.email, url);
+        await sendPasswordResetEmail(user.email, resetUrl);
         console.log('✅ Better-Auth: Password reset email sent successfully');
       } catch (error) {
         console.error('❌ Better-Auth: Failed to send password reset email:', error);
