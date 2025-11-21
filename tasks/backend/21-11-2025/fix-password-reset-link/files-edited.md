@@ -11,8 +11,8 @@ Lines: 60-82
 Summary: Switched to shared reset URL builder to ensure absolute links in self-service emails.
 
 File: lib/auth.ts
-Lines: 91-109
-Summary: Better-Auth reset callback now rebuilds normalized reset URL before sending email.
+Lines: 91-114, 97-110
+Summary: Better-Auth reset callback now rebuilds normalized reset URL and persists the token in verification table for our custom confirm endpoint.
 
 File: app/api/admin/users/[id]/reset-password/route.ts
 Lines: 47-94

@@ -103,6 +103,18 @@ export const auth = betterAuth({
         });
         console.log('🔗 Normalized reset URL:', resetUrl);
 
+        // Persist token so our custom confirmation endpoint can always validate it
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+        await db.insert(verification).values({
+          id: crypto.randomUUID(),
+          identifier: user.email,
+          value: token,
+          expiresAt,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        console.log('💾 Stored reset token for verification');
+
         // Import email service dynamically to avoid circular dependencies
         const { sendPasswordResetEmail } = await import('./email');
         await sendPasswordResetEmail(user.email, resetUrl);
