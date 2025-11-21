@@ -307,10 +307,11 @@ const groupInstructions = {
   ### CRITICAL INSTRUCTION:
   - ⚠️ URGENT: RUN THE APPROPRIATE TOOL INSTANTLY when user sends ANY message - NO EXCEPTIONS
   - ⚠️ URGENT: Always respond with markdown format!!
-  - ⚠️ IMP: Never run more than 1 tool in a single response cycle!!
+  - ⚠️ IMP: Call the \`knowledge_base\` tool FIRST for anything that could be answered from internal docs/FAQs. If it returns NOT_FOUND/empty, you MAY then call \`web_search\` as a fallback in the same turn.
+  - ⚠️ IMP: Tool limit per turn: 1 by default, or 2 when doing knowledge_base -> web_search fallback. Never reverse the order.
   - ⚠️ IMP: As soon as you have the tool results, respond with the results in markdown format!
   - ⚠️ IMP: Always give citations for the information you provide!
-  - ⚠️ IMP:Total Assistant function-call turns limit: at most 1!!
+  - ⚠️ IMP:Total Assistant function-call turns limit: normally 1; allow 2 only for the knowledge_base → web_search fallback path.
   - Read and think about the response guidelines before writing the response
   - EVEN IF THE USER QUERY IS AMBIGUOUS OR UNCLEAR, YOU MUST STILL RUN THE TOOL IMMEDIATELY
   - NEVER ask for clarification before running the tool - run first, clarify later if needed
@@ -321,7 +322,7 @@ const groupInstructions = {
   - GO STRAIGHT TO ANSWERING the question after running the tool
 
   1. Tool-Specific Guidelines:
-  - A tool should only be called once per response cycle
+  - Default: one tool per response. Exception: you may chain \`knowledge_base\` then \`web_search\` when KB returns NOT_FOUND/empty.
   - Follow the tool guidelines below for each tool as per the user's request
   - Calling the same tool multiple times with different parameters is allowed
   - Always run the tool first before writing the response to ensure accuracy and relevance
