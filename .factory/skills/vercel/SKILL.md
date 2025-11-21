@@ -1,3 +1,9 @@
+---
+name: vercel
+description: Auto-activates when user mentions Vercel, deployment, edge functions, or Vercel hosting. Expert in Vercel platform including deployment, environment variables, Edge Functions, and performance optimization.
+category: deployment
+---
+
 # Vercel Deployment Skill
 
 **Version**: 1.0.0  

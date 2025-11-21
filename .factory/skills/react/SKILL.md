@@ -1,3 +1,9 @@
+---
+name: react
+description: Auto-activates when user mentions React, hooks, components, JSX, or React patterns. Expert in React 18/19 best practices including Server Components, hooks, and performance optimization.
+category: frontend
+---
+
 # React Best Practices
 
 **Official React 18/19 guidelines - Hooks, Server Components, Performance, Patterns**

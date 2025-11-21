@@ -1,3 +1,9 @@
+---
+name: postgresql
+description: Auto-activates when user mentions PostgreSQL, Postgres, SQL queries, or database optimization. Expert in PostgreSQL including schema design, indexing, query optimization, and transactions.
+category: database
+---
+
 # PostgreSQL Best Practices
 
 **Official PostgreSQL guidelines - Schema Design, Indexing, Query Optimization, Transactions, Advanced SQL**

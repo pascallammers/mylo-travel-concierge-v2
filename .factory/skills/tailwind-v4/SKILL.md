@@ -1,3 +1,9 @@
+---
+name: tailwind-v4
+description: Auto-activates when user mentions Tailwind, Tailwind CSS, utility classes, or CSS styling. Expert in Tailwind CSS v4 including CSS-first configuration, Oxide engine, and modern utilities.
+category: styling
+---
+
 # Tailwind CSS v4 Best Practices
 
 **Official Tailwind CSS v4 guidelines - CSS-first config, new Oxide engine, modern features**

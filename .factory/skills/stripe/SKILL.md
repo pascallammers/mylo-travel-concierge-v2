@@ -1,3 +1,9 @@
+---
+name: stripe
+description: Auto-activates when user mentions Stripe, payments, subscriptions, or payment processing. Expert in Stripe integration including checkout, subscriptions, webhooks, and security best practices.
+category: payments
+---
+
 # Stripe Payment Integration
 
 Expert-level knowledge of Stripe payment processing, subscriptions, webhooks, and security best practices.

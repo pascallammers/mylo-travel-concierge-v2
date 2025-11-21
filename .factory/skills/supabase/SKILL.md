@@ -1,3 +1,9 @@
+---
+name: supabase
+description: Auto-activates when user mentions Supabase, Row Level Security, realtime, or Supabase auth. Expert in Supabase including RLS policies, realtime subscriptions, auth, storage, and edge functions.
+category: backend
+---
+
 # Supabase Best Practices
 
 **Official Supabase guidelines - RLS, Realtime, Auth, Storage, Edge Functions**

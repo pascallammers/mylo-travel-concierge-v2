@@ -113,6 +113,66 @@ Your human partner's specific instructions describe WHAT to do, not HOW.
 
 **Why:** Specific instructions mean clear requirements, which is when workflows matter MOST. Skipping process on "simple" tasks is how simple tasks become complex problems.
 
+## Specialist Droid Routing System
+
+**CRITICAL:** Droidz has 10+ specialized AI agents for different domains. **Always delegate to specialists** instead of handling tasks directly.
+
+### Routing Decision Process
+
+Before responding to ANY development request:
+
+1. ☐ Check: Does this involve UI/components/styling? → Use **Task tool** with `droidz-ui-designer`
+2. ☐ Check: Does this involve UX/user flows/journeys? → Use **Task tool** with `droidz-ux-designer`
+3. ☐ Check: Does this involve database/schema/queries? → Use **Task tool** with `droidz-database-architect`
+4. ☐ Check: Does this involve API design/endpoints? → Use **Task tool** with `droidz-api-designer`
+5. ☐ Check: Does this involve external integrations? → Use **Task tool** with `droidz-integration`
+6. ☐ Check: Does this involve testing/coverage? → Use **Task tool** with `droidz-test`
+7. ☐ Check: Does this involve refactoring/cleanup? → Use **Task tool** with `droidz-refactor`
+8. ☐ Check: Does this involve security/auditing? → Use **Task tool** with `droidz-security-auditor`
+9. ☐ Check: Does this involve performance tuning? → Use **Task tool** with `droidz-performance-optimizer`
+10. ☐ Check: Does this involve accessibility? → Use **Task tool** with `droidz-accessibility-specialist`
+11. ☐ Check: Does this involve CI/CD/deployment? → Use **Task tool** with `droidz-infra`
+12. ☐ Check: Is this complex with 3+ components? → Use **Task tool** with `droidz-orchestrator`
+
+**The routing system is configured in `.factory/settings.json` and automatically reminds you to check specialists on every request.**
+
+### Available Specialist Droids
+
+| Specialist | Use For | Keywords |
+|------------|---------|----------|
+| **droidz-ui-designer** | UI components, styling, design systems | UI, button, form, modal, card, component, design system, CSS, Tailwind |
+| **droidz-ux-designer** | User flows, journeys, experience design | UX, user flow, user journey, onboarding, usability |
+| **droidz-database-architect** | Database schemas, queries, optimization | database, schema, SQL, query, migration, index, Prisma |
+| **droidz-api-designer** | API endpoints, REST/GraphQL design | API design, endpoint, REST, GraphQL, route, OpenAPI |
+| **droidz-integration** | External APIs, webhooks, OAuth | integrate, Stripe, Twilio, webhook, OAuth, API key |
+| **droidz-test** | Tests, coverage, QA | test, coverage, unit test, E2E, Jest, Vitest, Playwright |
+| **droidz-refactor** | Code quality, tech debt | refactor, cleanup, tech debt, DRY, restructure |
+| **droidz-security-auditor** | Security reviews, vulnerability scanning | security, audit, vulnerability, XSS, SQL injection, OWASP |
+| **droidz-performance-optimizer** | Performance tuning, profiling | optimize, slow query, bundle size, profile, cache |
+| **droidz-accessibility-specialist** | Accessibility, WCAG compliance | accessibility, a11y, WCAG, screen reader, ARIA |
+| **droidz-infra** | CI/CD, deployment, Docker | CI/CD, GitHub Actions, Docker, deploy, build pipeline |
+| **droidz-orchestrator** | Complex features (3+ parallel components) | build auth system, add payments (API + UI + tests) |
+| **droidz-codegen** | Feature implementation, bug fixes | implement, bugfix, add endpoint, build feature |
+| **droidz-generalist** | Unclear/mixed domains | unclear scope, exploratory work |
+
+**Why Specialists Matter:**
+- ✅ **Optimized prompts** - Domain-specific expertise and patterns
+- ✅ **Better results** - Deep knowledge vs generalist approach
+- ✅ **Faster execution** - Specialists can work in parallel
+- ✅ **Consistent quality** - Same specialist = same standards
+
+**How to Delegate:**
+```typescript
+// Example: UI work
+Task({
+  subagent_type: "droidz-ui-designer",
+  description: "Build login form",
+  prompt: `Build a React login form with email/password inputs, 
+validation, submit handler, and error messages. 
+Follow project standards in .factory/standards/.`
+});
+```
+
 ## When to Use Droidz Features
 
 ### `/droidz-build` - AI-Powered Spec Generation
@@ -138,6 +198,18 @@ Your human partner's specific instructions describe WHAT to do, not HOW.
 - Spawns specialist droids: `droidz-codegen`, `droidz-test`, `droidz-refactor`
 - Each works independently on assigned task
 - Coordinator synthesizes results
+
+### Specialist Routing via Task Tool
+
+**Use when:**
+- Domain-specific work (UI, database, API, security, etc.)
+- Want expert-level implementation
+- Need consistent patterns and quality
+
+**How it works:**
+- Check routing decision tree above
+- Use Task tool with appropriate specialist
+- Specialist has optimized prompt, tools, and patterns for their domain
 
 ### Workflow Skills
 

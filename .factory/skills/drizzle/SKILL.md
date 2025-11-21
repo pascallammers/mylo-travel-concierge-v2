@@ -1,3 +1,9 @@
+---
+name: drizzle
+description: Auto-activates when user mentions Drizzle ORM, database schema, or SQL queries. Expert in Drizzle ORM including schema definition, migrations, and type-safe queries.
+category: database
+---
+
 # Drizzle ORM Skill
 
 **Version**: 1.0.0  

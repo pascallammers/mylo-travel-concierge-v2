@@ -1,3 +1,9 @@
+---
+name: clerk
+description: Auto-activates when user mentions Clerk, authentication, user management, or auth flows. Expert in Clerk authentication including Next.js integration, user management, and session handling.
+category: auth
+---
+
 # Clerk Authentication Skill
 
 Comprehensive guide for implementing Clerk authentication and user management in Next.js applications with App Router support.

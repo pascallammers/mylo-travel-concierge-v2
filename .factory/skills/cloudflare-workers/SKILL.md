@@ -1,3 +1,9 @@
+---
+name: cloudflare-workers
+description: Auto-activates when user mentions Cloudflare Workers, edge functions, or serverless deployment. Expert in Cloudflare Workers including deployment, KV storage, and Durable Objects.
+category: serverless
+---
+
 # Cloudflare Workers Skill
 
 Expert knowledge in Cloudflare Workers, edge computing, KV storage, Durable Objects, R2, and serverless deployment patterns.

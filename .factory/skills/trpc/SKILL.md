@@ -1,3 +1,9 @@
+---
+name: trpc
+description: Auto-activates when user mentions tRPC, type-safe APIs, procedures, or tRPC routers. Expert in tRPC including router setup, procedures, middleware, and React Query integration.
+category: api
+---
+
 # tRPC - End-to-End Type-Safe APIs
 
 **tRPC** enables you to build fully type-safe APIs without code generation or schema files. It provides automatic type inference from server to client, making TypeScript work seamlessly across your full stack.

@@ -1,3 +1,9 @@
+---
+name: security
+description: Auto-activates when user mentions security, vulnerabilities, OWASP, or secure coding. Expert in web security including OWASP Top 10, authentication, authorization, and secure coding practices.
+category: security
+---
+
 # Security Best Practices
 
 **Comprehensive web application security - OWASP Top 10, Authentication, Authorization, Vulnerabilities**

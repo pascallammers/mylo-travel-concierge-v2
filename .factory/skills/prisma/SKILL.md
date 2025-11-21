@@ -1,3 +1,9 @@
+---
+name: prisma
+description: Auto-activates when user mentions Prisma, schema.prisma, database models, or Prisma migrations. Expert in Prisma ORM including schema design, migrations, query optimization, and relations.
+category: database
+---
+
 # Prisma ORM Best Practices
 
 **Official Prisma guidelines - Schema, Migrations, Relations, Queries, Transactions**
