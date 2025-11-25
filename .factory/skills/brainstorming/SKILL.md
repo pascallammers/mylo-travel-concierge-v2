@@ -1,55 +1,38 @@
 ---
 name: brainstorming
-description: Use when creating or developing, before writing code or implementation plans - refines rough ideas into fully-formed designs through collaborative questioning, alternative exploration, and incremental validation. Don't use during clear 'mechanical' processes
-category: workflow
+description: Facilitate ideation, explore alternatives, and refine concepts through structured brainstorming techniques before implementation. Use when starting new projects, designing features, exploring solutions, evaluating tradeoffs, challenging assumptions, generating creative ideas, planning architecture, or refining rough concepts into detailed designs.
 ---
 
-# Brainstorming Ideas Into Designs
+# Brainstorming - Idea Refinement
 
-## Overview
+## When to use this skill
 
-Help turn ideas into fully formed designs and specs through natural collaborative dialogue.
+- Starting new projects or features
+- Designing system architecture
+- Exploring multiple solution approaches
+- Evaluating tradeoffs and alternatives
+- Challenging assumptions and constraints
+- Generating creative ideas for problems
+- Planning feature implementations
+- Refining vague requirements into clear specs
+- Identifying edge cases and considerations
+- Exploring technical possibilities
+- Designing user experiences
+- Before writing code for complex features
 
-Start by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you're building, present the design in small sections (200-300 words), checking after each section whether it looks right so far.
+## When to use this skill
 
-## The Process
+- Developing ideas before coding, exploring alternatives.
+- When working on related tasks or features
+- During development that requires this expertise
 
-**Understanding the idea:**
-- Check out the current project state first (files, docs, recent commits)
-- Ask questions one at a time to refine the idea
-- Prefer multiple choice questions when possible, but open-ended is fine too
-- Only one question per message - if a topic needs more exploration, break it into multiple questions
-- Focus on understanding: purpose, constraints, success criteria
+**Use when**: Developing ideas before coding, exploring alternatives.
 
-**Exploring approaches:**
-- Propose 2-3 different approaches with trade-offs
-- Present options conversationally with your recommendation and reasoning
-- Lead with your recommended option and explain why
+## Process
+1. Question assumptions
+2. Explore alternatives
+3. Validate incrementally
+4. Refine design
 
-**Presenting the design:**
-- Once you believe you understand what you're building, present the design
-- Break it into sections of 200-300 words
-- Ask after each section whether it looks right so far
-- Cover: architecture, components, data flow, error handling, testing
-- Be ready to go back and clarify if something doesn't make sense
-
-## After the Design
-
-**Documentation:**
-- Write the validated design to `docs/plans/YYYY-MM-DD-<topic>-design.md`
-- Use elements-of-style:writing-clearly-and-concisely skill if available
-- Commit the design document to git
-
-**Implementation (if continuing):**
-- Ask: "Ready to set up for implementation?"
-- Use using-git-worktrees to create isolated workspace
-- Use writing-plans to create detailed implementation plan
-
-## Key Principles
-
-- **One question at a time** - Don't overwhelm with multiple questions
-- **Multiple choice preferred** - Easier to answer than open-ended when possible
-- **YAGNI ruthlessly** - Remove unnecessary features from all designs
-- **Explore alternatives** - Always propose 2-3 approaches before settling
-- **Incremental validation** - Present design in sections, validate each
-- **Be flexible** - Go back and clarify when something doesn't make sense
+## Resources
+- [Design Thinking](https://www.ideo.com/post/design-thinking)

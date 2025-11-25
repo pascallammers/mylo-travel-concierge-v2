@@ -1,365 +1,254 @@
 ---
 name: test-driven-development
-description: Use when implementing any feature or bugfix, before writing implementation code - write the test first, watch it fail, write minimal code to pass; ensures tests actually verify behavior by requiring failure first
-category: workflow
+description: Implement test-driven development (TDD) workflow using the red-green-refactor cycle. Use when writing new features, fixing bugs, or refactoring existing code. Always write the failing test first, then implement minimal code to pass, then refactor. Essential for ensuring code reliability, preventing regressions, improving design through testability requirements, documenting expected behavior through tests, enabling confident refactoring, and maintaining high code quality standards throughout the development process.
 ---
 
 # Test-Driven Development (TDD)
 
-## Overview
+## When to use this skill
 
-Write the test first. Watch it fail. Write minimal code to pass.
+- Writing new features or functionality from scratch
+- Fixing bugs with regression tests to prevent recurrence
+- Refactoring existing code safely with test coverage
+- Adding test coverage to untested legacy code
+- Ensuring code behaves as expected before implementation
+- Improving code design through testability constraints
+- Documenting expected behavior and edge cases
+- Building critical business logic that must be correct
+- Developing APIs or libraries with clear contracts
+- Working on projects requiring high reliability
+- Implementing complex algorithms or business rules
+- Collaborating in teams where tests serve as documentation
 
-**Core principle:** If you didn't watch the test fail, you don't know if it tests the right thing.
+Implement the red-green-refactor cycle for reliable, testable code.
 
-**Violating the letter of the rules is violating the spirit of the rules.**
+## TDD Cycle
 
-## When to Use
+### 1. RED - Write a Failing Test
 
-**Always:**
-- New features
-- Bug fixes
-- Refactoring
-- Behavior changes
+Write a test that describes the desired behavior BEFORE implementing:
 
-**Exceptions (ask the user):**
-- Throwaway prototypes
-- Generated code
-- Configuration files
-
-Thinking "skip TDD just this once"? Stop. That's rationalization.
-
-## The Iron Law
-
-```
-NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST
-```
-
-Write code before the test? Delete it. Start over.
-
-**No exceptions:**
-- Don't keep it as "reference"
-- Don't "adapt" it while writing tests
-- Don't look at it
-- Delete means delete
-
-Implement fresh from tests. Period.
-
-## Red-Green-Refactor
-
-```dot
-digraph tdd_cycle {
-    rankdir=LR;
-    red [label="RED\nWrite failing test", shape=box, style=filled, fillcolor="#ffcccc"];
-    verify_red [label="Verify fails\ncorrectly", shape=diamond];
-    green [label="GREEN\nMinimal code", shape=box, style=filled, fillcolor="#ccffcc"];
-    verify_green [label="Verify passes\nAll green", shape=diamond];
-    refactor [label="REFACTOR\nClean up", shape=box, style=filled, fillcolor="#ccccff"];
-    next [label="Next", shape=ellipse];
-
-    red -> verify_red;
-    verify_red -> green [label="yes"];
-    verify_red -> red [label="wrong\nfailure"];
-    green -> verify_green;
-    verify_green -> refactor [label="yes"];
-    verify_green -> green [label="no"];
-    refactor -> verify_green [label="stay\ngreen"];
-    verify_green -> next;
-    next -> red;
-}
+```python
+def test_user_can_register():
+    """Test that a user can successfully register with valid data."""
+    result = register_user(email="test@example.com", password="secure123")
+    assert result.success is True
+    assert result.user.email == "test@example.com"
 ```
 
-### RED - Write Failing Test
+**Why this works:**
+- Forces clear requirements thinking
+- Catches specification issues early
+- Provides immediate feedback on implementation
+- Creates living documentation
 
-Write one minimal test showing what should happen.
+### 2. GREEN - Write Minimal Code to Pass
 
-<Good>
-```typescript
-test('retries failed operations 3 times', async () => {
-  let attempts = 0;
-  const operation = () => {
-    attempts++;
-    if (attempts < 3) throw new Error('fail');
-    return 'success';
-  };
+Implement ONLY what's needed to make the test pass:
 
-  const result = await retryOperation(operation);
-
-  expect(result).toBe('success');
-  expect(attempts).toBe(3);
-});
-```
-Clear name, tests real behavior, one thing
-</Good>
-
-<Bad>
-```typescript
-test('retry works', async () => {
-  const mock = jest.fn()
-    .mockRejectedValueOnce(new Error())
-    .mockRejectedValueOnce(new Error())
-    .mockResolvedValueOnce('success');
-  await retryOperation(mock);
-  expect(mock).toHaveBeenCalledTimes(3);
-});
-```
-Vague name, tests mock not code
-</Bad>
-
-**Requirements:**
-- One behavior
-- Clear name
-- Real code (no mocks unless unavoidable)
-
-### Verify RED - Watch It Fail
-
-**MANDATORY. Never skip.**
-
-```bash
-npm test path/to/test.test.ts
+```python
+def register_user(email: str, password: str) -> RegistrationResult:
+    """Register a new user with email and password."""
+    user = User(email=email)
+    return RegistrationResult(success=True, user=user)
 ```
 
-Confirm:
-- Test fails (not errors)
-- Failure message is expected
-- Fails because feature missing (not typos)
+**Resist the urge to:**
+- Add features not covered by tests
+- Over-engineer the solution
+- Optimize prematurely
 
-**Test passes?** You're testing existing behavior. Fix test.
+### 3. REFACTOR - Improve Code Quality
 
-**Test errors?** Fix error, re-run until it fails correctly.
+With tests passing, improve the code structure:
 
-### GREEN - Minimal Code
-
-Write simplest code to pass the test.
-
-<Good>
-```typescript
-async function retryOperation<T>(fn: () => Promise<T>): Promise<T> {
-  for (let i = 0; i < 3; i++) {
-    try {
-      return await fn();
-    } catch (e) {
-      if (i === 2) throw e;
-    }
-  }
-  throw new Error('unreachable');
-}
-```
-Just enough to pass
-</Good>
-
-<Bad>
-```typescript
-async function retryOperation<T>(
-  fn: () => Promise<T>,
-  options?: {
-    maxRetries?: number;
-    backoff?: 'linear' | 'exponential';
-    onRetry?: (attempt: number) => void;
-  }
-): Promise<T> {
-  // YAGNI
-}
-```
-Over-engineered
-</Bad>
-
-Don't add features, refactor other code, or "improve" beyond the test.
-
-### Verify GREEN - Watch It Pass
-
-**MANDATORY.**
-
-```bash
-npm test path/to/test.test.ts
+```python
+def register_user(email: str, password: str) -> RegistrationResult:
+    """Register a new user with email and password."""
+    validate_email(email)
+    validate_password(password)
+    
+    hashed_password = hash_password(password)
+    user = User(email=email, password_hash=hashed_password)
+    user.save()
+    
+    return RegistrationResult(success=True, user=user)
 ```
 
-Confirm:
-- Test passes
-- Other tests still pass
-- Output pristine (no errors, warnings)
+**Refactor for:**
+- Better naming
+- Removed duplication
+- Improved structure
+- Enhanced readability
 
-**Test fails?** Fix code, not test.
+## Best Practices
 
-**Other tests fail?** Fix now.
+### Start with the Simplest Test
 
-### REFACTOR - Clean Up
+```python
+# Good - Start simple
+def test_add_returns_sum():
+    assert add(2, 3) == 5
 
-After green only:
-- Remove duplication
-- Improve names
-- Extract helpers
-
-Keep tests green. Don't add behavior.
-
-### Repeat
-
-Next failing test for next feature.
-
-## Good Tests
-
-| Quality | Good | Bad |
-|---------|------|-----|
-| **Minimal** | One thing. "and" in name? Split it. | `test('validates email and domain and whitespace')` |
-| **Clear** | Name describes behavior | `test('test1')` |
-| **Shows intent** | Demonstrates desired API | Obscures what code should do |
-
-## Why Order Matters
-
-**"I'll write tests after to verify it works"**
-
-Tests written after code pass immediately. Passing immediately proves nothing:
-- Might test wrong thing
-- Might test implementation, not behavior
-- Might miss edge cases you forgot
-- You never saw it catch the bug
-
-Test-first forces you to see the test fail, proving it actually tests something.
-
-**"I already manually tested all the edge cases"**
-
-Manual testing is ad-hoc. You think you tested everything but:
-- No record of what you tested
-- Can't re-run when code changes
-- Easy to forget cases under pressure
-- "It worked when I tried it" ≠ comprehensive
-
-Automated tests are systematic. They run the same way every time.
-
-**"Deleting X hours of work is wasteful"**
-
-Sunk cost fallacy. The time is already gone. Your choice now:
-- Delete and rewrite with TDD (X more hours, high confidence)
-- Keep it and add tests after (30 min, low confidence, likely bugs)
-
-The "waste" is keeping code you can't trust. Working code without real tests is technical debt.
-
-**"TDD is dogmatic, being pragmatic means adapting"**
-
-TDD IS pragmatic:
-- Finds bugs before commit (faster than debugging after)
-- Prevents regressions (tests catch breaks immediately)
-- Documents behavior (tests show how to use code)
-- Enables refactoring (change freely, tests catch breaks)
-
-"Pragmatic" shortcuts = debugging in production = slower.
-
-**"Tests after achieve the same goals - it's spirit not ritual"**
-
-No. Tests-after answer "What does this do?" Tests-first answer "What should this do?"
-
-Tests-after are biased by your implementation. You test what you built, not what's required. You verify remembered edge cases, not discovered ones.
-
-Tests-first force edge case discovery before implementing. Tests-after verify you remembered everything (you didn't).
-
-30 minutes of tests after ≠ TDD. You get coverage, lose proof tests work.
-
-## Common Rationalizations
-
-| Excuse | Reality |
-|--------|---------|
-| "Too simple to test" | Simple code breaks. Test takes 30 seconds. |
-| "I'll test after" | Tests passing immediately prove nothing. |
-| "Tests after achieve same goals" | Tests-after = "what does this do?" Tests-first = "what should this do?" |
-| "Already manually tested" | Ad-hoc ≠ systematic. No record, can't re-run. |
-| "Deleting X hours is wasteful" | Sunk cost fallacy. Keeping unverified code is technical debt. |
-| "Keep as reference, write tests first" | You'll adapt it. That's testing after. Delete means delete. |
-| "Need to explore first" | Fine. Throw away exploration, start with TDD. |
-| "Test hard = design unclear" | Listen to test. Hard to test = hard to use. |
-| "TDD will slow me down" | TDD faster than debugging. Pragmatic = test-first. |
-| "Manual test faster" | Manual doesn't prove edge cases. You'll re-test every change. |
-| "Existing code has no tests" | You're improving it. Add tests for existing code. |
-
-## Red Flags - STOP and Start Over
-
-- Code before test
-- Test after implementation
-- Test passes immediately
-- Can't explain why test failed
-- Tests added "later"
-- Rationalizing "just this once"
-- "I already manually tested it"
-- "Tests after achieve the same purpose"
-- "It's about spirit not ritual"
-- "Keep as reference" or "adapt existing code"
-- "Already spent X hours, deleting is wasteful"
-- "TDD is dogmatic, I'm being pragmatic"
-- "This is different because..."
-
-**All of these mean: Delete code. Start over with TDD.**
-
-## Example: Bug Fix
-
-**Bug:** Empty email accepted
-
-**RED**
-```typescript
-test('rejects empty email', async () => {
-  const result = await submitForm({ email: '' });
-  expect(result.error).toBe('Email required');
-});
+# Avoid - Don't start with edge cases
+def test_add_handles_overflow_with_large_numbers():
+    assert add(sys.maxsize, 1) == expected_overflow_behavior
 ```
 
-**Verify RED**
-```bash
-$ npm test
-FAIL: expected 'Email required', got undefined
+### Test One Thing at a Time
+
+```python
+# Good - Single concern
+def test_user_registration_creates_user():
+    result = register_user("test@example.com", "pass123")
+    assert result.user is not None
+
+def test_user_registration_hashes_password():
+    result = register_user("test@example.com", "pass123")
+    assert result.user.password_hash != "pass123"
+
+# Avoid - Multiple assertions
+def test_user_registration():
+    result = register_user("test@example.com", "pass123")
+    assert result.user is not None
+    assert result.user.password_hash != "pass123"
+    assert result.user.email == "test@example.com"
+    assert result.success is True
 ```
 
-**GREEN**
-```typescript
-function submitForm(data: FormData) {
-  if (!data.email?.trim()) {
-    return { error: 'Email required' };
-  }
-  // ...
-}
+### Use Descriptive Test Names
+
+```python
+# Good - Describes behavior
+def test_invalid_email_returns_validation_error()
+def test_duplicate_email_raises_already_exists_error()
+def test_successful_registration_sends_welcome_email()
+
+# Avoid - Vague names
+def test_register()
+def test_email()
+def test_validation()
 ```
 
-**Verify GREEN**
-```bash
-$ npm test
-PASS
+### Follow the Three A's Pattern
+
+```python
+def test_user_can_update_profile():
+    # Arrange - Set up test data
+    user = create_test_user(email="test@example.com")
+    
+    # Act - Execute the operation
+    result = user.update_profile(name="John Doe", bio="Developer")
+    
+    # Assert - Verify the outcome
+    assert result.success is True
+    assert user.name == "John Doe"
+    assert user.bio == "Developer"
 ```
 
-**REFACTOR**
-Extract validation for multiple fields if needed.
+## Common Patterns
+
+### Testing Exceptions
+
+```python
+def test_registration_with_invalid_email_raises_error():
+    with pytest.raises(ValidationError) as exc:
+        register_user(email="invalid", password="pass123")
+    
+    assert "valid email" in str(exc.value)
+```
+
+### Testing Async Code
+
+```python
+@pytest.mark.asyncio
+async def test_async_user_registration():
+    result = await register_user_async("test@example.com", "pass123")
+    assert result.success is True
+```
+
+### Using Fixtures
+
+```python
+@pytest.fixture
+def test_user():
+    return User(email="test@example.com", name="Test User")
+
+def test_user_can_login(test_user):
+    result = login(test_user.email, "correct_password")
+    assert result.success is True
+```
+
+### Mocking External Dependencies
+
+```python
+def test_user_registration_sends_email(mocker):
+    # Mock the email service
+    mock_send = mocker.patch('services.email.send_welcome_email')
+    
+    register_user("test@example.com", "pass123")
+    
+    # Verify email was sent
+    mock_send.assert_called_once_with("test@example.com")
+```
 
 ## Verification Checklist
 
-Before marking work complete:
+Before completing TDD implementation:
 
-- [ ] Every new function/method has a test
-- [ ] Watched each test fail before implementing
-- [ ] Each test failed for expected reason (feature missing, not typo)
-- [ ] Wrote minimal code to pass each test
-- [ ] All tests pass
-- [ ] Output pristine (no errors, warnings)
-- [ ] Tests use real code (mocks only if unavoidable)
-- [ ] Edge cases and errors covered
+- [ ] Test written BEFORE implementation
+- [ ] Test fails initially (RED phase confirmed)
+- [ ] Minimal code added to pass test (GREEN phase)
+- [ ] Code refactored while keeping tests green
+- [ ] Test names clearly describe behavior
+- [ ] Each test focuses on one behavior
+- [ ] No untested code paths remain
+- [ ] All tests pass consistently
+- [ ] Code is readable and maintainable
 
-Can't check all boxes? You skipped TDD. Start over.
+## Benefits of TDD
 
-## When Stuck
+1. **Better Design** - Writing tests first leads to more modular, testable code
+2. **Confidence** - Comprehensive test suite catches regressions
+3. **Documentation** - Tests serve as living documentation
+4. **Faster Debugging** - Failures pinpoint exact issues
+5. **Reduced Bugs** - Edge cases caught during development
 
-| Problem | Solution |
-|---------|----------|
-| Don't know how to test | Write wished-for API. Write assertion first. Ask the user. |
-| Test too complicated | Design too complicated. Simplify interface. |
-| Must mock everything | Code too coupled. Use dependency injection. |
-| Test setup huge | Extract helpers. Still complex? Simplify design. |
+## When NOT to Use Strict TDD
 
-## Debugging Integration
+- Rapid prototyping/proof of concepts
+- UI layout experimentation
+- Exploratory coding (learning new APIs)
+- Trivial getter/setter methods
 
-Bug found? Write failing test reproducing it. Follow TDD cycle. Test proves fix and prevents regression.
+For these cases, write tests after implementation but before committing.
 
-Never fix bugs without a test.
+## Integration with Development Workflow
 
-## Final Rule
+```bash
+# TDD development loop
+git checkout -b feature/user-registration
 
+# 1. Write failing test
+# 2. Run tests (should fail)
+pytest tests/test_registration.py
+
+# 3. Implement minimal code
+# 4. Run tests (should pass)
+pytest tests/test_registration.py
+
+# 5. Refactor
+# 6. Run tests (should still pass)
+pytest tests/test_registration.py
+
+# Commit when all tests pass
+git add .
+git commit -m "feat: implement user registration with TDD"
 ```
-Production code → test exists and failed first
-Otherwise → not TDD
-```
 
-No exceptions without the user's permission.
+## References
+
+- Kent Beck - "Test-Driven Development: By Example"
+- Martin Fowler - "Refactoring: Improving the Design of Existing Code"
+- [pytest documentation](https://docs.pytest.org/)
+- [unittest documentation](https://docs.python.org/3/library/unittest.html)
