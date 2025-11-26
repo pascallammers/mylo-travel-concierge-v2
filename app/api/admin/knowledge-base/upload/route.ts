@@ -68,9 +68,21 @@ function validateFile(file: File): void {
  * @param file - The file to process
  * @returns Result of the upload attempt
  */
+/**
+ * Sanitizes a filename for use in file paths and HTTP headers.
+ * Removes diacritics (ü→u, ö→o, ä→a) and replaces non-ASCII characters.
+ */
+function sanitizeFilename(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+    .replace(/[^\x00-\x7F]/g, '_');  // Replace non-ASCII with underscore
+}
+
 async function processFileUpload(file: File): Promise<FileUploadResult> {
   const tempDir = '/tmp';
-  const tempFilePath = join(tempDir, `kb-${Date.now()}-${file.name}`);
+  const safeFileName = sanitizeFilename(file.name);
+  const tempFilePath = join(tempDir, `kb-${Date.now()}-${safeFileName}`);
 
   try {
     // Validate file
@@ -84,14 +96,14 @@ async function processFileUpload(file: File): Promise<FileUploadResult> {
     // Upload to Gemini Legacy Files API (for backward compatibility)
     const geminiFile = await GeminiFileManager.uploadFile(
       tempFilePath,
-      file.name,
+      safeFileName,
       file.type
     );
 
     // Upload to Gemini File Search Store (for RAG querying)
     const fileSearchResult = await geminiFileSearchStore.uploadFile(
       tempFilePath,
-      file.name,
+      safeFileName,
       {
         mimeType: file.type,
         chunkingConfig: {
