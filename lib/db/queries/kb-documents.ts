@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, desc, eq, inArray, isNull, type SQL } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNull, type SQL } from 'drizzle-orm';
 import { db } from '../index';
 import { kbDocuments, type KBDocument, type KBDocumentStatus } from '../schema';
 import { ChatSDKError } from '@/lib/errors';
@@ -178,9 +178,13 @@ export async function listKBDocuments(options: ListKBDocumentsOptions = {}): Pro
     const hasMore = documents.length > limit;
     const resultDocuments = hasMore ? documents.slice(0, limit) : documents;
 
-    // Get total count for pagination info
-    // For efficiency, we estimate based on whether there are more results
-    const total = offset + documents.length + (hasMore ? 1 : 0);
+    // Get actual total count for pagination
+    const [countResult] = await db
+      .select({ value: count() })
+      .from(kbDocuments)
+      .where(whereClause);
+
+    const total = countResult?.value ?? 0;
 
     return {
       documents: resultDocuments,
