@@ -71,6 +71,20 @@
       "when": 1763127000962,
       "tag": "0009_little_moira_mactaggert",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1764089048524,
+      "tag": "0010_melted_quentin_quire",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1764100477071,
+      "tag": "0011_amazing_the_leader",
+      "breakpoints": true
     }
   ]
 }

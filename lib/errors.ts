@@ -1,3 +1,16 @@
+// Re-export KB errors from the errors folder
+export {
+  KBError,
+  KBErrorCode,
+  isKBError,
+  isKBValidationError,
+  isKBRetryableError,
+  isKBRateLimited,
+  getKBErrorMessage,
+  wrapAsKBError,
+  createFileValidationError,
+} from './errors/kb-errors';
+
 export type ErrorType =
   | 'bad_request'
   | 'unauthorized'

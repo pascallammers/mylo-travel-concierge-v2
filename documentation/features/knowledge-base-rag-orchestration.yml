@@ -1,0 +1,40 @@
+task_groups:
+  - name: foundation-database
+    assigned_specialist: droidz-database-architect
+    standards:
+      - global/*
+      - backend/models.md
+      - backend/migrations.md
+      - backend/queries.md
+
+  - name: backend-api-enhancement
+    assigned_specialist: droidz-api-designer
+    standards:
+      - global/*
+      - backend/api.md
+      - backend/queries.md
+
+  - name: chat-system-integration
+    assigned_specialist: droidz-integration
+    standards:
+      - global/*
+      - global/ai-tools.md
+
+  - name: admin-ui-enhancement
+    assigned_specialist: droidz-ui-designer
+    standards:
+      - global/*
+      - frontend/*
+
+  - name: configuration-error-handling
+    assigned_specialist: droidz-codegen
+    standards:
+      - global/*
+      - global/error-handling.md
+      - global/validation.md
+
+  - name: testing-quality-assurance
+    assigned_specialist: droidz-test
+    standards:
+      - global/*
+      - testing/*

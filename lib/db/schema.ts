@@ -358,6 +358,64 @@ export const userAccessControl = pgTable('user_access_control', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// ============================================
+// Knowledge Base Documents
+// ============================================
+
+/**
+ * Status values for Knowledge Base documents.
+ * - uploading: File is being uploaded to Gemini
+ * - processing: File is being indexed/processed
+ * - active: File is ready for queries
+ * - failed: Upload or processing failed
+ * - archived: Soft deleted / archived
+ */
+export const kbDocumentStatus = ['uploading', 'processing', 'active', 'failed', 'archived'] as const;
+export type KBDocumentStatus = (typeof kbDocumentStatus)[number];
+
+/**
+ * Knowledge Base document metadata table.
+ * Stores metadata for documents uploaded to Gemini File Search.
+ * Actual file content is stored in Gemini's managed storage.
+ */
+export const kbDocuments = pgTable('kb_documents', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => generateId()),
+
+  // Gemini File Reference (Legacy Files API)
+  geminiFileName: text('gemini_file_name').notNull(), // e.g., "files/abc123"
+  geminiFileUri: text('gemini_file_uri').notNull(), // Full URI for API calls
+
+  // Gemini File Search Store Reference (New File Search Stores API)
+  fileSearchStoreName: text('file_search_store_name'), // e.g., "fileSearchStores/xyz123"
+  fileSearchDocumentName: text('file_search_document_name'), // Indexed document name in store
+  fileSearchIndexedAt: timestamp('file_search_indexed_at'), // When document was indexed
+
+  // Display metadata
+  displayName: text('display_name').notNull(),
+  originalFileName: text('original_file_name').notNull(),
+  mimeType: text('mime_type').notNull(),
+  sizeBytes: integer('size_bytes').notNull(),
+
+  // Status tracking
+  status: text('status').$type<KBDocumentStatus>().notNull().default('uploading'),
+  statusMessage: text('status_message'),
+
+  // Indexing metadata
+  indexedAt: timestamp('indexed_at'),
+  chunkCount: integer('chunk_count'),
+
+  // Configuration
+  confidenceThreshold: integer('confidence_threshold').default(70), // Per-document threshold (0-100)
+
+  // Audit fields
+  uploadedBy: text('uploaded_by').references(() => user.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at'), // Soft delete
+});
+
 export type User = InferSelectModel<typeof user>;
 export type Session = InferSelectModel<typeof session>;
 export type Account = InferSelectModel<typeof account>;
@@ -375,3 +433,4 @@ export type ToolCall = InferSelectModel<typeof toolCalls>;
 export type SessionState = InferSelectModel<typeof sessionStates>;
 export type AmadeusToken = InferSelectModel<typeof amadeusTokens>;
 export type UserAccessControl = InferSelectModel<typeof userAccessControl>;
+export type KBDocument = InferSelectModel<typeof kbDocuments>;
