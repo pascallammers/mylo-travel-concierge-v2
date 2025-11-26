@@ -19,6 +19,8 @@ import { KBError, KBErrorCode, wrapAsKBError } from '@/lib/errors/kb-errors';
 
 /** Configuration options for file upload operations. */
 export interface FileUploadOptions {
+  /** MIME type of the file (required by Gemini API). */
+  mimeType?: string;
   /** Configuration for how the document should be chunked. */
   chunkingConfig?: {
     maxTokensPerChunk?: number;
@@ -205,12 +207,13 @@ export class GeminiFileSearchStore {
         ...(meta.numericValue !== undefined && { numericValue: meta.numericValue }),
       }));
 
-      // Start upload
+      // Start upload with explicit mimeType
       const operation = await this.client.fileSearchStores.uploadToFileSearchStore({
         fileSearchStoreName: storeName,
         file: filePath,
         config: {
           displayName,
+          mimeType: options?.mimeType,
           chunkingConfig,
           customMetadata,
         },

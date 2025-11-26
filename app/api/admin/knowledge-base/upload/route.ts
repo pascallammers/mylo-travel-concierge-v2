@@ -93,6 +93,7 @@ async function processFileUpload(file: File): Promise<FileUploadResult> {
       tempFilePath,
       file.name,
       {
+        mimeType: file.type,
         chunkingConfig: {
           maxTokensPerChunk: 512,
           maxOverlapTokens: 50
