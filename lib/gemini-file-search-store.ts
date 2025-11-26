@@ -85,6 +85,19 @@ function createClient(): GoogleGenAI {
   return new GoogleGenAI({ apiKey });
 }
 
+/**
+ * Sanitizes a display name for use in HTTP headers.
+ * Removes diacritics (ü→u, ö→o, ä→a) and replaces non-ASCII characters.
+ * @param name - Original display name (may contain unicode)
+ * @returns ASCII-safe display name
+ */
+function sanitizeDisplayName(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics (combining marks)
+    .replace(/[^\x00-\x7F]/g, '_');  // Replace remaining non-ASCII with underscore
+}
+
 // ============================================================================
 // GeminiFileSearchStore Class
 // ============================================================================
@@ -207,12 +220,15 @@ export class GeminiFileSearchStore {
         ...(meta.numericValue !== undefined && { numericValue: meta.numericValue }),
       }));
 
+      // Sanitize display name for HTTP headers (remove unicode/diacritics)
+      const safeDisplayName = sanitizeDisplayName(displayName);
+
       // Start upload with explicit mimeType
       const operation = await this.client.fileSearchStores.uploadToFileSearchStore({
         fileSearchStoreName: storeName,
         file: filePath,
         config: {
-          displayName,
+          displayName: safeDisplayName,
           mimeType: options?.mimeType,
           chunkingConfig,
           customMetadata,
