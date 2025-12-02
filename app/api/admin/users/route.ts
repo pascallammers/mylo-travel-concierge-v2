@@ -2,16 +2,51 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isCurrentUserAdmin } from '@/lib/auth-utils';
 import { db } from '@/lib/db';
 import { user, chat, message, session, subscription } from '@/lib/db/schema';
-import { count, desc, ilike, or, sql, gte, eq } from 'drizzle-orm';
+import { count, desc, ilike, or, sql, eq, inArray } from 'drizzle-orm';
+
+/**
+ * Subscription status type for admin user list
+ */
+type SubscriptionStatus = 'active' | 'inactive' | 'cancelled' | 'none';
+
+/**
+ * Determines the subscription status based on subscription data
+ */
+function determineSubscriptionStatus(
+  sub: { status: string; currentPeriodEnd: Date; cancelAtPeriodEnd: boolean } | null
+): { status: SubscriptionStatus; validUntil: string | null } {
+  if (!sub) {
+    return { status: 'none', validUntil: null };
+  }
+
+  const now = new Date();
+  const periodEnd = sub.currentPeriodEnd;
+
+  if (sub.status === 'active' && periodEnd > now) {
+    return { status: 'active', validUntil: periodEnd.toISOString() };
+  } else if (sub.cancelAtPeriodEnd) {
+    return { status: 'cancelled', validUntil: periodEnd.toISOString() };
+  } else if (sub.status === 'canceled' || periodEnd < now) {
+    return { status: 'inactive', validUntil: null };
+  }
+  
+  return { status: 'active', validUntil: periodEnd.toISOString() };
+}
 
 /**
  * GET /api/admin/users
  * Returns paginated list of users with statistics
+ * 
+ * OPTIMIZED: Uses batch queries instead of N+1 pattern
+ * - Single query for users with aggregated stats via subqueries
+ * - Batch load subscriptions for all users at once
+ * 
  * Query params:
  * - page: number (default: 1)
  * - limit: number (default: 50, max: 100)
  * - search: string (optional, searches name and email)
- * Requires admin role
+ * 
+ * @requires Admin role
  */
 export async function GET(request: NextRequest) {
   try {
@@ -33,120 +68,119 @@ export async function GET(request: NextRequest) {
       ? or(ilike(user.email, `%${search}%`), ilike(user.name, `%${search}%`))
       : undefined;
 
-    // Get total count
+    // Calculate date for 30-day window
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // OPTIMIZED: Single query with subqueries for aggregated stats
+    // This replaces ~5 queries per user with a single query
+    const usersWithStats = await db
+      .select({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+        isActive: user.isActive,
+        activationStatus: user.activationStatus,
+        // Subquery: Last login (max session created_at)
+        lastLogin: sql<Date | null>`(
+          SELECT MAX(${session.createdAt})
+          FROM ${session}
+          WHERE ${session.userId} = ${user.id}
+        )`.as('last_login'),
+        // Subquery: Session count
+        sessionCount: sql<number>`(
+          SELECT COUNT(*)::int
+          FROM ${session}
+          WHERE ${session.userId} = ${user.id}
+        )`.as('session_count'),
+        // Subquery: Token usage (last 30 days)
+        tokensUsed: sql<number>`(
+          SELECT COALESCE(SUM(${message.totalTokens}), 0)::int
+          FROM ${message}
+          INNER JOIN ${chat} ON ${message.chatId} = ${chat.id}
+          WHERE ${chat.userId} = ${user.id}
+          AND ${message.createdAt} >= ${thirtyDaysAgo}
+        )`.as('tokens_used'),
+        // Subquery: Active days (unique days with messages in last 30 days)
+        activeDays: sql<number>`(
+          SELECT COUNT(DISTINCT DATE(${message.createdAt}))::int
+          FROM ${message}
+          INNER JOIN ${chat} ON ${message.chatId} = ${chat.id}
+          WHERE ${chat.userId} = ${user.id}
+          AND ${message.createdAt} >= ${thirtyDaysAgo}
+        )`.as('active_days'),
+      })
+      .from(user)
+      .where(whereClause)
+      .orderBy(desc(user.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    // Get total count (separate query for pagination)
     const [{ count: total }] = await db
       .select({ count: count() })
       .from(user)
       .where(whereClause);
 
-    // Get paginated users
-    const users = await db.query.user.findMany({
-      where: whereClause,
-      limit,
-      offset,
-      orderBy: [desc(user.createdAt)],
+    // OPTIMIZED: Batch load all subscriptions at once
+    const userIds = usersWithStats.map((u) => u.id);
+    
+    // Only query if we have users
+    const allSubscriptions = userIds.length > 0 
+      ? await db
+          .select({
+            userId: subscription.userId,
+            status: subscription.status,
+            planName: subscription.planName,
+            currentPeriodEnd: subscription.currentPeriodEnd,
+            cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+            createdAt: subscription.createdAt,
+          })
+          .from(subscription)
+          .where(inArray(subscription.userId, userIds))
+          .orderBy(desc(subscription.createdAt))
+      : [];
+
+    // Create a map for O(1) subscription lookup
+    // Keep only the most recent subscription per user
+    const subscriptionMap = new Map<string, typeof allSubscriptions[0]>();
+    for (const sub of allSubscriptions) {
+      if (sub.userId && !subscriptionMap.has(sub.userId)) {
+        subscriptionMap.set(sub.userId, sub);
+      }
+    }
+
+    // Map users to response format
+    const enrichedUsers = usersWithStats.map((u) => {
+      const userSub = subscriptionMap.get(u.id);
+      const { status: subscriptionStatus, validUntil } = determineSubscriptionStatus(
+        userSub ? {
+          status: userSub.status,
+          currentPeriodEnd: userSub.currentPeriodEnd,
+          cancelAtPeriodEnd: userSub.cancelAtPeriodEnd,
+        } : null
+      );
+
+      return {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role || 'user',
+        createdAt: u.createdAt.toISOString(),
+        registeredAt: u.createdAt.toISOString(),
+        lastLogin: u.lastLogin?.toISOString() || null,
+        activeDays: u.activeDays || 0,
+        sessions: u.sessionCount || 0,
+        tokensUsed: u.tokensUsed || 0,
+        subscriptionStatus,
+        subscriptionPlan: userSub?.planName || null,
+        subscriptionValidUntil: validUntil,
+        isActive: u.isActive,
+        activationStatus: u.activationStatus,
+      };
     });
-
-    // Calculate date for 30-day window
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    // Enrich users with statistics
-    const enrichedUsers = await Promise.all(
-      users.map(async (u) => {
-        // Get last login from sessions
-        const lastSessionResult = await db.query.session.findFirst({
-          where: (session, { eq }) => eq(session.userId, u.id),
-          orderBy: [desc(session.createdAt)],
-          columns: { createdAt: true },
-        });
-
-        // Get session count
-        const [sessionCountResult] = await db
-          .select({ count: count() })
-          .from(session)
-          .where(sql`${session.userId} = ${u.id}`);
-
-        // Get subscription data
-        const userSubscription = await db.query.subscription.findFirst({
-          where: eq(subscription.userId, u.id),
-          orderBy: [desc(subscription.createdAt)],
-          columns: {
-            status: true,
-            planName: true,
-            currentPeriodEnd: true,
-            cancelAtPeriodEnd: true,
-          },
-        });
-
-        // Determine subscription status
-        let subscriptionStatus: 'active' | 'inactive' | 'cancelled' | 'none' = 'none';
-        let subscriptionValidUntil: string | null = null;
-
-        if (userSubscription) {
-          const now = new Date();
-          const periodEnd = userSubscription.currentPeriodEnd;
-
-          if (userSubscription.status === 'active' && periodEnd > now) {
-            subscriptionStatus = 'active';
-            subscriptionValidUntil = periodEnd.toISOString();
-          } else if (userSubscription.cancelAtPeriodEnd) {
-            subscriptionStatus = 'cancelled';
-            subscriptionValidUntil = periodEnd.toISOString();
-          } else if (userSubscription.status === 'canceled' || periodEnd < now) {
-            subscriptionStatus = 'inactive';
-          } else {
-            subscriptionStatus = 'active';
-            subscriptionValidUntil = periodEnd.toISOString();
-          }
-        }
-
-        // Get messages in last 30 days and calculate tokens
-        const userChats = await db.query.chat.findMany({
-          where: (chat, { eq }) => eq(chat.userId, u.id),
-          columns: { id: true },
-        });
-
-        const chatIds = userChats.map((c) => c.id);
-
-        let tokensUsed = 0;
-        let activeDays = 0;
-
-        if (chatIds.length > 0) {
-          // Get messages from user's chats in last 30 days
-          const userMessages = await db.query.message.findMany({
-            where: (message, { and, inArray, gte }) =>
-              and(inArray(message.chatId, chatIds), gte(message.createdAt, thirtyDaysAgo)),
-            columns: { totalTokens: true, createdAt: true },
-          });
-
-          // Sum tokens
-          tokensUsed = userMessages.reduce((sum, m) => sum + (m.totalTokens || 0), 0);
-
-          // Calculate active days
-          const uniqueDays = new Set(
-            userMessages.map((m) => m.createdAt.toISOString().split('T')[0]),
-          );
-          activeDays = uniqueDays.size;
-        }
-
-        return {
-          id: u.id,
-          name: u.name,
-          email: u.email,
-          role: u.role || 'user',
-          createdAt: u.createdAt.toISOString(),
-          registeredAt: u.createdAt.toISOString(),
-          lastLogin: lastSessionResult?.createdAt.toISOString() || null,
-          activeDays,
-          sessions: sessionCountResult?.count || 0,
-          tokensUsed,
-          subscriptionStatus,
-          subscriptionPlan: userSubscription?.planName || null,
-          subscriptionValidUntil,
-        };
-      }),
-    );
 
     return NextResponse.json({
       users: enrichedUsers,

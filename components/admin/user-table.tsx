@@ -12,7 +12,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { RoleBadge } from './role-badge';
 import { Search, ChevronLeft, ChevronRight, Mail, Loader2, Pencil, Ban } from 'lucide-react';
 import {
   Select,
@@ -21,59 +20,52 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: 'user' | 'admin';
-  createdAt: string;
-  registeredAt: string;
-  lastLogin: string | null;
-  activeDays: number;
-  sessions: number;
-  tokensUsed: number;
-  subscriptionStatus: 'active' | 'inactive' | 'cancelled' | 'none';
-  subscriptionPlan: string | null;
-  subscriptionValidUntil: string | null;
-}
+import type { AdminUser } from '@/hooks/use-admin-users';
 
 interface UserTableProps {
-  users: User[];
+  users: AdminUser[];
   total: number;
   page: number;
   limit: number;
+  /** Current search value for controlled input */
+  search: string;
+  /** Whether a background fetch is in progress */
+  isFetching?: boolean;
   onPageChange: (page: number) => void;
-  onSearch: (search: string) => void;
+  /** Live search handler - called on every keystroke */
+  onSearchChange: (search: string) => void;
   onRoleUpdate: (userId: string, newRole: 'user' | 'admin') => Promise<void>;
   onPasswordReset?: (userId: string) => Promise<void>;
-  onEditUser?: (user: User) => void;
+  onEditUser?: (user: AdminUser) => void;
   onDeactivateUser?: (userId: string) => Promise<void>;
 }
 
 /**
- * User management table with pagination, search, and role updates
+ * User management table with pagination, live search, and role updates.
+ * 
+ * Features:
+ * - Live search with debouncing (handled by parent hook)
+ * - Loading indicator during background fetches
+ * - Role updates via dropdown
+ * - Quick actions: password reset, edit, deactivate
  */
 export function UserTable({
   users,
   total,
   page,
   limit,
+  search,
+  isFetching = false,
   onPageChange,
-  onSearch,
+  onSearchChange,
   onRoleUpdate,
   onPasswordReset,
   onEditUser,
   onDeactivateUser,
 }: UserTableProps) {
-  const [searchTerm, setSearchTerm] = useState('');
   const [updatingRoles, setUpdatingRoles] = useState<Set<string>>(new Set());
   const [sendingReset, setSendingReset] = useState<Set<string>>(new Set());
   const [deactivatingUsers, setDeactivatingUsers] = useState<Set<string>>(new Set());
-
-  const handleSearch = () => {
-    onSearch(searchTerm);
-  };
 
   const handleRoleChange = async (userId: string, newRole: 'user' | 'admin') => {
     setUpdatingRoles((prev) => new Set(prev).add(userId));
@@ -118,7 +110,7 @@ export function UserTable({
     }
   };
 
-  const getSubscriptionBadge = (status: User['subscriptionStatus']) => {
+  const getSubscriptionBadge = (status: AdminUser['subscriptionStatus']) => {
     switch (status) {
       case 'active':
         return <Badge variant="green">Aktiv</Badge>;
@@ -147,19 +139,21 @@ export function UserTable({
 
   return (
     <div className="space-y-4">
-      {/* Search */}
+      {/* Live Search */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by email or name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            className="pl-8"
+            placeholder="Suche nach Email oder Name..."
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="pl-8 pr-8"
           />
+          {/* Loading indicator during search/fetch */}
+          {isFetching && (
+            <Loader2 className="absolute right-2 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
+          )}
         </div>
-        <Button onClick={handleSearch}>Search</Button>
       </div>
 
       {/* Table */}
@@ -275,7 +269,7 @@ export function UserTable({
       {/* Pagination */}
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
-          Showing {(page - 1) * limit + 1} to {Math.min(page * limit, total)} of {total}{' '}
+          Showing {total === 0 ? 0 : (page - 1) * limit + 1} to {Math.min(page * limit, total)} of {total}{' '}
           users
         </div>
         <div className="flex items-center gap-2">
@@ -288,7 +282,7 @@ export function UserTable({
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <span className="text-sm">
-            Page {page} of {totalPages}
+            Page {page} of {totalPages || 1}
           </span>
           <Button
             variant="outline"

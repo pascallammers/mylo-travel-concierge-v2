@@ -1,86 +1,48 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { UserTable } from '@/components/admin/user-table';
 import { UserEditModal } from '@/components/admin/user-edit-modal';
+import { useAdminUsers, type AdminUser } from '@/hooks/use-admin-users';
 import { toast } from 'sonner';
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: 'user' | 'admin';
-  createdAt: string;
-  registeredAt: string;
-  lastLogin: string | null;
-  activeDays: number;
-  sessions: number;
-  tokensUsed: number;
-  subscriptionStatus: 'active' | 'inactive' | 'cancelled' | 'none';
-  subscriptionPlan: string | null;
-  subscriptionValidUntil: string | null;
-  isActive?: boolean | null;
-  activationStatus?: 'active' | 'inactive' | 'grace_period' | 'suspended' | null;
-}
-
-interface UsersResponse {
-  users: User[];
-  total: number;
-  page: number;
-  limit: number;
-}
-
+/**
+ * Admin Users Page
+ * 
+ * Displays a paginated, searchable list of users with management capabilities.
+ * 
+ * Features:
+ * - Live search with 300ms debouncing (no search button needed)
+ * - Optimized data loading with TanStack Query caching
+ * - Role management
+ * - Password reset
+ * - User deactivation
+ */
 export default function UsersPage() {
-  const [data, setData] = useState<UsersResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  // Use the optimized admin users hook
+  const {
+    data,
+    users,
+    total,
+    isLoading,
+    isFetching,
+    isError,
+    error,
+    search,
+    setSearch,
+    page,
+    setPage,
+    limit,
+    refetch,
+  } = useAdminUsers();
+
+  // Modal state
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
 
-  const fetchUsers = async (currentPage: number, searchQuery: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
-        limit: '50',
-      });
-
-      if (searchQuery) {
-        params.set('search', searchQuery);
-      }
-
-      const res = await fetch(`/api/admin/users?${params}`);
-      if (!res.ok) {
-        throw new Error('Failed to fetch users');
-      }
-
-      const usersData = await res.json();
-      setData(usersData);
-    } catch (err) {
-      console.error('Error fetching users:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load users');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchUsers(page, search);
-  }, [page, search]);
-
-  const handlePageChange = (newPage: number) => {
-    setPage(newPage);
-  };
-
-  const handleSearch = (searchQuery: string) => {
-    setSearch(searchQuery);
-    setPage(1); // Reset to first page on new search
-  };
-
+  /**
+   * Updates a user's role
+   */
   const handleRoleUpdate = async (userId: string, newRole: 'user' | 'admin') => {
     try {
       const res = await fetch(`/api/admin/users/${userId}/role`, {
@@ -100,16 +62,19 @@ export default function UsersPage() {
       });
 
       // Refresh data
-      fetchUsers(page, search);
+      refetch();
     } catch (err) {
       console.error('Error updating role:', err);
       toast.error('Fehler', {
         description: err instanceof Error ? err.message : 'Rolle konnte nicht aktualisiert werden',
       });
-      throw err; // Re-throw to let UserTable handle loading state
+      throw err;
     }
   };
 
+  /**
+   * Sends a password reset email to the user
+   */
   const handlePasswordReset = async (userId: string) => {
     try {
       const res = await fetch(`/api/admin/users/${userId}/reset-password`, {
@@ -134,13 +99,19 @@ export default function UsersPage() {
     }
   };
 
-  const handleEditUser = (user: User) => {
+  /**
+   * Opens the edit modal for a user
+   */
+  const handleEditUser = (user: AdminUser) => {
     setSelectedUser(user);
     setEditModalOpen(true);
   };
 
+  /**
+   * Deactivates a user account
+   */
   const handleDeactivateUser = async (userId: string) => {
-    const userToDeactivate = data?.users.find((u) => u.id === userId);
+    const userToDeactivate = users.find((u) => u.id === userId);
     if (!userToDeactivate) return;
 
     if (!confirm(`Möchtest du den Account von ${userToDeactivate.name} wirklich deaktivieren?`)) {
@@ -161,7 +132,7 @@ export default function UsersPage() {
       });
 
       // Refresh data
-      fetchUsers(page, search);
+      refetch();
     } catch (err) {
       console.error('Error deactivating user:', err);
       toast.error('Fehler', {
@@ -171,21 +142,30 @@ export default function UsersPage() {
     }
   };
 
+  /**
+   * Closes the edit modal
+   */
   const handleModalClose = () => {
     setEditModalOpen(false);
     setSelectedUser(null);
   };
 
+  /**
+   * Callback when modal action succeeds
+   */
   const handleModalSuccess = () => {
-    fetchUsers(page, search);
+    refetch();
   };
 
-  if (error) {
+  // Error state
+  if (isError) {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-center">
           <h2 className="text-lg font-semibold">Error Loading Users</h2>
-          <p className="text-sm text-muted-foreground">{error}</p>
+          <p className="text-sm text-muted-foreground">
+            {error instanceof Error ? error.message : 'An error occurred'}
+          </p>
         </div>
       </div>
     );
@@ -200,19 +180,21 @@ export default function UsersPage() {
         </p>
       </div>
 
-      {loading && !data ? (
+      {isLoading && !data ? (
         <div className="flex items-center justify-center py-12">
           <div className="text-sm text-muted-foreground">Benutzer werden geladen...</div>
         </div>
-      ) : data ? (
+      ) : (
         <>
           <UserTable
-            users={data.users}
-            total={data.total}
-            page={data.page}
-            limit={data.limit}
-            onPageChange={handlePageChange}
-            onSearch={handleSearch}
+            users={users}
+            total={total}
+            page={page}
+            limit={limit}
+            search={search}
+            isFetching={isFetching}
+            onPageChange={setPage}
+            onSearchChange={setSearch}
             onRoleUpdate={handleRoleUpdate}
             onPasswordReset={handlePasswordReset}
             onEditUser={handleEditUser}
@@ -227,7 +209,7 @@ export default function UsersPage() {
             onPasswordReset={handlePasswordReset}
           />
         </>
-      ) : null}
+      )}
     </div>
   );
 }
