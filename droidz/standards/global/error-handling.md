@@ -2,336 +2,316 @@
 
 ## Overview
 
-This project uses a structured error handling system based on `ChatSDKError` for consistent error responses across the application. All errors follow a typed error code format: `{type}:{surface}`.
+Proper error handling is critical for application reliability, user experience, and debugging. This standard defines how to handle errors consistently across the codebase.
 
 ## When to Apply
 
-- All API route handlers
-- Database operations
-- External API calls (Amadeus, Seats.aero, etc.)
-- AI tool executions
-- Authentication flows
+- All functions that can fail
+- External API calls and database operations
+- File I/O and network operations
 - User input validation
+- Async operations and promises
 
 ## Core Principles
 
-1. **Use ChatSDKError** - All application errors should use the typed error system
-2. **Fail Fast** - Validate inputs at entry points before processing
-3. **Non-Blocking Logging** - Don't let logging failures stop execution
-4. **Graceful Degradation** - Continue with partial results when possible
-5. **User-Friendly Messages** - Show helpful messages without exposing internals
-
-## Error Types & Surfaces
-
-### Error Types
-```typescript
-type ErrorType =
-  | 'bad_request'      // 400 - Invalid input
-  | 'unauthorized'     // 401 - Not signed in
-  | 'forbidden'        // 403 - No permission
-  | 'not_found'        // 404 - Resource missing
-  | 'rate_limit'       // 429 - Too many requests
-  | 'upgrade_required' // 402 - Needs Pro subscription
-  | 'model_restricted' // 403 - Model access denied
-  | 'offline';         // 503 - Service unavailable
-```
-
-### Surfaces
-```typescript
-type Surface = 
-  | 'chat'     // Chat operations
-  | 'auth'     // Authentication
-  | 'api'      // External APIs
-  | 'stream'   // Streaming
-  | 'database' // DB operations
-  | 'history'  // Chat history
-  | 'model';   // AI model access
-```
+1. **Fail Fast** - Validate early and throw errors immediately when detecting invalid state
+2. **Be Specific** - Use specific error types/classes for different failure scenarios
+3. **Provide Context** - Include relevant information in error messages for debugging
+4. **User-Friendly** - Show helpful messages to users without exposing internals
+5. **Centralized Handling** - Handle errors at appropriate boundaries (API layer, UI layer)
 
 ## ✅ DO
 
-### DO: Use ChatSDKError for API Routes
+### DO: Use Specific Error Types
 
+**✅ DO**:
 ```typescript
-// app/api/search/route.ts
-import { ChatSDKError } from '@/lib/errors';
+class ValidationError extends Error {
+  constructor(message: string, public field: string) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}
 
-export async function POST(req: Request) {
-  const user = await getCurrentUser();
-  
-  if (!user) {
-    return new ChatSDKError('unauthorized:auth').toResponse();
+class NotFoundError extends Error {
+  constructor(resource: string, id: string) {
+    super(`${resource} with id ${id} not found`);
+    this.name = 'NotFoundError';
   }
-  
-  if (!user.isProUser && messageCount >= dailyLimit) {
-    return new ChatSDKError('rate_limit:chat', 'Daily search limit reached').toResponse();
-  }
-  
-  // Continue with request...
+}
+
+throw new ValidationError('Email is required', 'email');
+```
+
+### DO: Provide Context in Errors
+
+**✅ DO**:
+```typescript
+try {
+  await fetchUser(userId);
+} catch (error) {
+  throw new Error(`Failed to fetch user ${userId}: ${error.message}`, {
+    cause: error
+  });
 }
 ```
 
-### DO: Use ChatSDKError for Database Operations
+### DO: Handle Errors at Boundaries
 
+**✅ DO**:
 ```typescript
-// lib/db/queries.ts
-export async function getChatById({ id }: { id: string }) {
+// API route handler
+app.post('/api/users', async (req, res) => {
   try {
-    const [selectedChat] = await db
-      .select()
-      .from(chat)
-      .where(eq(chat.id, id))
-      .$withCache();
-    return selectedChat;
+    const user = await createUser(req.body);
+    res.json(user);
   } catch (error) {
-    throw new ChatSDKError('bad_request:database', 'Failed to get chat by id');
+    if (error instanceof ValidationError) {
+      return res.status(400).json({ error: error.message, field: error.field });
+    }
+    if (error instanceof NotFoundError) {
+      return res.status(404).json({ error: error.message });
+    }
+    // Generic error
+    console.error('Unexpected error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
-}
+});
 ```
 
-### DO: Handle Non-Critical Failures Gracefully
+### DO: Clean Up Resources
 
+**✅ DO**:
 ```typescript
-// lib/tools/flight-search.ts
-execute: async (params) => {
-  // Record tool call (non-blocking)
-  let toolCallId: string | null = null;
+async function processFile(filePath: string) {
+  const file = await fs.open(filePath);
   try {
-    const result = await recordToolCall({ chatId, toolName: 'search_flights', request: params });
-    toolCallId = result.id;
-  } catch (dbError) {
-    console.warn('[Flight Search] DB logging failed (continuing):', dbError);
-    // Continue execution even if DB fails
+    const data = await file.read();
+    return processData(data);
+  } finally {
+    await file.close(); // Always clean up
   }
-  
-  // Main execution continues...
 }
 ```
 
-### DO: Provide Context in Error Causes
+### DO: Use Retry Logic for Transient Failures
 
+**✅ DO**:
 ```typescript
-throw new ChatSDKError(
-  'bad_request:api',
-  `Failed to fetch user ${userId}: ${error.message}`
-);
-```
-
-### DO: Use Error Helper Functions
-
-```typescript
-import { 
-  isSignInRequired, 
-  isProRequired, 
-  isRateLimited,
-  getErrorActions,
-  getErrorIcon 
-} from '@/lib/errors';
-
-// In component
-if (isSignInRequired(error)) {
-  return <SignInPrompt />;
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3
+): Promise<T> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+    }
+  }
+  throw new Error('Max retries exceeded');
 }
 
-if (isProRequired(error)) {
-  return <UpgradePrompt actions={getErrorActions(error)} />;
-}
+// Usage
+const data = await retryWithBackoff(() => fetchFromAPI(url));
 ```
 
 ## ❌ DON'T
 
-### DON'T: Use Generic Error Messages
+### DON'T: Swallow Errors Silently
 
+**❌ DON'T**:
 ```typescript
-// ❌ Bad
+try {
+  await saveData(data);
+} catch (error) {
+  // Silent failure - data not saved but no indication!
+}
+```
+**Why**: Hides failures and makes debugging impossible.
+
+### DON'T: Use Generic Error Types
+
+**❌ DON'T**:
+```typescript
 throw new Error('Something went wrong');
-throw new ChatSDKError('bad_request:api');
-
-// ✅ Good
-throw new ChatSDKError('bad_request:api', 'Invalid date format in departDate');
+throw new Error('Error');
 ```
+**Why**: Doesn't provide enough context for debugging or handling.
 
-### DON'T: Expose Internal Details
+### DON'T: Expose Internal Details to Users
 
+**❌ DON'T**:
 ```typescript
-// ❌ Bad
-return Response.json({
-  error: error.stack,
-  query: sqlQuery
-}, { status: 500 });
-
-// ✅ Good
-return new ChatSDKError('bad_request:database', 'Query failed').toResponse();
-```
-
-### DON'T: Let Logging Failures Stop Execution
-
-```typescript
-// ❌ Bad - logging failure stops the tool
-await recordToolCall(toolData);  // If this fails, tool stops
-
-// ✅ Good - graceful handling
-try {
-  await recordToolCall(toolData);
-} catch (dbError) {
-  console.warn('DB logging failed (continuing):', dbError);
+catch (error) {
+  res.status(500).json({
+    error: error.stack, // Exposes internals!
+    query: sqlQuery     // Security risk!
+  });
 }
 ```
+**Why**: Security risk and poor UX.
 
-### DON'T: Silently Swallow Errors
+### DON'T: Catch Without Re-throwing
 
+**❌ DON'T**:
 ```typescript
-// ❌ Bad
-try {
-  await saveData(data);
-} catch (error) {
-  // Silent failure!
-}
-
-// ✅ Good
-try {
-  await saveData(data);
-} catch (error) {
-  console.error('Failed to save data:', error);
-  throw new ChatSDKError('bad_request:database', 'Failed to save data');
+async function fetchData() {
+  try {
+    return await api.getData();
+  } catch (error) {
+    console.log('Error fetching data');
+    return null; // Caller doesn't know it failed!
+  }
 }
 ```
+**Why**: Caller can't distinguish between "no data" and "error".
+
+### DON'T: Create Error Handling Pyramids
+
+**❌ DON'T**:
+```typescript
+try {
+  const user = await getUser();
+  try {
+    const posts = await getPosts(user.id);
+    try {
+      const comments = await getComments(posts);
+      // Nested hell
+    } catch (e3) { }
+  } catch (e2) { }
+} catch (e1) { }
+```
+**Why**: Hard to read and maintain. Use async/await properly.
 
 ## Patterns & Examples
 
-### Pattern 1: API Route Error Handling
+### Pattern 1: Error Boundary Component (React)
 
+**Use Case**: Catch errors in React component tree
+
+**Implementation**:
 ```typescript
-export async function POST(req: Request) {
-  try {
-    const user = await getCurrentUser();
-    
-    // Auth check
-    if (!user) {
-      return new ChatSDKError('unauthorized:auth').toResponse();
+class ErrorBoundary extends React.Component {
+  state = { hasError: false, error: null };
+  
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  
+  componentDidCatch(error, errorInfo) {
+    // Log to error reporting service
+    console.error('Error caught:', error, errorInfo);
+  }
+  
+  render() {
+    if (this.state.hasError) {
+      return <ErrorFallback error={this.state.error} />;
     }
-    
-    // Rate limit check
-    const { count } = await getUserMessageCount(user);
-    if (count >= DAILY_LIMIT) {
-      return new ChatSDKError('rate_limit:chat').toResponse();
-    }
-    
-    // Main logic
-    const result = await processRequest(req);
-    return Response.json(result);
-    
-  } catch (error) {
-    if (error instanceof ChatSDKError) {
-      return error.toResponse();
-    }
-    console.error('Unexpected error:', error);
-    return new ChatSDKError('bad_request:api', 'Request failed').toResponse();
+    return this.props.children;
   }
 }
 ```
 
-### Pattern 2: AI Tool Error Handling
+### Pattern 2: Result Type (Functional Approach)
 
+**Use Case**: Avoid throwing exceptions for expected failures
+
+**Implementation**:
 ```typescript
-export const flightSearchTool = tool({
-  execute: async (params, { abortSignal }) => {
-    // Validate dates
-    if (new Date(params.departDate) < new Date()) {
-      throw new Error('Departure date is in the past');
-    }
-    
-    // Parallel API calls with individual error handling
-    const [seatsResult, amadeusResult] = await Promise.all([
-      searchSeatsAero(params).catch((err) => {
-        console.error('[Seats.aero] Failed:', err.message);
-        return null;
-      }),
-      searchAmadeus(params).catch((err) => {
-        console.error('[Amadeus] Failed:', err.message);
-        return null;
-      }),
-    ]);
-    
-    // Check if we have any results
-    if (!seatsResult && !amadeusResult) {
-      throw new Error('No flights found. Try different dates or routes.');
-    }
-    
-    return formatResults({ seatsResult, amadeusResult });
-  },
-});
+type Result<T, E = Error> = 
+  | { ok: true; value: T }
+  | { ok: false; error: E };
+
+function divide(a: number, b: number): Result<number> {
+  if (b === 0) {
+    return { ok: false, error: new Error('Division by zero') };
+  }
+  return { ok: true, value: a / b };
+}
+
+// Usage
+const result = divide(10, 2);
+if (result.ok) {
+  console.log(result.value);
+} else {
+  console.error(result.error);
+}
 ```
 
-### Pattern 3: Component Error Display
+### Pattern 3: Graceful Degradation
 
+**Use Case**: Continue operation when non-critical services fail
+
+**Implementation**:
 ```typescript
-// components/message.tsx
-const EnhancedErrorDisplay: React.FC<Props> = ({ error, handleRetry }) => {
-  const parsedError = parseError(error);
-  const errorIcon = getErrorIcon(parsedError);
-  const actions = getErrorActions(parsedError);
-  const colors = getColorScheme(errorIcon);
+async function getUserWithRecommendations(userId: string) {
+  const user = await getUser(userId); // Critical - throw if fails
   
-  return (
-    <div className={`rounded-lg border ${colors.border} bg-background`}>
-      <div className="flex items-start gap-3">
-        <ErrorIcon type={errorIcon} />
-        <div>
-          <h3 className={colors.title}>{getErrorTitle(parsedError)}</h3>
-          <p className={colors.text}>{parsedError.message}</p>
-        </div>
-      </div>
-      <div className="flex gap-2">
-        {actions.secondary && (
-          <Button onClick={() => handleAction(actions.secondary.action)}>
-            {actions.secondary.label}
-          </Button>
-        )}
-        {actions.primary && (
-          <Button onClick={() => handleAction(actions.primary.action)}>
-            {actions.primary.label}
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-};
+  let recommendations = [];
+  try {
+    recommendations = await getRecommendations(userId); // Non-critical
+  } catch (error) {
+    console.warn('Failed to load recommendations:', error);
+    // Continue without recommendations
+  }
+  
+  return { user, recommendations };
+}
 ```
+
+## Common Mistakes
+
+1. **Catching Too Broadly**
+   - Problem: `catch(error)` catches everything including typos
+   - Solution: Catch specific error types or let unexpected errors bubble
+
+2. **Not Validating Input Early**
+   - Problem: Errors occur deep in call stack
+   - Solution: Validate at entry points (API routes, function start)
+
+3. **Logging Then Re-throwing Without Adding Context**
+   - Problem: Duplicate logs without useful information
+   - Solution: Add context when re-throwing or log once at boundary
+
+4. **Using Errors for Control Flow**
+   - Problem: `try-catch` for non-exceptional cases
+   - Solution: Use conditionals for expected cases, errors for exceptional ones
 
 ## Testing Standards
 
 ```typescript
-import { describe, it, expect } from 'node:test';
-import { ChatSDKError, isSignInRequired, isProRequired } from '@/lib/errors';
-
-describe('ChatSDKError', () => {
-  it('should create error with correct type and surface', () => {
-    const error = new ChatSDKError('unauthorized:auth');
-    expect(error.type).toBe('unauthorized');
-    expect(error.surface).toBe('auth');
-    expect(error.statusCode).toBe(401);
+describe('Error Handling', () => {
+  it('should throw ValidationError for invalid input', () => {
+    expect(() => createUser({ email: '' }))
+      .toThrow(ValidationError);
   });
   
-  it('should include cause in error', () => {
-    const error = new ChatSDKError('bad_request:api', 'Invalid input');
-    expect(error.cause).toBe('Invalid input');
+  it('should include field name in validation error', () => {
+    try {
+      createUser({ email: '' });
+    } catch (error) {
+      expect(error).toBeInstanceOf(ValidationError);
+      expect(error.field).toBe('email');
+    }
   });
   
-  it('isSignInRequired returns true for auth errors', () => {
-    const error = new ChatSDKError('unauthorized:auth');
-    expect(isSignInRequired(error)).toBe(true);
-  });
-  
-  it('isProRequired returns true for upgrade errors', () => {
-    const error = new ChatSDKError('upgrade_required:chat');
-    expect(isProRequired(error)).toBe(true);
+  it('should retry on transient failures', async () => {
+    const mock = jest.fn()
+      .mockRejectedValueOnce(new Error('Transient'))
+      .mockResolvedValueOnce('success');
+    
+    const result = await retryWithBackoff(mock);
+    expect(result).toBe('success');
+    expect(mock).toHaveBeenCalledTimes(2);
   });
 });
 ```
 
 ## Resources
 
-- [lib/errors.ts](/lib/errors.ts) - Error class and helpers
-- [Next.js Error Handling](https://nextjs.org/docs/app/building-your-application/routing/error-handling)
-- [Vercel AI SDK Error Handling](https://sdk.vercel.ai/docs/ai-sdk-core/error-handling)
+- [MDN: Error](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error)
+- [Node.js Error Handling Best Practices](https://nodejs.org/en/docs/guides/error-handling/)
+- [TypeScript: Error Handling](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates)
+- [Rust Book: Error Handling](https://doc.rust-lang.org/book/ch09-00-error-handling.html) (excellent functional patterns)

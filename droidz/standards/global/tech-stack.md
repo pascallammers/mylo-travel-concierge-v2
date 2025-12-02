@@ -1,127 +1,31 @@
-# Tech Stack
+## Tech stack
 
-## Overview
+Define your technical stack below. This serves as a reference for all team members and helps maintain consistency across the project.
 
-This document defines the technical stack for the Mylo Travel Concierge project. All development must use these technologies and follow the established patterns.
+### Framework & Runtime
+- **Application Framework:** [e.g., Rails, Django, Next.js, Express]
+- **Language/Runtime:** [e.g., Ruby, Python, Node.js, Java]
+- **Package Manager:** [e.g., bundler, pip, npm, yarn]
 
-## Framework & Runtime
+### Frontend
+- **JavaScript Framework:** [e.g., React, Vue, Svelte, Alpine, vanilla JS]
+- **CSS Framework:** [e.g., Tailwind CSS, Bootstrap, custom]
+- **UI Components:** [e.g., shadcn/ui, Material UI, custom library]
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| **Next.js** | 15.6+ (Canary) | Full-stack React framework with App Router |
-| **React** | 19.x | UI library with Server Components |
-| **TypeScript** | 5.x | Type-safe JavaScript |
-| **Node.js** | 20+ | Runtime environment |
-| **pnpm** | 10.x | Package manager |
+### Database & Storage
+- **Database:** [e.g., PostgreSQL, MySQL, MongoDB]
+- **ORM/Query Builder:** [e.g., ActiveRecord, Prisma, Sequelize]
+- **Caching:** [e.g., Redis, Memcached]
 
-## Frontend Stack
+### Testing & Quality
+- **Test Framework:** [e.g., Jest, RSpec, pytest]
+- **Linting/Formatting:** [e.g., ESLint, Prettier, RuboCop]
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| **Tailwind CSS** | 4.x | Utility-first CSS framework |
-| **Radix UI** | Latest | Accessible UI primitives |
-| **shadcn/ui** | Custom | Component library (copied, not installed) |
-| **Framer Motion** | 12.x | Animation library |
-| **Lucide React** | Latest | Icon library |
-| **Hugeicons** | Latest | Additional icons |
-| **TanStack Query** | 5.x | Server state management |
-| **nuqs** | 2.x | URL state management |
+### Deployment & Infrastructure
+- **Hosting:** [e.g., Heroku, AWS, Vercel, Railway]
+- **CI/CD:** [e.g., GitHub Actions, CircleCI]
 
-## Backend Stack
-
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| **Drizzle ORM** | 0.44+ | Type-safe SQL ORM |
-| **PostgreSQL** | 16+ | Primary database (via Neon) |
-| **Neon Serverless** | Latest | Serverless Postgres driver |
-| **better-auth** | Latest | Authentication framework |
-| **Zod** | 3.x | Schema validation |
-
-## AI & LLM Stack
-
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| **Vercel AI SDK** | 5.x | AI streaming & tools |
-| **@ai-sdk/anthropic** | Latest | Claude models |
-| **@ai-sdk/openai** | Latest | GPT models |
-| **@ai-sdk/google** | Latest | Gemini models |
-| **@ai-sdk/xai** | Latest | Grok models |
-| **@ai-sdk/groq** | Latest | Groq inference |
-| **@ai-sdk/mistral** | Latest | Mistral models |
-
-## External Services
-
-| Service | Purpose |
-|---------|---------|
-| **Vercel** | Deployment & hosting |
-| **Neon** | Serverless PostgreSQL |
-| **Polar.sh** | Subscription management |
-| **Dodo Payments** | Payment processing |
-| **Resend** | Transactional email |
-| **Upstash Redis** | Rate limiting & caching |
-| **Vercel Blob** | File storage |
-
-## Testing Stack
-
-| Technology | Purpose |
-|------------|---------|
-| **tsx --test** | Native Node.js test runner |
-| **Testing Library** | React component testing |
-| **happy-dom** | DOM simulation |
-
-## Development Tools
-
-| Tool | Purpose |
-|------|---------|
-| **ESLint** | Code linting |
-| **Prettier** | Code formatting |
-| **Drizzle Kit** | Database migrations |
-| **Turbopack** | Fast bundler (dev) |
-
-## File Structure
-
-```
-├── app/                    # Next.js App Router
-│   ├── (auth)/            # Auth route group
-│   ├── api/               # API routes
-│   └── [dynamic]/         # Dynamic routes
-├── components/            # React components
-│   ├── ui/               # shadcn/ui components
-│   └── [feature]/        # Feature components
-├── lib/                   # Shared utilities
-│   ├── api/              # External API clients
-│   ├── db/               # Database (Drizzle)
-│   ├── tools/            # AI SDK tools
-│   └── utils/            # Helper functions
-├── hooks/                 # React hooks
-├── contexts/              # React contexts
-├── env/                   # Environment schemas
-└── drizzle/              # DB migrations
-```
-
-## Key Conventions
-
-### Imports
-```typescript
-// External packages first
-import { z } from 'zod';
-import { tool } from 'ai';
-
-// Internal absolute imports
-import { db } from '@/lib/db';
-import { ChatSDKError } from '@/lib/errors';
-
-// Relative imports last
-import { localHelper } from './helpers';
-```
-
-### Environment Variables
-- Server-only: `env/server.ts` with `serverEnv`
-- Client-safe: `env/client.ts` with `clientEnv`
-- Never expose server env to client
-
-### Database
-- Schema: `lib/db/schema.ts`
-- Queries: `lib/db/queries.ts`
-- Use `.$withCache()` for read queries
-- Use transactions for multi-step writes
+### Third-Party Services
+- **Authentication:** [e.g., Auth0, Devise, NextAuth]
+- **Email:** [e.g., SendGrid, Postmark]
+- **Monitoring:** [e.g., Sentry, Datadog]

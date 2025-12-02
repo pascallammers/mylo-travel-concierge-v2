@@ -2,430 +2,305 @@
 
 ## Overview
 
-This project uses Next.js 15 App Router for API routes. All routes follow REST conventions with typed request/response handling using Zod validation and ChatSDKError for errors.
+Well-designed APIs are intuitive, consistent, and maintainable. This standard defines REST API design principles for building scalable and developer-friendly APIs.
 
 ## When to Apply
 
-- Creating new API endpoints
-- Handling HTTP requests
-- Processing webhooks
-- Implementing streaming responses
+- Designing new API endpoints
+- Refactoring existing APIs
+- Creating API documentation
+- Reviewing API pull requests
+- Planning API versioning
 
 ## Core Principles
 
-1. **Route Handlers** - Use Next.js 15 route.ts files
-2. **Typed Validation** - Zod schemas for all inputs
-3. **Error Consistency** - ChatSDKError for all errors
-4. **Auth First** - Check authentication before processing
-5. **Streaming** - Use AI SDK for streaming responses
+1. **RESTful Design** - Use HTTP methods appropriately (GET, POST, PUT, PATCH, DELETE)
+2. **Resource-Based URLs** - URLs represent resources, not actions
+3. **Consistency** - Predictable patterns across all endpoints
+4. **Versioning** - Support API evolution without breaking clients
+5. **Clear Documentation** - Self-documenting with examples
 
 ## ✅ DO
 
-### DO: Use Next.js 15 Route Handlers
+### DO: Use Resource-Based URLs
 
-```typescript
-// app/api/users/[id]/route.ts
-import { NextRequest } from 'next/server';
-import { getCurrentUser } from '@/app/actions';
-import { ChatSDKError } from '@/lib/errors';
-import { getUserById } from '@/lib/db/queries';
-
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  
-  const currentUser = await getCurrentUser();
-  if (!currentUser) {
-    return new ChatSDKError('unauthorized:auth').toResponse();
-  }
-  
-  const user = await getUserById(id);
-  if (!user) {
-    return new ChatSDKError('not_found:api', `User ${id} not found`).toResponse();
-  }
-  
-  return Response.json(user);
-}
+**✅ DO**:
+```
+GET    /api/v1/users           # List users
+GET    /api/v1/users/123       # Get specific user
+POST   /api/v1/users           # Create user
+PUT    /api/v1/users/123       # Update user (full)
+PATCH  /api/v1/users/123       # Update user (partial)
+DELETE /api/v1/users/123       # Delete user
 ```
 
-### DO: Validate Request Bodies with Zod
+### DO: Return Appropriate Status Codes
 
+**✅ DO**:
 ```typescript
-// app/api/upload/route.ts
-import { z } from 'zod';
-
-const uploadSchema = z.object({
-  filename: z.string().min(1).max(255),
-  contentType: z.string().regex(/^(image|application)\//),
-  size: z.number().max(10 * 1024 * 1024), // 10MB max
+// Success cases
+app.get('/users/:id', async (req, res) => {
+  const user = await findUser(req.params.id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  res.status(200).json(user);
 });
 
-export async function POST(req: Request) {
-  const body = await req.json();
-  
-  const result = uploadSchema.safeParse(body);
-  if (!result.success) {
-    return Response.json(
-      { error: 'Invalid request', details: result.error.flatten() },
-      { status: 400 }
-    );
+app.post('/users', async (req, res) => {
+  const user = await createUser(req.body);
+  res.status(201).json(user); // 201 Created
+});
+
+app.delete('/users/:id', async (req, res) => {
+  await deleteUser(req.params.id);
+  res.status(204).send(); // 204 No Content
+});
+```
+
+### DO: Use Query Parameters for Filtering
+
+**✅ DO**:
+```
+GET /api/v1/users?role=admin&status=active&page=2&limit=20
+GET /api/v1/products?category=electronics&minPrice=100&sort=price:desc
+```
+
+```typescript
+app.get('/users', async (req, res) => {
+  const { role, status, page = 1, limit = 20 } = req.query;
+  const users = await findUsers({ role, status, page, limit });
+  res.json({
+    data: users,
+    pagination: {
+      page: Number(page),
+      limit: Number(limit),
+      total: users.total
+    }
+  });
+});
+```
+
+### DO: Version Your API
+
+**✅ DO**:
+```
+/api/v1/users    # Version 1
+/api/v2/users    # Version 2 with breaking changes
+```
+
+```typescript
+app.use('/api/v1', v1Routes);
+app.use('/api/v2', v2Routes);
+```
+
+### DO: Include Pagination Metadata
+
+**✅ DO**:
+```json
+{
+  "data": [...],
+  "pagination": {
+    "page": 2,
+    "limit": 20,
+    "total": 157,
+    "totalPages": 8,
+    "hasNext": true,
+    "hasPrev": true
   }
-  
-  const { filename, contentType, size } = result.data;
-  // Process validated data...
 }
-```
-
-### DO: Use after() for Background Operations
-
-```typescript
-// app/api/search/route.ts
-import { after } from 'next/server';
-
-export async function POST(req: Request) {
-  const user = await getCurrentUser();
-  
-  // Create chat immediately
-  await saveChat({ id, userId: user.id, title: 'New Chat' });
-  
-  // Generate title in background
-  after(async () => {
-    try {
-      const title = await generateTitleFromUserMessage({ message });
-      await updateChatTitleById({ chatId: id, title });
-      console.log('✅ Background title generation completed');
-    } catch (error) {
-      console.error('Background title generation failed:', error);
-    }
-  });
-  
-  // Return response immediately
-  return Response.json({ id, status: 'processing' });
-}
-```
-
-### DO: Implement Streaming with AI SDK
-
-```typescript
-// app/api/search/route.ts
-import { createUIMessageStream, streamText, JsonToSseTransformStream } from 'ai';
-
-export async function POST(req: Request) {
-  const stream = createUIMessageStream<ChatMessage>({
-    execute: async ({ writer: dataStream }) => {
-      const result = streamText({
-        model: languageModel,
-        messages: convertToModelMessages(messages),
-        tools: toolRegistry,
-        onFinish: async (event) => {
-          console.log('Stream finished:', event.finishReason);
-        },
-      });
-      
-      result.consumeStream();
-      dataStream.merge(result.toUIMessageStream({ sendReasoning: true }));
-    },
-    onError(error) {
-      if (error.message.includes('Rate Limit')) {
-        return 'Rate limit reached. Please try again later.';
-      }
-      return 'An error occurred. Please try again.';
-    },
-    onFinish: async ({ messages }) => {
-      if (user) {
-        await saveMessages({ messages });
-      }
-    },
-  });
-  
-  return new Response(stream.pipeThrough(new JsonToSseTransformStream()));
-}
-```
-
-### DO: Handle Webhooks Securely
-
-```typescript
-// Webhook handling via better-auth plugins
-webhooks({
-  secret: process.env.POLAR_WEBHOOK_SECRET!,
-  onPayload: async ({ data, type }) => {
-    console.log('🔔 Received webhook:', type);
-    
-    if (type === 'subscription.created' || type === 'subscription.active') {
-      try {
-        // Validate user exists before linking
-        const userExists = await db.query.user.findFirst({
-          where: eq(user.id, data.customer?.externalId),
-        });
-        
-        if (!userExists) {
-          console.warn('User not found, will link on signup');
-        }
-        
-        // Upsert subscription
-        await db.insert(subscription)
-          .values(subscriptionData)
-          .onConflictDoUpdate({
-            target: subscription.id,
-            set: updateFields,
-          });
-        
-        // Invalidate caches
-        if (userExists) {
-          invalidateUserCaches(data.customer.externalId);
-        }
-      } catch (error) {
-        console.error('Webhook processing failed:', error);
-        // Don't throw - let webhook succeed
-      }
-    }
-  },
-}),
-```
-
-### DO: Use Proper Status Codes
-
-```typescript
-// Success responses
-return Response.json(data);                    // 200 OK (default)
-return Response.json(created, { status: 201 }); // 201 Created
-return new Response(null, { status: 204 });    // 204 No Content
-
-// Error responses via ChatSDKError
-return new ChatSDKError('bad_request:api').toResponse();      // 400
-return new ChatSDKError('unauthorized:auth').toResponse();    // 401
-return new ChatSDKError('forbidden:chat').toResponse();       // 403
-return new ChatSDKError('not_found:api').toResponse();        // 404
-return new ChatSDKError('rate_limit:chat').toResponse();      // 429
-return new ChatSDKError('upgrade_required:chat').toResponse(); // 402
 ```
 
 ## ❌ DON'T
 
-### DON'T: Skip Authentication Checks
+### DON'T: Use Verbs in URLs
 
+**❌ DON'T**:
+```
+POST /api/createUser
+GET  /api/getUser/123
+POST /api/deleteUser/123
+```
+**Why**: Not RESTful. Use HTTP methods instead of URL verbs.
+
+### DON'T: Return Generic Status Codes
+
+**❌ DON'T**:
 ```typescript
-// ❌ Bad - no auth check
-export async function DELETE(req: Request) {
-  const { chatId } = await req.json();
-  await deleteChatById({ id: chatId });  // Anyone can delete!
-  return Response.json({ success: true });
-}
-
-// ✅ Good - verify auth and ownership
-export async function DELETE(req: Request) {
-  const user = await getCurrentUser();
-  if (!user) {
-    return new ChatSDKError('unauthorized:auth').toResponse();
-  }
-  
-  const { chatId } = await req.json();
-  const chat = await getChatById({ id: chatId });
-  
-  if (!chat || chat.userId !== user.id) {
-    return new ChatSDKError('forbidden:chat').toResponse();
-  }
-  
-  await deleteChatById({ id: chatId });
-  return Response.json({ success: true });
-}
-```
-
-### DON'T: Return Inconsistent Error Formats
-
-```typescript
-// ❌ Bad - inconsistent errors
-return Response.json({ error: 'Not found' }, { status: 404 });
-return Response.json({ message: 'Bad request' }, { status: 400 });
-return new Response('Unauthorized', { status: 401 });
-
-// ✅ Good - always use ChatSDKError
-return new ChatSDKError('not_found:api', 'Resource not found').toResponse();
-return new ChatSDKError('bad_request:api', 'Invalid input').toResponse();
-return new ChatSDKError('unauthorized:auth').toResponse();
-```
-
-### DON'T: Block Response for Background Tasks
-
-```typescript
-// ❌ Bad - waiting for title generation
-export async function POST(req: Request) {
-  const chat = await saveChat({ id, userId, title: 'New Chat' });
-  const title = await generateTitle(message); // Blocks response!
-  await updateChatTitle({ chatId: id, title });
-  return Response.json(chat);
-}
-
-// ✅ Good - use after() for background tasks
-export async function POST(req: Request) {
-  const chat = await saveChat({ id, userId, title: 'New Chat' });
-  
-  after(async () => {
-    const title = await generateTitle(message);
-    await updateChatTitle({ chatId: id, title });
-  });
-  
-  return Response.json(chat); // Returns immediately
-}
-```
-
-### DON'T: Expose Internal Errors
-
-```typescript
-// ❌ Bad - exposes internals
-catch (error) {
-  return Response.json({
-    stack: error.stack,
-    query: sqlQuery,
-  }, { status: 500 });
-}
-
-// ✅ Good - log internally, return safe message
-catch (error) {
-  console.error('Database error:', error);
-  return new ChatSDKError('bad_request:database').toResponse();
-}
-```
-
-## Route File Structure
-
-```
-app/api/
-├── auth/
-│   ├── [...all]/route.ts        # Better-auth catch-all
-│   ├── forget-password/route.ts
-│   └── reset-password/route.ts
-├── search/
-│   ├── route.ts                 # POST /api/search
-│   └── [id]/
-│       └── stream/route.ts      # GET /api/search/[id]/stream
-├── admin/
-│   ├── stats/route.ts
-│   ├── users/route.ts
-│   └── users/[id]/
-│       ├── route.ts             # GET/PATCH /api/admin/users/[id]
-│       ├── reset-password/route.ts
-│       └── subscription/route.ts
-└── webhooks/
-    └── create-user/route.ts
-```
-
-## Patterns
-
-### Pattern 1: Paginated List Endpoint
-
-```typescript
-// app/api/admin/users/route.ts
-import { z } from 'zod';
-
-const querySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  search: z.string().optional(),
-  role: z.enum(['user', 'admin']).optional(),
-});
-
-export async function GET(req: Request) {
-  const user = await getCurrentUser();
-  if (!user || user.role !== 'admin') {
-    return new ChatSDKError('forbidden:api').toResponse();
-  }
-  
-  const { searchParams } = new URL(req.url);
-  const params = querySchema.parse({
-    page: searchParams.get('page'),
-    limit: searchParams.get('limit'),
-    search: searchParams.get('search'),
-    role: searchParams.get('role'),
-  });
-  
-  const { users, total } = await getUsers(params);
-  
-  return Response.json({
-    data: users,
-    pagination: {
-      page: params.page,
-      limit: params.limit,
-      total,
-      totalPages: Math.ceil(total / params.limit),
-    },
-  });
-}
-```
-
-### Pattern 2: Rate Limited Endpoint
-
-```typescript
-// Check rate limits for non-pro users
-const { count } = await getUserMessageCount(user);
-const dailyLimit = 100;
-
-if (!user.isProUser && count >= dailyLimit) {
-  return new ChatSDKError('rate_limit:chat', 'Daily search limit reached').toResponse();
-}
-
-// Track usage after successful response
-after(async () => {
-  if (!shouldBypassRateLimits(model, user)) {
-    await incrementMessageUsage({ userId: user.id });
+app.get('/users/:id', async (req, res) => {
+  try {
+    const user = await findUser(req.params.id);
+    res.json(user || {});  // Returns 200 even if not found!
+  } catch (error) {
+    res.status(500).json({ error: 'Error' });  // Too generic!
   }
 });
 ```
+**Why**: Clients can't distinguish between success, not found, and errors.
 
-### Pattern 3: Dynamic Route Parameters
+### DON'T: Nest Resources Too Deeply
 
+**❌ DON'T**:
+```
+/api/v1/users/123/posts/456/comments/789/likes/012
+```
+**Why**: Hard to maintain. Limit nesting to 2-3 levels max.
+
+**✅ Better**:
+```
+/api/v1/comments/789/likes
+/api/v1/likes?commentId=789
+```
+
+### DON'T: Mix Response Formats
+
+**❌ DON'T**:
+```json
+// Endpoint 1
+{ "user": {...}, "success": true }
+
+// Endpoint 2
+{ "data": {...} }
+
+// Endpoint 3
+{ "result": {...}, "status": "ok" }
+```
+**Why**: Inconsistent responses confuse API consumers.
+
+### DON'T: Expose Internal Implementation
+
+**❌ DON'T**:
+```
+/api/v1/database/users/query
+/api/v1/cache/invalidate
+```
+**Why**: Leaks implementation details. APIs should be implementation-agnostic.
+
+## Patterns & Examples
+
+### Pattern 1: Consistent Error Format
+
+**Use Case**: Standardize error responses across all endpoints
+
+**Implementation**:
 ```typescript
-// app/api/admin/users/[id]/route.ts
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;  // Next.js 15 - params is async
-  
-  const user = await getUserById(id);
-  if (!user) {
-    return new ChatSDKError('not_found:api', `User ${id} not found`).toResponse();
+interface ApiError {
+  error: {
+    code: string;
+    message: string;
+    details?: unknown;
+    timestamp: string;
+  };
+}
+
+app.use((err, req, res, next) => {
+  const status = err.status || 500;
+  res.status(status).json({
+    error: {
+      code: err.code || 'INTERNAL_ERROR',
+      message: err.message,
+      details: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+      timestamp: new Date().toISOString()
+    }
+  });
+});
+```
+
+### Pattern 2: HATEOAS (Hypermedia Links)
+
+**Use Case**: Make API self-discoverable
+
+**Implementation**:
+```json
+{
+  "id": "123",
+  "name": "John Doe",
+  "email": "john@example.com",
+  "_links": {
+    "self": { "href": "/api/v1/users/123" },
+    "posts": { "href": "/api/v1/users/123/posts" },
+    "followers": { "href": "/api/v1/users/123/followers" }
   }
-  
-  return Response.json(user);
 }
 ```
+
+### Pattern 3: Rate Limiting
+
+**Use Case**: Protect API from abuse
+
+**Implementation**:
+```typescript
+import rateLimit from 'express-rate-limit';
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per window
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use('/api/', limiter);
+
+// Headers returned:
+// RateLimit-Limit: 100
+// RateLimit-Remaining: 95
+// RateLimit-Reset: 1640000000
+```
+
+## Common Mistakes
+
+1. **Forgetting to Handle OPTIONS Requests (CORS)**
+   - Problem: Preflight requests fail
+   - Solution: Configure CORS middleware properly
+
+2. **Not Validating Input**
+   - Problem: Invalid data reaches database
+   - Solution: Use validation middleware (Joi, Zod, class-validator)
+
+3. **Returning Too Much Data**
+   - Problem: Performance and security issues
+   - Solution: Use field filtering (`?fields=id,name,email`)
+
+4. **Inconsistent Naming (camelCase vs snake_case)**
+   - Problem: Confusing for API consumers
+   - Solution: Pick one convention (camelCase for JSON is common)
 
 ## Testing Standards
 
 ```typescript
-import { describe, it, expect, mock } from 'node:test';
-
-describe('POST /api/search', () => {
-  it('should require authentication', async () => {
-    mock.method(auth, 'getCurrentUser', () => null);
-    
-    const response = await POST(new Request('http://test/api/search', {
-      method: 'POST',
-      body: JSON.stringify({ messages: [] }),
-    }));
-    
-    expect(response.status).toBe(401);
+describe('Users API', () => {
+  it('GET /users should return 200 and user list', async () => {
+    const res = await request(app).get('/api/v1/users');
+    expect(res.status).toBe(200);
+    expect(res.body.data).toBeInstanceOf(Array);
+    expect(res.body.pagination).toBeDefined();
   });
   
-  it('should enforce rate limits for free users', async () => {
-    mock.method(auth, 'getCurrentUser', () => ({ id: '1', isProUser: false }));
-    mock.method(db, 'getUserMessageCount', () => ({ count: 100 }));
-    
-    const response = await POST(new Request('http://test/api/search', {
-      method: 'POST',
-      body: JSON.stringify({ messages: [] }),
-    }));
-    
-    expect(response.status).toBe(429);
+  it('GET /users/:id should return 404 for non-existent user', async () => {
+    const res = await request(app).get('/api/v1/users/999999');
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBeDefined();
+  });
+  
+  it('POST /users should return 201 and created user', async () => {
+    const res = await request(app)
+      .post('/api/v1/users')
+      .send({ name: 'John', email: 'john@example.com' });
+    expect(res.status).toBe(201);
+    expect(res.body.id).toBeDefined();
+  });
+  
+  it('POST /users should return 400 for invalid data', async () => {
+    const res = await request(app)
+      .post('/api/v1/users')
+      .send({ email: 'invalid-email' });
+    expect(res.status).toBe(400);
   });
 });
 ```
 
 ## Resources
 
-- [Next.js Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers)
-- [Vercel AI SDK Streaming](https://sdk.vercel.ai/docs/ai-sdk-ui/streaming-data)
-- [better-auth Webhooks](https://www.better-auth.com/docs/concepts/webhooks)
+- [REST API Tutorial](https://restfulapi.net/)
+- [HTTP Status Codes](https://httpstatuses.com/)
+- [API Design Guide by Google](https://cloud.google.com/apis/design)
+- [Microsoft REST API Guidelines](https://github.com/microsoft/api-guidelines)
+- [Zalando RESTful API Guidelines](https://opensource.zalando.com/restful-api-guidelines/)
