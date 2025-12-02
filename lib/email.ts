@@ -190,3 +190,143 @@ export async function sendPasswordResetEmail(email: string, url: string) {
   }
 }
 
+/**
+ * Send admin alert for failed payment
+ * Notifies support@never-economy-again.com when a subscription payment fails
+ * 
+ * @param customerEmail - Customer's email address
+ * @param customerName - Customer's name
+ * @param orderId - ThriveCart order ID
+ * @param failedAt - Timestamp of the failed payment
+ */
+export async function sendFailedPaymentAdminAlert(
+  customerEmail: string,
+  customerName: string,
+  orderId: string,
+  failedAt: Date
+) {
+  const ADMIN_EMAIL = 'support@never-economy-again.com';
+
+  console.log('📧 Sending failed payment alert to admin for:', customerEmail);
+
+  try {
+    const result = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      subject: '⚠️ Fehlgeschlagene Zahlung - MYLO',
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <style>
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                line-height: 1.6;
+                color: #333;
+              }
+              .container {
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+              }
+              .alert-header {
+                background: #dc2626;
+                color: white;
+                padding: 20px;
+                border-radius: 10px 10px 0 0;
+                text-align: center;
+              }
+              .content {
+                background: #fef2f2;
+                padding: 30px;
+                border-radius: 0 0 10px 10px;
+                border: 1px solid #fecaca;
+                border-top: none;
+              }
+              .info-box {
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                margin: 20px 0;
+                border-left: 4px solid #dc2626;
+              }
+              .info-row {
+                margin: 10px 0;
+              }
+              .label {
+                font-weight: bold;
+                color: #6b7280;
+                font-size: 12px;
+                text-transform: uppercase;
+              }
+              .value {
+                font-size: 16px;
+                color: #111827;
+              }
+              .status-badge {
+                display: inline-block;
+                background: #fef3c7;
+                color: #92400e;
+                padding: 4px 12px;
+                border-radius: 4px;
+                font-size: 12px;
+                font-weight: bold;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="alert-header">
+                <h1>⚠️ Fehlgeschlagene Zahlung</h1>
+              </div>
+              <div class="content">
+                <p>Eine wiederkehrende Zahlung ist fehlgeschlagen. Der Kunde wurde automatisch gesperrt.</p>
+                
+                <div class="info-box">
+                  <div class="info-row">
+                    <div class="label">Kunde</div>
+                    <div class="value">${customerName || 'Unbekannt'}</div>
+                  </div>
+                  <div class="info-row">
+                    <div class="label">E-Mail</div>
+                    <div class="value">${customerEmail}</div>
+                  </div>
+                  <div class="info-row">
+                    <div class="label">Order ID</div>
+                    <div class="value">${orderId || 'Nicht verfügbar'}</div>
+                  </div>
+                  <div class="info-row">
+                    <div class="label">Zeitpunkt</div>
+                    <div class="value">${failedAt.toLocaleString('de-DE', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })} Uhr</div>
+                  </div>
+                  <div class="info-row">
+                    <div class="label">Status</div>
+                    <div class="value"><span class="status-badge">GESPERRT</span></div>
+                  </div>
+                </div>
+
+                <p style="font-size: 14px; color: #6b7280;">
+                  Der Kunde kann sich nicht mehr einloggen, bis eine erfolgreiche Zahlung eingeht.
+                  Bei erfolgreicher Nachzahlung wird der Account automatisch reaktiviert.
+                </p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `,
+    });
+
+    console.log('✅ Admin alert sent successfully');
+    return result;
+  } catch (error) {
+    console.error('❌ Failed to send admin alert:', error);
+    // Don't throw - admin alert failure shouldn't block the main flow
+    return null;
+  }
+}
