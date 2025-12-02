@@ -71,9 +71,10 @@ export async function GET(request: NextRequest) {
     // Calculate date for 30-day window
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
 
     // OPTIMIZED: Single query with subqueries for aggregated stats
-    // This replaces ~5 queries per user with a single query
+    // Using raw SQL strings for subqueries to avoid Drizzle interpolation issues
     const usersWithStats = await db
       .select({
         id: user.id,
@@ -84,32 +85,32 @@ export async function GET(request: NextRequest) {
         isActive: user.isActive,
         activationStatus: user.activationStatus,
         // Subquery: Last login (max session created_at)
-        lastLogin: sql<Date | null>`(
-          SELECT MAX(${session.createdAt})
-          FROM ${session}
-          WHERE ${session.userId} = ${user.id}
+        lastLogin: sql<string | null>`(
+          SELECT MAX(s.created_at)::text
+          FROM "session" s
+          WHERE s.user_id = "user".id
         )`.as('last_login'),
         // Subquery: Session count
         sessionCount: sql<number>`(
-          SELECT COUNT(*)::int
-          FROM ${session}
-          WHERE ${session.userId} = ${user.id}
+          SELECT COALESCE(COUNT(*), 0)::int
+          FROM "session" s
+          WHERE s.user_id = "user".id
         )`.as('session_count'),
         // Subquery: Token usage (last 30 days)
         tokensUsed: sql<number>`(
-          SELECT COALESCE(SUM(${message.totalTokens}), 0)::int
-          FROM ${message}
-          INNER JOIN ${chat} ON ${message.chatId} = ${chat.id}
-          WHERE ${chat.userId} = ${user.id}
-          AND ${message.createdAt} >= ${thirtyDaysAgo}
+          SELECT COALESCE(SUM(m.total_tokens), 0)::int
+          FROM "message" m
+          INNER JOIN "chat" c ON m.chat_id = c.id
+          WHERE c."userId" = "user".id
+          AND m.created_at >= ${thirtyDaysAgoISO}::timestamp
         )`.as('tokens_used'),
         // Subquery: Active days (unique days with messages in last 30 days)
         activeDays: sql<number>`(
-          SELECT COUNT(DISTINCT DATE(${message.createdAt}))::int
-          FROM ${message}
-          INNER JOIN ${chat} ON ${message.chatId} = ${chat.id}
-          WHERE ${chat.userId} = ${user.id}
-          AND ${message.createdAt} >= ${thirtyDaysAgo}
+          SELECT COALESCE(COUNT(DISTINCT DATE(m.created_at)), 0)::int
+          FROM "message" m
+          INNER JOIN "chat" c ON m.chat_id = c.id
+          WHERE c."userId" = "user".id
+          AND m.created_at >= ${thirtyDaysAgoISO}::timestamp
         )`.as('active_days'),
       })
       .from(user)
@@ -163,6 +164,9 @@ export async function GET(request: NextRequest) {
         } : null
       );
 
+      // Parse lastLogin string back to date if it exists
+      const lastLoginDate = u.lastLogin ? new Date(u.lastLogin) : null;
+
       return {
         id: u.id,
         name: u.name,
@@ -170,7 +174,7 @@ export async function GET(request: NextRequest) {
         role: u.role || 'user',
         createdAt: u.createdAt.toISOString(),
         registeredAt: u.createdAt.toISOString(),
-        lastLogin: u.lastLogin?.toISOString() || null,
+        lastLogin: lastLoginDate?.toISOString() || null,
         activeDays: u.activeDays || 0,
         sessions: u.sessionCount || 0,
         tokensUsed: u.tokensUsed || 0,
