@@ -8,7 +8,7 @@ import { signIn } from '@/lib/auth-client';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { MyloLogo } from '@/components/logos/mylo-logo';
+import Image from 'next/image';
 
 /**
  * Login-only authentication component
@@ -53,9 +53,14 @@ export default function AuthCard() {
   return (
     <div className="w-full max-w-md mx-auto space-y-12">
       {/* Logo */}
-      <div className="flex items-center justify-center gap-3">
-        <MyloLogo className="size-8" />
-        <h2 className="text-2xl font-normal font-be-vietnam-pro">MYLO</h2>
+      <div className="flex items-center justify-center">
+        <Image
+          src="/mylo-logo.png"
+          alt="MYLO Logo"
+          width={180}
+          height={48}
+          priority
+        />
       </div>
 
       {/* Login Form */}

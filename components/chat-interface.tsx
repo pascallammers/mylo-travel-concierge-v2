@@ -11,6 +11,7 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useReducer, useSt
 import { useChat } from '@ai-sdk/react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Crown02Icon } from '@hugeicons/core-free-icons';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { parseAsString, useQueryState } from 'nuqs';
 import { toast } from 'sonner';
@@ -594,9 +595,14 @@ const ChatInterface = memo(
             {status === 'ready' && messages.length === 0 && (
               <div className="text-center m-0 mb-2">
                 <div className="inline-flex items-center gap-3">
-                  <h1 className="text-4xl sm:text-5xl !mb-0 text-foreground dark:text-foreground font-be-vietnam-pro! font-light tracking-tighter">
-                    MYLO - Dein Travel-Concierge
-                  </h1>
+                  <Image
+                    src="/mylo-logo.png"
+                    alt="MYLO - Dein Travel-Concierge"
+                    width={280}
+                    height={75}
+                    priority
+                    className="dark:invert-0"
+                  />
                   {isUserPro && (
                     <h1 className="text-2xl font-baumans! leading-4 inline-block !px-3 !pt-1 !pb-2.5 rounded-xl shadow-sm !m-0 !mt-2 bg-gradient-to-br from-secondary/25 via-primary/20 to-accent/25 text-foreground ring-1 ring-ring/35 ring-offset-1 ring-offset-background dark:bg-gradient-to-br dark:from-primary dark:via-secondary dark:to-primary dark:text-foreground">
                       pro

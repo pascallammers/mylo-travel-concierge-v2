@@ -733,89 +733,10 @@ function UsageSection({ user }: any) {
 
 // Component for Subscription Information
 function SubscriptionSection({ subscriptionData, isProUser, user }: any) {
-  const [orders, setOrders] = useState<any>(null);
-  const [ordersLoading, setOrdersLoading] = useState(true);
-  const [isManagingSubscription, setIsManagingSubscription] = useState(false);
   const isMobile = useMediaQuery('(max-width: 768px)');
 
   // Use data from user object (already cached)
-  const paymentHistory = user?.paymentHistory || null;
   const dodoProStatus = user?.dodoProStatus || null;
-
-  useEffect(() => {
-    const fetchPolarOrders = async () => {
-      try {
-        setOrdersLoading(true);
-
-        // Only fetch Polar orders (DodoPayments data comes from user cache)
-        const ordersResponse = await authClient.customer.orders
-          .list({
-            query: {
-              page: 1,
-              limit: 10,
-              productBillingType: 'recurring',
-            },
-          })
-          .catch(() => ({ data: null }));
-
-        setOrders(ordersResponse.data);
-      } catch (error) {
-        console.log('Failed to fetch Polar orders:', error);
-        setOrders(null);
-      } finally {
-        setOrdersLoading(false);
-      }
-    };
-
-    fetchPolarOrders();
-  }, []);
-
-  const handleManageSubscription = async () => {
-    // Determine the subscription source
-    const getProAccessSource = () => {
-      if (hasActiveSubscription) return 'polar';
-      if (hasDodoProStatus) return 'dodo';
-      return null;
-    };
-
-    const proSource = getProAccessSource();
-
-    console.log('proSource', proSource);
-
-    try {
-      setIsManagingSubscription(true);
-
-      console.log('Settings Dialog - Provider source:', proSource);
-      console.log('User dodoProStatus:', user?.dodoProStatus);
-      console.log('User full object keys:', Object.keys(user || {}));
-
-      if (proSource === 'dodo') {
-        // Use DodoPayments portal for DodoPayments users
-        console.log('Opening DodoPayments portal');
-        console.log('User object for DodoPayments:', {
-          id: user?.id,
-          email: user?.email,
-          dodoProStatus: user?.dodoProStatus,
-          isProUser: user?.isProUser,
-        });
-        await betterauthClient.dodopayments.customer.portal();
-      } else {
-        // Use Polar portal for Polar subscribers
-        console.log('Opening Polar portal');
-        await authClient.customer.portal();
-      }
-    } catch (error) {
-      console.error('Subscription management error:', error);
-
-      if (proSource === 'dodo') {
-        toast.error('Unable to access DodoPayments portal. Please contact support at zaid@scira.ai');
-      } else {
-        toast.error('Failed to open subscription management');
-      }
-    } finally {
-      setIsManagingSubscription(false);
-    }
-  };
 
   // Check for active status from either source
   const hasActiveSubscription =
@@ -896,16 +817,13 @@ function SubscriptionSection({ subscriptionData, isProUser, user }: any) {
             {(hasActiveSubscription || hasDodoProStatus) && (
               <Button
                 variant="secondary"
-                onClick={handleManageSubscription}
+                asChild
                 className={cn('w-full', isMobile ? 'h-7 text-xs' : 'h-8')}
-                disabled={isManagingSubscription}
               >
-                {isManagingSubscription ? (
-                  <Loader2 className={isMobile ? 'h-3 w-3 mr-1.5' : 'h-3.5 w-3.5 mr-2'} />
-                ) : (
+                <Link href="https://never-economy-again.thrivecart.com/updateinfo/" target="_blank" rel="noopener noreferrer">
                   <ExternalLink className={isMobile ? 'h-3 w-3 mr-1.5' : 'h-3.5 w-3.5 mr-2'} />
-                )}
-                {isManagingSubscription ? 'Opening...' : 'Manage Billing'}
+                  Zahlungsinformationen aufrufen
+                </Link>
               </Button>
             )}
           </div>
@@ -996,97 +914,6 @@ function SubscriptionSection({ subscriptionData, isProUser, user }: any) {
         </div>
       )}
 
-      <div className={isMobile ? 'space-y-2' : 'space-y-3'}>
-        <h4 className={cn('font-semibold', isMobile ? 'text-xs' : 'text-sm')}>Zahlungshistorie</h4>
-        {ordersLoading ? (
-          <div className={cn('border rounded-lg flex items-center justify-center', isMobile ? 'p-3 h-16' : 'p-4 h-20')}>
-            <Loader2 className={cn(isMobile ? 'w-3.5 h-3.5' : 'w-4 h-4', 'animate-spin')} />
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {/* Show DodoPayments history */}
-            {paymentHistory && paymentHistory.length > 0 && (
-              <>
-                {paymentHistory.slice(0, 3).map((payment: any) => (
-                  <div key={payment.id} className={cn('bg-muted/30 rounded-lg', isMobile ? 'p-2.5' : 'p-3')}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className={cn('font-medium truncate', isMobile ? 'text-xs' : 'text-sm')}>
-                          MYLO Pro
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <p className={cn('text-muted-foreground', isMobile ? 'text-[10px]' : 'text-xs')}>
-                            {new Date(payment.createdAt).toLocaleDateString()}
-                          </p>
-                          <Badge variant="secondary" className="text-[8px] px-1 py-0">
-                            🇮🇳 INR
-                          </Badge>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className={cn('font-semibold block', isMobile ? 'text-xs' : 'text-sm')}>
-                          ₹{(payment.totalAmount / 100).toFixed(0)}
-                        </span>
-                        <span className={cn('text-muted-foreground', isMobile ? 'text-[9px]' : 'text-xs')}>
-                          {payment.status}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </>
-            )}
-
-            {/* Show Polar orders */}
-            {orders?.result?.items && orders.result.items.length > 0 && (
-              <>
-                {orders.result.items.slice(0, 3).map((order: any) => (
-                  <div key={order.id} className={cn('bg-muted/30 rounded-lg', isMobile ? 'p-2.5' : 'p-3')}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className={cn('font-medium truncate', isMobile ? 'text-xs' : 'text-sm')}>
-                          {order.product?.name || 'Subscription'}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <p className={cn('text-muted-foreground', isMobile ? 'text-[10px]' : 'text-xs')}>
-                            {new Date(order.createdAt).toLocaleDateString()}
-                          </p>
-                          <Badge variant="secondary" className="text-[8px] px-1 py-0">
-                            🌍 USD
-                          </Badge>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className={cn('font-semibold block', isMobile ? 'text-xs' : 'text-sm')}>
-                          ${(order.totalAmount / 100).toFixed(2)}
-                        </span>
-                        <span className={cn('text-muted-foreground', isMobile ? 'text-[9px]' : 'text-xs')}>
-                          recurring
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </>
-            )}
-
-            {/* Show message if no billing history */}
-            {(!paymentHistory || paymentHistory.length === 0) &&
-              (!orders?.result?.items || orders.result.items.length === 0) && (
-                <div
-                  className={cn(
-                    'border rounded-lg text-center bg-muted/20 flex items-center justify-center',
-                    isMobile ? 'p-4 h-16' : 'p-6 h-20',
-                  )}
-                >
-                  <p className={cn('text-muted-foreground', isMobile ? 'text-[11px]' : 'text-xs')}>
-                    No billing history yet
-                  </p>
-                </div>
-              )}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -1787,7 +1614,7 @@ export function SettingsDialog({
     },
     {
       value: 'memories',
-      label: 'Erinnerungen',
+      label: 'Erinnerungen (Beta)',
       icon: ({ className }: { className?: string }) => <HugeiconsIcon icon={Brain02Icon} className={className} />,
     },
   ];
