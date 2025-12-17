@@ -96,7 +96,9 @@ export function FlightTracker({ data }: FlightTrackerProps) {
           ? { label: 'Delayed', variant: 'destructive' as const }
           : { label: 'In Flight', variant: 'default' as const };
       case 'scheduled':
-        return { label: 'Scheduled', variant: 'secondary' as const };
+        return flight.departure.delay
+          ? { label: 'Delayed', variant: 'destructive' as const }
+          : { label: 'Scheduled', variant: 'secondary' as const };
       default:
         return { label: 'Scheduled', variant: 'secondary' as const };
     }

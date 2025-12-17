@@ -40,6 +40,7 @@ export const serverEnv = createEnv({
     PARALLEL_API_KEY: z.string().min(1),
     OPENWEATHER_API_KEY: z.string().min(1),
     GOOGLE_MAPS_API_KEY: z.string().min(1),
+    AMADEUS_ENV: z.enum(['test', 'prod']).optional().default('test'),
     AMADEUS_API_KEY: z.string().min(1),
     AMADEUS_API_SECRET: z.string().min(1),
     CRON_SECRET: z.string().min(1),
