@@ -123,7 +123,7 @@ function generateSubscriptionInserts(): string {
   // Read and parse CSV
   const csvPath = './docs/purchases-ThriveCart Customer Export 2025-12-18 16_30_11.csv';
   const csvContent = readFileSync(csvPath, 'utf-8');
-  const records = parseCSV(csvContent) as CsvRow[];
+  const records = parseCSV(csvContent) as unknown as CsvRow[];
 
   // Create email to order date map (case-insensitive, take latest order)
   const emailToOrder = new Map<string, CsvRow>();
