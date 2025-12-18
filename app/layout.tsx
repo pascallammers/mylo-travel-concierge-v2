@@ -105,15 +105,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <Script
-          defer
-          data-website-id="dfid_0zKpWPCq4DwzZy53Jegjs"
-          data-domain="chat.never-economy-again.com"
-          src="https://datafa.st/js/script.js"
-          strategy="afterInteractive"
-        />
-      </head>
       <body
         className={`${inter.variable} ${beVietnamPro.variable} ${baumans.variable} ${playfairDisplay.variable} ${jetbrainsMono.variable} font-sans antialiased`}
         suppressHydrationWarning
@@ -127,6 +118,12 @@ export default function RootLayout({
         {/* <Databuddy clientId={process.env.DATABUDDY_CLIENT_ID!} enableBatching={true} trackSessions={true} /> */}
         <Analytics />
         <SpeedInsights />
+        <Script
+          src="https://datafa.st/js/script.js"
+          data-website-id="dfid_0zKpWPCq4DwzZy53Jegjs"
+          data-domain="chat.never-economy-again.com"
+          strategy="lazyOnload"
+        />
       </body>
     </html>
   );
