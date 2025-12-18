@@ -20,7 +20,20 @@ export interface AdminUser {
   subscriptionPlan: string | null;
   subscriptionValidUntil: string | null;
   isActive?: boolean | null;
-  activationStatus?: 'active' | 'inactive' | 'grace_period' | 'suspended' | null;
+  activationStatus?: 'active' | 'inactive' | 'grace_period' | 'suspended' | 'cancelled' | null;
+}
+
+/**
+ * Filter options for user management
+ */
+export type UserStatusFilter = 'all' | 'active' | 'inactive';
+export type UserRoleFilter = 'all' | 'user' | 'admin';
+export type ExpiresInFilter = 'all' | '7' | '30' | '60' | '90';
+
+export interface UserFilters {
+  status: UserStatusFilter;
+  role: UserRoleFilter;
+  expiresIn: ExpiresInFilter;
 }
 
 /**
@@ -38,11 +51,13 @@ export interface AdminUsersResponse {
  * @param page - Page number for pagination
  * @param search - Search query for filtering users
  * @param limit - Number of users per page
+ * @param filters - Filter options for status, role, and expiration
  */
 async function fetchAdminUsers(
   page: number,
   search: string,
-  limit: number = 50
+  limit: number = 50,
+  filters: UserFilters = { status: 'all', role: 'all', expiresIn: 'all' }
 ): Promise<AdminUsersResponse> {
   const params = new URLSearchParams({
     page: page.toString(),
@@ -51,6 +66,18 @@ async function fetchAdminUsers(
 
   if (search) {
     params.set('search', search);
+  }
+
+  if (filters.status !== 'all') {
+    params.set('status', filters.status);
+  }
+
+  if (filters.role !== 'all') {
+    params.set('role', filters.role);
+  }
+
+  if (filters.expiresIn !== 'all') {
+    params.set('expiresIn', filters.expiresIn);
   }
 
   const response = await fetch(`/api/admin/users?${params}`);
@@ -74,7 +101,15 @@ interface UseAdminUsersOptions {
   limit?: number;
   /** Debounce delay in milliseconds (default: 300) */
   debounceMs?: number;
+  /** Initial filter values */
+  initialFilters?: Partial<UserFilters>;
 }
+
+const DEFAULT_FILTERS: UserFilters = {
+  status: 'all',
+  role: 'all',
+  expiresIn: 'all',
+};
 
 /**
  * Custom hook for managing admin user list with TanStack Query and live search.
@@ -109,6 +144,7 @@ export function useAdminUsers(options: UseAdminUsersOptions = {}) {
     initialSearch = '',
     limit = 50,
     debounceMs = 300,
+    initialFilters = {},
   } = options;
 
   // Local state for immediate UI updates
@@ -117,6 +153,11 @@ export function useAdminUsers(options: UseAdminUsersOptions = {}) {
   const [debouncedSearch, setDebouncedSearch] = useState(initialSearch);
   // Current page
   const [page, setPageValue] = useState(initialPage);
+  // Filter state
+  const [filters, setFiltersValue] = useState<UserFilters>({
+    ...DEFAULT_FILTERS,
+    ...initialFilters,
+  });
 
   // Debounced setter for search - delays API calls while typing
   const debouncedSetSearch = useDebouncedCallback((value: string) => {
@@ -135,10 +176,22 @@ export function useAdminUsers(options: UseAdminUsersOptions = {}) {
     setPageValue(newPage);
   }, []);
 
+  // Public filter setter - resets to page 1 when filters change
+  const setFilters = useCallback((newFilters: Partial<UserFilters>) => {
+    setFiltersValue((prev) => ({ ...prev, ...newFilters }));
+    setPageValue(1); // Reset to first page on filter change
+  }, []);
+
+  // Reset all filters to defaults
+  const resetFilters = useCallback(() => {
+    setFiltersValue(DEFAULT_FILTERS);
+    setPageValue(1);
+  }, []);
+
   // TanStack Query for data fetching
   const query = useQuery({
-    queryKey: ['admin-users', page, debouncedSearch, limit],
-    queryFn: () => fetchAdminUsers(page, debouncedSearch, limit),
+    queryKey: ['admin-users', page, debouncedSearch, limit, filters],
+    queryFn: () => fetchAdminUsers(page, debouncedSearch, limit, filters),
     staleTime: 1000 * 60 * 2, // 2 minutes - data is considered fresh
     gcTime: 1000 * 60 * 5, // 5 minutes - keep in cache
     refetchOnWindowFocus: false, // Admin panel doesn't need aggressive refetch
@@ -149,6 +202,9 @@ export function useAdminUsers(options: UseAdminUsersOptions = {}) {
   const totalPages = query.data ? Math.ceil(query.data.total / limit) : 0;
   const hasNextPage = page < totalPages;
   const hasPreviousPage = page > 1;
+
+  // Check if any filters are active
+  const hasActiveFilters = filters.status !== 'all' || filters.role !== 'all' || filters.expiresIn !== 'all';
 
   return {
     // Query data
@@ -167,6 +223,12 @@ export function useAdminUsers(options: UseAdminUsersOptions = {}) {
     setSearch,
     debouncedSearch,
     isSearching: search !== debouncedSearch,
+    
+    // Filter state
+    filters,
+    setFilters,
+    resetFilters,
+    hasActiveFilters,
     
     // Pagination state
     page,

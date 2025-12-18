@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, ChevronLeft, ChevronRight, Mail, Loader2, Pencil, Ban } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Mail, Loader2, Pencil, Ban, Send, X, Filter } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -20,7 +20,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { AdminUser } from '@/hooks/use-admin-users';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import type { AdminUser, UserFilters, UserStatusFilter, UserRoleFilter, ExpiresInFilter } from '@/hooks/use-admin-users';
 
 interface UserTableProps {
   users: AdminUser[];
@@ -31,13 +42,27 @@ interface UserTableProps {
   search: string;
   /** Whether a background fetch is in progress */
   isFetching?: boolean;
+  /** Number of users with active subscriptions */
+  activeUserCount?: number;
+  /** Whether bulk reset is in progress */
+  isBulkResetInProgress?: boolean;
+  /** Current filter values */
+  filters?: UserFilters;
+  /** Whether any filters are active */
+  hasActiveFilters?: boolean;
   onPageChange: (page: number) => void;
   /** Live search handler - called on every keystroke */
   onSearchChange: (search: string) => void;
+  /** Filter change handler */
+  onFiltersChange?: (filters: Partial<UserFilters>) => void;
+  /** Reset all filters */
+  onResetFilters?: () => void;
   onRoleUpdate: (userId: string, newRole: 'user' | 'admin') => Promise<void>;
   onPasswordReset?: (userId: string) => Promise<void>;
   onEditUser?: (user: AdminUser) => void;
   onDeactivateUser?: (userId: string) => Promise<void>;
+  /** Bulk password reset for all active users */
+  onBulkPasswordReset?: () => Promise<void>;
 }
 
 /**
@@ -56,12 +81,19 @@ export function UserTable({
   limit,
   search,
   isFetching = false,
+  activeUserCount = 0,
+  isBulkResetInProgress = false,
+  filters = { status: 'all', role: 'all', expiresIn: 'all' },
+  hasActiveFilters = false,
   onPageChange,
   onSearchChange,
+  onFiltersChange,
+  onResetFilters,
   onRoleUpdate,
   onPasswordReset,
   onEditUser,
   onDeactivateUser,
+  onBulkPasswordReset,
 }: UserTableProps) {
   const [updatingRoles, setUpdatingRoles] = useState<Set<string>>(new Set());
   const [sendingReset, setSendingReset] = useState<Set<string>>(new Set());
@@ -139,7 +171,7 @@ export function UserTable({
 
   return (
     <div className="space-y-4">
-      {/* Live Search */}
+      {/* Live Search + Bulk Actions */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -154,7 +186,120 @@ export function UserTable({
             <Loader2 className="absolute right-2 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
           )}
         </div>
+
+        {/* Bulk Password Reset Button */}
+        {onBulkPasswordReset && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="outline"
+                disabled={isBulkResetInProgress || activeUserCount === 0}
+                className="flex items-center gap-2 whitespace-nowrap"
+              >
+                {isBulkResetInProgress ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+                <span>Bulk Reset</span>
+                {activeUserCount > 0 && (
+                  <Badge variant="secondary" className="ml-1">
+                    {activeUserCount}
+                  </Badge>
+                )}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Bulk Password Reset</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Du bist dabei, eine Password-Reset-E-Mail an <strong>{activeUserCount} aktive Benutzer</strong> zu senden.
+                  <br /><br />
+                  Nur Benutzer mit aktivem Zugriff (grünes Badge) erhalten die E-Mail.
+                  <br /><br />
+                  Möchtest du fortfahren?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                <AlertDialogAction onClick={onBulkPasswordReset}>
+                  {activeUserCount} E-Mails senden
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
+
+      {/* Filter Bar */}
+      {onFiltersChange && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/30 p-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Filter className="h-4 w-4" />
+            <span>Filter:</span>
+          </div>
+          
+          {/* Status Filter */}
+          <Select
+            value={filters.status}
+            onValueChange={(value: UserStatusFilter) => onFiltersChange({ status: value })}
+          >
+            <SelectTrigger className="h-8 w-[130px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Alle Status</SelectItem>
+              <SelectItem value="active">Aktiv</SelectItem>
+              <SelectItem value="inactive">Inaktiv</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Role Filter */}
+          <Select
+            value={filters.role}
+            onValueChange={(value: UserRoleFilter) => onFiltersChange({ role: value })}
+          >
+            <SelectTrigger className="h-8 w-[130px]">
+              <SelectValue placeholder="Rolle" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Alle Rollen</SelectItem>
+              <SelectItem value="user">User</SelectItem>
+              <SelectItem value="admin">Admin</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Expires In Filter */}
+          <Select
+            value={filters.expiresIn}
+            onValueChange={(value: ExpiresInFilter) => onFiltersChange({ expiresIn: value })}
+          >
+            <SelectTrigger className="h-8 w-[180px]">
+              <SelectValue placeholder="Läuft ab in..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Alle Laufzeiten</SelectItem>
+              <SelectItem value="7">Nächste 7 Tage</SelectItem>
+              <SelectItem value="30">Nächste 30 Tage</SelectItem>
+              <SelectItem value="60">Nächste 60 Tage</SelectItem>
+              <SelectItem value="90">Nächste 90 Tage</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Reset Filters Button */}
+          {hasActiveFilters && onResetFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onResetFilters}
+              className="h-8 gap-1 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3 w-3" />
+              Filter zurücksetzen
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Table */}
       <div className="rounded-md border">

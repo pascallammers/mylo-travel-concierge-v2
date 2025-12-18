@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { UserTable } from '@/components/admin/user-table';
 import { UserEditModal } from '@/components/admin/user-edit-modal';
 import { useAdminUsers, type AdminUser } from '@/hooks/use-admin-users';
@@ -33,12 +33,34 @@ export default function UsersPage() {
     page,
     setPage,
     limit,
+    filters,
+    setFilters,
+    resetFilters,
+    hasActiveFilters,
     refetch,
   } = useAdminUsers();
 
   // Modal state
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
+
+  // Bulk reset state
+  const [activeUserCount, setActiveUserCount] = useState(0);
+  const [isBulkResetInProgress, setIsBulkResetInProgress] = useState(false);
+
+  // Load active user count on mount
+  useEffect(() => {
+    fetch('/api/admin/users/bulk-password-reset')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setActiveUserCount(data.activeUsers);
+        }
+      })
+      .catch((err) => {
+        console.error('Error loading active user count:', err);
+      });
+  }, []);
 
   /**
    * Updates a user's role
@@ -157,6 +179,43 @@ export default function UsersPage() {
     refetch();
   };
 
+  /**
+   * Sends bulk password reset emails to all active users
+   */
+  const handleBulkPasswordReset = async () => {
+    setIsBulkResetInProgress(true);
+    try {
+      const res = await fetch('/api/admin/users/bulk-password-reset', {
+        method: 'POST',
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result.message || 'Bulk password reset failed');
+      }
+
+      toast.success('Bulk Password Reset abgeschlossen', {
+        description: `${result.sent} von ${result.totalUsers} E-Mails erfolgreich versendet`,
+        duration: 5000,
+      });
+
+      if (result.failed > 0) {
+        toast.warning('Einige E-Mails konnten nicht gesendet werden', {
+          description: `${result.failed} E-Mail(s) fehlgeschlagen`,
+          duration: 5000,
+        });
+      }
+    } catch (err) {
+      console.error('Error in bulk password reset:', err);
+      toast.error('Fehler', {
+        description: err instanceof Error ? err.message : 'Bulk Password Reset fehlgeschlagen',
+      });
+    } finally {
+      setIsBulkResetInProgress(false);
+    }
+  };
+
   // Error state
   if (isError) {
     return (
@@ -193,12 +252,19 @@ export default function UsersPage() {
             limit={limit}
             search={search}
             isFetching={isFetching}
+            activeUserCount={activeUserCount}
+            isBulkResetInProgress={isBulkResetInProgress}
+            filters={filters}
+            hasActiveFilters={hasActiveFilters}
             onPageChange={setPage}
             onSearchChange={setSearch}
+            onFiltersChange={setFilters}
+            onResetFilters={resetFilters}
             onRoleUpdate={handleRoleUpdate}
             onPasswordReset={handlePasswordReset}
             onEditUser={handleEditUser}
             onDeactivateUser={handleDeactivateUser}
+            onBulkPasswordReset={handleBulkPasswordReset}
           />
           
           <UserEditModal

@@ -24,7 +24,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { Mail, Ban, AlertTriangle, Loader2 } from 'lucide-react';
+import { Mail, Ban, AlertTriangle, Loader2, History, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+
+interface PasswordResetHistoryEntry {
+  id: string;
+  sentAt: string;
+  triggerType: 'manual' | 'bulk';
+  status: 'sent' | 'failed';
+  errorMessage: string | null;
+  sentByName: string | null;
+}
 
 interface User {
   id: string;
@@ -32,7 +42,7 @@ interface User {
   email: string;
   role: 'user' | 'admin';
   isActive?: boolean | null;
-  activationStatus?: 'active' | 'inactive' | 'grace_period' | 'suspended' | null;
+  activationStatus?: 'active' | 'inactive' | 'grace_period' | 'suspended' | 'cancelled' | null;
   subscriptionStatus?: 'active' | 'inactive' | 'cancelled' | 'none';
   subscriptionValidUntil?: string | null;
 }
@@ -54,13 +64,15 @@ export function UserEditModal({
 }: UserEditModalProps) {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
+  const [passwordResetHistory, setPasswordResetHistory] = useState<PasswordResetHistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   // Form state
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'user' | 'admin'>('user');
   const [isActive, setIsActive] = useState(true);
-  const [activationStatus, setActivationStatus] = useState<'active' | 'inactive' | 'grace_period' | 'suspended'>('active');
+  const [activationStatus, setActivationStatus] = useState<'active' | 'inactive' | 'grace_period' | 'suspended' | 'cancelled'>('active');
   const [subscriptionValidUntil, setSubscriptionValidUntil] = useState<Date | undefined>();
   const [subscriptionStatus, setSubscriptionStatus] = useState<'active' | 'canceled'>('active');
 
@@ -80,6 +92,28 @@ export function UserEditModal({
       }
     }
   }, [user]);
+
+  // Load password reset history when modal opens
+  useEffect(() => {
+    if (open && user) {
+      setHistoryLoading(true);
+      fetch(`/api/admin/users/${user.id}/password-reset-history`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            setPasswordResetHistory(data.history);
+          }
+        })
+        .catch((err) => {
+          console.error('Error loading password reset history:', err);
+        })
+        .finally(() => {
+          setHistoryLoading(false);
+        });
+    } else if (!open) {
+      setPasswordResetHistory([]);
+    }
+  }, [open, user]);
 
   const handleSave = async () => {
     if (!user) return;
@@ -343,6 +377,65 @@ export function UserEditModal({
                 <Ban className="mr-2 h-4 w-4" />
                 Account deaktivieren
               </Button>
+            </div>
+
+            {/* Password Reset History */}
+            <div className="space-y-3 pt-4 border-t">
+              <div className="flex items-center gap-2">
+                <History className="h-4 w-4 text-muted-foreground" />
+                <h4 className="font-medium text-sm">Password Reset Historie</h4>
+              </div>
+
+              {historyLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              ) : passwordResetHistory.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-2">
+                  Noch keine Password-Reset-E-Mails gesendet.
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {passwordResetHistory.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="flex items-start gap-3 p-2 rounded-md bg-muted/50 text-sm"
+                    >
+                      {entry.status === 'sent' ? (
+                        <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-muted-foreground">
+                            {new Date(entry.sentAt).toLocaleDateString('de-DE', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                          <Badge variant={entry.triggerType === 'bulk' ? 'secondary' : 'outline'} className="text-xs">
+                            {entry.triggerType === 'bulk' ? 'Bulk' : 'Manuell'}
+                          </Badge>
+                        </div>
+                        {entry.sentByName && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            von {entry.sentByName}
+                          </p>
+                        )}
+                        {entry.errorMessage && (
+                          <p className="text-xs text-destructive mt-0.5">
+                            {entry.errorMessage}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <Alert>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isCurrentUserAdmin } from '@/lib/auth-utils';
+import { isCurrentUserAdmin, getUser } from '@/lib/auth-utils';
 import { db } from '@/lib/db';
-import { user, verification } from '@/lib/db/schema';
+import { user, verification, passwordResetHistory } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { sendPasswordResetEmail } from '@/lib/email';
@@ -29,6 +29,7 @@ export async function POST(
       );
     }
 
+    const currentUser = await getUser();
     const { id: userId } = await params;
 
     // 2. Check if user exists
@@ -55,6 +56,14 @@ export async function POST(
           email: targetUser.email,
           redirectTo: `${baseUrl}/reset-password/confirm`,
         },
+      });
+
+      // Log to history
+      await db.insert(passwordResetHistory).values({
+        userId: targetUser.id,
+        sentBy: currentUser?.id || null,
+        triggerType: 'manual',
+        status: 'sent',
       });
 
       console.log('✅ Password reset initiated for user:', targetUser.email);
@@ -86,6 +95,14 @@ export async function POST(
       });
 
       await sendPasswordResetEmail(targetUser.email, resetUrl);
+
+      // Log to history
+      await db.insert(passwordResetHistory).values({
+        userId: targetUser.id,
+        sentBy: currentUser?.id || null,
+        triggerType: 'manual',
+        status: 'sent',
+      });
       
       return NextResponse.json({
         success: true,

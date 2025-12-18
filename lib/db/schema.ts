@@ -416,6 +416,44 @@ export const kbDocuments = pgTable('kb_documents', {
   deletedAt: timestamp('deleted_at'), // Soft delete
 });
 
+// ============================================
+// Password Reset History
+// ============================================
+
+/**
+ * Trigger types for password reset emails
+ * - manual: Admin clicked reset for single user
+ * - bulk: Admin triggered bulk reset for all active users
+ */
+export const passwordResetTriggerType = ['manual', 'bulk'] as const;
+export type PasswordResetTriggerType = (typeof passwordResetTriggerType)[number];
+
+/**
+ * Status values for password reset emails
+ * - sent: Email was sent successfully
+ * - failed: Email failed to send
+ */
+export const passwordResetStatus = ['sent', 'failed'] as const;
+export type PasswordResetStatus = (typeof passwordResetStatus)[number];
+
+/**
+ * Password reset history table.
+ * Tracks all password reset emails sent to users.
+ */
+export const passwordResetHistory = pgTable('password_reset_history', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => generateId()),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  sentAt: timestamp('sent_at').notNull().defaultNow(),
+  sentBy: text('sent_by').references(() => user.id),
+  triggerType: text('trigger_type').$type<PasswordResetTriggerType>().notNull().default('manual'),
+  status: text('status').$type<PasswordResetStatus>().notNull().default('sent'),
+  errorMessage: text('error_message'),
+});
+
 export type User = InferSelectModel<typeof user>;
 export type Session = InferSelectModel<typeof session>;
 export type Account = InferSelectModel<typeof account>;
@@ -434,3 +472,4 @@ export type SessionState = InferSelectModel<typeof sessionStates>;
 export type AmadeusToken = InferSelectModel<typeof amadeusTokens>;
 export type UserAccessControl = InferSelectModel<typeof userAccessControl>;
 export type KBDocument = InferSelectModel<typeof kbDocuments>;
+export type PasswordResetHistory = InferSelectModel<typeof passwordResetHistory>;

@@ -85,6 +85,13 @@
       "when": 1764100477071,
       "tag": "0011_amazing_the_leader",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1766071189472,
+      "tag": "0012_rainy_shaman",
+      "breakpoints": true
     }
   ]
 }

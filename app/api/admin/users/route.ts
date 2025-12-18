@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isCurrentUserAdmin } from '@/lib/auth-utils';
 import { db } from '@/lib/db';
 import { user, chat, message, session, subscription } from '@/lib/db/schema';
-import { count, desc, ilike, or, sql, eq, inArray } from 'drizzle-orm';
+import { count, desc, ilike, or, sql, eq, inArray, and, gte, lte, isNotNull } from 'drizzle-orm';
 
 /**
  * Subscription status type for admin user list
@@ -45,6 +45,9 @@ function determineSubscriptionStatus(
  * - page: number (default: 1)
  * - limit: number (default: 50, max: 100)
  * - search: string (optional, searches name and email)
+ * - status: 'active' | 'inactive' (optional, filters by is_active)
+ * - role: 'user' | 'admin' (optional, filters by role)
+ * - expiresIn: '7' | '30' | '60' | '90' (optional, filters by subscription expiring within X days)
  * 
  * @requires Admin role
  */
@@ -61,12 +64,52 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50', 10)));
     const search = searchParams.get('search') || '';
+    const statusFilter = searchParams.get('status') as 'active' | 'inactive' | null;
+    const roleFilter = searchParams.get('role') as 'user' | 'admin' | null;
+    const expiresInFilter = searchParams.get('expiresIn') as '7' | '30' | '60' | '90' | null;
     const offset = (page - 1) * limit;
 
-    // Build where clause for search
-    const whereClause = search
-      ? or(ilike(user.email, `%${search}%`), ilike(user.name, `%${search}%`))
-      : undefined;
+    // Build where conditions array
+    const conditions = [];
+
+    // Search condition
+    if (search) {
+      conditions.push(or(ilike(user.email, `%${search}%`), ilike(user.name, `%${search}%`)));
+    }
+
+    // Status filter (active/inactive)
+    if (statusFilter === 'active') {
+      conditions.push(eq(user.isActive, true));
+    } else if (statusFilter === 'inactive') {
+      conditions.push(eq(user.isActive, false));
+    }
+
+    // Role filter
+    if (roleFilter) {
+      conditions.push(eq(user.role, roleFilter));
+    }
+
+    // ExpiresIn filter - filter users by subscription expiring within X days
+    // This requires a subquery on the subscription table
+    if (expiresInFilter) {
+      const days = parseInt(expiresInFilter, 10);
+      const now = new Date();
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + days);
+      
+      // Subquery: user ID must have a subscription ending between now and futureDate
+      conditions.push(
+        sql`"user".id IN (
+          SELECT DISTINCT sub."userId" FROM subscription sub
+          WHERE sub."currentPeriodEnd" >= ${now.toISOString()}::timestamp
+          AND sub."currentPeriodEnd" <= ${futureDate.toISOString()}::timestamp
+          AND sub."userId" IS NOT NULL
+        )`
+      );
+    }
+
+    // Combine all conditions
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
     // Calculate date for 30-day window
     const thirtyDaysAgo = new Date();
