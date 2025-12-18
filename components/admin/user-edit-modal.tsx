@@ -24,8 +24,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { Mail, Ban, AlertTriangle, Loader2, History, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Mail, Ban, AlertTriangle, Loader2, History, Clock, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+
+type ResendDeliveryStatus = 'delivered' | 'bounced' | 'complained' | 'opened' | 'clicked' | 'pending';
 
 interface PasswordResetHistoryEntry {
   id: string;
@@ -34,6 +36,35 @@ interface PasswordResetHistoryEntry {
   status: 'sent' | 'failed';
   errorMessage: string | null;
   sentByName: string | null;
+  resendEmailId: string | null;
+  resendStatus: ResendDeliveryStatus | null;
+  resendVerifiedAt: string | null;
+}
+
+/**
+ * Returns badge variant and label for Resend delivery status
+ */
+function getResendStatusBadge(status: ResendDeliveryStatus | null, hasEmailId: boolean) {
+  if (!hasEmailId) {
+    return { variant: 'outline' as const, label: 'Keine ID', color: 'text-muted-foreground' };
+  }
+  
+  switch (status) {
+    case 'delivered':
+      return { variant: 'green' as const, label: 'Zugestellt', color: 'text-green-600' };
+    case 'opened':
+      return { variant: 'green' as const, label: 'Geöffnet', color: 'text-green-600' };
+    case 'clicked':
+      return { variant: 'green' as const, label: 'Geklickt', color: 'text-green-600' };
+    case 'bounced':
+      return { variant: 'destructive' as const, label: 'Bounced', color: 'text-destructive' };
+    case 'complained':
+      return { variant: 'destructive' as const, label: 'Spam', color: 'text-destructive' };
+    case 'pending':
+      return { variant: 'secondary' as const, label: 'Ausstehend', color: 'text-yellow-600' };
+    default:
+      return { variant: 'outline' as const, label: 'Nicht geprüft', color: 'text-muted-foreground' };
+  }
 }
 
 interface User {
@@ -66,6 +97,8 @@ export function UserEditModal({
   const [activeTab, setActiveTab] = useState('profile');
   const [passwordResetHistory, setPasswordResetHistory] = useState<PasswordResetHistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [verifyingEntries, setVerifyingEntries] = useState<Set<string>>(new Set());
+  const [batchVerifying, setBatchVerifying] = useState(false);
 
   // Form state
   const [name, setName] = useState('');
@@ -211,10 +244,104 @@ export function UserEditModal({
       toast.success('E-Mail gesendet', {
         description: 'Password Reset E-Mail wurde versendet',
       });
+      // Reload history to show new entry
+      fetch(`/api/admin/users/${user.id}/password-reset-history`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            setPasswordResetHistory(data.history);
+          }
+        });
     } catch (error) {
       console.error('Error sending password reset:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  /**
+   * Verify a single email status with Resend
+   */
+  const handleVerifyEntry = async (historyId: string) => {
+    if (!user) return;
+    
+    setVerifyingEntries((prev) => new Set(prev).add(historyId));
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}/password-reset-history/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ historyId }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success && result.status) {
+        // Update the entry in state
+        setPasswordResetHistory((prev) =>
+          prev.map((entry) =>
+            entry.id === historyId
+              ? { ...entry, resendStatus: result.status, resendVerifiedAt: result.verifiedAt }
+              : entry
+          )
+        );
+        
+        const statusLabel = getResendStatusBadge(result.status, true).label;
+        toast.success('Status verifiziert', {
+          description: `E-Mail Status: ${statusLabel}`,
+        });
+      } else {
+        toast.error('Verifizierung fehlgeschlagen', {
+          description: result.message || 'Status konnte nicht abgerufen werden',
+        });
+      }
+    } catch (error) {
+      console.error('Error verifying entry:', error);
+      toast.error('Fehler', {
+        description: 'Status konnte nicht verifiziert werden',
+      });
+    } finally {
+      setVerifyingEntries((prev) => {
+        const next = new Set(prev);
+        next.delete(historyId);
+        return next;
+      });
+    }
+  };
+
+  /**
+   * Batch verify all unverified emails
+   */
+  const handleBatchVerify = async () => {
+    if (!user) return;
+    
+    setBatchVerifying(true);
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}/password-reset-history/verify`);
+      const result = await response.json();
+      
+      if (result.success) {
+        // Reload history to get updated statuses
+        const historyResponse = await fetch(`/api/admin/users/${user.id}/password-reset-history`);
+        const historyData = await historyResponse.json();
+        if (historyData.success) {
+          setPasswordResetHistory(historyData.history);
+        }
+        
+        toast.success('Batch-Verifizierung abgeschlossen', {
+          description: `${result.verified} von ${result.total} E-Mails verifiziert`,
+        });
+      } else {
+        toast.error('Verifizierung fehlgeschlagen', {
+          description: result.message,
+        });
+      }
+    } catch (error) {
+      console.error('Error batch verifying:', error);
+      toast.error('Fehler', {
+        description: 'Batch-Verifizierung fehlgeschlagen',
+      });
+    } finally {
+      setBatchVerifying(false);
     }
   };
 
@@ -381,9 +508,27 @@ export function UserEditModal({
 
             {/* Password Reset History */}
             <div className="space-y-3 pt-4 border-t">
-              <div className="flex items-center gap-2">
-                <History className="h-4 w-4 text-muted-foreground" />
-                <h4 className="font-medium text-sm">Password Reset Historie</h4>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <History className="h-4 w-4 text-muted-foreground" />
+                  <h4 className="font-medium text-sm">Password Reset Historie</h4>
+                </div>
+                {passwordResetHistory.some((e) => e.resendEmailId && !e.resendVerifiedAt) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleBatchVerify}
+                    disabled={batchVerifying}
+                    className="h-7 text-xs"
+                  >
+                    {batchVerifying ? (
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    ) : (
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                    )}
+                    Alle prüfen
+                  </Button>
+                )}
               </div>
 
               {historyLoading ? (
@@ -395,45 +540,78 @@ export function UserEditModal({
                   Noch keine Password-Reset-E-Mails gesendet.
                 </p>
               ) : (
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {passwordResetHistory.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="flex items-start gap-3 p-2 rounded-md bg-muted/50 text-sm"
-                    >
-                      {entry.status === 'sent' ? (
-                        <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-muted-foreground">
-                            {new Date(entry.sentAt).toLocaleDateString('de-DE', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </span>
-                          <Badge variant={entry.triggerType === 'bulk' ? 'secondary' : 'outline'} className="text-xs">
-                            {entry.triggerType === 'bulk' ? 'Bulk' : 'Manuell'}
-                          </Badge>
-                        </div>
-                        {entry.sentByName && (
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            von {entry.sentByName}
-                          </p>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {passwordResetHistory.map((entry) => {
+                    const resendBadge = getResendStatusBadge(entry.resendStatus, !!entry.resendEmailId);
+                    const isVerifying = verifyingEntries.has(entry.id);
+                    
+                    return (
+                      <div
+                        key={entry.id}
+                        className="flex items-start gap-3 p-2 rounded-md bg-muted/50 text-sm"
+                      >
+                        {entry.status === 'sent' ? (
+                          <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
                         )}
-                        {entry.errorMessage && (
-                          <p className="text-xs text-destructive mt-0.5">
-                            {entry.errorMessage}
-                          </p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-muted-foreground">
+                              {new Date(entry.sentAt).toLocaleDateString('de-DE', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                            <Badge variant={entry.triggerType === 'bulk' ? 'secondary' : 'outline'} className="text-xs">
+                              {entry.triggerType === 'bulk' ? 'Bulk' : 'Manuell'}
+                            </Badge>
+                            {/* Resend Status Badge */}
+                            <Badge variant={resendBadge.variant} className="text-xs">
+                              {resendBadge.label}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            {entry.sentByName && (
+                              <p className="text-xs text-muted-foreground">
+                                von {entry.sentByName}
+                              </p>
+                            )}
+                            {entry.resendVerifiedAt && (
+                              <p className="text-xs text-muted-foreground">
+                                • geprüft {new Date(entry.resendVerifiedAt).toLocaleDateString('de-DE')}
+                              </p>
+                            )}
+                          </div>
+                          {entry.errorMessage && (
+                            <p className="text-xs text-destructive mt-0.5">
+                              {entry.errorMessage}
+                            </p>
+                          )}
+                        </div>
+                        {/* Verify Button */}
+                        {entry.resendEmailId && entry.status === 'sent' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleVerifyEntry(entry.id)}
+                            disabled={isVerifying}
+                            className="h-6 w-6 p-0 shrink-0"
+                            title="Status bei Resend prüfen"
+                          >
+                            {isVerifying ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-3 w-3" />
+                            )}
+                          </Button>
                         )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

@@ -136,17 +136,19 @@ export async function POST(request: NextRequest) {
             email: targetUser.email,
           });
 
-          await sendPasswordResetEmail(targetUser.email, resetUrl);
+          const emailResult = await sendPasswordResetEmail(targetUser.email, resetUrl);
+          const resendEmailId = emailResult?.data?.id || null;
 
-          // Log to history
+          // Log to history with Resend email ID
           await db.insert(passwordResetHistory).values({
             userId: targetUser.id,
             sentBy: currentUser.id,
             triggerType: 'bulk',
             status: 'sent',
+            resendEmailId,
           });
 
-          return { success: true, email: targetUser.email };
+          return { success: true, email: targetUser.email, resendEmailId };
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           

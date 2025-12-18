@@ -4,6 +4,38 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = 'MYLO <support@never-economy-again.com>'; // TODO: Update domain after deployment
 
 /**
+ * Resend email status response type
+ */
+export interface ResendEmailStatus {
+  id: string;
+  to: string[];
+  from: string;
+  created_at: string;
+  last_event: 'delivered' | 'bounced' | 'complained' | 'opened' | 'clicked' | null;
+}
+
+/**
+ * Get email delivery status from Resend
+ * @param emailId - Resend email ID
+ * @returns Email status or null if not found
+ */
+export async function getEmailStatus(emailId: string): Promise<ResendEmailStatus | null> {
+  try {
+    const response = await resend.emails.get(emailId);
+    
+    if (response.error) {
+      console.error('❌ Resend get email error:', response.error);
+      return null;
+    }
+    
+    return response.data as ResendEmailStatus;
+  } catch (error) {
+    console.error('❌ Failed to get email status:', error);
+    return null;
+  }
+}
+
+/**
  * Send welcome email with login credentials to new users
  * @param email - User's email address
  * @param password - Generated temporary password

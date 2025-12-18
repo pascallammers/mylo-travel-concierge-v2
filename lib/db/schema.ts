@@ -437,6 +437,18 @@ export const passwordResetStatus = ['sent', 'failed'] as const;
 export type PasswordResetStatus = (typeof passwordResetStatus)[number];
 
 /**
+ * Resend delivery status values
+ * - delivered: Email was delivered to recipient
+ * - bounced: Email bounced (invalid address, etc.)
+ * - complained: Recipient marked as spam
+ * - opened: Recipient opened the email
+ * - clicked: Recipient clicked a link
+ * - pending: Not yet verified with Resend
+ */
+export const resendDeliveryStatus = ['delivered', 'bounced', 'complained', 'opened', 'clicked', 'pending'] as const;
+export type ResendDeliveryStatus = (typeof resendDeliveryStatus)[number];
+
+/**
  * Password reset history table.
  * Tracks all password reset emails sent to users.
  */
@@ -452,6 +464,10 @@ export const passwordResetHistory = pgTable('password_reset_history', {
   triggerType: text('trigger_type').$type<PasswordResetTriggerType>().notNull().default('manual'),
   status: text('status').$type<PasswordResetStatus>().notNull().default('sent'),
   errorMessage: text('error_message'),
+  // Resend verification fields
+  resendEmailId: text('resend_email_id'),
+  resendStatus: text('resend_status').$type<ResendDeliveryStatus>(),
+  resendVerifiedAt: timestamp('resend_verified_at'),
 });
 
 export type User = InferSelectModel<typeof user>;

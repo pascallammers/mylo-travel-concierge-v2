@@ -39,7 +39,7 @@ export async function GET(
       );
     }
 
-    // Get password reset history with admin name
+    // Get password reset history with admin name and Resend status
     const history = await db
       .select({
         id: passwordResetHistory.id,
@@ -48,6 +48,9 @@ export async function GET(
         status: passwordResetHistory.status,
         errorMessage: passwordResetHistory.errorMessage,
         sentById: passwordResetHistory.sentBy,
+        resendEmailId: passwordResetHistory.resendEmailId,
+        resendStatus: passwordResetHistory.resendStatus,
+        resendVerifiedAt: passwordResetHistory.resendVerifiedAt,
       })
       .from(passwordResetHistory)
       .where(eq(passwordResetHistory.userId, userId))
@@ -72,6 +75,9 @@ export async function GET(
       status: entry.status,
       errorMessage: entry.errorMessage,
       sentByName: entry.sentById ? adminMap.get(entry.sentById) || 'Admin' : null,
+      resendEmailId: entry.resendEmailId,
+      resendStatus: entry.resendStatus,
+      resendVerifiedAt: entry.resendVerifiedAt?.toISOString() || null,
     }));
 
     return NextResponse.json({

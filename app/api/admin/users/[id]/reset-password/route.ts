@@ -3,7 +3,6 @@ import { isCurrentUserAdmin, getUser } from '@/lib/auth-utils';
 import { db } from '@/lib/db';
 import { user, verification, passwordResetHistory } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { auth } from '@/lib/auth';
 import { sendPasswordResetEmail } from '@/lib/email';
 import crypto from 'crypto';
 import { buildResetPasswordUrl, resolveBaseUrl } from '@/lib/password-reset';
@@ -49,66 +48,44 @@ export async function POST(
     // Better-Auth's forgetPassword creates a verification token
     const baseUrl = resolveBaseUrl(process.env.NEXT_PUBLIC_APP_URL);
 
-    try {
-      // Use Better-Auth's built-in forget password mechanism
-      await auth.api.forgetPassword({
-        body: {
-          email: targetUser.email,
-          redirectTo: `${baseUrl}/reset-password/confirm`,
-        },
-      });
+    // Generate token and send email directly (to capture Resend email ID)
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
-      // Log to history
-      await db.insert(passwordResetHistory).values({
-        userId: targetUser.id,
-        sentBy: currentUser?.id || null,
-        triggerType: 'manual',
-        status: 'sent',
-      });
+    await db.insert(verification).values({
+      id: crypto.randomUUID(),
+      identifier: targetUser.email,
+      value: token,
+      expiresAt,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
 
-      console.log('✅ Password reset initiated for user:', targetUser.email);
+    const resetUrl = buildResetPasswordUrl({
+      baseUrl,
+      token,
+      email: targetUser.email,
+    });
 
-      return NextResponse.json({
-        success: true,
-        message: `Password reset email sent to ${targetUser.email}`,
-      });
-    } catch (authError) {
-      console.error('❌ Better-Auth error:', authError);
-      
-      // If Better-Auth fails, fall back to direct token generation (same flow as custom endpoint)
-      const token = crypto.randomBytes(32).toString('hex');
-      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    const emailResult = await sendPasswordResetEmail(targetUser.email, resetUrl);
+    const resendEmailId = emailResult?.data?.id || null;
 
-      await db.insert(verification).values({
-        id: crypto.randomUUID(),
-        identifier: targetUser.email,
-        value: token,
-        expiresAt,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
+    // Log to history with Resend email ID
+    await db.insert(passwordResetHistory).values({
+      userId: targetUser.id,
+      sentBy: currentUser?.id || null,
+      triggerType: 'manual',
+      status: 'sent',
+      resendEmailId,
+    });
 
-      const resetUrl = buildResetPasswordUrl({
-        baseUrl,
-        token,
-        email: targetUser.email,
-      });
+    console.log('✅ Password reset initiated for user:', targetUser.email, 'Resend ID:', resendEmailId);
 
-      await sendPasswordResetEmail(targetUser.email, resetUrl);
-
-      // Log to history
-      await db.insert(passwordResetHistory).values({
-        userId: targetUser.id,
-        sentBy: currentUser?.id || null,
-        triggerType: 'manual',
-        status: 'sent',
-      });
-      
-      return NextResponse.json({
-        success: true,
-        message: `Password reset email sent to ${targetUser.email}`,
-      });
-    }
+    return NextResponse.json({
+      success: true,
+      message: `Password reset email sent to ${targetUser.email}`,
+      resendEmailId,
+    });
   } catch (error) {
     console.error('❌ Error initiating password reset:', error);
     return NextResponse.json(
