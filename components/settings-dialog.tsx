@@ -792,14 +792,6 @@ function SubscriptionSection({ subscriptionData, isProUser, user }: any) {
             </div>
             <div className={cn('opacity-90 mb-3', isMobile ? 'text-[11px]' : 'text-xs')}>
               <p className="mb-1">Unlimitierter Zugang zu allen Premium Features</p>
-              {hasActiveSubscription && subscription && (
-                <div className="flex gap-4 text-[10px] opacity-75">
-                  <span>
-                    ${(subscription.amount / 100).toFixed(2)}/{subscription.recurringInterval}
-                  </span>
-                  <span>Nächste Zahlung: {new Date(subscription.currentPeriodEnd).toLocaleDateString()}</span>
-                </div>
-              )}
               {hasDodoProStatus && !hasActiveSubscription && (
                 <div className="space-y-1">
                   <div className="flex gap-4 text-[10px] opacity-75">
