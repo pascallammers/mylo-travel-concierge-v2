@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { UserTable } from '@/components/admin/user-table';
 import { UserEditModal } from '@/components/admin/user-edit-modal';
+import { UserCreateModal } from '@/components/admin/user-create-modal';
 import { useAdminUsers, type AdminUser } from '@/hooks/use-admin-users';
 import { toast } from 'sonner';
 
@@ -43,6 +44,7 @@ export default function UsersPage() {
   // Modal state
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
 
   // Bulk reset state
   const [activeUserCount, setActiveUserCount] = useState(0);
@@ -265,6 +267,7 @@ export default function UsersPage() {
             onEditUser={handleEditUser}
             onDeactivateUser={handleDeactivateUser}
             onBulkPasswordReset={handleBulkPasswordReset}
+            onCreateUser={() => setCreateModalOpen(true)}
           />
           
           <UserEditModal
@@ -273,6 +276,22 @@ export default function UsersPage() {
             onClose={handleModalClose}
             onSuccess={handleModalSuccess}
             onPasswordReset={handlePasswordReset}
+          />
+
+          <UserCreateModal
+            open={createModalOpen}
+            onClose={() => setCreateModalOpen(false)}
+            onSuccess={() => {
+              refetch();
+              // Update active user count
+              fetch('/api/admin/users/bulk-password-reset')
+                .then((res) => res.json())
+                .then((data) => {
+                  if (data.success) {
+                    setActiveUserCount(data.activeUsers);
+                  }
+                });
+            }}
           />
         </>
       )}

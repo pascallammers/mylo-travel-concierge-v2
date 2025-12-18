@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, ChevronLeft, ChevronRight, Mail, Loader2, Pencil, Ban, Send, X, Filter } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Mail, Loader2, Pencil, Ban, Send, X, Filter, UserPlus } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -63,6 +63,8 @@ interface UserTableProps {
   onDeactivateUser?: (userId: string) => Promise<void>;
   /** Bulk password reset for all active users */
   onBulkPasswordReset?: () => Promise<void>;
+  /** Create new user callback */
+  onCreateUser?: () => void;
 }
 
 /**
@@ -94,6 +96,7 @@ export function UserTable({
   onEditUser,
   onDeactivateUser,
   onBulkPasswordReset,
+  onCreateUser,
 }: UserTableProps) {
   const [updatingRoles, setUpdatingRoles] = useState<Set<string>>(new Set());
   const [sendingReset, setSendingReset] = useState<Set<string>>(new Set());
@@ -186,6 +189,18 @@ export function UserTable({
             <Loader2 className="absolute right-2 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
           )}
         </div>
+
+        {/* Create User Button */}
+        {onCreateUser && (
+          <Button
+            variant="default"
+            onClick={onCreateUser}
+            className="flex items-center gap-2 whitespace-nowrap"
+          >
+            <UserPlus className="h-4 w-4" />
+            <span>User erstellen</span>
+          </Button>
+        )}
 
         {/* Bulk Password Reset Button */}
         {onBulkPasswordReset && (

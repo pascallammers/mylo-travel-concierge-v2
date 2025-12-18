@@ -42,6 +42,11 @@ export async function getEmailStatus(emailId: string): Promise<ResendEmailStatus
  * @param firstName - Optional first name for personalization
  */
 export async function sendWelcomeEmail(email: string, password: string, firstName?: string) {
+  // Always use production URL for emails
+  const APP_URL = process.env.NODE_ENV === 'production' 
+    ? 'https://chat.never-economy-again.com' 
+    : (process.env.NEXT_PUBLIC_APP_URL || 'https://chat.never-economy-again.com');
+  
   try {
     await resend.emails.send({
       from: FROM_EMAIL,
@@ -122,7 +127,7 @@ export async function sendWelcomeEmail(email: string, password: string, firstNam
                 </p>
 
                 <center>
-                  <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/sign-in" class="button">
+                  <a href="${APP_URL}/sign-in" class="button">
                     Jetzt anmelden
                   </a>
                 </center>
