@@ -66,13 +66,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid email address' }, { status: 400 });
     }
 
-    // 3. Check if user already exists
+    // 3. Check if user already exists (case-insensitive)
+    const normalizedEmail = email.toLowerCase().trim();
     const existingUser = await db.query.user.findFirst({
-      where: eq(user.email, email),
+      where: eq(user.email, normalizedEmail),
     });
 
     if (existingUser) {
-      console.log('ℹ️ User already exists:', email);
+      console.log('ℹ️ User already exists:', normalizedEmail);
       
       // Check if they have an active subscription, if not create one
       const existingSubscription = await db.query.subscription.findFirst({
@@ -97,7 +98,7 @@ export async function POST(req: NextRequest) {
           currentPeriodEnd: periodEnd,
           startedAt: periodStart,
           createdAt: periodStart,
-          customerId: customerId || email,
+          customerId: customerId || normalizedEmail,
           productId: 'mylo-subscription',
           checkoutId: orderId || crypto.randomBytes(8).toString('hex'),
           thrivecardCustomerId: customerId || null,
@@ -133,15 +134,15 @@ export async function POST(req: NextRequest) {
       .insert(user)
       .values({
         id: userId,
-        email,
-        name: firstName && lastName ? `${firstName} ${lastName}` : firstName || email.split('@')[0],
+        email: normalizedEmail,
+        name: firstName && lastName ? `${firstName} ${lastName}` : firstName || normalizedEmail.split('@')[0],
         emailVerified: true, // Auto-verified since created via webhook
         createdAt: now,
         updatedAt: now,
       })
       .returning();
 
-    console.log('✅ User created:', newUser.id, email);
+    console.log('✅ User created:', newUser.id, normalizedEmail);
 
     // 6. Create account entry for email/password auth
     // Hash password with bcrypt before storing
@@ -151,7 +152,7 @@ export async function POST(req: NextRequest) {
     await db.insert(account).values({
       id: accountId,
       userId: newUser.id,
-      accountId: email,
+      accountId: normalizedEmail,
       providerId: 'credential',
       password: hashedPassword,
       createdAt: now,
@@ -177,7 +178,7 @@ export async function POST(req: NextRequest) {
       currentPeriodEnd: periodEnd,
       startedAt: periodStart,
       createdAt: periodStart,
-      customerId: customerId || email,
+      customerId: customerId || normalizedEmail,
       productId: 'mylo-subscription',
       checkoutId: orderId || crypto.randomBytes(8).toString('hex'),
       thrivecardCustomerId: customerId || null,
@@ -216,8 +217,8 @@ export async function POST(req: NextRequest) {
 
     // 9. Send welcome email with login credentials
     try {
-      await sendWelcomeEmail(email, password, firstName);
-      console.log('✅ Welcome email sent to:', email);
+      await sendWelcomeEmail(normalizedEmail, password, firstName);
+      console.log('✅ Welcome email sent to:', normalizedEmail);
     } catch (emailError) {
       console.error('❌ Failed to send welcome email:', emailError);
       // Don't fail the request if email fails
@@ -233,7 +234,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log('🎉 User creation complete:', email);
+    console.log('🎉 User creation complete:', normalizedEmail);
 
     return NextResponse.json(
       {

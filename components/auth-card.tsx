@@ -27,7 +27,7 @@ export default function AuthCard() {
     try {
       await signIn.email(
         {
-          email,
+          email: email.toLowerCase().trim(),
           password,
           callbackURL: '/',
         },
