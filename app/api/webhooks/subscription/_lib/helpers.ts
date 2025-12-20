@@ -54,7 +54,7 @@ export async function findUserSubscription(userId: string) {
 }
 
 /**
- * Extend subscription period by 30 days
+ * Extend subscription period by 1 calendar month
  * @param subscriptionId - Subscription ID
  * @param fromDate - Date to extend from (defaults to current periodEnd or now)
  * @returns Updated subscription
@@ -78,7 +78,7 @@ export async function extendSubscriptionPeriod(
   
   const newPeriodStart = extendFrom;
   const newPeriodEnd = new Date(extendFrom);
-  newPeriodEnd.setDate(newPeriodEnd.getDate() + 30);
+  newPeriodEnd.setMonth(newPeriodEnd.getMonth() + 1);
 
   const [updatedSubscription] = await db
     .update(subscription)

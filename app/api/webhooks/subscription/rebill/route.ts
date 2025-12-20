@@ -97,8 +97,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 6. Extend subscription by 30 days
-    const updatedSubscription = await extendSubscriptionPeriod(userSubscription.id);
+    // 6. Extend subscription by 30 days from NOW (not from current period end)
+    const updatedSubscription = await extendSubscriptionPeriod(userSubscription.id, new Date());
     console.log('✅ Subscription extended until:', updatedSubscription.currentPeriodEnd);
 
     // 7. Reactivate user if they were suspended
