@@ -111,12 +111,15 @@ export async function POST(req: NextRequest) {
     const paymentId = crypto.randomBytes(16).toString('hex');
     const now = new Date();
 
+    // Convert amount from Euro (e.g., 47.00) to cents (4700) for integer storage
+    const amountInCents = Math.round(parseFloat(String(amount || 0)) * 100);
+
     await db.insert(payment).values({
       id: paymentId,
       createdAt: now,
       updatedAt: now,
       userId: user.id,
-      totalAmount: amount || 0,
+      totalAmount: amountInCents,
       currency: currency || 'EUR',
       status: 'succeeded',
       thrivecardPaymentId: orderId || null,
@@ -127,6 +130,7 @@ export async function POST(req: NextRequest) {
         event: 'rebill',
         productName: productName || null,
         processedAt: now.toISOString(),
+        originalAmount: amount,
       }),
     });
 
@@ -142,7 +146,10 @@ export async function POST(req: NextRequest) {
     );
 
   } catch (error) {
-    console.error('❌ Error processing rebill webhook:', error);
+    console.error('❌ Error processing rebill webhook:', {
+      error: error instanceof Error ? error.message : error,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return NextResponse.json(
       createWebhookResponse(false, 'Internal server error', {
         error: error instanceof Error ? error.message : 'Unknown error',
