@@ -234,7 +234,7 @@ const EnhancedErrorDisplay: React.FC<EnhancedErrorDisplayProps> = ({
           <div className="flex items-center justify-between">
             <p className="text-muted-foreground dark:text-muted-foreground text-xs">
               {!user && selectedVisibilityType === 'public'
-                ? 'Please sign in to retry or try a different prompt'
+                ? 'Bitte melde dich an, um es erneut zu versuchen, oder stelle eine andere Frage'
                 : 'You can retry your request or try a different approach'}
             </p>
             <div className="flex gap-2">
@@ -997,10 +997,10 @@ export const Message: React.FC<MessageProps> = ({
                     <AlertCircle className="h-5 w-5 text-secondary-foreground dark:text-secondary-foreground mt-0.5 flex-shrink-0" />
                     <div className="flex-1">
                       <h3 className="font-medium text-secondary-foreground dark:text-secondary-foreground mb-1">
-                        No response generated
+                        Keine Antwort generiert
                       </h3>
                       <p className="text-sm text-secondary-foreground/80 dark:text-secondary-foreground/80">
-                        It looks like the assistant didn’t provide a response to your message.
+                        Es sieht so aus, als hätte der Assistent keine Antwort auf deine Nachricht gegeben.
                       </p>
                     </div>
                   </div>
@@ -1009,8 +1009,8 @@ export const Message: React.FC<MessageProps> = ({
                 <div className="px-4 py-3 flex items-center justify-between bg-primary/10 border border-primary/20 dark:border-primary/20 rounded-lg mb-4 max-w-2xl">
                   <p className="text-muted-foreground dark:text-muted-foreground text-xs">
                     {!user && selectedVisibilityType === 'public'
-                      ? 'Please sign in to retry or try a different prompt'
-                      : 'Try regenerating the response or rephrase your question'}
+                      ? 'Bitte melde dich an, um es erneut zu versuchen, oder stelle eine andere Frage'
+                      : 'Versuche, die Antwort neu zu generieren, oder formuliere deine Frage um'}
                   </p>
                   {(user || selectedVisibilityType === 'private') && (
                     <Button
@@ -1019,7 +1019,7 @@ export const Message: React.FC<MessageProps> = ({
                       size="sm"
                     >
                       <RefreshCw className="mr-2 h-3.5 w-3.5" />
-                      Generate Response
+                      Antwort generieren
                     </Button>
                   )}
                 </div>
