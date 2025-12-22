@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -97,6 +98,53 @@ function ProfileSection({ user, subscriptionData, isProUser, isProStatusLoading 
   const isProUserActive: boolean = user?.isProUser || fastProStatus || false;
   const showProLoading: boolean = Boolean(fastProLoading || isProStatusLoading);
 
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error('Bitte alle Felder ausfüllen');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast.error('Das neue Passwort muss mindestens 8 Zeichen lang sein');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwörter stimmen nicht überein');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const { error } = await authClient.changePassword({
+        currentPassword,
+        newPassword,
+        revokeOtherSessions: true,
+      });
+
+      if (error) {
+        toast.error('Aktuelles Passwort ist falsch');
+      } else {
+        toast.success('Passwort erfolgreich geändert');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setShowPasswordForm(false);
+      }
+    } catch (err) {
+      toast.error('Fehler beim Ändern des Passworts');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   return (
     <div>
       <div className={cn('flex flex-col items-center text-center space-y-3', isMobile ? 'pb-2' : 'pb-4')}>
@@ -136,13 +184,110 @@ function ProfileSection({ user, subscriptionData, isProUser, isProStatusLoading 
       <div className={isMobile ? 'space-y-2' : 'space-y-3'}>
         <div className={cn('bg-muted/50 rounded-lg space-y-3', isMobile ? 'p-3' : 'p-4')}>
           <div>
-            <Label className="text-xs text-muted-foreground">Full Name</Label>
-            <p className="text-sm font-medium mt-1">{user?.name || 'Not provided'}</p>
+            <Label className="text-xs text-muted-foreground">Name</Label>
+            <p className="text-sm font-medium mt-1">{user?.name || 'Nicht angegeben'}</p>
           </div>
           <div>
-            <Label className="text-xs text-muted-foreground">Email Address</Label>
-            <p className="text-sm font-medium mt-1 break-all">{user?.email || 'Not provided'}</p>
+            <Label className="text-xs text-muted-foreground">E-Mail-Adresse</Label>
+            <p className="text-sm font-medium mt-1 break-all">{user?.email || 'Nicht angegeben'}</p>
           </div>
+        </div>
+
+        {/* Password Change Section */}
+        <div className={cn('bg-muted/50 rounded-lg', isMobile ? 'p-3' : 'p-4')}>
+          <div className="flex items-center justify-between mb-2">
+            <Label className="text-xs text-muted-foreground">Passwort</Label>
+            {!showPasswordForm && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowPasswordForm(true)}
+                className="h-7 text-xs"
+              >
+                Ändern
+              </Button>
+            )}
+          </div>
+
+          {showPasswordForm ? (
+            <div className="space-y-3">
+              <div>
+                <Label htmlFor="current-password" className="text-xs">
+                  Aktuelles Passwort
+                </Label>
+                <Input
+                  id="current-password"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Aktuelles Passwort eingeben"
+                  className="mt-1 h-9"
+                  disabled={isChangingPassword}
+                />
+              </div>
+              <div>
+                <Label htmlFor="new-password" className="text-xs">
+                  Neues Passwort
+                </Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Neues Passwort (mind. 8 Zeichen)"
+                  className="mt-1 h-9"
+                  disabled={isChangingPassword}
+                />
+              </div>
+              <div>
+                <Label htmlFor="confirm-password" className="text-xs">
+                  Neues Passwort bestätigen
+                </Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Neues Passwort wiederholen"
+                  className="mt-1 h-9"
+                  disabled={isChangingPassword}
+                />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button
+                  onClick={handleChangePassword}
+                  disabled={isChangingPassword || !currentPassword || !newPassword || !confirmPassword}
+                  size="sm"
+                  className="flex-1 h-8"
+                >
+                  {isChangingPassword ? (
+                    <>
+                      <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+                      Wird geändert...
+                    </>
+                  ) : (
+                    'Passwort ändern'
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShowPasswordForm(false);
+                    setCurrentPassword('');
+                    setNewPassword('');
+                    setConfirmPassword('');
+                  }}
+                  disabled={isChangingPassword}
+                  className="h-8"
+                >
+                  Abbrechen
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm font-medium">••••••••</p>
+          )}
         </div>
 
       </div>
