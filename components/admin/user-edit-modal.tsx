@@ -400,38 +400,46 @@ export function UserEditModal({
               </Select>
             </div>
 
-            <div className="flex items-center justify-between space-x-2">
-              <Label htmlFor="is-active" className="flex flex-col space-y-1">
-                <span>Account aktiv</span>
-                <span className="text-sm font-normal text-muted-foreground">
-                  Deaktivierte Accounts können sich nicht einloggen
-                </span>
-              </Label>
-              <Switch
-                id="is-active"
-                checked={isActive}
-                onCheckedChange={setIsActive}
-                disabled={loading}
-              />
-            </div>
+            {/* Account Status Section */}
+            <div className="pt-4 border-t space-y-4">
+              <h4 className="font-medium text-sm text-muted-foreground">Account-Status</h4>
+              
+              <div className="space-y-2">
+                <Label htmlFor="activation-status">Status</Label>
+                <Select
+                  value={activationStatus}
+                  onValueChange={(v) => setActivationStatus(v as typeof activationStatus)}
+                  disabled={loading}
+                >
+                  <SelectTrigger id="activation-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Aktiv</SelectItem>
+                    <SelectItem value="inactive">Inaktiv</SelectItem>
+                    <SelectItem value="grace_period">Gnadenfrist</SelectItem>
+                    <SelectItem value="suspended">Gesperrt</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Bestimmt den Zugriffsstatus des Benutzers im System
+                </p>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="activation-status">Activation Status</Label>
-              <Select
-                value={activationStatus}
-                onValueChange={(v) => setActivationStatus(v as typeof activationStatus)}
-                disabled={loading}
-              >
-                <SelectTrigger id="activation-status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="grace_period">Grace Period</SelectItem>
-                  <SelectItem value="suspended">Suspended</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <Label htmlFor="is-active" className="flex flex-col space-y-1">
+                  <span>Login erlaubt</span>
+                  <span className="text-xs font-normal text-muted-foreground">
+                    Wenn deaktiviert, kann sich der Benutzer nicht einloggen
+                  </span>
+                </Label>
+                <Switch
+                  id="is-active"
+                  checked={isActive}
+                  onCheckedChange={setIsActive}
+                  disabled={loading}
+                />
+              </div>
             </div>
           </TabsContent>
 
