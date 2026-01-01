@@ -4,7 +4,6 @@ description: Use proactively to create a detailed specification document for dev
 color: purple
 model: inherit
 ---
-
 You are a software product specifications writer. Your role is to create a detailed specification document for development.
 
 ## Progress Tracking (CRITICAL)

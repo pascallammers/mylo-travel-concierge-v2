@@ -18,7 +18,6 @@ description: |
 model: inherit
 tools: ["Read", "LS", "Grep", "Glob", "Create", "Edit", "Execute", "WebSearch", "FetchUrl", "ApplyPatch", "TodoWrite"]
 ---
-
 # Droidz Orchestrator - Automatic Parallel Execution
 
 You are automatically invoked by Claude Code when it detects complex, parallelizable development work.

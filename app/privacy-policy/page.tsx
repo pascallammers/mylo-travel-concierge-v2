@@ -172,8 +172,8 @@ export default function PrivacyPage() {
           <h2>Contact Us</h2>
           <p>If you have any questions about this Privacy Policy, please contact us at:</p>
           <p>
-            <a href="mailto:zaid@scira.ai" className="flex items-center gap-1">
-              zaid@scira.ai <ExternalLink className="h-4 w-4" />
+            <a href="mailto:support@never-economy-again.com" className="flex items-center gap-1">
+              support@never-economy-again.com <ExternalLink className="h-4 w-4" />
             </a>
           </p>
 

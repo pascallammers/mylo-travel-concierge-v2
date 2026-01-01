@@ -9,14 +9,12 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { PRICING, SEARCH_LIMITS } from '@/lib/constants';
+import { PRICING } from '@/lib/constants';
 import { DiscountBanner } from '@/components/ui/discount-banner';
 import { getDiscountConfigAction } from '@/app/actions';
 import { DiscountConfig } from '@/lib/discount';
 import { useLocation } from '@/hooks/use-location';
 import { ComprehensiveUserData } from '@/lib/user-data-server';
-import { StudentDomainRequestButton } from '@/components/student-domain-request-button';
-import { SupportedDomainsList } from '@/components/supported-domains-list';
 
 type SubscriptionDetails = {
   id: string;
@@ -289,38 +287,7 @@ export default function PricingTable({ subscriptionDetails, user }: PricingTable
 
       {/* Pricing Cards */}
       <div className="max-w-4xl mx-auto px-6 pb-24">
-        <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
-          {/* Free Plan */}
-          <Card className="relative">
-            <CardHeader className="pb-4">
-              <h3 className="text-xl font-medium">Free</h3>
-              <div className="flex items-baseline">
-                <span className="text-4xl font-light">$0</span>
-                <span className="text-muted-foreground ml-2">/month</span>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <ul className="space-y-3">
-                <li className="flex items-center text-muted-foreground">
-                  <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full mr-3 flex-shrink-0"></div>
-                  {SEARCH_LIMITS.DAILY_SEARCH_LIMIT} searches per day
-                </li>
-                <li className="flex items-center text-muted-foreground">
-                  <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full mr-3 flex-shrink-0"></div>
-                  Basic AI models
-                </li>
-                <li className="flex items-center text-muted-foreground">
-                  <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full mr-3 flex-shrink-0"></div>
-                  Search history
-                </li>
-              </ul>
-
-              <Button variant="outline" className="w-full" disabled={!hasProAccess()}>
-                {!hasProAccess() ? 'Current plan' : 'Free plan'}
-              </Button>
-            </CardContent>
-          </Card>
-
+        <div className="max-w-md mx-auto">
           {/* Pro Plan */}
           <Card className="relative border-2 border-primary">
             {hasProAccess() && (
@@ -342,7 +309,7 @@ export default function PricingTable({ subscriptionDetails, user }: PricingTable
 
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-medium">Scira Pro</h3>
+                <h3 className="text-xl font-medium">MYLO Pro</h3>
                 <Badge variant="secondary">Popular</Badge>
               </div>
 
@@ -435,10 +402,6 @@ export default function PricingTable({ subscriptionDetails, user }: PricingTable
                   <div className="w-1.5 h-1.5 bg-primary rounded-full mr-3 flex-shrink-0"></div>
                   Priority support
                 </li>
-                <li className="flex items-center">
-                  <div className="w-1.5 h-1.5 bg-primary rounded-full mr-3 flex-shrink-0"></div>
-                  Scira Lookout
-                </li>
               </ul>
 
               {hasProAccess() ? (
@@ -503,44 +466,6 @@ export default function PricingTable({ subscriptionDetails, user }: PricingTable
           </Card>
         </div>
 
-        {/* Student Discount */}
-        {!discountConfig.isStudentDiscount && (
-          <Card className="max-w-2xl mx-auto mt-16">
-            <CardContent className="p-6">
-              <div className="text-center">
-                <h3 className="font-medium mb-2">🎓 Student discount available</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Get Pro for just $5/month! Simply sign up with your university email address and the discount will be
-                  applied automatically.
-                </p>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-4">
-                  <SupportedDomainsList />
-                  <span className="text-xs text-muted-foreground">or</span>
-                  <StudentDomainRequestButton />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Check if your university is already supported, or request to add a new domain.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Student Discount Active */}
-        {discountConfig.isStudentDiscount && !hasProAccess() && (
-          <Card className="max-w-2xl mx-auto mt-16 border-primary/20 bg-primary/5">
-            <CardContent className="p-6">
-              <div className="text-center">
-                <h3 className="font-medium mb-2 text-primary">🎓 Student discount active!</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Your university email domain has been automatically recognized. Get Pro for just $5/month.
-                </p>
-                <p className="text-xs text-muted-foreground">Discount automatically applied at checkout</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Footer */}
         <div className="text-center mt-16 space-y-4">
           <p className="text-sm text-muted-foreground">
@@ -555,7 +480,7 @@ export default function PricingTable({ subscriptionDetails, user }: PricingTable
           </p>
           <p className="text-sm text-muted-foreground">
             Questions?{' '}
-            <a href="mailto:zaid@scira.ai" className="text-foreground hover:underline">
+            <a href="mailto:support@never-economy-again.com" className="text-foreground hover:underline">
               Get in touch
             </a>
           </p>

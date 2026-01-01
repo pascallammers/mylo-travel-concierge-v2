@@ -146,7 +146,7 @@ export default function TermsPage() {
               <strong>Free Plan:</strong> Includes limited daily searches with access to basic AI models
             </li>
             <li>
-              <strong>Scira Pro:</strong> $15/month subscription with unlimited searches and access to all AI models
+              <strong>MYLO Pro:</strong> $15/month subscription with unlimited searches and access to all AI models
             </li>
           </ul>
           <p>
@@ -230,8 +230,8 @@ export default function TermsPage() {
           <h2>14. Contact Us</h2>
           <p>If you have any questions about these Terms of Service, please contact us at:</p>
           <p>
-            <a href="mailto:zaid@scira.ai" className="flex items-center gap-1">
-              zaid@scira.ai <ExternalLink className="h-4 w-4" />
+            <a href="mailto:support@never-economy-again.com" className="flex items-center gap-1">
+              support@never-economy-again.com <ExternalLink className="h-4 w-4" />
             </a>
           </p>
 

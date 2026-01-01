@@ -84,7 +84,7 @@ export function ShareIconDialog({
     if (navigator.share) {
       navigator
         .share({
-          title: 'ShareIcond Chat - Scira',
+          title: 'Shared Chat - MYLO',
           url: shareUrl,
         })
         .then(() => {

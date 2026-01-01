@@ -29,7 +29,6 @@ description: Does something useful
 color: green
 model: inherit
 ---
-
 Droid instructions here...
 ```
 

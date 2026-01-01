@@ -29,7 +29,7 @@ import {
   manualSyncConnectorAction,
   getConnectorSyncStatusAction,
 } from '@/app/actions';
-import { SEARCH_LIMITS } from '@/lib/constants';
+
 import { authClient, betterauthClient } from '@/lib/auth-client';
 import {
   MagnifyingGlassIcon,
@@ -583,12 +583,8 @@ function UsageSection({ user }: any) {
     }
   };
 
-  const usagePercentage = isProUser
-    ? 0
-    : Math.min(((searchCount?.count || 0) / SEARCH_LIMITS.DAILY_SEARCH_LIMIT) * 100, 100);
-
   return (
-    <div className={cn(isMobile ? 'space-y-3' : 'space-y-4', isMobile && !isProUser ? 'pb-4' : '')}>
+    <div className={cn(isMobile ? 'space-y-3' : 'space-y-4')}>
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-semibold">Tägliches Suchvolumen</h3>
         <Button
@@ -636,51 +632,8 @@ function UsageSection({ user }: any) {
         </div>
       </div>
 
-      {!isProUser && (
-        <div className={isMobile ? 'space-y-2' : 'space-y-3'}>
-          <div className={cn('bg-muted/30 rounded-lg space-y-2', isMobile ? 'p-2.5' : 'p-3')}>
-            {usageLoading ? (
-              <>
-                <div className="flex justify-between text-xs">
-                  <Skeleton className="h-3 w-16" />
-                  <Skeleton className="h-3 w-12" />
-                </div>
-                <Skeleton className="h-1.5 w-full" />
-              </>
-            ) : (
-              <>
-                <div className="flex justify-between text-xs">
-                  <span className="font-medium">Daily Limit</span>
-                  <span className="text-muted-foreground">{usagePercentage.toFixed(0)}%</span>
-                </div>
-                <Progress value={usagePercentage} className="h-1.5 [&>div]:transition-none" />
-                <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>
-                    {searchCount?.count || 0} / {SEARCH_LIMITS.DAILY_SEARCH_LIMIT}
-                  </span>
-                  <span>{Math.max(0, SEARCH_LIMITS.DAILY_SEARCH_LIMIT - (searchCount?.count || 0))} left</span>
-                </div>
-              </>
-            )}
-          </div>
-
-          <div className={cn('bg-card rounded-lg border border-border', isMobile ? 'p-3' : 'p-4')}>
-            <div className={cn('flex items-center gap-2', isMobile ? 'mb-1.5' : 'mb-2')}>
-              <HugeiconsIcon icon={Crown02Icon} size={isMobile ? 14 : 16} color="currentColor" strokeWidth={1.5} />
-              <span className={cn('font-semibold', isMobile ? 'text-xs' : 'text-sm')}>Upgrade to Pro</span>
-            </div>
-            <p className={cn('text-muted-foreground mb-3', isMobile ? 'text-[11px]' : 'text-xs')}>
-              Get unlimited searches and premium features
-            </p>
-            <Button asChild size="sm" className={cn('w-full', isMobile ? 'h-7 text-xs' : 'h-8')}>
-              <Link href="/pricing">Upgrade Now</Link>
-            </Button>
-          </div>
-        </div>
-      )}
-
       {!usageLoading && (
-        <div className={cn('space-y-2', isMobile && !isProUser ? 'pb-4' : '')}>
+        <div className={cn('space-y-2')}>
           <h4 className={cn('font-semibold text-muted-foreground', isMobile ? 'text-[11px]' : 'text-xs')}>
             Aktivität (Letzte 9 Monate)
           </h4>

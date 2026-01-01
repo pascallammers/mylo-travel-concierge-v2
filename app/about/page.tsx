@@ -45,7 +45,7 @@ import { models } from '@/ai/providers';
 import { VercelLogo } from '@/components/logos/vercel-logo';
 import { ExaLogo } from '@/components/logos/exa-logo';
 import { ElevenLabsLogo } from '@/components/logos/elevenlabs-logo';
-import { PRICING, SEARCH_LIMITS } from '@/lib/constants';
+import { PRICING } from '@/lib/constants';
 
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { MyloLogo } from '@/components/logos/mylo-logo';
@@ -241,23 +241,6 @@ export default function AboutPage() {
 
             {/* Right Side Actions */}
             <div className="flex items-center gap-4">
-              <Link
-                href="https://git.new/scira"
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors"
-                target="_blank"
-              >
-                <GithubLogoIcon className="h-4 w-4" />
-                <span className="hidden sm:inline">
-                  {!isLoadingStars && githubStars && (
-                    <Badge variant="secondary" className="ml-1 text-xs">
-                      {githubStars > 1000 ? `${(githubStars / 1000).toFixed(1)}k` : githubStars}
-                    </Badge>
-                  )}
-                </span>
-              </Link>
-
-              <div className="w-px h-6 bg-border hidden sm:block" />
-
               <ThemeSwitcher />
 
               <div className="w-px h-6 bg-border hidden sm:block" />
@@ -315,21 +298,8 @@ export default function AboutPage() {
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="https://git.new/scira"
-              className="inline-flex h-11 items-center gap-2 px-6 rounded-lg bg-foreground text-background hover:bg-foreground/90 transition-colors"
-              target="_blank"
-            >
-              <GithubLogoIcon className="h-4 w-4" />
-              <span className="font-medium">View Source</span>
-              {!isLoadingStars && githubStars && (
-                <Badge variant="secondary" className="ml-2">
-                  {githubStars.toLocaleString()}
-                </Badge>
-              )}
-            </Link>
-            <Link
               href="/"
-              className="inline-flex h-11 items-center gap-2 px-6 rounded-lg border-2 border-border hover:border-primary hover:bg-accent transition-colors"
+              className="inline-flex h-11 items-center gap-2 px-6 rounded-lg bg-foreground text-background hover:bg-foreground/90 transition-colors"
             >
               <span className="font-medium">Try Now</span>
               <ArrowUpRight className="h-4 w-4" />
@@ -411,21 +381,7 @@ export default function AboutPage() {
             </div>
           </div>
 
-          <div className="text-center">
-            <a
-              href="https://openalternative.co/scira?utm_source=openalternative&utm_medium=badge&utm_campaign=embed&utm_content=tool-scira"
-              target="_blank"
-              className="inline-block"
-            >
-              <Image
-                src="https://openalternative.co/scira/badge.svg?theme=dark&width=200&height=50"
-                width={200}
-                height={50}
-                alt="MYLO badge"
-                className="mx-auto"
-              />
-            </a>
-          </div>
+
 
           {/* Subtle CTA */}
           <div className="mt-16 text-center">
@@ -560,8 +516,8 @@ export default function AboutPage() {
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-muted/30 border border-border/30">
               <span className="text-sm text-muted-foreground">Powered by the best</span>
               <Button asChild variant="ghost" size="sm" className="h-6 px-2 text-xs text-primary hover:text-primary/80">
-                <Link href="https://git.new/scira" target="_blank">
-                  View source
+                <Link href="/">
+                  Try now
                   <ArrowUpRight className="ml-1 h-3 w-3" />
                 </Link>
               </Button>
@@ -963,58 +919,17 @@ export default function AboutPage() {
         <div className="container max-w-4xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-2xl font-medium mb-4 tracking-tight">Pricing</h2>
-            <p className="text-muted-foreground/80 max-w-lg mx-auto">Simple, transparent pricing for everyone</p>
+            <p className="text-muted-foreground/80 max-w-lg mx-auto">Simple, transparent pricing</p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-            {/* Free Plan */}
-            <div className="bg-background/50 border border-border/50 rounded-xl p-8 hover:border-border/80 transition-colors flex flex-col">
-              <div className="mb-8">
-                <h3 className="text-xl font-medium mb-2">Free</h3>
-                <p className="text-muted-foreground/70 mb-4">Get started with essential features</p>
-                <div className="space-y-1">
-                  <div className="flex items-baseline">
-                    <span className="text-3xl font-light tracking-tight">$0</span>
-                    <span className="text-muted-foreground/70 ml-2">/month</span>
-                  </div>
-                  <div className="flex items-baseline">
-                    <span className="text-2xl font-medium text-muted-foreground/60">₹0</span>
-                    <span className="text-muted-foreground/60 ml-2 text-sm">/month</span>
-                  </div>
-                </div>
-              </div>
-
-              <ul className="space-y-3 flex-1 mb-8">
-                <li className="flex items-start gap-3">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary/60 mt-2 flex-shrink-0"></div>
-                  <span className="text-muted-foreground">{SEARCH_LIMITS.DAILY_SEARCH_LIMIT} searches per day</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary/60 mt-2 flex-shrink-0"></div>
-                  <span className="text-muted-foreground">Basic AI models</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary/60 mt-2 flex-shrink-0"></div>
-                  <span className="text-muted-foreground">Search history</span>
-                </li>
-              </ul>
-
-              <Button
-                variant="outline"
-                className="w-full border-border/60 hover:border-border"
-                onClick={() => router.push('/')}
-              >
-                Get Started
-              </Button>
-            </div>
-
+          <div className="max-w-md mx-auto">
             {/* Pro Plan */}
             <div className="bg-background border border-primary/30 rounded-xl p-8 relative hover:border-primary/50 transition-colors flex flex-col">
               <div className="absolute -top-px left-8 right-8 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent"></div>
 
               <div className="mb-8">
                 <div className="flex items-center gap-3 mb-2">
-                  <h3 className="text-xl font-medium">Pro</h3>
+                  <h3 className="text-xl font-medium">MYLO Pro</h3>
                   <span className="text-xs font-medium text-primary/80 bg-primary/10 px-2.5 py-1 rounded-full">
                     Popular
                   </span>
@@ -1049,31 +964,10 @@ export default function AboutPage() {
                   <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0"></div>
                   <span className="text-muted-foreground">Priority support</span>
                 </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0"></div>
-                  <span className="text-muted-foreground">MYLO Lookout</span>
-                </li>
               </ul>
 
               <Button className="w-full" onClick={() => router.push('/pricing')}>
                 Upgrade to Pro
-              </Button>
-            </div>
-          </div>
-
-          {/* Student Discount */}
-          <div className="max-w-2xl mx-auto bg-muted/20 border border-border/40 rounded-xl p-6 mt-8">
-            <div className="text-center">
-              <div className="w-10 h-10 bg-primary/5 rounded-lg flex items-center justify-center mx-auto mb-3">
-                <GraduationCap className="h-5 w-5 text-primary/70" />
-              </div>
-              <h3 className="font-medium mb-2">🎓 Student discount available</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Get Pro for just $5/month! Simply sign up with your university email address and the discount will be
-                applied automatically.
-              </p>
-              <Button onClick={() => router.push('/pricing')} variant="outline" size="sm" className="px-4 py-2">
-                Get Student Pricing
               </Button>
             </div>
           </div>
@@ -1097,23 +991,13 @@ export default function AboutPage() {
             </ProAccordionItem>
 
             <ProAccordionItem value="item-2">
-              <ProAccordionTrigger>What&apos;s the difference between Free and Pro plans?</ProAccordionTrigger>
+              <ProAccordionTrigger>What does MYLO Pro include?</ProAccordionTrigger>
               <ProAccordionContent>
-                The Free plan offers limited daily searches with basic AI models, while the Pro plan ($15/month)
-                provides unlimited searches, access to all AI models, PDF document analysis, and priority support.
+                MYLO Pro ($15/month) provides unlimited searches, access to all AI models, PDF document analysis, and priority support.
               </ProAccordionContent>
             </ProAccordionItem>
 
             <ProAccordionItem value="item-3">
-              <ProAccordionTrigger>Is there a student discount?</ProAccordionTrigger>
-              <ProAccordionContent>
-                Yes! Students with university email addresses (.edu, .ac.in, .ac.uk, etc.) automatically get Pro for
-                just $5/month - that&apos;s $120 in annual savings. No verification required, the discount is applied
-                automatically at checkout.
-              </ProAccordionContent>
-            </ProAccordionItem>
-
-            <ProAccordionItem value="item-4">
               <ProAccordionTrigger>Can I cancel my subscription anytime?</ProAccordionTrigger>
               <ProAccordionContent>
                 Yes, you can cancel your Pro subscription at any time. Your benefits will continue until the end of your
@@ -1121,7 +1005,7 @@ export default function AboutPage() {
               </ProAccordionContent>
             </ProAccordionItem>
 
-            <ProAccordionItem value="item-5">
+            <ProAccordionItem value="item-4">
               <ProAccordionTrigger>What AI models does MYLO use?</ProAccordionTrigger>
               <ProAccordionContent>
                 MYLO uses a range of advanced AI models including Grok, Claude, OpenAI GPT, Gemini, and more to provide
@@ -1129,7 +1013,7 @@ export default function AboutPage() {
               </ProAccordionContent>
             </ProAccordionItem>
 
-            <ProAccordionItem value="item-6">
+            <ProAccordionItem value="item-5">
               <ProAccordionTrigger>How does MYLO ensure information accuracy?</ProAccordionTrigger>
               <ProAccordionContent>
                 MYLO combines RAG technology with search grounding to retrieve information from reliable sources and
@@ -1141,7 +1025,7 @@ export default function AboutPage() {
           <div className="text-center mt-12 space-y-6">
             <p className="text-muted-foreground">
               Have more questions?{' '}
-              <a href="mailto:zaid@scira.ai" className="text-primary hover:text-primary/80 transition-colors">
+              <a href="mailto:support@never-economy-again.com" className="text-primary hover:text-primary/80 transition-colors">
                 Contact us
               </a>
             </p>
@@ -1191,18 +1075,13 @@ export default function AboutPage() {
               </Link>
               <div className="flex items-center gap-2">
                 <Link
-                  href="https://x.com/sciraai"
+                  href="https://www.instagram.com/never.economy.again/"
                   className="p-2 text-muted-foreground hover:text-foreground transition-colors"
                   target="_blank"
                 >
-                  <XLogoIcon className="h-4 w-4" />
-                </Link>
-                <Link
-                  href="https://git.new/scira"
-                  className="p-2 text-muted-foreground hover:text-foreground transition-colors"
-                  target="_blank"
-                >
-                  <GithubLogoIcon className="h-4 w-4" />
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                  </svg>
                 </Link>
               </div>
             </div>

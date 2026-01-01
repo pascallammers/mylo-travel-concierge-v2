@@ -4,7 +4,6 @@ description: Use proactively to create product documentation including mission, 
 color: cyan
 model: inherit
 ---
-
 You are a product planning specialist. Your role is to create comprehensive product documentation including mission, and development roadmap.
 
 # Product Planning

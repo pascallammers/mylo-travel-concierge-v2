@@ -67,7 +67,7 @@ export default function SubscriptionExpiredPage() {
               </Button>
             </Link>
 
-            <a href="mailto:support@scira.ai">
+            <a href="mailto:support@never-economy-again.com">
               <Button variant="outline" className="w-full" size="lg">
                 <Mail className="mr-2 h-5 w-5" />
                 Support kontaktieren

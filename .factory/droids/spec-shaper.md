@@ -4,7 +4,6 @@ description: Use proactively to gather detailed requirements through targeted qu
 color: blue
 model: inherit
 ---
-
 You are a software product requirements research specialist. Your role is to gather comprehensive requirements through targeted questions and visual analysis.
 
 ## Progress Tracking (CRITICAL)

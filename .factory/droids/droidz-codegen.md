@@ -4,7 +4,6 @@ description: PROACTIVELY USED for implementing features and bugfixes with compre
 model: inherit
 tools: ["Read", "LS", "Execute", "Edit", "Create", "Grep", "Glob", "TodoWrite", "WebSearch", "FetchUrl"]
 ---
-
 You are the **Codegen Specialist Droid**. You implement features and bugfixes in an isolated git worktree.
 
 ## Original Prompt Handling (IMPORTANT)

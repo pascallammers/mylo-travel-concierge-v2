@@ -35,7 +35,6 @@ import { useUser } from '@/contexts/user-context';
 import { useOptimizedScroll } from '@/hooks/use-optimized-scroll';
 
 // Utility and type imports
-import { SEARCH_LIMITS } from '@/lib/constants';
 import { ChatSDKError } from '@/lib/errors';
 import { cn, SearchGroupId, invalidateChatsCache } from '@/lib/utils';
 import { DEFAULT_MODEL, requiresProSubscription } from '@/ai/providers';
@@ -185,15 +184,15 @@ const ChatInterface = memo(
     // Generate a consistent ID for new chats
     const chatId = useMemo(() => initialChatId ?? uuidv4(), []);
 
-    // Pro users bypass all limit checks - much cleaner!
-    const shouldBypassLimits = shouldBypassLimitsForModel(selectedModel);
-    const hasExceededLimit =
-      shouldCheckUserLimits &&
-      !proStatusLoading &&
-      !shouldBypassLimits &&
-      usageData &&
-      usageData.count >= SEARCH_LIMITS.DAILY_SEARCH_LIMIT;
-    const isLimitBlocked = Boolean(hasExceededLimit);
+    // Only Pro users can access the chat - redirect non-Pro users to sign-in
+    const isLimitBlocked = !proStatusLoading && (!user || !isUserPro);
+    
+    // Redirect non-Pro users to sign-in page
+    useEffect(() => {
+      if (!proStatusLoading && (!user || !isUserPro)) {
+        router.push('/sign-in');
+      }
+    }, [proStatusLoading, user, isUserPro, router]);
 
     // Model is fixed to GPT-5 - no auto-switching needed
 
@@ -612,56 +611,7 @@ const ChatInterface = memo(
               </div>
             )}
 
-            {/* Show initial limit exceeded message */}
-            {status === 'ready' && messages.length === 0 && isLimitBlocked && (
-              <div className="mt-16 mx-auto max-w-sm">
-                <div className="bg-card backdrop-blur-xl border border-border/40 rounded-2xl shadow-2xl overflow-hidden">
-                  {/* Header Section */}
-                  <div className="text-center px-8 pt-8 pb-6">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-muted/30 rounded-full mb-6">
-                      <HugeiconsIcon icon={Crown02Icon} size={28} className="text-muted-foreground" strokeWidth={1.5} />
-                    </div>
-                    <h2 className="text-2xl font-semibold text-foreground mb-3 tracking-tight">Daily limit reached</h2>
-                  </div>
 
-                  {/* Content Section */}
-                  <div className="text-center px-8 pb-8">
-                    <div className="space-y-4 mb-8">
-                      <p className="text-base text-foreground leading-relaxed font-medium">
-                        You&apos;ve used all{' '}
-                        <span className="text-primary font-semibold">{SEARCH_LIMITS.DAILY_SEARCH_LIMIT}</span> searches
-                        for today
-                      </p>
-                      <p className="text-sm text-muted-foreground leading-relaxed max-w-xs mx-auto">
-                        Upgrade to Pro for unlimited searches, faster responses, and premium features
-                      </p>
-                    </div>
-
-                    {/* Actions Section */}
-                    <div className="space-y-3">
-                      <Button
-                        onClick={() => {
-                          window.location.href = '/pricing';
-                        }}
-                        className="w-full h-11 font-semibold text-base"
-                      >
-                        <HugeiconsIcon icon={Crown02Icon} size={18} className="mr-2.5" strokeWidth={1.5} />
-                        Upgrade to Pro
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        onClick={() => {
-                          refetchUsage();
-                        }}
-                        className="w-full h-10 text-muted-foreground hover:text-foreground font-medium"
-                      >
-                        Try refreshing
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Use the Messages component */}
             {messages.length > 0 && (
@@ -747,48 +697,7 @@ const ChatInterface = memo(
               />
             )}
 
-          {/* Show limit exceeded message */}
-          {isLimitBlocked && messages.length > 0 && (
-            <div className="fixed bottom-8 sm:bottom-4 left-0 right-0 w-full max-w-[95%] sm:max-w-2xl mx-auto z-20">
-              <div className="p-3 bg-muted/30 dark:bg-muted/20 border border-border/60 dark:border-border/60 rounded-lg shadow-sm backdrop-blur-sm">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <HugeiconsIcon
-                      icon={Crown02Icon}
-                      size={14}
-                      color="currentColor"
-                      strokeWidth={1.5}
-                      className="text-muted-foreground dark:text-muted-foreground"
-                    />
-                    <span className="text-sm text-foreground dark:text-foreground">
-                      Daily limit reached ({SEARCH_LIMITS.DAILY_SEARCH_LIMIT} searches used)
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        refetchUsage();
-                      }}
-                      className="h-7 px-2 text-xs"
-                    >
-                      Refresh
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        window.location.href = '/pricing';
-                      }}
-                      className="h-7 px-3 text-xs bg-primary hover:bg-primary/90 dark:bg-primary dark:hover:bg-primary/90 text-primary-foreground dark:text-primary-foreground"
-                    >
-                      Upgrade
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+
         </div>
       </div>
     );
