@@ -112,14 +112,14 @@ Complete task breakdown for integrating AwardWallet loyalty program tracking int
 **Acceptance:** Returns loyalty accounts for connected users
 
 ### 3.2 Manual Sync Endpoint
-- [ ] Create `app/api/awardwallet/sync/route.ts`
-- [ ] Validate user session
-- [ ] Check for existing connection
-- [ ] Implement rate limiting (1 sync per 5 minutes)
-- [ ] Call AwardWallet API to fetch latest data
-- [ ] Update DB via `syncLoyaltyAccounts()`
-- [ ] Update `lastSyncedAt` timestamp
-- [ ] Return success with `syncedAt` and `accountCount`
+- [x] Create `app/api/awardwallet/sync/route.ts`
+- [x] Validate user session
+- [x] Check for existing connection
+- [x] Implement rate limiting (1 sync per 5 minutes)
+- [x] Call AwardWallet API to fetch latest data
+- [x] Update DB via `syncLoyaltyAccounts()`
+- [x] Update `lastSyncedAt` timestamp
+- [x] Return success with `syncedAt` and `accountCount`
 
 **Dependencies:** 3.1, 1.3, 1.4  
 **Acceptance:** Syncs data, respects rate limits
