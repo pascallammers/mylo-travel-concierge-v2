@@ -12,7 +12,9 @@ import {
   streamText,
   NoSuchToolError,
   createUIMessageStream,
-  generateObject,
+  generateText,
+  Output,
+  NoOutputGeneratedError,
   stepCountIs,
   JsonToSseTransformStream,
 } from 'ai';
@@ -546,28 +548,44 @@ export async function POST(req: Request) {
             return null;
           }
 
-          const { object: repairedArgs } = await generateObject({
-            model: languageModel, // Using GPT-5 for tool repair
-            schema: tool.inputSchema,
-            prompt: [
-              `The model tried to call the tool "${toolCall.toolName}"` + ` with the following arguments:`,
-              JSON.stringify(toolCall.input),
-              `The tool accepts the following schema:`,
-              JSON.stringify(inputSchema(toolCall)),
-              'Please fix the arguments.',
-              'For the code interpreter tool do not use print statements.',
-              `For the web search make multiple queries to get the best results but avoid using the same query multiple times and do not use te include and exclude parameters.`,
-              `Today's date is ${new Date().toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}`,
-            ].join('\n'),
-          });
+          try {
+            const textResult = await generateText({
+              model: languageModel,
+              experimental_output: Output.object({
+                schema: tool.inputSchema,
+              }),
+              prompt: [
+                `The model tried to call the tool "${toolCall.toolName}"` + ` with the following arguments:`,
+                JSON.stringify(toolCall.input),
+                `The tool accepts the following schema:`,
+                JSON.stringify(inputSchema(toolCall)),
+                'Please fix the arguments.',
+                'For the code interpreter tool do not use print statements.',
+                `For the web search make multiple queries to get the best results but avoid using the same query multiple times and do not use te include and exclude parameters.`,
+                `Today's date is ${new Date().toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })}`,
+              ].join('\n'),
+            });
 
-          console.log('repairedArgs', repairedArgs);
+            const repairedArgs = textResult.experimental_output;
+            console.log('repairedArgs', repairedArgs);
 
-          return { ...toolCall, args: JSON.stringify(repairedArgs) };
+            if (!repairedArgs) {
+              console.error('Failed to repair tool call: no output generated');
+              return null;
+            }
+
+            return { ...toolCall, args: JSON.stringify(repairedArgs) };
+          } catch (repairError) {
+            if (NoOutputGeneratedError.isInstance(repairError)) {
+              console.error('Failed to repair tool call:', (repairError as any).text);
+              return null;
+            }
+            throw repairError;
+          }
         },
         onChunk(event) {
           if (event.chunk.type === 'tool-call') {

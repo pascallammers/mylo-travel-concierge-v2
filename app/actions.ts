@@ -4,7 +4,7 @@
 import { geolocation } from '@vercel/functions';
 import { serverEnv } from '@/env/server';
 import { SearchGroupId } from '@/lib/utils';
-import { generateObject, UIMessage, generateText } from 'ai';
+import { UIMessage, generateText, Output, NoOutputGeneratedError } from 'ai';
 import type { ModelMessage } from 'ai';
 import { z } from 'zod';
 import { getUser } from '@/lib/auth-utils';
@@ -55,9 +55,10 @@ export async function suggestQuestions(history: any[]) {
 
   console.log(history);
 
-  const { object } = await generateObject({
-    model: languageModel,
-    system: `Du bist ein Such-Folgefragen-Generator. Du MUSST EXAKT 3 Folgefragen basierend auf dem Gesprächsverlauf erstellen.
+  try {
+    const result = await generateText({
+      model: languageModel,
+      system: `Du bist ein Such-Folgefragen-Generator. Du MUSST EXAKT 3 Folgefragen basierend auf dem Gesprächsverlauf erstellen.
 
 ### Richtlinien für die Fragengenerierung:
 - Erstelle genau 3 Fragen, die offen sind und weitere Diskussion fördern
@@ -92,15 +93,25 @@ export async function suggestQuestions(history: any[]) {
 - Jede Frage muss mit einem Fragezeichen enden
 - Fragen müssen vielfältig sein und dürfen sich nicht wiederholen
 - Keine Anweisungen oder Meta-Kommentare in den Fragen`,
-    messages: history,
-    schema: z.object({
-      questions: z.array(z.string().max(150)).describe('Die generierten Fragen basierend auf dem Gesprächsverlauf.').max(3),
-    }),
-  });
+      messages: history,
+      experimental_output: Output.object({
+        schema: z.object({
+          questions: z.array(z.string().max(150)).describe('Die generierten Fragen basierend auf dem Gesprächsverlauf.').max(3),
+        }),
+      }),
+    });
 
-  return {
-    questions: object.questions,
-  };
+    const output = result.experimental_output;
+    return {
+      questions: output?.questions ?? [],
+    };
+  } catch (error) {
+    if (NoOutputGeneratedError.isInstance(error)) {
+      console.error('Failed to generate suggested questions:', (error as any).text);
+      return { questions: [] };
+    }
+    throw error;
+  }
 }
 
 export async function checkImageModeration(images: string[]) {

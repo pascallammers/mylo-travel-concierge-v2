@@ -498,7 +498,6 @@ function GlassButton() {
 - [CSS Glass Effects](https://liquidglassui.org/) - Library and components
 
 ---
-
 ## Common Patterns
 
 ### Card Component

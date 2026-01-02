@@ -7,7 +7,7 @@
 
 import Exa from 'exa-js';
 import { Daytona } from '@daytonaio/sdk';
-import { generateObject, generateText, stepCountIs, tool } from 'ai';
+import { generateText, Output, NoOutputGeneratedError, stepCountIs, tool } from 'ai';
 import type { UIMessageStreamWriter } from 'ai';
 import { z } from 'zod';
 import { serverEnv } from '@/env/server';
@@ -206,20 +206,27 @@ async function extremeSearch(
   }
 
   // plan out the research
-  const { object: result } = await generateObject({
-    model: scira.languageModel('scira-grok-4-fast-think'),
-    schema: z.object({
-      plan: z
-        .array(
-          z.object({
-            title: z.string().min(10).max(70).describe('A title for the research topic'),
-            todos: z.array(z.string()).min(3).max(5).describe('A list of what to research for the given title'),
-          }),
-        )
-        .min(1)
-        .max(5),
-    }),
-    prompt: `
+  const planSchema = z.object({
+    plan: z
+      .array(
+        z.object({
+          title: z.string().min(10).max(70).describe('A title for the research topic'),
+          todos: z.array(z.string()).min(3).max(5).describe('A list of what to research for the given title'),
+        }),
+      )
+      .min(1)
+      .max(5),
+  });
+
+  let plan: z.infer<typeof planSchema>['plan'];
+
+  try {
+    const textResult = await generateText({
+      model: scira.languageModel('scira-grok-4-fast-think'),
+      experimental_output: Output.object({
+        schema: planSchema,
+      }),
+      prompt: `
 Plan out the research for the following topic: ${prompt}.
 
 Today's Date: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: '2-digit', weekday: 'short' })}
@@ -238,11 +245,19 @@ Plan Guidelines:
 - Mention if the topic needs to use the xSearch tool
 - Mention any need for visualizations in the plan
 - Make the plan technical and specific to the topic`,
-  });
+    });
 
-  console.log(result.plan);
-
-  const plan = result.plan;
+    const result = textResult.experimental_output;
+    console.log(result?.plan);
+    plan = result?.plan ?? [{ title: 'Research the topic', todos: ['Search for information', 'Analyze results', 'Summarize findings'] }];
+  } catch (error) {
+    if (NoOutputGeneratedError.isInstance(error)) {
+      console.error('Failed to generate research plan:', (error as any).text);
+      plan = [{ title: 'Research the topic', todos: ['Search for information', 'Analyze results', 'Summarize findings'] }];
+    } else {
+      throw error;
+    }
+  }
 
   // calculate the total number of todos
   const totalTodos = plan.reduce((acc, curr) => acc + curr.todos.length, 0);
