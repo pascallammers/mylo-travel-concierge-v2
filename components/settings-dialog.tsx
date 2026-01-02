@@ -64,6 +64,7 @@ import {
   GlobalSearchIcon,
   ConnectIcon,
   InformationCircleIcon,
+  Wallet02Icon,
 } from '@hugeicons/core-free-icons';
 import {
   ContributionGraph,
@@ -1260,6 +1261,76 @@ function MemoriesSection() {
   );
 }
 
+// Component for Loyalty Programs (AwardWallet Integration)
+function LoyaltySection({ user }: { user: any }) {
+  const isMobile = useMediaQuery('(max-width: 768px)');
+
+  return (
+    <div className={cn('space-y-4', isMobile ? 'space-y-3' : 'space-y-4')}>
+      <div>
+        <h3 className={cn('font-semibold mb-1', isMobile ? 'text-sm' : 'text-base')}>Treueprogramme</h3>
+        <p className={cn('text-muted-foreground', isMobile ? 'text-[11px] leading-relaxed' : 'text-xs')}>
+          Verbinde dein AwardWallet-Konto, um alle deine Meilen und Punkte an einem Ort zu sehen.
+        </p>
+      </div>
+
+      <div className="border-2 border-dashed border-muted-foreground/20 rounded-lg p-6 text-center bg-muted/10">
+        <div className="flex flex-col items-center space-y-3">
+          <div className="p-3 rounded-full bg-muted">
+            <HugeiconsIcon
+              icon={Wallet02Icon}
+              size={28}
+              color="currentColor"
+              strokeWidth={1.5}
+              className="text-muted-foreground"
+            />
+          </div>
+          <div className="space-y-1">
+            <h4 className="font-medium text-sm">AwardWallet verbinden</h4>
+            <p className="text-muted-foreground text-xs max-w-sm">
+              Verbinde dein AwardWallet-Konto, um deine Treueprogramm-Salden zu synchronisieren.
+            </p>
+          </div>
+          <Button
+            variant="default"
+            size="sm"
+            className="mt-2"
+            onClick={async () => {
+              try {
+                const response = await fetch('/api/awardwallet/auth/initiate', {
+                  method: 'POST',
+                });
+                const data = await response.json();
+                if (data.authUrl) {
+                  window.location.href = data.authUrl;
+                } else {
+                  toast.error(data.message || 'Verbindung fehlgeschlagen');
+                }
+              } catch {
+                toast.error('Verbindung fehlgeschlagen');
+              }
+            }}
+          >
+            <HugeiconsIcon icon={Wallet02Icon} size={14} className="mr-1.5" />
+            Mit AwardWallet verbinden
+          </Button>
+          <p className="text-[10px] text-muted-foreground mt-2">
+            Noch kein AwardWallet?{' '}
+            <a
+              href="https://awardwallet.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              Kostenlos registrieren
+            </a>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Component for Connectors
 function ConnectorsSection({ user }: { user: any }) {
   const isProUser = user?.isProUser || false;
@@ -1703,6 +1774,11 @@ export function SettingsDialog({
       icon: ({ className }: { className?: string }) => <HugeiconsIcon icon={Crown02Icon} className={className} />,
     },
     {
+      value: 'loyalty',
+      label: 'Treueprogramme',
+      icon: ({ className }: { className?: string }) => <HugeiconsIcon icon={Wallet02Icon} className={className} />,
+    },
+    {
       value: 'memories',
       label: 'Erinnerungen (Beta)',
       icon: ({ className }: { className?: string }) => <HugeiconsIcon icon={Brain02Icon} className={className} />,
@@ -1726,6 +1802,10 @@ export function SettingsDialog({
 
       <TabsContent value="subscription" className="mt-0">
         <SubscriptionSection subscriptionData={subscriptionData} isProUser={isProUser} user={user} />
+      </TabsContent>
+
+      <TabsContent value="loyalty" className="mt-0">
+        <LoyaltySection user={user} />
       </TabsContent>
 
       <TabsContent value="memories" className="mt-0">
