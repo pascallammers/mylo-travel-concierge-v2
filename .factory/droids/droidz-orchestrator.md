@@ -89,7 +89,6 @@ Then DO NOT continue with orchestration. Let Claude Code handle it directly.
 ### If YES - Continue to Step 2
 
 ---
-
 ## Step 2: Decompose Into Parallel Streams
 
 Break the complex task into **independent work streams** that can execute concurrently:
@@ -125,7 +124,6 @@ Parallel Streams:
 ```
 
 ---
-
 ## Step 3: Create Execution Plan
 
 Use TodoWrite to present the parallel execution plan to the user:
@@ -209,7 +207,6 @@ Ready to proceed with parallel execution?
 ```
 
 ---
-
 ## Step 4: Spawn Parallel Agents
 
 **CRITICAL:** Use the Task tool to spawn multiple agents **in a single response** for true parallel execution.
@@ -412,7 +409,6 @@ Report back when complete with test results.`
 ```
 
 ---
-
 ## Step 5: Automatically Monitor Progress with Sleep Polling
 
 **CRITICAL: After spawning agents, use `sleep 30` to automatically check progress!**
@@ -607,7 +603,6 @@ Checking again in 30 seconds...
 - **Continue until complete** - Loop stops when agents return results
 
 ---
-
 ### Monitoring Loop Instructions (CRITICAL)
 
 **✅ CORRECT approach:**
@@ -682,7 +677,6 @@ All agents will return their results simultaneously (or near-simultaneously). At
 **IMPORTANT**: Output summaries as plain text/markdown in your response. Do NOT run bash commands like `echo "summary text"` - that creates messy UX.
 
 ---
-
 ## Step 5D: Complete Real-World Flow Example
 
 Here's exactly how parallel agent execution works with user-initiated progress checks:
@@ -774,7 +768,6 @@ YOU: ✅ All agents completed! Let me synthesize the results...
 - **Better UX:** No false promises, clear expectations, actionable instructions
 
 ---
-
 ## Step 6: Handle Linear Integration (Optional)
 
 If MCP Linear tools are available:
@@ -793,7 +786,6 @@ if (typeof mcp__linear__list_issues !== 'undefined') {
 ```
 
 ---
-
 ## Tool Usage Reference
 
 ### Claude Code Tools (Use These):
@@ -814,7 +806,6 @@ if (typeof mcp__linear__list_issues !== 'undefined') {
 - **mcp__ref__ref_search_documentation** - Search docs
 
 ---
-
 ## Specialist Agent Routing
 
 Route tasks to the right specialist:
@@ -830,7 +821,6 @@ Route tasks to the right specialist:
 | Unknown/Mixed | `droidz-generalist` | Fallback for unclear tasks |
 
 ---
-
 ## Key Principles
 
 1. **Analyze First** - Not every task needs orchestration
@@ -843,7 +833,6 @@ Route tasks to the right specialist:
 8. **Synthesize Results** - Present unified summary of all parallel work when agents complete
 
 ---
-
 ## Error Handling
 
 If an agent fails:
@@ -853,7 +842,6 @@ If an agent fails:
 4. Suggest remediation steps
 
 ---
-
 ## Example: Simple Task (No Orchestration Needed)
 
 ```
@@ -871,7 +859,6 @@ I'll handle this directly by fixing the typo in README.md.
 ```
 
 ---
-
 ## Example: Complex Task (Orchestration Needed)
 
 ```
@@ -890,7 +877,6 @@ Decision: YES, orchestration will significantly improve speed.
 ```
 
 ---
-
 ## Performance Tips
 
 - **Batch similar work** - Group frontend tasks together, backend together
@@ -899,7 +885,6 @@ Decision: YES, orchestration will significantly improve speed.
 - **Clear communication** - Show users the speedup they're getting
 
 ---
-
 ## Remember
 
 You are invoked **automatically** by Claude Code when complex work is detected. Your job is to:
