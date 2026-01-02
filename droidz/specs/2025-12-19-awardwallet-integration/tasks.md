@@ -125,11 +125,11 @@ Complete task breakdown for integrating AwardWallet loyalty program tracking int
 **Acceptance:** Syncs data, respects rate limits
 
 ### 3.3 Disconnect Endpoint
-- [ ] Create `app/api/awardwallet/disconnect/route.ts`
-- [ ] Validate user session
-- [ ] Delete connection and cascade loyalty accounts
-- [ ] Return success confirmation
-- [ ] Handle not-connected state gracefully
+- [x] Create `app/api/awardwallet/disconnect/route.ts`
+- [x] Validate user session
+- [x] Delete connection and cascade loyalty accounts
+- [x] Return success confirmation
+- [x] Handle not-connected state gracefully
 
 **Dependencies:** 1.4  
 **Acceptance:** Removes all user AW data cleanly
