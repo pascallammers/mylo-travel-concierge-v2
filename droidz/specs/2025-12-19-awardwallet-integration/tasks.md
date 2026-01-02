@@ -8,49 +8,49 @@ Complete task breakdown for integrating AwardWallet loyalty program tracking int
 ## Phase 1: Foundation (Infrastructure & Core Setup)
 
 ### 1.1 Environment Configuration
-- [ ] Add `AWARDWALLET_API_KEY` to `env/server.ts` Zod schema
-- [ ] Add optional `AWARDWALLET_CALLBACK_URL` env var for local dev override
-- [ ] Update `.env.example` with AwardWallet variables documentation
-- [ ] Verify environment variables load correctly in development
+- [x] Add `AWARDWALLET_API_KEY` to `env/server.ts` Zod schema
+- [x] Add optional `AWARDWALLET_CALLBACK_URL` env var for local dev override
+- [x] Update `.env.example` with AwardWallet variables documentation
+- [x] Verify environment variables load correctly in development
 
 **Dependencies:** None  
 **Acceptance:** Environment validates without errors, API key accessible server-side
 
 ### 1.2 Database Schema & Migration
-- [ ] Add `awardwalletConnectionStatus` type array to `lib/db/schema.ts`
-- [ ] Create `awardwalletConnections` table definition with Drizzle
-- [ ] Add `loyaltyBalanceUnit` type array to schema
-- [ ] Create `loyaltyAccounts` table definition with Drizzle
-- [ ] Export TypeScript types (`AwardWalletConnection`, `LoyaltyAccount`)
-- [ ] Generate migration SQL with `bunx drizzle-kit generate`
-- [ ] Apply migration with `bunx drizzle-kit push`
-- [ ] Create indexes for performance (user_id, connection_id, balance DESC, expiration_date)
+- [x] Add `awardwalletConnectionStatus` type array to `lib/db/schema.ts`
+- [x] Create `awardwalletConnections` table definition with Drizzle
+- [x] Add `loyaltyBalanceUnit` type array to schema
+- [x] Create `loyaltyAccounts` table definition with Drizzle
+- [x] Export TypeScript types (`AwardWalletConnection`, `LoyaltyAccount`)
+- [x] Generate migration SQL with `bunx drizzle-kit generate`
+- [x] Apply migration with `bunx drizzle-kit push`
+- [x] Create indexes for performance (user_id, connection_id, balance DESC, expiration_date)
 
 **Dependencies:** 1.1 (env vars for DB connection)  
 **Acceptance:** Tables exist in database, types available for import
 
 ### 1.3 AwardWallet API Client
-- [ ] Create `lib/api/awardwallet-client.ts` with typed interfaces
-- [ ] Implement `createAuthUrl()` - generate OAuth consent URL
-- [ ] Implement `getConnectionInfo(code: string)` - exchange code for userId
-- [ ] Implement `getConnectedUser(userId: string)` - fetch all loyalty accounts
-- [ ] Add proper error handling with ChatSDKError patterns
-- [ ] Add structured logging for all API operations
+- [x] Create `lib/api/awardwallet-client.ts` with typed interfaces
+- [x] Implement `createAuthUrl()` - generate OAuth consent URL
+- [x] Implement `getConnectionInfo(code: string)` - exchange code for userId
+- [x] Implement `getConnectedUser(userId: string)` - fetch all loyalty accounts
+- [x] Add proper error handling with ChatSDKError patterns
+- [x] Add structured logging for all API operations
 - [ ] Create `lib/api/awardwallet-client.test.ts` with unit tests
 
 **Dependencies:** 1.1 (AWARDWALLET_API_KEY)  
 **Acceptance:** All API methods work, tests pass with `bunx vitest run awardwallet-client`
 
 ### 1.4 Database Query Functions
-- [ ] Create `lib/db/queries/awardwallet.ts` for DB operations
-- [ ] Implement `createConnection(userId, awUserId)` - insert new connection
-- [ ] Implement `getConnection(userId)` - get user's AW connection
-- [ ] Implement `updateConnectionStatus(id, status, errorMessage?)` 
-- [ ] Implement `deleteConnection(userId)` - soft delete / cascade
-- [ ] Implement `getLoyaltyAccounts(connectionId)` - get accounts sorted by balance
-- [ ] Implement `syncLoyaltyAccounts(connectionId, accounts[])` - upsert accounts
-- [ ] Implement `getUserLoyaltyData(userId)` - combined query for UI
-- [ ] Add `.$withCache()` patterns for read queries
+- [x] Create `lib/db/queries/awardwallet.ts` for DB operations
+- [x] Implement `createConnection(userId, awUserId)` - insert new connection
+- [x] Implement `getConnection(userId)` - get user's AW connection
+- [x] Implement `updateConnectionStatus(id, status, errorMessage?)` 
+- [x] Implement `deleteConnection(userId)` - soft delete / cascade
+- [x] Implement `getLoyaltyAccounts(connectionId)` - get accounts sorted by balance
+- [x] Implement `syncLoyaltyAccounts(connectionId, accounts[])` - upsert accounts
+- [x] Implement `getUserLoyaltyData(userId)` - combined query for UI
+- [x] Add `.$withCache()` patterns for read queries
 - [ ] Create `lib/db/queries/awardwallet.test.ts` with unit tests
 
 **Dependencies:** 1.2 (schema tables)  
@@ -61,26 +61,26 @@ Complete task breakdown for integrating AwardWallet loyalty program tracking int
 ## Phase 2: OAuth Flow (Authentication)
 
 ### 2.1 Auth Initiate Route
-- [ ] Create `app/api/awardwallet/auth/initiate/route.ts`
-- [ ] Validate user session with `auth()` from `@/lib/auth`
+- [x] Create `app/api/awardwallet/auth/initiate/route.ts`
+- [x] Validate user session with `auth()` from `@/lib/auth`
 - [ ] Generate state parameter for CSRF protection
-- [ ] Call AwardWallet client `createAuthUrl()`
-- [ ] Return JSON with `authUrl` for frontend redirect
+- [x] Call AwardWallet client `createAuthUrl()`
+- [x] Return JSON with `authUrl` for frontend redirect
 - [ ] Add Zod validation for response schema
-- [ ] Handle errors with proper ChatSDKError codes
+- [x] Handle errors with proper ChatSDKError codes
 
 **Dependencies:** 1.3 (API client), 1.4 (queries)  
 **Acceptance:** Returns valid OAuth URL, requires authentication
 
 ### 2.2 Auth Callback Route
-- [ ] Create `app/api/awardwallet/auth/callback/route.ts`
-- [ ] Parse `code` and `state` query parameters with Zod
+- [x] Create `app/api/awardwallet/auth/callback/route.ts`
+- [x] Parse `code` and `state` query parameters with Zod
 - [ ] Validate state parameter matches stored value
-- [ ] Call `getConnectionInfo(code)` to exchange code
-- [ ] Store connection in DB via `createConnection()`
-- [ ] Trigger initial sync of loyalty accounts
-- [ ] Redirect to `/?tab=loyalty#settings` on success
-- [ ] Redirect with `?error=connection_failed` on failure
+- [x] Call `getConnectionInfo(code)` to exchange code
+- [x] Store connection in DB via `createConnection()`
+- [x] Trigger initial sync of loyalty accounts
+- [x] Redirect to `/?tab=loyalty#settings` on success
+- [x] Redirect with `?error=connection_failed` on failure
 
 **Dependencies:** 2.1, 1.3, 1.4  
 **Acceptance:** OAuth flow completes, connection stored, user redirected
