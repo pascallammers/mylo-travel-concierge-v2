@@ -100,13 +100,13 @@ Complete task breakdown for integrating AwardWallet loyalty program tracking int
 ## Phase 3: Data Sync (API Endpoints & Cron)
 
 ### 3.1 Accounts Endpoint
-- [ ] Create `app/api/awardwallet/accounts/route.ts`
-- [ ] Validate user session
-- [ ] Query user's loyalty data with `getUserLoyaltyData()`
-- [ ] Return accounts sorted by balance DESC
-- [ ] Include `connected` boolean and `lastSyncedAt` timestamp
-- [ ] Handle not-connected state gracefully (empty array)
-- [ ] Add response Zod schema validation
+- [x] Create `app/api/awardwallet/accounts/route.ts`
+- [x] Validate user session
+- [x] Query user's loyalty data with `getUserLoyaltyData()`
+- [x] Return accounts sorted by balance DESC
+- [x] Include `connected` boolean and `lastSyncedAt` timestamp
+- [x] Handle not-connected state gracefully (empty array)
+- [x] Add response Zod schema validation
 
 **Dependencies:** Phase 2 complete  
 **Acceptance:** Returns loyalty accounts for connected users
