@@ -3,6 +3,10 @@
     {
       "path": "/api/clean_images",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/awardwallet-sync",
+      "schedule": "0 */6 * * *"
     }
   ]
 }

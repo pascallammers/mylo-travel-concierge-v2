@@ -90,13 +90,7 @@ export async function POST(request: NextRequest) {
     console.error('[AwardWallet] Sync error:', error);
 
     if (error instanceof ChatSDKError) {
-      return NextResponse.json(
-        {
-          code: error.code,
-          message: error.message,
-        },
-        { status: error.statusCode },
-      );
+      return error.toResponse();
     }
 
     return NextResponse.json(

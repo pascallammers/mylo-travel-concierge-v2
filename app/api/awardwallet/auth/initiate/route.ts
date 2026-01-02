@@ -32,13 +32,7 @@ export async function POST(request: NextRequest) {
     console.error('[AwardWallet] Auth initiate error:', error);
 
     if (error instanceof ChatSDKError) {
-      return NextResponse.json(
-        {
-          code: error.code,
-          message: error.message,
-        },
-        { status: 500 },
-      );
+      return error.toResponse();
     }
 
     return NextResponse.json(

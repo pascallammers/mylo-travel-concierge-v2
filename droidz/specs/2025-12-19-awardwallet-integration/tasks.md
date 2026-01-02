@@ -135,14 +135,14 @@ Complete task breakdown for integrating AwardWallet loyalty program tracking int
 **Acceptance:** Removes all user AW data cleanly
 
 ### 3.4 Cron Job for Scheduled Sync
-- [ ] Create `app/api/cron/awardwallet-sync/route.ts`
-- [ ] Validate `CRON_SECRET` header
-- [ ] Query all active connections
-- [ ] Iterate and sync each connection
-- [ ] Track success/failure counts
-- [ ] Log results with structured logging
-- [ ] Return detailed sync report
-- [ ] Update `vercel.json` with cron schedule (`"0 */6 * * *"`)
+- [x] Create `app/api/cron/awardwallet-sync/route.ts`
+- [x] Validate `CRON_SECRET` header
+- [x] Query all active connections
+- [x] Iterate and sync each connection
+- [x] Track success/failure counts
+- [x] Log results with structured logging
+- [x] Return detailed sync report
+- [x] Update `vercel.json` with cron schedule (`"0 */6 * * *"`)
 
 **Dependencies:** 3.2, 1.4  
 **Acceptance:** Cron executes every 6 hours, syncs all connections
