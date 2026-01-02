@@ -4,25 +4,36 @@ import { serverEnv } from '@/env/server';
 import { ChatSDKError } from '@/lib/errors';
 import type { LoyaltyBalanceUnit } from '@/lib/db/schema';
 
-const AWARDWALLET_BASE_URL = 'https://business.awardwallet.com/api/business';
+/**
+ * AwardWallet Business API base URL
+ * Documentation: https://awardwallet.com/api/account
+ */
+const AWARDWALLET_BASE_URL = 'https://business.awardwallet.com/api/export/v1';
+
+/**
+ * Account property from AwardWallet API
+ */
+interface AWAccountProperty {
+  name: string;
+  value: string;
+  kind?: number;
+  rank?: number;
+}
 
 /**
  * Raw account data from AwardWallet API
+ * @see https://awardwallet.com/api/account#object-Account
  */
 interface AWRawAccount {
-  id: number;
+  accountId: number;
+  code: string;
   displayName: string;
-  valueName: string;
   kind: string;
   login: string;
-  balance?: {
-    value: number;
-    date: string;
-  };
-  expireDate?: string;
-  eliteLevelName?: string;
-  lastCheckedAt?: string;
-  logoUrl?: string;
+  balance?: string;
+  balanceRaw?: number;
+  expirationDate?: string;
+  properties?: AWAccountProperty[];
 }
 
 /**
@@ -48,25 +59,26 @@ export interface AWLoyaltyAccount {
 
 /**
  * Creates the AwardWallet OAuth consent URL
+ * Uses the create-auth-url endpoint to generate a secure connection link
+ * @see https://awardwallet.com/api/account#method-Connect_1
  * @returns The URL to redirect users to for OAuth consent
  */
 export async function createAuthUrl(): Promise<string> {
   const apiKey = serverEnv.AWARDWALLET_API_KEY;
-  const callbackUrl =
-    serverEnv.AWARDWALLET_CALLBACK_URL ??
-    `${process.env.NEXT_PUBLIC_APP_URL}/api/awardwallet/auth/callback`;
 
-  console.log('[AwardWallet] Creating auth URL with callback:', callbackUrl);
+  console.log('[AwardWallet] Creating auth URL');
 
   try {
     const response = await fetch(`${AWARDWALLET_BASE_URL}/create-auth-url`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
+        'X-Authentication': apiKey,
       },
       body: JSON.stringify({
-        callbackUrl,
+        platform: 'mobile',
+        access: 2, // Read all information excluding passwords
+        granularSharing: false,
       }),
     });
 
@@ -79,7 +91,8 @@ export async function createAuthUrl(): Promise<string> {
     const data = await response.json();
     console.log('[AwardWallet] Auth URL created successfully');
 
-    return data.authUrl;
+    // API returns { url: "..." }
+    return data.url;
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     console.error('[AwardWallet] createAuthUrl error:', error);
@@ -89,6 +102,7 @@ export async function createAuthUrl(): Promise<string> {
 
 /**
  * Exchanges OAuth authorization code for user connection info
+ * @see https://awardwallet.com/api/account#method-Connect_2
  * @param code - The authorization code from OAuth callback
  * @returns Connection info with AwardWallet userId
  */
@@ -101,7 +115,7 @@ export async function getConnectionInfo(code: string): Promise<AWConnectionInfo>
     const response = await fetch(`${AWARDWALLET_BASE_URL}/get-connection-info/${code}`, {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        'X-Authentication': apiKey,
       },
     });
 
@@ -126,6 +140,7 @@ export async function getConnectionInfo(code: string): Promise<AWConnectionInfo>
 
 /**
  * Fetches all loyalty accounts for a connected user
+ * @see https://awardwallet.com/api/account#method-Connected%20Users_2
  * @param awUserId - The AwardWallet userId
  * @returns Array of loyalty accounts
  */
@@ -135,10 +150,11 @@ export async function getConnectedUser(awUserId: string): Promise<AWLoyaltyAccou
   console.log('[AwardWallet] Fetching accounts for user:', awUserId);
 
   try {
-    const response = await fetch(`${AWARDWALLET_BASE_URL}/get-connected-user/${awUserId}`, {
+    // Get connected user details with all their accounts
+    const response = await fetch(`${AWARDWALLET_BASE_URL}/connectedUser/${awUserId}`, {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        'X-Authentication': apiKey,
       },
     });
 
@@ -149,6 +165,7 @@ export async function getConnectedUser(awUserId: string): Promise<AWLoyaltyAccou
     }
 
     const data = await response.json();
+    // API returns accounts array directly in the response
     const accounts: AWRawAccount[] = data.accounts || [];
 
     console.log(`[AwardWallet] Retrieved ${accounts.length} accounts`);
@@ -165,32 +182,35 @@ export async function getConnectedUser(awUserId: string): Promise<AWLoyaltyAccou
  * Formats raw AwardWallet account data to MYLO format
  */
 function formatAccount(raw: AWRawAccount): AWLoyaltyAccount {
+  // Extract elite status from properties (kind=3 is elite status)
+  const eliteStatusProp = raw.properties?.find((p) => p.kind === 3);
+  const eliteStatus = eliteStatusProp?.value || null;
+
   return {
-    providerCode: String(raw.id),
+    providerCode: raw.code,
     providerName: raw.displayName,
-    balance: raw.balance?.value ?? 0,
-    balanceUnit: parseBalanceUnit(raw.valueName, raw.kind),
-    eliteStatus: raw.eliteLevelName || null,
-    expirationDate: raw.expireDate ? new Date(raw.expireDate) : null,
+    balance: raw.balanceRaw ?? 0,
+    balanceUnit: parseBalanceUnit(raw.kind),
+    eliteStatus,
+    expirationDate: raw.expirationDate ? new Date(raw.expirationDate) : null,
     accountNumber: raw.login || null,
-    logoUrl: raw.logoUrl || null,
+    logoUrl: null, // API doesn't provide logo URL in account data
   };
 }
 
 /**
- * Parses the balance unit from AwardWallet's valueName and kind fields
+ * Parses the balance unit from AwardWallet's kind field
  */
-function parseBalanceUnit(valueName: string, kind: string): LoyaltyBalanceUnit {
-  const lowerValue = (valueName || '').toLowerCase();
+function parseBalanceUnit(kind: string): LoyaltyBalanceUnit {
   const lowerKind = (kind || '').toLowerCase();
 
-  if (lowerValue.includes('mile') || lowerKind.includes('airline')) {
+  if (lowerKind.includes('airline')) {
     return 'miles';
   }
-  if (lowerValue.includes('night') || lowerKind.includes('hotel')) {
+  if (lowerKind.includes('hotel')) {
     return 'nights';
   }
-  if (lowerValue.includes('credit')) {
+  if (lowerKind.includes('credit')) {
     return 'credits';
   }
   return 'points';
