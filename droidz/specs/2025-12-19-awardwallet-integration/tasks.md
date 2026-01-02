@@ -171,47 +171,47 @@ Complete task breakdown for integrating AwardWallet loyalty program tracking int
 **Acceptance:** New tab visible and navigable in Settings
 
 ### 4.2 Loyalty Connect Button Component
-- [ ] Create `components/awardwallet/connect-button.tsx`
-- [ ] Support variants: 'default', 'outline', 'ghost'
-- [ ] Support sizes: 'sm', 'default', 'lg'
-- [ ] Implement states: idle, loading, redirecting
-- [ ] Call `/api/awardwallet/auth/initiate` on click
-- [ ] Handle redirect to OAuth consent page
-- [ ] Show helpful text for users without AW account
+- [x] Create `components/awardwallet/connect-button.tsx`
+- [x] Support variants: 'default', 'outline', 'ghost'
+- [x] Support sizes: 'sm', 'default', 'lg'
+- [x] Implement states: idle, loading, redirecting
+- [x] Call `/api/awardwallet/auth/initiate` on click
+- [x] Handle redirect to OAuth consent page
+- [x] Show helpful text for users without AW account
 
 **Dependencies:** 4.1  
 **Acceptance:** Button triggers OAuth flow correctly
 
 ### 4.3 Loyalty Program Card Component
-- [ ] Create `components/awardwallet/loyalty-program-card.tsx`
-- [ ] Display provider logo, name, balance with unit
-- [ ] Show elite status badge if present
-- [ ] Show expiration date with warning styling if soon
-- [ ] Support `compact` mode for header display
-- [ ] Format numbers with `toLocaleString()`
+- [x] Create `components/awardwallet/loyalty-program-card.tsx`
+- [x] Display provider logo, name, balance with unit
+- [x] Show elite status badge if present
+- [x] Show expiration date with warning styling if soon
+- [x] Support `compact` mode for header display
+- [x] Format numbers with `toLocaleString()`
 
 **Dependencies:** None (can parallel with 4.1)  
 **Acceptance:** Card renders all program data correctly
 
 ### 4.4 Loyalty Programs List Component
-- [ ] Create `components/awardwallet/loyalty-programs-list.tsx`
-- [ ] Fetch data with `useQuery` from TanStack Query
-- [ ] Show skeleton loading state
-- [ ] Show empty state for no accounts
-- [ ] Render list of `LoyaltyProgramCard` components
-- [ ] Add "Last synced" timestamp display
-- [ ] Add manual refresh button (triggers sync endpoint)
-- [ ] Add disconnect button with confirmation dialog
+- [x] Create `components/awardwallet/loyalty-programs-list.tsx`
+- [x] Fetch data with `useQuery` from TanStack Query
+- [x] Show skeleton loading state
+- [x] Show empty state for no accounts
+- [x] Render list of `LoyaltyProgramCard` components
+- [x] Add "Last synced" timestamp display
+- [x] Add manual refresh button (triggers sync endpoint)
+- [x] Add disconnect button with confirmation dialog
 
 **Dependencies:** 4.3, 3.1  
 **Acceptance:** List displays all accounts, refresh works
 
 ### 4.5 Settings Loyalty Section
-- [ ] Create `components/awardwallet/settings-section.tsx`
-- [ ] Show connect flow when not connected
-- [ ] Show programs list when connected
-- [ ] Handle error states from callback redirect
-- [ ] Integrate into Settings dialog tab content
+- [x] Create `components/awardwallet/settings-section.tsx`
+- [x] Show connect flow when not connected
+- [x] Show programs list when connected
+- [x] Handle error states from callback redirect
+- [x] Integrate into Settings dialog tab content
 
 **Dependencies:** 4.2, 4.4  
 **Acceptance:** Full settings experience complete
