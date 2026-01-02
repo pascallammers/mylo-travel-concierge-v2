@@ -217,22 +217,22 @@ Complete task breakdown for integrating AwardWallet loyalty program tracking int
 **Acceptance:** Full settings experience complete
 
 ### 4.6 Loyalty Header Widget
-- [ ] Create `components/awardwallet/loyalty-header-widget.tsx`
-- [ ] Display top 2-3 programs (highest balances)
-- [ ] Compact inline display: icons + abbreviated values
-- [ ] Click opens Settings to Loyalty tab
-- [ ] Hover/click expands to show details (desktop)
-- [ ] Show "Connect Loyalty" button when not connected
-- [ ] Responsive: collapse on mobile
+- [x] Create `components/awardwallet/loyalty-header-widget.tsx`
+- [x] Display top 2-3 programs (highest balances)
+- [x] Compact inline display: icons + abbreviated values
+- [x] Click opens Settings to Loyalty tab
+- [x] Hover/click expands to show details (desktop)
+- [x] Show "Connect Loyalty" button when not connected
+- [x] Responsive: collapse on mobile
 
 **Dependencies:** 4.3, 3.1  
 **Acceptance:** Widget shows in header, navigates to settings
 
 ### 4.7 Homepage Integration
-- [ ] Add header widget to homepage/navbar area
-- [ ] Conditionally render based on connection status
-- [ ] Handle URL params for direct tab navigation
-- [ ] Process `?error=connection_failed` display
+- [x] Add header widget to homepage/navbar area
+- [x] Conditionally render based on connection status
+- [x] Handle URL params for direct tab navigation
+- [x] Process `?error=connection_failed` display
 
 **Dependencies:** 4.6  
 **Acceptance:** Widget visible on homepage, error handling works

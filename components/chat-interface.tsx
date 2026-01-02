@@ -559,6 +559,7 @@ const ChatInterface = memo(
           settingsOpen={settingsOpen}
           setSettingsOpen={setSettingsOpen}
           settingsInitialTab={settingsInitialTab}
+          onOpenSettingsWithTab={handleOpenSettings}
         />
 
         {/* Chat Dialogs Component */}
