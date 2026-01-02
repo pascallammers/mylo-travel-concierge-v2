@@ -489,3 +489,67 @@ export type AmadeusToken = InferSelectModel<typeof amadeusTokens>;
 export type UserAccessControl = InferSelectModel<typeof userAccessControl>;
 export type KBDocument = InferSelectModel<typeof kbDocuments>;
 export type PasswordResetHistory = InferSelectModel<typeof passwordResetHistory>;
+
+// ============================================
+// AwardWallet Integration
+// ============================================
+
+/**
+ * Connection status for AwardWallet integration
+ */
+export const awardwalletConnectionStatus = ['connected', 'disconnected', 'error'] as const;
+export type AwardWalletConnectionStatus = (typeof awardwalletConnectionStatus)[number];
+
+/**
+ * AwardWallet connections table.
+ * Stores OAuth connection state for each user's AwardWallet account.
+ */
+export const awardwalletConnections = pgTable('awardwallet_connections', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => generateId()),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' })
+    .unique(),
+  awUserId: text('aw_user_id').notNull(),
+  connectedAt: timestamp('connected_at').notNull().defaultNow(),
+  lastSyncedAt: timestamp('last_synced_at'),
+  status: text('status').$type<AwardWalletConnectionStatus>().notNull().default('connected'),
+  errorMessage: text('error_message'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export type AwardWalletConnection = InferSelectModel<typeof awardwalletConnections>;
+
+/**
+ * Balance unit types for loyalty programs
+ */
+export const loyaltyBalanceUnit = ['miles', 'points', 'nights', 'credits'] as const;
+export type LoyaltyBalanceUnit = (typeof loyaltyBalanceUnit)[number];
+
+/**
+ * Loyalty accounts table.
+ * Stores individual loyalty program balances synced from AwardWallet.
+ */
+export const loyaltyAccounts = pgTable('loyalty_accounts', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => generateId()),
+  connectionId: text('connection_id')
+    .notNull()
+    .references(() => awardwalletConnections.id, { onDelete: 'cascade' }),
+  providerCode: text('provider_code').notNull(),
+  providerName: text('provider_name').notNull(),
+  balance: integer('balance').notNull().default(0),
+  balanceUnit: text('balance_unit').$type<LoyaltyBalanceUnit>().notNull().default('points'),
+  eliteStatus: text('elite_status'),
+  expirationDate: timestamp('expiration_date'),
+  accountNumber: text('account_number'),
+  logoUrl: text('logo_url'),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export type LoyaltyAccount = InferSelectModel<typeof loyaltyAccounts>;

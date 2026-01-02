@@ -51,6 +51,9 @@ export const serverEnv = createEnv({
     RESEND_API_KEY: z.string().min(1),
     SUPERMEMORY_API_KEY: z.string().min(1),
     ALLOWED_ORIGINS: z.string().optional().default('http://localhost:3000'),
+    // AwardWallet Integration
+    AWARDWALLET_API_KEY: z.string().min(1),
+    AWARDWALLET_CALLBACK_URL: z.string().url().optional(),
   },
   experimental__runtimeEnv: process.env,
 });
