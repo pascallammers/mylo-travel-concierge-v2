@@ -14,7 +14,7 @@ const CallbackSchema = z.object({
  * Handles OAuth callback from AwardWallet after user authorization
  */
 export async function GET(request: NextRequest) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const baseUrl = request.nextUrl?.origin || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const successRedirect = `${baseUrl}/?tab=loyalty#settings`;
   const errorRedirect = `${baseUrl}/?tab=loyalty&error=connection_failed#settings`;
 
