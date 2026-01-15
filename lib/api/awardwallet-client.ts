@@ -3,7 +3,7 @@ import 'server-only';
 import { serverEnv } from '@/env/server';
 import { ChatSDKError } from '@/lib/errors';
 import type { LoyaltyBalanceUnit } from '@/lib/db/schema';
-import { ProxyAgent, type Dispatcher } from 'undici';
+import { ProxyAgent } from 'undici';
 
 /**
  * AwardWallet Business API base URL
@@ -14,13 +14,11 @@ const awardWalletDispatcher = serverEnv.AWARDWALLET_PROXY_URL
   ? new ProxyAgent(serverEnv.AWARDWALLET_PROXY_URL)
   : undefined;
 
-type FetchInit = RequestInit & { dispatcher?: Dispatcher };
-
-function withAwardWalletProxy(init: RequestInit): FetchInit {
+function withAwardWalletProxy(init: RequestInit): RequestInit {
   if (!awardWalletDispatcher) {
     return init;
   }
-  return { ...init, dispatcher: awardWalletDispatcher };
+  return { ...init, dispatcher: awardWalletDispatcher } as RequestInit;
 }
 
 /**

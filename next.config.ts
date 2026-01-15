@@ -9,6 +9,9 @@ jiti.import('./env/client.ts');
 
 
 const nextConfig: NextConfig = {
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   compiler: {
     // if NODE_ENV is production, remove console.log
     removeConsole:

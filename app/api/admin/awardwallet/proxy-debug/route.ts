@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ProxyAgent, type Dispatcher } from 'undici';
+import { ProxyAgent } from 'undici';
 import { isCurrentUserAdmin } from '@/lib/auth-utils';
 import { serverEnv } from '@/env/server';
-
-type FetchInit = RequestInit & { dispatcher?: Dispatcher };
 
 /**
  * GET /api/admin/awardwallet/proxy-debug
  * Verifies AwardWallet proxy routing by fetching an external IP (admin only)
+ * @param request - Incoming request (admin-only access)
+ * @returns JSON response with observed IP or error details
  */
 export async function GET(request: NextRequest) {
   try {
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     const dispatcher = new ProxyAgent(proxyUrl);
     const response = await fetch(
       'https://api.ipify.org?format=json',
-      { method: 'GET', dispatcher } satisfies FetchInit,
+      { method: 'GET', dispatcher } as RequestInit,
     );
 
     if (!response.ok) {
