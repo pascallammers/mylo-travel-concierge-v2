@@ -88,7 +88,7 @@ const ChatInterface = memo(
     const handleOpenSettings = useCallback((tab: string = 'profile') => {
       setSettingsInitialTab(tab);
       setSettingsOpen(true);
-    }, [handleOpenSettings]);
+    }, [setSettingsInitialTab, setSettingsOpen]);
 
     // URL hash detection for settings dialog
     useEffect(() => {
