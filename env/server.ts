@@ -54,6 +54,7 @@ export const serverEnv = createEnv({
     // AwardWallet Integration
     AWARDWALLET_API_KEY: z.string().min(1),
     AWARDWALLET_CALLBACK_URL: z.string().url().optional(),
+    AWARDWALLET_PROXY_URL: z.string().min(1).optional(),
   },
   experimental__runtimeEnv: process.env,
 });

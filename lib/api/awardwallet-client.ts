@@ -3,12 +3,25 @@ import 'server-only';
 import { serverEnv } from '@/env/server';
 import { ChatSDKError } from '@/lib/errors';
 import type { LoyaltyBalanceUnit } from '@/lib/db/schema';
+import { ProxyAgent, type Dispatcher } from 'undici';
 
 /**
  * AwardWallet Business API base URL
  * Documentation: https://awardwallet.com/api/account
  */
 const AWARDWALLET_BASE_URL = 'https://business.awardwallet.com/api/export/v1';
+const awardWalletDispatcher = serverEnv.AWARDWALLET_PROXY_URL
+  ? new ProxyAgent(serverEnv.AWARDWALLET_PROXY_URL)
+  : undefined;
+
+type FetchInit = RequestInit & { dispatcher?: Dispatcher };
+
+function withAwardWalletProxy(init: RequestInit): FetchInit {
+  if (!awardWalletDispatcher) {
+    return init;
+  }
+  return { ...init, dispatcher: awardWalletDispatcher };
+}
 
 /**
  * Account property from AwardWallet API
@@ -71,30 +84,22 @@ export async function createAuthUrl(): Promise<string> {
     granularSharing: false,
   };
 
-  console.log('[AwardWallet] Creating auth URL', {
-    hasApiKey: Boolean(apiKey),
-    apiKeyLength: apiKey.length,
-    payload: authPayload,
-  });
-
   try {
-    const response = await fetch(`${AWARDWALLET_BASE_URL}/create-auth-url`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Authentication': apiKey,
-      },
-      body: JSON.stringify(authPayload),
-    });
+    const response = await fetch(
+      `${AWARDWALLET_BASE_URL}/create-auth-url`,
+      withAwardWalletProxy({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Authentication': apiKey,
+        },
+        body: JSON.stringify(authPayload),
+      }),
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
-      const contentType = response.headers.get('content-type');
       console.error('[AwardWallet] Failed to create auth URL:', response.status, errorText);
-      console.error('[AwardWallet] Response metadata:', {
-        statusText: response.statusText,
-        contentType,
-      });
       throw new ChatSDKError('bad_request:api', `AwardWallet API error: ${response.status}`);
     }
 
@@ -122,12 +127,15 @@ export async function getConnectionInfo(code: string): Promise<AWConnectionInfo>
   console.log('[AwardWallet] Exchanging code for connection info');
 
   try {
-    const response = await fetch(`${AWARDWALLET_BASE_URL}/get-connection-info/${code}`, {
-      method: 'GET',
-      headers: {
-        'X-Authentication': apiKey,
-      },
-    });
+    const response = await fetch(
+      `${AWARDWALLET_BASE_URL}/get-connection-info/${code}`,
+      withAwardWalletProxy({
+        method: 'GET',
+        headers: {
+          'X-Authentication': apiKey,
+        },
+      }),
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -161,12 +169,15 @@ export async function getConnectedUser(awUserId: string): Promise<AWLoyaltyAccou
 
   try {
     // Get connected user details with all their accounts
-    const response = await fetch(`${AWARDWALLET_BASE_URL}/connectedUser/${awUserId}`, {
-      method: 'GET',
-      headers: {
-        'X-Authentication': apiKey,
-      },
-    });
+    const response = await fetch(
+      `${AWARDWALLET_BASE_URL}/connectedUser/${awUserId}`,
+      withAwardWalletProxy({
+        method: 'GET',
+        headers: {
+          'X-Authentication': apiKey,
+        },
+      }),
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
