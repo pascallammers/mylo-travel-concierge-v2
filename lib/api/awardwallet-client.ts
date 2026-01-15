@@ -65,8 +65,17 @@ export interface AWLoyaltyAccount {
  */
 export async function createAuthUrl(): Promise<string> {
   const apiKey = serverEnv.AWARDWALLET_API_KEY;
+  const authPayload = {
+    platform: 'mobile',
+    access: 2,
+    granularSharing: false,
+  };
 
-  console.log('[AwardWallet] Creating auth URL');
+  console.log('[AwardWallet] Creating auth URL', {
+    hasApiKey: Boolean(apiKey),
+    apiKeyLength: apiKey.length,
+    payload: authPayload,
+  });
 
   try {
     const response = await fetch(`${AWARDWALLET_BASE_URL}/create-auth-url`, {
@@ -75,16 +84,17 @@ export async function createAuthUrl(): Promise<string> {
         'Content-Type': 'application/json',
         'X-Authentication': apiKey,
       },
-      body: JSON.stringify({
-        platform: 'mobile',
-        access: 2, // Read all information excluding passwords
-        granularSharing: false,
-      }),
+      body: JSON.stringify(authPayload),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
+      const contentType = response.headers.get('content-type');
       console.error('[AwardWallet] Failed to create auth URL:', response.status, errorText);
+      console.error('[AwardWallet] Response metadata:', {
+        statusText: response.statusText,
+        contentType,
+      });
       throw new ChatSDKError('bad_request:api', `AwardWallet API error: ${response.status}`);
     }
 
