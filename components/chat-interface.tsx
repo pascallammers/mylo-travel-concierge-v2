@@ -53,6 +53,8 @@ interface ChatInterfaceProps {
   isOwner?: boolean;
 }
 
+const settingsTabValues = new Set(['profile', 'usage', 'subscription', 'loyalty', 'memories']);
+
 const ChatInterface = memo(
   ({
     initialChatId,
@@ -86,14 +88,19 @@ const ChatInterface = memo(
     const handleOpenSettings = useCallback((tab: string = 'profile') => {
       setSettingsInitialTab(tab);
       setSettingsOpen(true);
-    }, []);
+    }, [handleOpenSettings]);
 
     // URL hash detection for settings dialog
     useEffect(() => {
       const handleHashChange = () => {
         const hash = window.location.hash;
         if (hash === '#settings') {
-          setSettingsOpen(true);
+          const tabParam = new URLSearchParams(window.location.search).get('tab');
+          if (tabParam && settingsTabValues.has(tabParam)) {
+            handleOpenSettings(tabParam);
+          } else {
+            setSettingsOpen(true);
+          }
         }
       };
 

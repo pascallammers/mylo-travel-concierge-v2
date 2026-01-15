@@ -11,7 +11,9 @@ const CallbackSchema = z.object({
 
 /**
  * GET /api/awardwallet/auth/callback
- * Handles OAuth callback from AwardWallet after user authorization
+ * Handles OAuth callback from AwardWallet after user authorization.
+ * @param request - Incoming request with OAuth query parameters.
+ * @returns Redirect response to settings with success or error state.
  */
 export async function GET(request: NextRequest) {
   const baseUrl = request.nextUrl?.origin || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -32,8 +34,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
 
     const parsed = CallbackSchema.safeParse({
-      code: searchParams.get('code'),
-      state: searchParams.get('state'),
+      code: searchParams.get('code') ?? undefined,
+      state: searchParams.get('state') ?? undefined,
     });
 
     if (!parsed.success) {
