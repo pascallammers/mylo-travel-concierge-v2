@@ -198,6 +198,17 @@ export async function getConnectedUser(awUserId: string): Promise<AWLoyaltyAccou
 }
 
 /**
+ * Parses expiration date string safely, returning null for invalid dates
+ * @param dateStr - Date string from AwardWallet API
+ * @returns Valid Date object or null
+ */
+function parseExpirationDate(dateStr?: string): Date | null {
+  if (!dateStr) return null;
+  const date = new Date(dateStr);
+  return isNaN(date.getTime()) ? null : date;
+}
+
+/**
  * Formats raw AwardWallet account data to MYLO format
  */
 function formatAccount(raw: AWRawAccount): AWLoyaltyAccount {
@@ -208,12 +219,12 @@ function formatAccount(raw: AWRawAccount): AWLoyaltyAccount {
   return {
     providerCode: raw.code,
     providerName: raw.displayName,
-    balance: raw.balanceRaw ?? 0,
+    balance: Math.round(raw.balanceRaw ?? 0),
     balanceUnit: parseBalanceUnit(raw.kind),
     eliteStatus,
-    expirationDate: raw.expirationDate ? new Date(raw.expirationDate) : null,
+    expirationDate: parseExpirationDate(raw.expirationDate),
     accountNumber: raw.login || null,
-    logoUrl: null, // API doesn't provide logo URL in account data
+    logoUrl: null,
   };
 }
 
