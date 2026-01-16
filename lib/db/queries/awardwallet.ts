@@ -194,7 +194,40 @@ export async function syncLoyaltyAccounts(
 
     console.log(`[AwardWallet] Synced ${accounts.length} accounts for connection:`, connectionId);
     return accounts.length;
-  } catch {
+  } catch (error: unknown) {
+    const invalidBalances = accounts.filter((acc) => !Number.isFinite(acc.balance));
+    const oversizedBalances = accounts.filter((acc) => acc.balance > 2_147_483_647);
+    const missingProviders = accounts.filter((acc) => !acc.providerCode || !acc.providerName);
+
+    if (invalidBalances.length || oversizedBalances.length || missingProviders.length) {
+      console.error('[AwardWallet] Sync validation issues', {
+        connectionId,
+        accountCount: accounts.length,
+        invalidBalances: invalidBalances.slice(0, 3).map((acc) => ({
+          providerCode: acc.providerCode,
+          providerName: acc.providerName,
+          balance: acc.balance,
+          balanceUnit: acc.balanceUnit,
+        })),
+        oversizedBalances: oversizedBalances.slice(0, 3).map((acc) => ({
+          providerCode: acc.providerCode,
+          providerName: acc.providerName,
+          balance: acc.balance,
+          balanceUnit: acc.balanceUnit,
+        })),
+        missingProviders: missingProviders.slice(0, 3).map((acc) => ({
+          providerCode: acc.providerCode,
+          providerName: acc.providerName,
+        })),
+      });
+    }
+
+    if (error instanceof Error) {
+      console.error('[AwardWallet] Sync DB error:', error.message);
+    } else {
+      console.error('[AwardWallet] Sync DB error:', error);
+    }
+
     throw new ChatSDKError('bad_request:database', 'Failed to sync loyalty accounts');
   }
 }
