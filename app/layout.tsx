@@ -105,6 +105,25 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <Script
+          id="tpembars-script"
+          strategy="beforeInteractive"
+          data-noptimize="1"
+          data-cfasync="false"
+          data-wpfc-render="false"
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                  var script = document.createElement("script");
+                  script.async = 1;
+                  script.src = 'https://tpembars.com/NDg5NDQ1.js?t=489445';
+                  document.head.appendChild(script);
+              })();
+            `,
+          }}
+        />
+      </head>
       <body
         className={`${inter.variable} ${beVietnamPro.variable} ${baumans.variable} ${playfairDisplay.variable} ${jetbrainsMono.variable} font-sans antialiased`}
         suppressHydrationWarning
