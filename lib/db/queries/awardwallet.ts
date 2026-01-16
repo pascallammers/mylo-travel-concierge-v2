@@ -161,36 +161,32 @@ export async function syncLoyaltyAccounts(
   accounts: AWLoyaltyAccount[],
 ): Promise<number> {
   try {
-    await db.transaction(async (tx) => {
-      // Delete existing accounts for this connection
-      await tx.delete(loyaltyAccounts).where(eq(loyaltyAccounts.connectionId, connectionId));
+    // Neon HTTP driver doesn't support transactions, so sync in sequence.
+    await db.delete(loyaltyAccounts).where(eq(loyaltyAccounts.connectionId, connectionId));
 
-      // Insert new accounts
-      if (accounts.length > 0) {
-        await tx.insert(loyaltyAccounts).values(
-          accounts.map((acc) => ({
-            connectionId,
-            providerCode: acc.providerCode,
-            providerName: acc.providerName,
-            balance: acc.balance,
-            balanceUnit: acc.balanceUnit,
-            eliteStatus: acc.eliteStatus,
-            expirationDate: acc.expirationDate,
-            accountNumber: acc.accountNumber,
-            logoUrl: acc.logoUrl,
-          })),
-        );
-      }
+    if (accounts.length > 0) {
+      await db.insert(loyaltyAccounts).values(
+        accounts.map((acc) => ({
+          connectionId,
+          providerCode: acc.providerCode,
+          providerName: acc.providerName,
+          balance: acc.balance,
+          balanceUnit: acc.balanceUnit,
+          eliteStatus: acc.eliteStatus,
+          expirationDate: acc.expirationDate,
+          accountNumber: acc.accountNumber,
+          logoUrl: acc.logoUrl,
+        })),
+      );
+    }
 
-      // Update lastSyncedAt on connection
-      await tx
-        .update(awardwalletConnections)
-        .set({
-          lastSyncedAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .where(eq(awardwalletConnections.id, connectionId));
-    });
+    await db
+      .update(awardwalletConnections)
+      .set({
+        lastSyncedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(awardwalletConnections.id, connectionId));
 
     console.log(`[AwardWallet] Synced ${accounts.length} accounts for connection:`, connectionId);
     return accounts.length;
