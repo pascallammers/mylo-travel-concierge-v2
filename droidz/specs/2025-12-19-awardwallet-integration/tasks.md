@@ -8,49 +8,49 @@ Complete task breakdown for integrating AwardWallet loyalty program tracking int
 ## Phase 1: Foundation (Infrastructure & Core Setup)
 
 ### 1.1 Environment Configuration
-- [ ] Add `AWARDWALLET_API_KEY` to `env/server.ts` Zod schema
-- [ ] Add optional `AWARDWALLET_CALLBACK_URL` env var for local dev override
-- [ ] Update `.env.example` with AwardWallet variables documentation
-- [ ] Verify environment variables load correctly in development
+- [x] Add `AWARDWALLET_API_KEY` to `env/server.ts` Zod schema
+- [x] Add optional `AWARDWALLET_CALLBACK_URL` env var for local dev override
+- [x] Update `.env.example` with AwardWallet variables documentation
+- [x] Verify environment variables load correctly in development
 
 **Dependencies:** None  
 **Acceptance:** Environment validates without errors, API key accessible server-side
 
 ### 1.2 Database Schema & Migration
-- [ ] Add `awardwalletConnectionStatus` type array to `lib/db/schema.ts`
-- [ ] Create `awardwalletConnections` table definition with Drizzle
-- [ ] Add `loyaltyBalanceUnit` type array to schema
-- [ ] Create `loyaltyAccounts` table definition with Drizzle
-- [ ] Export TypeScript types (`AwardWalletConnection`, `LoyaltyAccount`)
-- [ ] Generate migration SQL with `bunx drizzle-kit generate`
-- [ ] Apply migration with `bunx drizzle-kit push`
-- [ ] Create indexes for performance (user_id, connection_id, balance DESC, expiration_date)
+- [x] Add `awardwalletConnectionStatus` type array to `lib/db/schema.ts`
+- [x] Create `awardwalletConnections` table definition with Drizzle
+- [x] Add `loyaltyBalanceUnit` type array to schema
+- [x] Create `loyaltyAccounts` table definition with Drizzle
+- [x] Export TypeScript types (`AwardWalletConnection`, `LoyaltyAccount`)
+- [x] Generate migration SQL with `bunx drizzle-kit generate`
+- [x] Apply migration with `bunx drizzle-kit push`
+- [x] Create indexes for performance (user_id, connection_id, balance DESC, expiration_date)
 
 **Dependencies:** 1.1 (env vars for DB connection)  
 **Acceptance:** Tables exist in database, types available for import
 
 ### 1.3 AwardWallet API Client
-- [ ] Create `lib/api/awardwallet-client.ts` with typed interfaces
-- [ ] Implement `createAuthUrl()` - generate OAuth consent URL
-- [ ] Implement `getConnectionInfo(code: string)` - exchange code for userId
-- [ ] Implement `getConnectedUser(userId: string)` - fetch all loyalty accounts
-- [ ] Add proper error handling with ChatSDKError patterns
-- [ ] Add structured logging for all API operations
+- [x] Create `lib/api/awardwallet-client.ts` with typed interfaces
+- [x] Implement `createAuthUrl()` - generate OAuth consent URL
+- [x] Implement `getConnectionInfo(code: string)` - exchange code for userId
+- [x] Implement `getConnectedUser(userId: string)` - fetch all loyalty accounts
+- [x] Add proper error handling with ChatSDKError patterns
+- [x] Add structured logging for all API operations
 - [ ] Create `lib/api/awardwallet-client.test.ts` with unit tests
 
 **Dependencies:** 1.1 (AWARDWALLET_API_KEY)  
 **Acceptance:** All API methods work, tests pass with `bunx vitest run awardwallet-client`
 
 ### 1.4 Database Query Functions
-- [ ] Create `lib/db/queries/awardwallet.ts` for DB operations
-- [ ] Implement `createConnection(userId, awUserId)` - insert new connection
-- [ ] Implement `getConnection(userId)` - get user's AW connection
-- [ ] Implement `updateConnectionStatus(id, status, errorMessage?)` 
-- [ ] Implement `deleteConnection(userId)` - soft delete / cascade
-- [ ] Implement `getLoyaltyAccounts(connectionId)` - get accounts sorted by balance
-- [ ] Implement `syncLoyaltyAccounts(connectionId, accounts[])` - upsert accounts
-- [ ] Implement `getUserLoyaltyData(userId)` - combined query for UI
-- [ ] Add `.$withCache()` patterns for read queries
+- [x] Create `lib/db/queries/awardwallet.ts` for DB operations
+- [x] Implement `createConnection(userId, awUserId)` - insert new connection
+- [x] Implement `getConnection(userId)` - get user's AW connection
+- [x] Implement `updateConnectionStatus(id, status, errorMessage?)` 
+- [x] Implement `deleteConnection(userId)` - soft delete / cascade
+- [x] Implement `getLoyaltyAccounts(connectionId)` - get accounts sorted by balance
+- [x] Implement `syncLoyaltyAccounts(connectionId, accounts[])` - upsert accounts
+- [x] Implement `getUserLoyaltyData(userId)` - combined query for UI
+- [x] Add `.$withCache()` patterns for read queries
 - [ ] Create `lib/db/queries/awardwallet.test.ts` with unit tests
 
 **Dependencies:** 1.2 (schema tables)  
@@ -61,26 +61,26 @@ Complete task breakdown for integrating AwardWallet loyalty program tracking int
 ## Phase 2: OAuth Flow (Authentication)
 
 ### 2.1 Auth Initiate Route
-- [ ] Create `app/api/awardwallet/auth/initiate/route.ts`
-- [ ] Validate user session with `auth()` from `@/lib/auth`
+- [x] Create `app/api/awardwallet/auth/initiate/route.ts`
+- [x] Validate user session with `auth()` from `@/lib/auth`
 - [ ] Generate state parameter for CSRF protection
-- [ ] Call AwardWallet client `createAuthUrl()`
-- [ ] Return JSON with `authUrl` for frontend redirect
+- [x] Call AwardWallet client `createAuthUrl()`
+- [x] Return JSON with `authUrl` for frontend redirect
 - [ ] Add Zod validation for response schema
-- [ ] Handle errors with proper ChatSDKError codes
+- [x] Handle errors with proper ChatSDKError codes
 
 **Dependencies:** 1.3 (API client), 1.4 (queries)  
 **Acceptance:** Returns valid OAuth URL, requires authentication
 
 ### 2.2 Auth Callback Route
-- [ ] Create `app/api/awardwallet/auth/callback/route.ts`
-- [ ] Parse `code` and `state` query parameters with Zod
+- [x] Create `app/api/awardwallet/auth/callback/route.ts`
+- [x] Parse `code` and `state` query parameters with Zod
 - [ ] Validate state parameter matches stored value
-- [ ] Call `getConnectionInfo(code)` to exchange code
-- [ ] Store connection in DB via `createConnection()`
-- [ ] Trigger initial sync of loyalty accounts
-- [ ] Redirect to `/?tab=loyalty#settings` on success
-- [ ] Redirect with `?error=connection_failed` on failure
+- [x] Call `getConnectionInfo(code)` to exchange code
+- [x] Store connection in DB via `createConnection()`
+- [x] Trigger initial sync of loyalty accounts
+- [x] Redirect to `/?tab=loyalty#settings` on success
+- [x] Redirect with `?error=connection_failed` on failure
 
 **Dependencies:** 2.1, 1.3, 1.4  
 **Acceptance:** OAuth flow completes, connection stored, user redirected
@@ -100,49 +100,49 @@ Complete task breakdown for integrating AwardWallet loyalty program tracking int
 ## Phase 3: Data Sync (API Endpoints & Cron)
 
 ### 3.1 Accounts Endpoint
-- [ ] Create `app/api/awardwallet/accounts/route.ts`
-- [ ] Validate user session
-- [ ] Query user's loyalty data with `getUserLoyaltyData()`
-- [ ] Return accounts sorted by balance DESC
-- [ ] Include `connected` boolean and `lastSyncedAt` timestamp
-- [ ] Handle not-connected state gracefully (empty array)
-- [ ] Add response Zod schema validation
+- [x] Create `app/api/awardwallet/accounts/route.ts`
+- [x] Validate user session
+- [x] Query user's loyalty data with `getUserLoyaltyData()`
+- [x] Return accounts sorted by balance DESC
+- [x] Include `connected` boolean and `lastSyncedAt` timestamp
+- [x] Handle not-connected state gracefully (empty array)
+- [x] Add response Zod schema validation
 
 **Dependencies:** Phase 2 complete  
 **Acceptance:** Returns loyalty accounts for connected users
 
 ### 3.2 Manual Sync Endpoint
-- [ ] Create `app/api/awardwallet/sync/route.ts`
-- [ ] Validate user session
-- [ ] Check for existing connection
-- [ ] Implement rate limiting (1 sync per 5 minutes)
-- [ ] Call AwardWallet API to fetch latest data
-- [ ] Update DB via `syncLoyaltyAccounts()`
-- [ ] Update `lastSyncedAt` timestamp
-- [ ] Return success with `syncedAt` and `accountCount`
+- [x] Create `app/api/awardwallet/sync/route.ts`
+- [x] Validate user session
+- [x] Check for existing connection
+- [x] Implement rate limiting (1 sync per 5 minutes)
+- [x] Call AwardWallet API to fetch latest data
+- [x] Update DB via `syncLoyaltyAccounts()`
+- [x] Update `lastSyncedAt` timestamp
+- [x] Return success with `syncedAt` and `accountCount`
 
 **Dependencies:** 3.1, 1.3, 1.4  
 **Acceptance:** Syncs data, respects rate limits
 
 ### 3.3 Disconnect Endpoint
-- [ ] Create `app/api/awardwallet/disconnect/route.ts`
-- [ ] Validate user session
-- [ ] Delete connection and cascade loyalty accounts
-- [ ] Return success confirmation
-- [ ] Handle not-connected state gracefully
+- [x] Create `app/api/awardwallet/disconnect/route.ts`
+- [x] Validate user session
+- [x] Delete connection and cascade loyalty accounts
+- [x] Return success confirmation
+- [x] Handle not-connected state gracefully
 
 **Dependencies:** 1.4  
 **Acceptance:** Removes all user AW data cleanly
 
 ### 3.4 Cron Job for Scheduled Sync
-- [ ] Create `app/api/cron/awardwallet-sync/route.ts`
-- [ ] Validate `CRON_SECRET` header
-- [ ] Query all active connections
-- [ ] Iterate and sync each connection
-- [ ] Track success/failure counts
-- [ ] Log results with structured logging
-- [ ] Return detailed sync report
-- [ ] Update `vercel.json` with cron schedule (`"0 */6 * * *"`)
+- [x] Create `app/api/cron/awardwallet-sync/route.ts`
+- [x] Validate `CRON_SECRET` header
+- [x] Query all active connections
+- [x] Iterate and sync each connection
+- [x] Track success/failure counts
+- [x] Log results with structured logging
+- [x] Return detailed sync report
+- [x] Update `vercel.json` with cron schedule (`"0 */6 * * *"`)
 
 **Dependencies:** 3.2, 1.4  
 **Acceptance:** Cron executes every 6 hours, syncs all connections
@@ -162,77 +162,77 @@ Complete task breakdown for integrating AwardWallet loyalty program tracking int
 ## Phase 4: UI Components (Frontend)
 
 ### 4.1 Settings Tab Structure
-- [ ] Add "Loyalty Programs" tab to `components/settings-dialog.tsx`
-- [ ] Use `Wallet02Icon` from `@hugeicons/core-free-icons`
-- [ ] Create tab trigger with proper ordering
-- [ ] Add TabsContent container for loyalty section
+- [x] Add "Loyalty Programs" tab to `components/settings-dialog.tsx`
+- [x] Use `Wallet02Icon` from `@hugeicons/core-free-icons`
+- [x] Create tab trigger with proper ordering
+- [x] Add TabsContent container for loyalty section
 
 **Dependencies:** Phase 3 complete  
 **Acceptance:** New tab visible and navigable in Settings
 
 ### 4.2 Loyalty Connect Button Component
-- [ ] Create `components/awardwallet/connect-button.tsx`
-- [ ] Support variants: 'default', 'outline', 'ghost'
-- [ ] Support sizes: 'sm', 'default', 'lg'
-- [ ] Implement states: idle, loading, redirecting
-- [ ] Call `/api/awardwallet/auth/initiate` on click
-- [ ] Handle redirect to OAuth consent page
-- [ ] Show helpful text for users without AW account
+- [x] Create `components/awardwallet/connect-button.tsx`
+- [x] Support variants: 'default', 'outline', 'ghost'
+- [x] Support sizes: 'sm', 'default', 'lg'
+- [x] Implement states: idle, loading, redirecting
+- [x] Call `/api/awardwallet/auth/initiate` on click
+- [x] Handle redirect to OAuth consent page
+- [x] Show helpful text for users without AW account
 
 **Dependencies:** 4.1  
 **Acceptance:** Button triggers OAuth flow correctly
 
 ### 4.3 Loyalty Program Card Component
-- [ ] Create `components/awardwallet/loyalty-program-card.tsx`
-- [ ] Display provider logo, name, balance with unit
-- [ ] Show elite status badge if present
-- [ ] Show expiration date with warning styling if soon
-- [ ] Support `compact` mode for header display
-- [ ] Format numbers with `toLocaleString()`
+- [x] Create `components/awardwallet/loyalty-program-card.tsx`
+- [x] Display provider logo, name, balance with unit
+- [x] Show elite status badge if present
+- [x] Show expiration date with warning styling if soon
+- [x] Support `compact` mode for header display
+- [x] Format numbers with `toLocaleString()`
 
 **Dependencies:** None (can parallel with 4.1)  
 **Acceptance:** Card renders all program data correctly
 
 ### 4.4 Loyalty Programs List Component
-- [ ] Create `components/awardwallet/loyalty-programs-list.tsx`
-- [ ] Fetch data with `useQuery` from TanStack Query
-- [ ] Show skeleton loading state
-- [ ] Show empty state for no accounts
-- [ ] Render list of `LoyaltyProgramCard` components
-- [ ] Add "Last synced" timestamp display
-- [ ] Add manual refresh button (triggers sync endpoint)
-- [ ] Add disconnect button with confirmation dialog
+- [x] Create `components/awardwallet/loyalty-programs-list.tsx`
+- [x] Fetch data with `useQuery` from TanStack Query
+- [x] Show skeleton loading state
+- [x] Show empty state for no accounts
+- [x] Render list of `LoyaltyProgramCard` components
+- [x] Add "Last synced" timestamp display
+- [x] Add manual refresh button (triggers sync endpoint)
+- [x] Add disconnect button with confirmation dialog
 
 **Dependencies:** 4.3, 3.1  
 **Acceptance:** List displays all accounts, refresh works
 
 ### 4.5 Settings Loyalty Section
-- [ ] Create `components/awardwallet/settings-section.tsx`
-- [ ] Show connect flow when not connected
-- [ ] Show programs list when connected
-- [ ] Handle error states from callback redirect
-- [ ] Integrate into Settings dialog tab content
+- [x] Create `components/awardwallet/settings-section.tsx`
+- [x] Show connect flow when not connected
+- [x] Show programs list when connected
+- [x] Handle error states from callback redirect
+- [x] Integrate into Settings dialog tab content
 
 **Dependencies:** 4.2, 4.4  
 **Acceptance:** Full settings experience complete
 
 ### 4.6 Loyalty Header Widget
-- [ ] Create `components/awardwallet/loyalty-header-widget.tsx`
-- [ ] Display top 2-3 programs (highest balances)
-- [ ] Compact inline display: icons + abbreviated values
-- [ ] Click opens Settings to Loyalty tab
-- [ ] Hover/click expands to show details (desktop)
-- [ ] Show "Connect Loyalty" button when not connected
-- [ ] Responsive: collapse on mobile
+- [x] Create `components/awardwallet/loyalty-header-widget.tsx`
+- [x] Display top 2-3 programs (highest balances)
+- [x] Compact inline display: icons + abbreviated values
+- [x] Click opens Settings to Loyalty tab
+- [x] Hover/click expands to show details (desktop)
+- [x] Show "Connect Loyalty" button when not connected
+- [x] Responsive: collapse on mobile
 
 **Dependencies:** 4.3, 3.1  
 **Acceptance:** Widget shows in header, navigates to settings
 
 ### 4.7 Homepage Integration
-- [ ] Add header widget to homepage/navbar area
-- [ ] Conditionally render based on connection status
-- [ ] Handle URL params for direct tab navigation
-- [ ] Process `?error=connection_failed` display
+- [x] Add header widget to homepage/navbar area
+- [x] Conditionally render based on connection status
+- [x] Handle URL params for direct tab navigation
+- [x] Process `?error=connection_failed` display
 
 **Dependencies:** 4.6  
 **Acceptance:** Widget visible on homepage, error handling works

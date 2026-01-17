@@ -92,6 +92,13 @@
       "when": 1766071189472,
       "tag": "0012_rainy_shaman",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1767342673869,
+      "tag": "0013_add_awardwallet_tables",
+      "breakpoints": true
     }
   ]
 }

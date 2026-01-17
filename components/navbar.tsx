@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { UserProfile, NavigationMenu } from '@/components/user-profile';
 import { ChatHistoryButton } from '@/components/chat-history-dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { LoyaltyHeaderWidget } from '@/components/awardwallet';
 
 import { ShareButton } from '@/components/share';
 import { cn } from '@/lib/utils';
@@ -35,6 +36,7 @@ interface NavbarProps {
   settingsOpen?: boolean;
   setSettingsOpen?: (open: boolean) => void;
   settingsInitialTab?: string;
+  onOpenSettingsWithTab?: (tab: string) => void;
 }
 
 const Navbar = memo(
@@ -55,6 +57,7 @@ const Navbar = memo(
     settingsOpen,
     setSettingsOpen,
     settingsInitialTab,
+    onOpenSettingsWithTab,
   }: NavbarProps) => {
     const router = useRouter();
     const pathname = usePathname();
@@ -163,6 +166,14 @@ const Navbar = memo(
               </>
             )}
 
+            {/* Loyalty Programs Widget */}
+            {user && (
+              <LoyaltyHeaderWidget
+                onOpenSettings={() => {
+                  onOpenSettingsWithTab?.('loyalty') ?? setSettingsOpen?.(true);
+                }}
+              />
+            )}
             {/* Chat History Button */}
             {user && <ChatHistoryButton onClickAction={onHistoryClick} />}
             {/* Navigation Menu - settings icon for general navigation */}

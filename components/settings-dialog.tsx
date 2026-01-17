@@ -64,6 +64,7 @@ import {
   GlobalSearchIcon,
   ConnectIcon,
   InformationCircleIcon,
+  Wallet02Icon,
 } from '@hugeicons/core-free-icons';
 import {
   ContributionGraph,
@@ -76,6 +77,7 @@ import {
 } from '@/components/ui/kibo-ui/contribution-graph';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { CONNECTOR_CONFIGS, CONNECTOR_ICONS, type ConnectorProvider } from '@/lib/connectors';
+import { LoyaltySettingsSection } from '@/components/awardwallet';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -1260,6 +1262,11 @@ function MemoriesSection() {
   );
 }
 
+// Component for Loyalty Programs (AwardWallet Integration)
+function LoyaltySection() {
+  return <LoyaltySettingsSection />;
+}
+
 // Component for Connectors
 function ConnectorsSection({ user }: { user: any }) {
   const isProUser = user?.isProUser || false;
@@ -1703,6 +1710,11 @@ export function SettingsDialog({
       icon: ({ className }: { className?: string }) => <HugeiconsIcon icon={Crown02Icon} className={className} />,
     },
     {
+      value: 'loyalty',
+      label: 'Treueprogramme',
+      icon: ({ className }: { className?: string }) => <HugeiconsIcon icon={Wallet02Icon} className={className} />,
+    },
+    {
       value: 'memories',
       label: 'Erinnerungen (Beta)',
       icon: ({ className }: { className?: string }) => <HugeiconsIcon icon={Brain02Icon} className={className} />,
@@ -1726,6 +1738,10 @@ export function SettingsDialog({
 
       <TabsContent value="subscription" className="mt-0">
         <SubscriptionSection subscriptionData={subscriptionData} isProUser={isProUser} user={user} />
+      </TabsContent>
+
+      <TabsContent value="loyalty" className="mt-0">
+        <LoyaltySection />
       </TabsContent>
 
       <TabsContent value="memories" className="mt-0">
