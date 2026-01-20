@@ -8,13 +8,13 @@ import { resolveIATACode } from '@/lib/utils/airport-codes';
 import { buildGoogleFlightsUrl, buildSkyscannerUrl } from '@/lib/utils/flight-search-links';
 
 /**
- * Flight Search Tool - Searches both award flights (Seats.aero) and cash flights (Amadeus)
+ * Flight Search Tool - Searches both award flights and cash flights
  */
 export const flightSearchTool = tool({
   description: `Search for flights between any two cities or airports worldwide.
 
 This tool automatically:
-- Searches BOTH award flights (bookable with miles/points via Seats.aero) AND cash flights (via Amadeus)
+- Searches BOTH award flights (bookable with miles/points) AND cash flights
 - Converts city names to airport codes (e.g., "Frankfurt" → "FRA", "Phuket" → "HKT", "New York" → "JFK")
 - Handles flexible date ranges and cabin class preferences
 - Returns comprehensive pricing in both points/miles and cash

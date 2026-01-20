@@ -366,7 +366,7 @@ const groupInstructions = {
   - Trigger keywords that MUST use search_flights (NOT web_search):
     * English: "flight", "flights", "fly", "flying", "airfare", "airline", "airplane", "business class", "first class", "economy", "premium economy", "miles", "points", "award", "upgrade", "roundtrip", "round-trip", "one-way"
     * German: "Flug", "Flüge", "fliegen", "Flugpreis", "Airline", "Fluggesellschaft", "Business Class", "First Class", "Economy", "Premium Economy", "Meilen", "Punkte", "Award", "Upgrade", "Hin- und Rückflug", "Hinflug", "Rückflug"
-  - The tool handles BOTH award flights (miles/points via Seats.aero) AND cash flights (via Amadeus) automatically
+  - The tool handles BOTH award flights (miles/points) AND cash flights automatically
   - You do NOT need to convert city names to IATA codes - the tool will handle this automatically
   - Run the tool with the user's query parameters as-is (city names are fine)
   - Example queries that MUST trigger search_flights (NOT web_search):
@@ -1230,9 +1230,8 @@ const groupInstructions = {
 
   #### Zitierungs-Anforderungen:
   - ⚠️ ZWINGEND: Jeder Flug muss mit der Quelle zitiert werden
-  - Format: [Airline Code/Source](Booking-URL) direkt nach Fluginformationen
-  - Für Seats.aero: Verwende Booking-Links aus den Ergebnissen
-  - Für Amadeus: Verwende "Amadeus API" als Quelle
+  - Format: [Airline Code](Booking-URL) direkt nach Fluginformationen
+  - Verwende die bereitgestellten Booking-Links aus den Suchergebnissen
 
   #### Fehlerbehandlung:
   - **Keine Flüge gefunden**: "Leider wurden keine Flüge für deine Suche gefunden. Versuche es mit flexibleren Daten oder anderen Flughäfen."
@@ -1255,7 +1254,7 @@ const groupInstructions = {
 
   ## ✈️ Award-Flüge (Meilen)
   
-  **Lufthansa LH400** - Direktflug [Seats.aero](https://seats.aero/...)
+  **Lufthansa LH400** - Direktflug
   - München (MUC) → New York JFK
   - Abflug: 10:30 - Ankunft: 14:15 (8h 45min)
   - Business Class: 70.000 Miles + 280 EUR
