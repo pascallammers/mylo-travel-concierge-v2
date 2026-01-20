@@ -73,6 +73,10 @@ export async function searchDuffel(
 ): Promise<DuffelFlight[]> {
   const apiKey = serverEnv.DUFFEL_API_KEY;
 
+  if (!apiKey) {
+    throw new Error('DUFFEL_API_KEY is not configured. Please add it to your environment variables.');
+  }
+
   // Build slices (journey legs)
   const slices = [
     {
