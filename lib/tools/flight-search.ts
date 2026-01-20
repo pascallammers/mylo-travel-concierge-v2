@@ -1,20 +1,20 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { searchSeatsAero, TravelClass } from '@/lib/api/seats-aero-client';
-import { searchAmadeus } from '@/lib/api/amadeus-client';
+import { searchDuffel, mapCabinClass } from '@/lib/api/duffel-client';
 import { recordToolCall, updateToolCall } from '@/lib/db/queries';
 import { mergeSessionState } from '@/lib/db/queries';
 import { resolveIATACode } from '@/lib/utils/airport-codes';
 import { buildGoogleFlightsUrl, buildSkyscannerUrl } from '@/lib/utils/flight-search-links';
 
 /**
- * Flight Search Tool - Searches both award flights (Seats.aero) and cash flights (Amadeus)
+ * Flight Search Tool - Searches both award flights (Seats.aero) and cash flights (Duffel)
  */
 export const flightSearchTool = tool({
   description: `Search for flights between any two cities or airports worldwide.
 
 This tool automatically:
-- Searches BOTH award flights (bookable with miles/points via Seats.aero) AND cash flights (via Amadeus)
+- Searches BOTH award flights (bookable with miles/points via Seats.aero) AND cash flights (via Duffel)
 - Converts city names to airport codes (e.g., "Frankfurt" → "FRA", "Phuket" → "HKT", "New York" → "JFK")
 - Handles flexible date ranges and cabin class preferences
 - Returns comprehensive pricing in both points/miles and cash
@@ -150,10 +150,10 @@ Examples of queries that should trigger this tool:
 
     try {
       console.log('[Flight Search] 🔄 Calling Seats.aero with:', { origin, destination, departDate: params.departDate, cabin: params.cabin });
-      console.log('[Flight Search] 🔄 Calling Amadeus with:', { origin, destination, departDate: params.departDate, returnDate: params.returnDate, cabin: params.cabin });
-      
+      console.log('[Flight Search] 🔄 Calling Duffel with:', { origin, destination, departDate: params.departDate, returnDate: params.returnDate, cabin: params.cabin });
+
       // 2. Parallel API calls
-      const [seatsResult, amadeusResult] = await Promise.all([
+      const [seatsResult, duffelResult] = await Promise.all([
         // Seats.aero: Award flights
         searchSeatsAero({
           origin,
@@ -170,31 +170,31 @@ Examples of queries that should trigger this tool:
           return null;
         }),
 
-        // Amadeus: Cash flights (skip if awardOnly)
+        // Duffel: Cash flights (skip if awardOnly)
         params.awardOnly
           ? Promise.resolve(null)
-          : searchAmadeus({
+          : searchDuffel({
               origin,
               destination,
               departureDate: params.departDate,
               returnDate: params.returnDate,
-              travelClass: params.cabin,
+              cabinClass: mapCabinClass(params.cabin),
               passengers: params.passengers,
-              nonStop: params.nonStop,
+              maxConnections: params.nonStop ? 0 : 1,
             }).then((result) => {
-              console.log('[Flight Search] Amadeus SUCCESS:', result ? `${result.length} flights` : 'null');
+              console.log('[Flight Search] Duffel SUCCESS:', result ? `${result.length} flights` : 'null');
               return result;
             }).catch((err) => {
-              console.error('[Flight Search] Amadeus FAILED:', err.message, err);
+              console.error('[Flight Search] Duffel FAILED:', err.message, err);
               return null;
             }),
       ]);
 
       // 3. Check if we have results
       const hasSeats = seatsResult && seatsResult.length > 0;
-      const hasAmadeus = amadeusResult && amadeusResult.length > 0;
+      const hasDuffel = duffelResult && duffelResult.length > 0;
 
-      if (!hasSeats && !hasAmadeus) {
+      if (!hasSeats && !hasDuffel) {
         throw new Error(
           'Keine Flüge gefunden. Bitte versuchen Sie andere Daten oder Routen.'
         );
@@ -205,16 +205,16 @@ Examples of queries that should trigger this tool:
           flights: seatsResult || [],
           count: seatsResult?.length || 0,
         },
-        amadeus: {
-          flights: amadeusResult || [],
-          count: amadeusResult?.length || 0,
+        cash: {
+          flights: duffelResult || [],
+          count: duffelResult?.length || 0,
         },
         searchParams: params,
       };
 
       console.log('[Flight Search] Results:', {
         seatsCount: result.seats.count,
-        amadeusCount: result.amadeus.count,
+        cashCount: result.cash.count,
       });
 
       // 4. Update tool call status (if DB logging is enabled)
@@ -296,11 +296,11 @@ function formatFlightResults(result: any, params: any): string {
     });
   }
 
-  // Cash Flights Section (renamed from "Cash-Flüge" to hide Amadeus source)
-  if (result.amadeus.count > 0) {
-    sections.push(`## Flüge mit Barzahlung (${result.amadeus.count} Ergebnisse)\n`);
+  // Cash Flights Section
+  if (result.cash.count > 0) {
+    sections.push(`## Flüge mit Barzahlung (${result.cash.count} Ergebnisse)\n`);
 
-    result.amadeus.flights.forEach((flight: any, idx: number) => {
+    result.cash.flights.forEach((flight: any, idx: number) => {
       // Extract departure date in YYYY-MM-DD format
       const departureDate = flight.departure.time.split('T')[0];
       
@@ -323,6 +323,10 @@ function formatFlightResults(result: any, params: any): string {
         passengers: params.passengers,
       });
 
+      const emissionsInfo = flight.emissionsKg
+        ? `**CO₂:** ${flight.emissionsKg} kg\n`
+        : '';
+
       sections.push(
         `### ${idx + 1}. ${flight.airline}\n` +
           `**Preis:** ${flight.price.total} ${flight.price.currency}\n` +
@@ -334,6 +338,7 @@ function formatFlightResults(result: any, params: any): string {
           ).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}\n` +
           `**Dauer:** ${flight.duration}\n` +
           `**Stops:** ${flight.stops === 0 ? 'Nonstop' : `${flight.stops} Stop(s)`}\n` +
+          emissionsInfo +
           `**Buchen:** [Google Flights](${googleFlightsUrl}) | [Skyscanner](${skyscannerUrl})\n\n`
       );
     });
@@ -343,7 +348,7 @@ function formatFlightResults(result: any, params: any): string {
   // to provide immediate booking options for specific flights
 
   // No results
-  if (result.seats.count === 0 && result.amadeus.count === 0) {
+  if (result.seats.count === 0 && result.cash.count === 0) {
     sections.push(
       `Leider wurden keine Flüge für Ihre Suche gefunden.\n\n` +
         `**Suchparameter:**\n` +

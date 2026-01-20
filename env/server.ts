@@ -43,6 +43,8 @@ export const serverEnv = createEnv({
     AMADEUS_ENV: z.enum(['test', 'prod']).optional().default('test'),
     AMADEUS_API_KEY: z.string().min(1),
     AMADEUS_API_SECRET: z.string().min(1),
+    // Duffel API (Flight Search)
+    DUFFEL_API_KEY: z.string().min(1),
     CRON_SECRET: z.string().min(1),
     BLOB_READ_WRITE_TOKEN: z.string().min(1),
     SMITHERY_API_KEY: z.string().min(1),

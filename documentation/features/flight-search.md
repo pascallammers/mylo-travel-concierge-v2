@@ -5,7 +5,7 @@
 The Flight Search feature enables users to search for flights using natural language queries in German. It integrates two powerful APIs to provide comprehensive results:
 
 - **Seats.aero**: Award flight search (miles/points)
-- **Amadeus**: Cash flight search (paid tickets)
+- **Duffel**: Cash flight search (paid tickets) - includes airline logos and CO2 emissions data
 
 ## Architecture
 
@@ -31,7 +31,7 @@ The Flight Search feature enables users to search for flights using natural lang
      │                                     │
      ▼                                     ▼
 ┌──────────────────────┐        ┌──────────────────────┐
-│  Seats.aero Client   │        │   Amadeus Client     │
+│  Seats.aero Client   │        │   Duffel Client      │
 │ (Award Flights)      │        │  (Cash Flights)      │
 └──────────────────────┘        └──────────────────────┘
      │                                     │
