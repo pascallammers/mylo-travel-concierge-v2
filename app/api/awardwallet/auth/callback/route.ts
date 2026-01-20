@@ -16,7 +16,7 @@ const CallbackSchema = z.object({
  * @returns Redirect response to settings with success or error state.
  */
 export async function GET(request: NextRequest) {
-  const baseUrl = request.nextUrl?.origin || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl?.origin || 'http://localhost:3000';
   const successRedirect = `${baseUrl}/?tab=loyalty#settings`;
   const errorRedirect = `${baseUrl}/?tab=loyalty&error=connection_failed#settings`;
 
