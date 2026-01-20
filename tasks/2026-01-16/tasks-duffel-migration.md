@@ -104,13 +104,6 @@ Update the file after completing each sub-task, not just after completing an ent
   - [x] 6.1 Amadeus-Code als Fallback behalten (nicht entfernt)
   - [x] 6.2 Amadeus Environment Variables in `.env.example` belassen (Fallback)
   - [x] 6.3 Aktualisiere `documentation/features/flight-search.md` mit Duffel Information
-  - [ ] 6.4 Erstelle einen Commit mit aussagekräftiger Message:
-    ```
-    feat(flight-search): migrate from Amadeus to Duffel API
-    
-    - Replace Amadeus API with Duffel for cash flight search
-    - Simplify authentication (Bearer token vs OAuth2)
-    - Add airline logos and CO2 emissions data
-    - Improve error handling and response formatting
-    ```
-  - [ ] 6.5 Pushe den Branch und erstelle einen Pull Request
+  - [x] 6.4 Erstelle einen Commit mit aussagekräftiger Message
+  - [x] 6.5 Pushe den Branch und erstelle einen Pull Request
+    - PR: https://github.com/pascallammers/mylo-travel-concierge-v2/pull/5
