@@ -299,27 +299,29 @@ async function formatFlightResults(result: any, params: any): Promise<string> {
     }
   }
 
-  // Award Flights Section (renamed from "Award-Flüge" to hide Seats.aero source)
+  // Award Flights Section - Table format
   if (result.seats.count > 0) {
     sections.push(`## Flüge mit Meilen/Punkten (${result.seats.count} Ergebnisse)\n`);
+    sections.push(`| Nr. | Airline | Klasse | Preis | Abflug | Ankunft | Dauer | Stops | Sitze | Flugnummer |`);
+    sections.push(`|-----|---------|--------|-------|--------|---------|-------|-------|-------|------------|`);
 
     result.seats.flights.forEach((flight: any, idx: number) => {
+      const departTime = formatTime(flight.outbound.departure.time);
+      const arriveTime = formatTime(flight.outbound.arrival.time);
+      const seats = flight.seatsLeft || '-';
+      
       sections.push(
-        `### ${idx + 1}. ${flight.airline} - ${flight.cabin}\n` +
-          `**Preis:** ${flight.price}\n` +
-          `**Abflug:** ${flight.outbound.departure.airport} um ${flight.outbound.departure.time}\n` +
-          `**Ankunft:** ${flight.outbound.arrival.airport} um ${flight.outbound.arrival.time}\n` +
-          `**Dauer:** ${flight.outbound.duration}\n` +
-          `**Stops:** ${flight.outbound.stops}\n` +
-          `**Verfügbare Sitze:** ${flight.seatsLeft || 'Unbekannt'}\n` +
-          `**Flugnummern:** ${flight.outbound.flightNumbers}\n\n`
+        `| ${idx + 1} | ${flight.airline} | ${flight.cabin} | ${flight.price} | ${flight.outbound.departure.airport} ${departTime} | ${flight.outbound.arrival.airport} ${arriveTime} | ${flight.outbound.duration} | ${flight.outbound.stops} | ${seats} | ${flight.outbound.flightNumbers} |`
       );
     });
+    sections.push('');
   }
 
-  // Cash Flights Section
+  // Cash Flights Section - Table format
   if (result.cash.count > 0) {
     sections.push(`## Flüge mit Barzahlung (${result.cash.count} Ergebnisse)\n`);
+    sections.push(`| Nr. | Airline | Preis | Abflug | Ankunft | Dauer | Stops | Buchen |`);
+    sections.push(`|-----|---------|-------|--------|---------|-------|-------|--------|`);
 
     result.cash.flights.forEach((flight: any, idx: number) => {
       // Extract departure date in YYYY-MM-DD format
@@ -344,30 +346,21 @@ async function formatFlightResults(result: any, params: any): Promise<string> {
         passengers: params.passengers,
       });
 
-      const emissionsInfo = flight.emissionsKg
-        ? `**CO₂:** ${flight.emissionsKg} kg\n`
-        : '';
-
       // Build booking links string with Duffel as additional option
       const bookingLinks = duffelBookingUrl
-        ? `[Google Flights](${googleFlightsUrl}) | [Skyscanner](${skyscannerUrl}) | [Direkt buchen](${duffelBookingUrl})`
-        : `[Google Flights](${googleFlightsUrl}) | [Skyscanner](${skyscannerUrl})`;
+        ? `[Google](${googleFlightsUrl}) [Skyscanner](${skyscannerUrl}) [Buchen](${duffelBookingUrl})`
+        : `[Google](${googleFlightsUrl}) [Skyscanner](${skyscannerUrl})`;
+
+      const departTime = new Date(flight.departure.time).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      const arriveTime = new Date(flight.arrival.time).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      const stops = flight.stops === 0 ? 'Nonstop' : `${flight.stops} Stop(s)`;
+      const price = `${flight.price.total} ${flight.price.currency}`;
 
       sections.push(
-        `### ${idx + 1}. ${flight.airline}\n` +
-          `**Preis:** ${flight.price.total} ${flight.price.currency}\n` +
-          `**Abflug:** ${flight.departure.airport} um ${new Date(
-            flight.departure.time
-          ).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}\n` +
-          `**Ankunft:** ${flight.arrival.airport} um ${new Date(
-            flight.arrival.time
-          ).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}\n` +
-          `**Dauer:** ${flight.duration}\n` +
-          `**Stops:** ${flight.stops === 0 ? 'Nonstop' : `${flight.stops} Stop(s)`}\n` +
-          emissionsInfo +
-          `**Buchen:** ${bookingLinks}\n\n`
+        `| ${idx + 1} | ${flight.airline} | ${price} | ${flight.departure.airport} ${departTime} | ${flight.arrival.airport} ${arriveTime} | ${flight.duration} | ${stops} | ${bookingLinks} |`
       );
     });
+    sections.push('');
   }
 
   // No results
@@ -386,4 +379,24 @@ async function formatFlightResults(result: any, params: any): Promise<string> {
   }
 
   return sections.join('\n');
+}
+
+/**
+ * Format time string for table display
+ * Handles both ISO strings and already formatted times
+ */
+function formatTime(timeStr: string): string {
+  if (!timeStr || timeStr === 'N/A') return '-';
+  
+  // If already in HH:MM format, return as is
+  if (/^\d{2}:\d{2}$/.test(timeStr)) return timeStr;
+  
+  // Try to parse as ISO date
+  try {
+    const date = new Date(timeStr);
+    if (isNaN(date.getTime())) return timeStr;
+    return date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return timeStr;
+  }
 }
