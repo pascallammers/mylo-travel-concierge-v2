@@ -608,6 +608,12 @@ body {
   contain-intrinsic-size: auto 200px;
 }
 
+/* Disable content-visibility for active/streaming messages to ensure they render */
+.message-item:last-child {
+  content-visibility: visible;
+  contain-intrinsic-size: initial;
+}
+
 /* Apply to chat history items for performance */
 [data-chat-id] {
   content-visibility: auto;
