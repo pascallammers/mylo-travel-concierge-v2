@@ -6,7 +6,7 @@ import { recordToolCall, updateToolCall } from '@/lib/db/queries';
 import { mergeSessionState } from '@/lib/db/queries';
 import { resolveIATACode } from '@/lib/utils/airport-codes';
 import { buildGoogleFlightsUrl, buildSkyscannerUrl } from '@/lib/utils/flight-search-links';
-import { createDuffelBookingSession, buildDuffelFallbackUrl } from '@/lib/utils/duffel-links';
+import { createDuffelBookingSession } from '@/lib/utils/duffel-links';
 
 /**
  * Flight Search Tool - Searches both award flights (Seats.aero) and cash flights (Duffel)
@@ -292,14 +292,10 @@ async function formatFlightResults(result: any, params: any): Promise<string> {
       });
       duffelBookingUrl = session.url;
     } catch (error) {
-      console.warn('[Flight Search] Duffel Links session creation failed, using fallback:', error);
-      duffelBookingUrl = buildDuffelFallbackUrl({
-        origin: result.cash.flights[0].departure.airport,
-        destination: result.cash.flights[0].arrival.airport,
-        departDate: params.departDate,
-        returnDate: params.returnDate,
-        passengers: params.passengers,
-      });
+      // Duffel Links requires Duffel Payments to be enabled.
+      // If session creation fails, we simply don't show the direct booking link.
+      console.warn('[Flight Search] Duffel Links session creation failed (Duffel Payments may not be enabled):', error);
+      duffelBookingUrl = null;
     }
   }
 

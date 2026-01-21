@@ -108,28 +108,6 @@ export async function createDuffelBookingSession(
   }
 }
 
-/**
- * Build a simple Duffel booking URL (fallback without session)
- *
- * This creates a URL that links directly to Duffel's public booking page.
- * Use this as a fallback when session creation is not available.
- *
- * @param params - Booking parameters
- * @returns Duffel booking URL
- */
-export function buildDuffelFallbackUrl(params: DuffelLinkParams): string {
-  const baseUrl = 'https://book.duffel.com';
-
-  const searchParams = new URLSearchParams({
-    origin: params.origin,
-    destination: params.destination,
-    departure_date: params.departDate,
-    adults: params.passengers.toString(),
-  });
-
-  if (params.returnDate) {
-    searchParams.set('return_date', params.returnDate);
-  }
-
-  return `${baseUrl}?${searchParams.toString()}`;
-}
+// Note: Duffel does not have a public booking page.
+// Duffel Links requires an active session created via the API.
+// If session creation fails, we simply don't show a Duffel booking link.
