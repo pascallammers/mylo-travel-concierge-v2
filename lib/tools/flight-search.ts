@@ -5,8 +5,13 @@ import { searchDuffel, mapCabinClass } from '@/lib/api/duffel-client';
 import { recordToolCall, updateToolCall } from '@/lib/db/queries';
 import { mergeSessionState } from '@/lib/db/queries';
 import { resolveIATACode } from '@/lib/utils/airport-codes';
-import { buildGoogleFlightsUrl, buildSkyscannerUrl } from '@/lib/utils/flight-search-links';
+import {
+  buildGoogleFlightsUrl,
+  buildSkyscannerUrl,
+  FlightSearchLinkParams,
+} from '@/lib/utils/flight-search-links';
 import { createDuffelBookingSession } from '@/lib/utils/duffel-links';
+import { formatGracefulFlightError } from '@/lib/utils/tool-error-response';
 
 /**
  * Flight Search Tool - Searches both award flights (Seats.aero) and cash flights (Duffel)
@@ -191,26 +196,62 @@ Examples of queries that should trigger this tool:
             }),
       ]);
 
-      // 3. Check if we have results
+      // 3. Check if we have results and track provider failures
       const hasSeats = seatsResult && seatsResult.length > 0;
       const hasDuffel = duffelResult && duffelResult.length > 0;
+      
+      // Track which providers failed (null means error, empty array means no results)
+      const seatsError = seatsResult === null;
+      const duffelError = duffelResult === null;
 
+      // Build search params for fallback links
+      const searchLinkParams: FlightSearchLinkParams = {
+        origin,
+        destination,
+        departDate: params.departDate,
+        returnDate: params.returnDate,
+        cabin: params.cabin,
+        passengers: params.passengers,
+      };
+
+      // Handle complete failure (no results from any provider)
       if (!hasSeats && !hasDuffel) {
-        throw new Error(
-          'Keine Flüge gefunden. Bitte versuchen Sie andere Daten oder Routen.'
-        );
+        // Determine error type based on what failed
+        const errorType = seatsError || duffelError ? 'provider_unavailable' : 'no_results';
+        const technicalDetails =
+          seatsError && duffelError
+            ? 'Both Seats.aero and Duffel failed'
+            : seatsError
+              ? 'Seats.aero failed'
+              : duffelError
+                ? 'Duffel failed'
+                : 'No flights matched search criteria';
+
+        // Return graceful error message instead of throwing
+        return formatGracefulFlightError({
+          type: errorType,
+          message:
+            errorType === 'provider_unavailable'
+              ? 'Die Flugsuche konnte keine Ergebnisse laden, da einige unserer Datenquellen vorübergehend nicht erreichbar sind.'
+              : 'Für Ihre Suchkriterien wurden leider keine Flüge gefunden.',
+          searchParams: searchLinkParams,
+          technicalDetails,
+        });
       }
 
       const result = {
         seats: {
           flights: seatsResult || [],
           count: seatsResult?.length || 0,
+          error: seatsError,
         },
         cash: {
           flights: duffelResult || [],
           count: duffelResult?.length || 0,
+          error: duffelError,
         },
         searchParams: params,
+        searchLinkParams,
       };
 
       console.log('[Flight Search] Results:', {
@@ -278,6 +319,15 @@ Examples of queries that should trigger this tool:
  */
 async function formatFlightResults(result: any, params: any): Promise<string> {
   const sections: string[] = [];
+  const partialFailures: string[] = [];
+
+  // Track partial failures for user notification
+  if (result.seats.error && result.amadeus.count > 0) {
+    partialFailures.push('Meilen/Punkte-Flüge');
+  }
+  if (result.amadeus.error && result.seats.count > 0) {
+    partialFailures.push('Cash-Flüge');
+  }
 
   // Try to create Duffel booking session for direct booking link
   let duffelBookingUrl: string | null = null;
@@ -363,7 +413,28 @@ async function formatFlightResults(result: any, params: any): Promise<string> {
     sections.push('');
   }
 
-  // No results
+  // Note: External booking links are now included directly with each cash flight result
+  // to provide immediate booking options for specific flights
+
+  // Add partial failure notice if some providers failed
+  if (partialFailures.length > 0 && (result.seats.count > 0 || result.cash.count > 0)) {
+    const failedTypes = partialFailures.join(' und ');
+    sections.push(
+      `\n---\n\n_**Hinweis:** ${failedTypes} konnten nicht geladen werden. ` +
+        `Für weitere Optionen können Sie die folgenden Links nutzen:_\n`
+    );
+
+    // Add fallback links
+    if (result.searchLinkParams) {
+      const googleUrl = buildGoogleFlightsUrl(result.searchLinkParams);
+      const skyscannerUrl = buildSkyscannerUrl(result.searchLinkParams);
+      sections.push(`- [Google Flights](${googleUrl})`);
+      sections.push(`- [Skyscanner](${skyscannerUrl})\n`);
+    }
+  }
+
+  // No results case is now handled by formatGracefulFlightError before this function is called
+  // This is kept as a safety fallback
   if (result.seats.count === 0 && result.cash.count === 0) {
     sections.push(
       `Leider wurden keine Flüge für Ihre Suche gefunden.\n\n` +
