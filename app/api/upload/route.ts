@@ -1,5 +1,6 @@
 import { put } from '@vercel/blob';
 import { NextRequest, NextResponse } from 'next/server';
+import { after } from 'next/server';
 import { z } from 'zod';
 
 import { auth } from '@/lib/auth';
@@ -57,6 +58,11 @@ export async function POST(request: NextRequest) {
     const blob = await put(`mplx/${prefix}.${file.name.split('.').pop()}`, file, {
       access: 'public',
       addRandomSuffix: true,
+    });
+
+    // Non-blocking: log upload metrics
+    after(() => {
+      console.log(`[Upload] ${isAuthenticated ? 'Auth' : 'Public'} upload: ${file.name} (${file.size} bytes)`);
     });
 
     return NextResponse.json({

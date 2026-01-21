@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 'use client';
 
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo, useTransition } from 'react';
 import { redirect } from 'next/navigation';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -291,6 +291,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchMode, setSearchMode] = useState<SearchMode>('all');
+  const [isPending, startTransition] = useTransition();
   const [navigating, setNavigating] = useState<string | null>(null);
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
@@ -930,7 +931,12 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
               className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 pr-2"
               placeholder={`Suche ${currentModeInfo.label}...`}
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                startTransition(() => {
+                  setSearchQuery(value);
+                });
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Tab' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
                   e.preventDefault();

@@ -451,14 +451,14 @@ export const devLog = (...args: unknown[]) => {
 3. ✅ `&& <Component />` zu Ternary konvertieren
 
 ### Mittelfristig (High Impact, Medium Effort)
-4. 📋 `React.cache()` für Server-Funktionen
-5. 📋 useEffect-Fetches durch TanStack Query ersetzen
-6. 📋 `startTransition` für Search/Filter implementieren
+4. ✅ `React.cache()` für Server-Funktionen
+5. ✅ useEffect-Fetches durch TanStack Query ersetzen
+6. ✅ `startTransition` für Search/Filter implementieren
 
 ### Langfristig (Medium Impact)
-7. 📋 `content-visibility` CSS für Listen
-8. 📋 `after()` für Non-Blocking Operations
-9. 📋 Mehr Suspense Boundaries hinzufügen
+7. ✅ `content-visibility` CSS für Listen
+8. ✅ `after()` für Non-Blocking Operations
+9. ✅ Mehr Suspense Boundaries hinzufügen
 
 ### Nice-to-have (Low Impact)
 10. 📋 RegExp Hoisting
@@ -484,10 +484,10 @@ export const devLog = (...args: unknown[]) => {
 - [x] user-edit-modal.tsx auf TanStack Query umstellen (passwordResetHistory + batchVerifyMutation)
 
 ### Phase 3: Performance Optimierung (3-5 Tage)
-- [ ] `startTransition` für Search-Komponenten
-- [ ] Suspense Boundaries für alle Pages
-- [ ] `content-visibility` für Message-Listen
-- [ ] `after()` für Analytics/Logging
+- [x] `startTransition` für Search-Komponenten (memory-dialog.tsx, chat-history-dialog.tsx)
+- [x] Suspense Boundaries für alle Pages (app/(search)/page.tsx mit separaten Fallbacks)
+- [x] `content-visibility` für Message-Listen (globals.css: .message-item, [data-chat-id], .memory-item)
+- [x] `after()` für Analytics/Logging (upload/route.ts, transcribe/route.ts, webhooks/subscription/rebill, webhooks/subscription/cancel)
 
 ---
 

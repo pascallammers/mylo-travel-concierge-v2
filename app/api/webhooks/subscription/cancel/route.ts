@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { after } from 'next/server';
 import type { CancelWebhookRequest } from '../_lib/types';
 import {
   validateWebhookSecret,
@@ -76,14 +77,15 @@ export async function POST(req: NextRequest) {
     // 5. Mark subscription as cancelled at period end
     const updatedSubscription = await markSubscriptionCancelled(userSubscription.id);
     
-    // Log the cancellation with details
+    // Non-blocking: log the cancellation with details
     const accessUntil = userSubscription.currentPeriodEnd;
-    console.log('⚠️ Subscription cancelled for:', email);
-    console.log('📅 User retains access until:', accessUntil);
-    
-    if (cancellationReason) {
-      console.log('📝 Cancellation reason:', cancellationReason);
-    }
+    after(() => {
+      console.log('⚠️ Subscription cancelled for:', email);
+      console.log('📅 User retains access until:', accessUntil);
+      if (cancellationReason) {
+        console.log('📝 Cancellation reason:', cancellationReason);
+      }
+    });
 
     // Note: User is NOT suspended here - they keep access until currentPeriodEnd
     // A scheduled job or middleware should check currentPeriodEnd and suspend when it passes

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { after } from 'next/server';
 import { db } from '@/lib/db';
 import { payment } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -134,8 +135,11 @@ export async function POST(req: NextRequest) {
       }),
     });
 
-    console.log('✅ Payment record created:', paymentId);
-    console.log('🎉 Rebill processed successfully for:', email);
+    // Non-blocking: log success metrics
+    after(() => {
+      console.log('✅ Payment record created:', paymentId);
+      console.log('🎉 Rebill processed successfully for:', email);
+    });
 
     return NextResponse.json(
       createWebhookResponse(true, 'Subscription extended successfully', {
