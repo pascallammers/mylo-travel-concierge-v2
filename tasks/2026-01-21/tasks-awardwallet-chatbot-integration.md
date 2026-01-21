@@ -40,13 +40,13 @@ Update the file after completing each sub-task, not just after completing an ent
   - [x] 2.4 Für nicht verbundene User: Füge Hinweis "User has not connected AwardWallet" hinzu
   - [x] 2.5 Teste manuell, dass der Chatbot die Loyalty-Daten im Kontext hat (Build erfolgreich)
 
-- [ ] 3.0 Create get_loyalty_balances Tool
-  - [ ] 3.1 Erstelle `lib/tools/loyalty-balances.ts` mit Tool-Definition nach AI SDK Pattern
-  - [ ] 3.2 Implementiere Tool-Parameter: `provider` (optional), `includeDetails` (optional)
-  - [ ] 3.3 Implementiere Tool-Handler der `getUserLoyaltyData()` aus DB aufruft
-  - [ ] 3.4 Implementiere Rückgabe-Format gemäß PRD (connected, lastSyncedAt, totalPoints, accounts[])
-  - [ ] 3.5 Füge Filter-Logik für `provider` Parameter hinzu
-  - [ ] 3.6 Füge JSDoc-Dokumentation hinzu
+- [x] 3.0 Create get_loyalty_balances Tool
+  - [x] 3.1 Erstelle `lib/tools/loyalty-balances.ts` mit Tool-Definition nach AI SDK Pattern
+  - [x] 3.2 Implementiere Tool-Parameter: `provider` (optional), `includeDetails` (optional)
+  - [x] 3.3 Implementiere Tool-Handler der `getUserLoyaltyData()` aus DB aufruft
+  - [x] 3.4 Implementiere Rückgabe-Format gemäß PRD (connected, lastSyncedAt, totalPoints, accounts[])
+  - [x] 3.5 Füge Filter-Logik für `provider` Parameter hinzu
+  - [x] 3.6 Füge JSDoc-Dokumentation hinzu
 
 - [ ] 4.0 Register Tool in Tool Registry
   - [ ] 4.1 Exportiere Tool in `lib/tools/index.ts`
