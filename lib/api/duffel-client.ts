@@ -117,13 +117,14 @@ export async function searchDuffel(
     () => ({ type: 'adult' })
   );
 
-  console.log('[Duffel] Starting search with SDK (verbose mode enabled):', {
+  console.log('=== [DUFFEL API CALL] === Starting flight search via Duffel SDK:', {
     origin: params.origin,
     destination: params.destination,
     departureDate: params.departureDate,
     returnDate: params.returnDate,
     cabinClass: params.cabinClass,
     passengers: params.passengers,
+    timestamp: new Date().toISOString(),
   });
 
   try {
@@ -139,7 +140,7 @@ export async function searchDuffel(
     });
 
     // Log request ID for debugging/tracking in Duffel Dashboard
-    console.log('[Duffel] Request completed - Offer Request ID:', response.data.id);
+    console.log('=== [DUFFEL API CALL] === Request completed - Offer Request ID:', response.data.id);
 
     // Extract offers from response
     const offers = response.data.offers || [];
