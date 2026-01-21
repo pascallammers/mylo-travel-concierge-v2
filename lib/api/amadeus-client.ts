@@ -1,9 +1,13 @@
 import { getAmadeusToken } from './amadeus-token';
+import { isRetryableError, sleep } from '@/lib/utils/tool-error-response';
 
 const AMADEUS_BASE_URL =
   process.env.AMADEUS_ENV === 'prod'
     ? 'https://api.amadeus.com'
     : 'https://test.api.amadeus.com';
+
+const MAX_RETRIES = 2;
+const BASE_DELAY_MS = 1000;
 
 /**
  * Search parameters for Amadeus Flight Offers API
@@ -53,10 +57,50 @@ export interface AmadeusFlight {
 
 /**
  * Search for cash flights using Amadeus Flight Offers API
+ * Includes automatic retry with exponential backoff for transient errors
+ *
  * @param params - Search parameters
  * @returns List of flight offers
  */
 export async function searchAmadeus(
+  params: AmadeusSearchParams
+): Promise<AmadeusFlight[]> {
+  let lastError: Error | undefined;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await executeAmadeusSearch(params);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      // Check if we should retry
+      const shouldRetry = attempt < MAX_RETRIES && isRetryableError(error);
+
+      if (shouldRetry) {
+        const delay = BASE_DELAY_MS * Math.pow(2, attempt);
+        console.log(
+          `[Amadeus] Attempt ${attempt + 1}/${MAX_RETRIES + 1} failed, retrying in ${delay}ms...`
+        );
+        await sleep(delay);
+      } else {
+        // Don't retry - either max retries reached or non-retryable error
+        console.error(
+          `[Amadeus] Search failed after ${attempt + 1} attempt(s):`,
+          lastError.message
+        );
+        throw lastError;
+      }
+    }
+  }
+
+  throw lastError || new Error('Amadeus search failed');
+}
+
+/**
+ * Execute the actual Amadeus API search
+ * Separated from retry logic for clarity
+ */
+async function executeAmadeusSearch(
   params: AmadeusSearchParams
 ): Promise<AmadeusFlight[]> {
   // 1. Get OAuth token
@@ -89,39 +133,34 @@ export async function searchAmadeus(
   );
 
   // 3. API Call with error handling
-  try {
-    const response = await fetch(
-      `${AMADEUS_BASE_URL}/v2/shopping/flight-offers?${searchParams}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/vnd.amadeus+json',
-        },
-      }
-    );
+  const response = await fetch(
+    `${AMADEUS_BASE_URL}/v2/shopping/flight-offers?${searchParams}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.amadeus+json',
+      },
+    }
+  );
 
-    if (!response.ok) {
-      // Handle 401 Unauthorized (token expired)
-      if (response.status === 401) {
-        console.warn('[Amadeus] Token expired, will retry on next call');
-        throw new Error('Amadeus token expired');
-      }
-
-      const error = await response.text();
-      throw new Error(`Amadeus API error: ${response.status} ${error}`);
+  if (!response.ok) {
+    // Handle 401 Unauthorized (token expired)
+    if (response.status === 401) {
+      console.warn('[Amadeus] Token expired, will retry on next call');
+      throw new Error('Amadeus token expired (401)');
     }
 
-    const data = await response.json();
-
-    // 4. Process results
-    const offers = Array.isArray(data.data) ? data.data : [];
-    console.log(`[Amadeus] Found ${offers.length} offers`);
-
-    return offers.map((offer: any) => formatAmadeusOffer(offer));
-  } catch (error) {
-    console.error('[Amadeus] Search failed:', error);
-    throw error;
+    const errorText = await response.text();
+    throw new Error(`Amadeus API error: ${response.status} ${errorText}`);
   }
+
+  const data = await response.json();
+
+  // 4. Process results
+  const offers = Array.isArray(data.data) ? data.data : [];
+  console.log(`[Amadeus] Found ${offers.length} offers`);
+
+  return offers.map((offer: any) => formatAmadeusOffer(offer));
 }
 
 /**

@@ -1,4 +1,8 @@
+import { isRetryableError, sleep } from '@/lib/utils/tool-error-response';
+
 const SEATSAERO_BASE_URL = 'https://seats.aero/partnerapi';
+const MAX_RETRIES = 2;
+const BASE_DELAY_MS = 1000;
 
 /**
  * Cabin class mapping for Seats.aero API
@@ -54,13 +58,53 @@ export interface SeatsAeroFlight {
 
 /**
  * Search for award flights using Seats.aero Partner API
+ * Includes automatic retry with exponential backoff for transient errors
+ *
  * @param params - Search parameters
  * @returns List of available award flights
  */
 export async function searchSeatsAero(
   params: SeatsAeroSearchParams
 ): Promise<SeatsAeroFlight[]> {
-  const { key, cabin, apiValue } = CLASS_MAP[params.travelClass];
+  let lastError: Error | undefined;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await executeSeatsAeroSearch(params);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      // Check if we should retry
+      const shouldRetry = attempt < MAX_RETRIES && isRetryableError(error);
+
+      if (shouldRetry) {
+        const delay = BASE_DELAY_MS * Math.pow(2, attempt);
+        console.log(
+          `[Seats.aero] Attempt ${attempt + 1}/${MAX_RETRIES + 1} failed, retrying in ${delay}ms...`
+        );
+        await sleep(delay);
+      } else {
+        // Don't retry - either max retries reached or non-retryable error
+        console.error(
+          `[Seats.aero] Search failed after ${attempt + 1} attempt(s):`,
+          lastError.message
+        );
+        throw lastError;
+      }
+    }
+  }
+
+  throw lastError || new Error('Seats.aero search failed');
+}
+
+/**
+ * Execute the actual Seats.aero API search
+ * Separated from retry logic for clarity
+ */
+async function executeSeatsAeroSearch(
+  params: SeatsAeroSearchParams
+): Promise<SeatsAeroFlight[]> {
+  const { cabin, apiValue } = CLASS_MAP[params.travelClass];
   const flex = Math.min(params.flexibility || 0, 3);
 
   // Calculate date range with flexibility
@@ -85,56 +129,51 @@ export async function searchSeatsAero(
 
   console.log('[Seats.aero] Searching:', searchUrl.toString());
 
-  // API Call with error handling
-  try {
-    const response = await fetch(searchUrl.toString(), {
-      headers: {
-        'Partner-Authorization': process.env.SEATSAERO_API_KEY || '',
-        'Content-Type': 'application/json',
-      },
-    });
+  // API Call
+  const response = await fetch(searchUrl.toString(), {
+    headers: {
+      'Partner-Authorization': process.env.SEATSAERO_API_KEY || '',
+      'Content-Type': 'application/json',
+    },
+  });
 
-    if (!response.ok) {
-      throw new Error(
-        `Seats.aero API error: ${response.status} ${response.statusText}`
-      );
-    }
-
-    const data = await response.json();
-
-    // Process results
-    const entries = Array.isArray(data.data) ? data.data : [];
-    console.log(`[Seats.aero] Found ${entries.length} results`);
-
-    // Extract and process all trips from all availability entries
-    const allTrips: SeatsAeroFlight[] = [];
-    
-    for (const entry of entries) {
-      const trips = entry.AvailabilityTrips || [];
-      
-      // Filter trips by cabin class
-      const cabinTrips = trips.filter((trip: any) => 
-        trip.Cabin === CLASS_MAP[params.travelClass].apiValue
-      );
-      
-      // Convert each trip to our format
-      for (const trip of cabinTrips) {
-        const flight = formatTripToFlight(trip, entry, cabin);
-        if (flight) allTrips.push(flight);
-      }
-    }
-
-    // Sort by miles and limit results
-    const sorted = allTrips
-      .sort((a, b) => (a.miles || 0) - (b.miles || 0))
-      .slice(0, params.maxResults || 10);
-
-    console.log(`[Seats.aero] Returning ${sorted.length} flights`);
-    return sorted;
-  } catch (error) {
-    console.error('[Seats.aero] Search failed:', error);
-    throw error;
+  if (!response.ok) {
+    throw new Error(
+      `Seats.aero API error: ${response.status} ${response.statusText}`
+    );
   }
+
+  const data = await response.json();
+
+  // Process results
+  const entries = Array.isArray(data.data) ? data.data : [];
+  console.log(`[Seats.aero] Found ${entries.length} results`);
+
+  // Extract and process all trips from all availability entries
+  const allTrips: SeatsAeroFlight[] = [];
+
+  for (const entry of entries) {
+    const trips = entry.AvailabilityTrips || [];
+
+    // Filter trips by cabin class
+    const cabinTrips = trips.filter(
+      (trip: any) => trip.Cabin === CLASS_MAP[params.travelClass].apiValue
+    );
+
+    // Convert each trip to our format
+    for (const trip of cabinTrips) {
+      const flight = formatTripToFlight(trip, entry, cabin);
+      if (flight) allTrips.push(flight);
+    }
+  }
+
+  // Sort by miles and limit results
+  const sorted = allTrips
+    .sort((a, b) => (a.miles || 0) - (b.miles || 0))
+    .slice(0, params.maxResults || 10);
+
+  console.log(`[Seats.aero] Returning ${sorted.length} flights`);
+  return sorted;
 }
 
 /**
