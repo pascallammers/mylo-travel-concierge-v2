@@ -532,7 +532,6 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
     if (open) {
       allChats.forEach((chat) => {
         router.prefetch(`/search/${chat.id}`);
-        console.log(`Prefetching chat ${chat.id}`);
       });
     }
   }, [open, allChats, router]);
@@ -553,7 +552,6 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
   // Handle chat deletion with inline confirmation
   const handleDeleteChat = useCallback((e: React.MouseEvent | KeyboardEvent, id: string, title: string) => {
     e.stopPropagation();
-    console.log('SETTING DELETING CHAT ID:', id);
     setDeletingChatId(id);
   }, []);
 
@@ -583,7 +581,6 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
   // Cancel deletion
   const cancelDeleteChat = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('CANCELING DELETION');
     setDeletingChatId(null);
   }, []);
 

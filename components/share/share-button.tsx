@@ -39,7 +39,6 @@ export function ShareButton({
   }
 
   const handleClick = () => {
-    console.log('🔗 Share button clicked, opening dialog');
     setIsDialogOpen(true);
   };
 

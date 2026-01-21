@@ -972,7 +972,6 @@ export const Message: React.FC<MessageProps> = ({
     return (
       <div className={cn(shouldReduceHeight ? '' : 'min-h-[calc(100vh-18rem)]', '')}>
         {message.parts?.map((part: ChatMessage['parts'][number], partIndex: number) => {
-          console.log(`🔧 Rendering part ${partIndex}:`, { type: part.type, hasText: part.type === 'text' });
           const key = `${message.id || index}-part-${partIndex}-${part.type}`;
 
           // Check for Knowledge Base prefix in text parts
@@ -1388,10 +1387,6 @@ export const AttachmentsBadge = ({ attachments }: { attachments: Attachment[] })
       att.contentType === 'application/pdf' ||
       att.mediaType === 'application/pdf',
   );
-
-  React.useEffect(() => {
-    console.log('fileAttachments', fileAttachments);
-  }, [fileAttachments]);
 
   if (fileAttachments.length === 0) return null;
 

@@ -2128,17 +2128,10 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
       }
     }
 
-    // Log unhandled part types for debugging
-    console.log(
-      'Unhandled part type:',
-      typeof part === 'object' && part !== null && 'type' in part ? part.type : 'unknown',
-      part,
-    );
-
     return null;
   },
   (prevProps: MessagePartRendererProps, nextProps: MessagePartRendererProps) => {
-    const areEqual =
+    return (
       isEqual(prevProps.part, nextProps.part) &&
       prevProps.messageIndex === nextProps.messageIndex &&
       prevProps.partIndex === nextProps.partIndex &&
@@ -2152,14 +2145,8 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
       prevProps.isOwner === nextProps.isOwner &&
       prevProps.selectedVisibilityType === nextProps.selectedVisibilityType &&
       prevProps.chatId === nextProps.chatId &&
-      isEqual(prevProps.annotations, nextProps.annotations);
-
-    // Debug logging (can be removed in production)
-    if (!areEqual) {
-      console.log('MessagePartRenderer re-rendering');
-    }
-
-    return areEqual;
+      isEqual(prevProps.annotations, nextProps.annotations)
+    );
   },
 );
 

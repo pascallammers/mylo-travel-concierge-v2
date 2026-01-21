@@ -34,15 +34,12 @@ export function ShareIconDialog({
   const handleMakePublic = async () => {
     if (currentVisibility === 'public') return;
 
-    console.log('🔄 ShareIconDialog: Making chat public');
     setIsChangingVisibility(true);
 
     try {
       await onVisibilityChange('public');
       toast.success('Chat is now public and ready to share');
-      console.log('✅ ShareIconDialog: Successfully made chat public');
-    } catch (error) {
-      console.error('❌ ShareIconDialog: Error making chat public:', error);
+    } catch {
       toast.error('Failed to make chat public');
       onClose();
     } finally {
@@ -51,16 +48,13 @@ export function ShareIconDialog({
   };
 
   const handleMakePrivate = async () => {
-    console.log('🔄 ShareIconDialog: Making chat private');
     setIsChangingVisibility(true);
 
     try {
       await onVisibilityChange('private');
       toast.success('Chat is now private');
-      console.log('✅ ShareIconDialog: Successfully made chat private');
       onClose();
-    } catch (error) {
-      console.error('❌ ShareIconDialog: Error making chat private:', error);
+    } catch {
       toast.error('Failed to make chat private');
     } finally {
       setIsChangingVisibility(false);
@@ -73,26 +67,17 @@ export function ShareIconDialog({
       setCopied(true);
       toast.success('Link copied to clipboard');
       setTimeout(() => setCopied(false), 2000);
-      console.log('✅ ShareIconDialog: Link copied to clipboard');
-    } catch (error) {
-      console.error('❌ ShareIconDialog: Error copying link:', error);
+    } catch {
       toast.error('Failed to copy link');
     }
   };
 
   const handleNativeShareIcon = () => {
     if (navigator.share) {
-      navigator
-        .share({
-          title: 'Shared Chat - MYLO',
-          url: shareUrl,
-        })
-        .then(() => {
-          console.log('✅ ShareIconDialog: Native share successful');
-        })
-        .catch((error) => {
-          console.error('❌ ShareIconDialog: Native share failed:', error);
-        });
+      navigator.share({
+        title: 'Shared Chat - MYLO',
+        url: shareUrl,
+      });
     }
   };
 
@@ -100,21 +85,18 @@ export function ShareIconDialog({
     e.preventDefault();
     const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
     window.open(linkedInUrl, '_blank', 'noopener,noreferrer');
-    console.log('🔗 ShareIconDialog: Opened LinkedIn share');
   };
 
   const handleShareIconTwitter = (e: React.MouseEvent) => {
     e.preventDefault();
     const twitterUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}`;
     window.open(twitterUrl, '_blank', 'noopener,noreferrer');
-    console.log('🔗 ShareIconDialog: Opened Twitter share');
   };
 
   const handleShareIconReddit = (e: React.MouseEvent) => {
     e.preventDefault();
     const redditUrl = `https://www.reddit.com/submit?url=${encodeURIComponent(shareUrl)}`;
     window.open(redditUrl, '_blank', 'noopener,noreferrer');
-    console.log('🔗 ShareIconDialog: Opened Reddit share');
   };
 
   if (!isOwner) {

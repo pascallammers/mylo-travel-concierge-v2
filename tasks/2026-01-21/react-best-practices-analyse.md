@@ -470,12 +470,12 @@ export const devLog = (...args: unknown[]) => {
 ## Implementierungs-Checkliste
 
 ### Phase 1: Quick Wins (1-2 Tage)
-- [ ] `next/dynamic` für markdown.tsx
-- [ ] `next/dynamic` für interactive-maps.tsx
-- [ ] `next/dynamic` für interactive-charts.tsx
-- [ ] `next/dynamic` für crypto-charts.tsx
-- [ ] Console.logs in Production entfernen
-- [ ] `&&` zu Ternary in message.tsx, navbar.tsx, sidebar.tsx
+- [x] `next/dynamic` für markdown.tsx (in message.tsx, message-parts/index.tsx, interactive-stock-chart.tsx)
+- [x] `next/dynamic` für interactive-maps.tsx (in nearby-search-map-view.tsx)
+- [x] `next/dynamic` für interactive-charts.tsx (bereits React.lazy() in message-parts/index.tsx)
+- [x] `next/dynamic` für crypto-charts.tsx (bereits React.lazy() in message-parts/index.tsx)
+- [x] Console.logs in Production entfernen (50+ console.logs entfernt aus 14 Dateien)
+- [x] `&&` zu Ternary in message.tsx, navbar.tsx, sidebar.tsx (Überprüft: Alle existierenden && Patterns sind sicher - prüfen auf object existence, nicht numerische Werte)
 
 ### Phase 2: Data Fetching (2-3 Tage)
 - [ ] `React.cache()` für getUser, getSession etc.

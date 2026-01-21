@@ -244,11 +244,9 @@ const ChatInterface = memo(
       }),
       experimental_throttle: 100,
       onData: (dataPart) => {
-        console.log('onData<Client>', dataPart);
         setDataStream((ds) => (ds ? [...ds, dataPart] : []));
       },
       onFinish: async ({ message }) => {
-        console.log('onFinish<Client>', message.parts);
         // Refresh usage data after message completion for authenticated users
         if (user) {
           refetchUsage();
@@ -257,17 +255,8 @@ const ChatInterface = memo(
         // Check if this is the first message completion and user is not Pro
         const isFirstMessage = messages.length <= 1;
 
-        console.log('Upgrade dialog check:', {
-          isFirstMessage,
-          isProUser: isUserPro,
-          hasShownUpgradeDialog: chatState.hasShownUpgradeDialog,
-          user: !!user,
-          messagesLength: messages.length,
-        });
-
         // Show upgrade dialog after first message if user is not Pro and hasn't seen it before
         if (isFirstMessage && !isUserPro && !proStatusLoading && !chatState.hasShownUpgradeDialog && user) {
-          console.log('Showing upgrade dialog...');
           setTimeout(() => {
             dispatch({ type: 'SET_SHOW_UPGRADE_DIALOG', payload: true });
             dispatch({ type: 'SET_HAS_SHOWN_UPGRADE_DIALOG', payload: true });
@@ -278,13 +267,11 @@ const ChatInterface = memo(
         // Only generate suggested questions if authenticated user or private chat
         if (message.parts && message.role === 'assistant' && (user || chatState.selectedVisibilityType === 'private')) {
           const lastPart = message.parts[message.parts.length - 1];
-          // Add null check for lastPart
           const lastPartText = lastPart && lastPart.type === 'text' ? lastPart.text : '';
           const newHistory = [
             { role: 'user', content: lastSubmittedQueryRef.current },
             { role: 'assistant', content: lastPartText },
           ];
-          console.log('newHistory', newHistory);
           const { questions } = await suggestQuestions(newHistory);
           dispatch({ type: 'SET_SUGGESTED_QUESTIONS', payload: questions });
         }
@@ -292,7 +279,6 @@ const ChatInterface = memo(
       onError: (error) => {
         // Don't show toast for ChatSDK errors as they will be handled by the enhanced error display
         if (error instanceof ChatSDKError) {
-          console.log('ChatSDK Error:', error.type, error.surface, error.message);
           // Only show toast for certain error types that need immediate attention
           if (error.type === 'offline' || error.surface === 'stream') {
             toast.error('Connection Error', {
@@ -328,14 +314,6 @@ const ChatInterface = memo(
       [setInput],
     );
 
-    // Debug error structure
-    if (error) {
-      console.log('[useChat error]:', error);
-      console.log('[error type]:', typeof error);
-      console.log('[error message]:', error.message);
-      console.log('[error instance]:', error instanceof Error, error instanceof ChatSDKError);
-    }
-
     useAutoResume({
       autoResume: true,
       initialMessages: initialMessages || [],
@@ -344,15 +322,7 @@ const ChatInterface = memo(
     });
 
     useEffect(() => {
-      if (status) {
-        console.log('[status]:', status);
-      }
-    }, [status]);
-
-    useEffect(() => {
       if (user && status === 'streaming' && messages.length > 0) {
-        console.log('[chatId]:', chatId);
-        // Invalidate chats cache to refresh the list
         invalidateChatsCache();
       }
     }, [user, status, router, chatId, initialChatId, messages.length]);
@@ -360,7 +330,6 @@ const ChatInterface = memo(
     useEffect(() => {
       if (!initializedRef.current && initialState.query && !messages.length && !initialChatId) {
         initializedRef.current = true;
-        console.log('[initial query]:', initialState.query);
         sendMessage({
           parts: [{ type: 'text', text: initialState.query }],
           role: 'user',
@@ -491,57 +460,22 @@ const ChatInterface = memo(
     // Handle visibility change
     const handleVisibilityChange = useCallback(
       async (visibility: VisibilityType) => {
-        console.log('🔄 handleVisibilityChange called with:', { chatId, visibility });
-
         if (!chatId) {
-          console.warn('⚠️ handleVisibilityChange: No chatId provided, returning early');
           return;
         }
 
         try {
-          console.log('📡 Calling updateChatVisibility with:', { chatId, visibility });
           const result = await updateChatVisibility(chatId, visibility);
-          console.log('✅ updateChatVisibility response:', result);
-          console.log('🔍 Result structure analysis:', {
-            result,
-            typeof_result: typeof result,
-            has_result: !!result,
-            has_success: result?.success,
-            success_value: result?.success,
-            has_rowCount: result?.rowCount !== undefined,
-            rowCount_value: result?.rowCount,
-            rowCount_type: typeof result?.rowCount,
-            keys: result ? Object.keys(result) : 'no result',
-          });
 
-          // Check if the update was successful - be more forgiving with validation
           if (result && result.success) {
             dispatch({ type: 'SET_VISIBILITY_TYPE', payload: visibility });
-            console.log('🔄 Dispatched SET_VISIBILITY_TYPE with:', visibility);
-
             toast.success(`Chat is now ${visibility}`);
-            console.log('🍞 Success toast shown:', `Chat is now ${visibility}`);
-
-            // Invalidate cache to refresh the list with updated visibility
             invalidateChatsCache();
-            console.log('🗑️ Cache invalidated');
           } else {
-            console.error('❌ Update failed - unsuccessful result:', {
-              result,
-              success_check: result?.success,
-            });
             toast.error('Failed to update chat visibility');
-            console.log('🍞 Error toast shown: Failed to update chat visibility');
           }
-        } catch (error) {
-          console.error('❌ Error updating chat visibility:', {
-            chatId,
-            visibility,
-            error: error instanceof Error ? error.message : error,
-            stack: error instanceof Error ? error.stack : undefined,
-          });
+        } catch {
           toast.error('Failed to update chat visibility');
-          console.log('🍞 Error toast shown: Failed to update chat visibility');
         }
       },
       [chatId],

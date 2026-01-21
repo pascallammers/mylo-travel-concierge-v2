@@ -52,41 +52,26 @@ export function ShareDialog({
 
   // Handle copy to clipboard
   const handleCopyIconLink = async () => {
-    console.log('📋 Attempting to copy URL to clipboard:', shareUrl);
     try {
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       toast.success('Link copied to clipboard');
-      console.log('✅ URL copied to clipboard successfully');
-
-      // Reset copied state after 2 seconds
       setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      console.error('❌ Failed to copy to clipboard:', error);
+    } catch {
       toast.error('Failed to copy link');
     }
   };
 
   // Handle visibility change to public and copy link
   const handleShareAndCopyIcon = async () => {
-    console.log('🔗 Share and copy initiated, chatId:', chatId);
     setIsChangingVisibility(true);
 
     try {
       if (selectedVisibilityType === 'private') {
-        console.log('📡 Changing visibility to public');
         await onVisibilityChange('public');
-        console.log('✅ Visibility changed to public successfully');
       }
-
-      // Copy the link
       await handleCopyIconLink();
-    } catch (error) {
-      console.error('❌ Error in share and copy:', {
-        chatId,
-        error: error instanceof Error ? error.message : error,
-        stack: error instanceof Error ? error.stack : undefined,
-      });
+    } catch {
       toast.error('Failed to share chat');
     } finally {
       setIsChangingVisibility(false);
@@ -95,27 +80,14 @@ export function ShareDialog({
 
   // Handle making chat private
   const handleMakePrivate = async () => {
-    console.log('🔒 Make private initiated, chatId:', chatId);
     setIsChangingVisibility(true);
 
     try {
-      console.log('📡 Changing visibility to private');
       await onVisibilityChange('private');
-      console.log('✅ Visibility changed to private successfully');
       toast.success('Chat is now private');
-      console.log('🍞 Success toast shown: Chat is now private');
-
-      // Close dialog after successful private change
       onOpenChange(false);
-      console.log('🚪 Dialog closed after making private');
-    } catch (error) {
-      console.error('❌ Error making chat private:', {
-        chatId,
-        error: error instanceof Error ? error.message : error,
-        stack: error instanceof Error ? error.stack : undefined,
-      });
+    } catch {
       toast.error('Failed to make chat private');
-      console.log('🍞 Error toast shown: Failed to make chat private');
     } finally {
       setIsChangingVisibility(false);
     }
@@ -124,37 +96,30 @@ export function ShareDialog({
   // Social media share handlers
   const handleShareLinkedIn = (e: React.MouseEvent) => {
     e.preventDefault();
-    console.log('📱 Sharing to LinkedIn:', shareUrl);
     const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
     window.open(linkedInUrl, '_blank', 'noopener,noreferrer');
   };
 
   const handleShareTwitter = (e: React.MouseEvent) => {
     e.preventDefault();
-    console.log('📱 Sharing to Twitter:', shareUrl);
     const twitterUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}`;
     window.open(twitterUrl, '_blank', 'noopener,noreferrer');
   };
 
   const handleShareReddit = (e: React.MouseEvent) => {
     e.preventDefault();
-    console.log('📱 Sharing to Reddit:', shareUrl);
     const redditUrl = `https://www.reddit.com/submit?url=${encodeURIComponent(shareUrl)}`;
     window.open(redditUrl, '_blank', 'noopener,noreferrer');
   };
 
   // Handle native share API
   const handleNativeShare = async () => {
-    console.log('📱 Using native share API:', shareUrl);
     try {
       await navigator.share({
         title: 'Shared MYLO Chat',
         url: shareUrl,
       });
-      console.log('✅ Native share completed');
-    } catch (error) {
-      console.error('❌ Native share failed:', error);
-      // Fallback to copy
+    } catch {
       await handleCopyIconLink();
     }
   };
