@@ -209,6 +209,19 @@ function parseExpirationDate(dateStr?: string): Date | null {
 }
 
 /**
+ * Generates a fallback provider code from the display name
+ * Used when AwardWallet API returns accounts without a code field
+ * @param displayName - The provider's display name
+ * @returns A normalized code string (e.g., "Amex Centurion" -> "amex-centurion")
+ */
+function generateProviderCode(displayName: string): string {
+  return displayName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+/**
  * Formats raw AwardWallet account data to MYLO format
  */
 function formatAccount(raw: AWRawAccount): AWLoyaltyAccount {
@@ -216,8 +229,11 @@ function formatAccount(raw: AWRawAccount): AWLoyaltyAccount {
   const eliteStatusProp = raw.properties?.find((p) => p.kind === 3);
   const eliteStatus = eliteStatusProp?.value || null;
 
+  // Generate fallback code from displayName if code is missing
+  const providerCode = raw.code || generateProviderCode(raw.displayName);
+
   return {
-    providerCode: raw.code,
+    providerCode,
     providerName: raw.displayName,
     balance: Math.round(raw.balanceRaw ?? 0),
     balanceUnit: parseBalanceUnit(raw.kind),
