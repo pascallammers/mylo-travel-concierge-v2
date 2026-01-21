@@ -73,6 +73,8 @@ import {
 import { flightSearchTool } from '@/lib/tools/flight-search';
 import { markdownJoinerTransform } from '@/lib/parser';
 import { ChatMessage } from '@/lib/types';
+import { getUserLoyaltyData } from '@/lib/db/queries/awardwallet';
+import { formatLoyaltyDataForPrompt } from '@/lib/utils/loyalty-prompt-formatter';
 
 let globalStreamContext: ResumableStreamContext | null = null;
 
@@ -193,6 +195,14 @@ export async function POST(req: Request) {
 
   // Get custom instructions as early as possible for authenticated users (with caching)
   const customInstructionsPromise = user ? getCachedCustomInstructions(user) : Promise.resolve(null);
+
+  // Load loyalty data for authenticated users (parallel with other DB calls)
+  const loyaltyDataPromise = user
+    ? getUserLoyaltyData(user.id).catch((error) => {
+        console.error('Failed to load loyalty data:', error);
+        return { connected: false, lastSyncedAt: null, accounts: [] };
+      })
+    : Promise.resolve({ connected: false, lastSyncedAt: null, accounts: [] });
 
   if (user) {
     const isProUser = user.isProUser;
@@ -379,12 +389,23 @@ export async function POST(req: Request) {
         return result;
       });
 
+      const loyaltyDataWaitStartTime = Date.now();
+      const loyaltyDataWithTiming = loyaltyDataPromise.then((result) => {
+        console.log(
+          `⏱️  [DB] Loyalty data promise wait took: ${((Date.now() - loyaltyDataWaitStartTime) / 1000).toFixed(2)}s`,
+        );
+        return result;
+      });
+
       const combinedWaitStartTime = Date.now();
-      const [{ tools: activeTools, instructions }, customInstructionsResult] = await Promise.all([
+      const [{ tools: activeTools, instructions }, customInstructionsResult, loyaltyData] = await Promise.all([
         configWithTiming,
         customInstructionsWithTiming,
+        loyaltyDataWithTiming,
       ]);
       customInstructions = customInstructionsResult;
+      const loyaltyContext = formatLoyaltyDataForPrompt(loyaltyData);
+      console.log('Loyalty data loaded:', loyaltyData.connected ? `${loyaltyData.accounts.length} accounts` : 'Not connected');
       console.log(`⏱️  Combined wait took: ${((Date.now() - combinedWaitStartTime) / 1000).toFixed(2)}s`);
       console.log('Custom Instructions from DB:', customInstructions ? 'Found' : 'Not found');
       console.log('Will apply custom instructions:', !!(customInstructions && (isCustomInstructionsEnabled ?? true)));
@@ -528,7 +549,8 @@ export async function POST(req: Request) {
           (customInstructions && (isCustomInstructionsEnabled ?? true)
             ? `\n\nThe user's custom instructions are as follows and YOU MUST FOLLOW THEM AT ALL COSTS: ${customInstructions?.content}`
             : '\n') +
-          (latitude && longitude ? `\n\nThe user's location is ${latitude}, ${longitude}.` : ''),
+          (latitude && longitude ? `\n\nThe user's location is ${latitude}, ${longitude}.` : '') +
+          (user ? `\n\n${loyaltyContext}` : ''),
         toolChoice: 'auto',
         tools: createToolRegistry(dataStream, searchProvider, user, selectedConnectors, timezone, activeTools),
         experimental_repairToolCall: async ({ toolCall, tools, inputSchema, error }) => {
