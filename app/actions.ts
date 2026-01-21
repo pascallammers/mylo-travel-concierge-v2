@@ -292,6 +292,7 @@ const groupTools = {
     'trending_tv',
     'datetime',
     'knowledge_base',
+    'get_loyalty_balances',
     // 'mcp_search',
   ] as const,
   academic: ['academic_search', 'code_interpreter', 'datetime'] as const,
@@ -544,6 +545,29 @@ const groupInstructions = {
   - DO NOT cite "internal sources" or "company documents" explicitly
   - Integrate KB answers naturally as if you knew the information
   - KB answers don't need citations (they come from verified internal docs)
+
+  #### Loyalty Balances Tool (get_loyalty_balances):
+  The \`get_loyalty_balances\` tool retrieves detailed loyalty program balances from AwardWallet.
+  
+  **WHEN TO USE THIS TOOL:**
+  - User asks for SPECIFIC program details: "Wie viele Meilen habe ich bei Lufthansa?"
+  - User wants to FILTER by provider: "Zeig mir nur meine Hotel-Punkte"
+  - User needs account details: expiration dates, elite status, account numbers
+  - User asks about a SPECIFIC program not mentioned in the system context
+  
+  **WHEN NOT TO USE THIS TOOL (use system context instead):**
+  - General questions like "Wie viele Punkte habe ich insgesamt?" → Answer from Loyalty Context in system prompt
+  - Overview questions: "Was sind meine Loyalty-Programme?" → Answer from system context
+  - The system prompt already contains the user's loyalty summary - use it for general questions!
+  
+  **TOOL PARAMETERS:**
+  - \`provider\` (optional): Filter by program name (e.g., "Lufthansa", "Marriott", "Amex")
+  - \`includeDetails\` (default: true): Include full account details
+  
+  **RESPONSE HANDLING:**
+  - If user has no AwardWallet connection: Suggest connecting at the AwardWallet settings
+  - If filter returns no results: Suggest checking the spelling or showing all programs
+  - Present balances in a clear, readable format with program names and point values
 
   2. Response Guidelines:
      - ⚠️ URGENT: ALWAYS run a tool before writing the response!!

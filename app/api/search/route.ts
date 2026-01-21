@@ -71,6 +71,7 @@ import {
   knowledgeBaseTool,
 } from '@/lib/tools';
 import { flightSearchTool } from '@/lib/tools/flight-search';
+import { getLoyaltyBalancesTool } from '@/lib/tools/loyalty-balances';
 import { markdownJoinerTransform } from '@/lib/parser';
 import { ChatMessage } from '@/lib/types';
 import { getUserLoyaltyData } from '@/lib/db/queries/awardwallet';
@@ -502,6 +503,7 @@ export async function POST(req: Request) {
           extreme_search: extremeSearchTool(dataStream),
           greeting: greetingTool(timezone),
           knowledge_base: knowledgeBaseTool,
+          get_loyalty_balances: getLoyaltyBalancesTool,
         };
 
         // Filter to only include active tools

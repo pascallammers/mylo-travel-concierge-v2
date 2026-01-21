@@ -48,12 +48,12 @@ Update the file after completing each sub-task, not just after completing an ent
   - [x] 3.5 Füge Filter-Logik für `provider` Parameter hinzu
   - [x] 3.6 Füge JSDoc-Dokumentation hinzu
 
-- [ ] 4.0 Register Tool in Tool Registry
-  - [ ] 4.1 Exportiere Tool in `lib/tools/index.ts`
-  - [ ] 4.2 Importiere Tool in `app/api/search/route.ts`
-  - [ ] 4.3 Füge `get_loyalty_balances` zu `groupTools.web` in `app/actions.ts` hinzu
-  - [ ] 4.4 Registriere Tool in der `createToolRegistry` Funktion in `app/api/search/route.ts`
-  - [ ] 4.5 Erweitere `groupInstructions.web` mit Anweisungen zur Tool-Nutzung
+- [x] 4.0 Register Tool in Tool Registry
+  - [x] 4.1 Exportiere Tool in `lib/tools/index.ts`
+  - [x] 4.2 Importiere Tool in `app/api/search/route.ts`
+  - [x] 4.3 Füge `get_loyalty_balances` zu `groupTools.web` in `app/actions.ts` hinzu
+  - [x] 4.4 Registriere Tool in der `createToolRegistry` Funktion in `app/api/search/route.ts`
+  - [x] 4.5 Erweitere `groupInstructions.web` mit Anweisungen zur Tool-Nutzung
 
 - [ ] 5.0 Implement Unit and Integration Tests
   - [ ] 5.1 Erstelle `lib/tools/loyalty-balances.test.ts` mit Unit Tests
