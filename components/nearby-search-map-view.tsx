@@ -1,8 +1,14 @@
 /* eslint-disable @next/next/no-img-element */
 import React, { useState, memo, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { cn } from '@/lib/utils';
-import InteractiveMap from './interactive-maps';
 import PlaceCard from './place-card';
+
+// Dynamic import for heavy InteractiveMap component (Leaflet maps, ~460 lines)
+const InteractiveMap = dynamic(() => import('./interactive-maps'), {
+  loading: () => <div className="h-[400px] animate-pulse bg-muted rounded-lg" />,
+  ssr: false, // Maps don't work well with SSR
+});
 import { Badge } from './ui/badge';
 import { WarningCircleIcon } from '@phosphor-icons/react';
 

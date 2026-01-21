@@ -25,9 +25,18 @@ import {
   RefreshCw,
   LogIn,
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { TextUIPart, UIMessagePart } from 'ai';
-import { MarkdownRenderer } from '@/components/markdown';
 import { ChatTextHighlighter } from '@/components/chat-text-highlighter';
+
+// Dynamic import for heavy MarkdownRenderer component (~1000 lines with KaTeX, syntax highlighting)
+const MarkdownRenderer = dynamic(
+  () => import('@/components/markdown').then((mod) => ({ default: mod.MarkdownRenderer })),
+  {
+    loading: () => <div className="animate-pulse h-4 bg-muted rounded w-full" />,
+    ssr: true,
+  },
+);
 import { deleteTrailingMessages } from '@/app/actions';
 import { getErrorActions, getErrorIcon, isSignInRequired, isProRequired, isRateLimited } from '@/lib/errors';
 import { saveMemoryFromChat, MemoryContext } from '@/lib/memory-actions';
