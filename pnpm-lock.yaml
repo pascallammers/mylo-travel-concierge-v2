@@ -53,6 +53,9 @@ importers:
       '@dodopayments/core':
         specifier: ^0.1.16
         version: 0.1.16(encoding@0.1.13)(zod@3.25.76)
+      '@duffel/api':
+        specifier: ^4.21.2
+        version: 4.21.2(encoding@0.1.13)
       '@eslint/plugin-kit':
         specifier: 0.3.4
         version: 0.3.4
@@ -839,6 +842,10 @@ packages:
 
   '@drizzle-team/brocli@0.10.2':
     resolution: {integrity: sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w==}
+
+  '@duffel/api@4.21.2':
+    resolution: {integrity: sha512-yq7C1o/bl4JPFMNPXOioUABtmKq3zFPnxZ/nZDehvXA0yvtB3hb2YeSIgikdWl0fVyUuKPDQgeHsxIv/g3lVJQ==}
+    engines: {node: '>=18.*'}
 
   '@emnapi/core@1.7.1':
     resolution: {integrity: sha512-o1uhUASyo921r2XtHYOHy7gdkGLge8ghBEQHMWmyJFoXlpU58kIrhhN3w26lpQb6dspetweapMn2CSNwQ8I4wg==}
@@ -7069,6 +7076,14 @@ snapshots:
       - encoding
 
   '@drizzle-team/brocli@0.10.2': {}
+
+  '@duffel/api@4.21.2(encoding@0.1.13)':
+    dependencies:
+      '@types/node': 18.19.123
+      '@types/node-fetch': 2.6.13
+      node-fetch: 2.7.0(encoding@0.1.13)
+    transitivePeerDependencies:
+      - encoding
 
   '@emnapi/core@1.7.1':
     dependencies:

@@ -1,6 +1,22 @@
+import { Duffel } from '@duffel/api';
 import { serverEnv } from '@/env/server';
 
-const DUFFEL_BASE_URL = 'https://api.duffel.com';
+/**
+ * Get Duffel SDK client instance with verbose debugging enabled
+ * @returns Configured Duffel client
+ */
+function getDuffelClient(): Duffel {
+  const apiKey = serverEnv.DUFFEL_API_KEY;
+
+  if (!apiKey) {
+    throw new Error('DUFFEL_API_KEY is not configured. Please add it to your environment variables.');
+  }
+
+  return new Duffel({
+    token: apiKey,
+    debug: { verbose: true },
+  });
+}
 
 /**
  * Search parameters for Duffel Flight Offers API
@@ -64,21 +80,21 @@ function mapCabinClass(cabin: string): DuffelSearchParams['cabinClass'] {
 }
 
 /**
- * Search for cash flights using Duffel Flight Offers API
+ * Search for cash flights using Duffel Flight Offers API (SDK with verbose debugging)
  * @param params - Search parameters
  * @returns List of flight offers
  */
 export async function searchDuffel(
   params: DuffelSearchParams
 ): Promise<DuffelFlight[]> {
-  const apiKey = serverEnv.DUFFEL_API_KEY;
-
-  if (!apiKey) {
-    throw new Error('DUFFEL_API_KEY is not configured. Please add it to your environment variables.');
-  }
+  const duffel = getDuffelClient();
 
   // Build slices (journey legs)
-  const slices = [
+  const slices: Array<{
+    origin: string;
+    destination: string;
+    departure_date: string;
+  }> = [
     {
       origin: params.origin,
       destination: params.destination,
@@ -96,74 +112,44 @@ export async function searchDuffel(
   }
 
   // Build passengers array
-  const passengers = Array.from({ length: params.passengers }, () => ({
-    type: 'adult' as const,
-  }));
-
-  // Build request body
-  const requestBody = {
-    data: {
-      slices,
-      passengers,
-      cabin_class: params.cabinClass,
-      max_connections: params.maxConnections ?? 1,
-    },
-  };
-
-  console.log(
-    '[Duffel] Searching:',
-    JSON.stringify({ ...requestBody, endpoint: `${DUFFEL_BASE_URL}/air/offer_requests` })
+  const passengers: Array<{ type: 'adult' }> = Array.from(
+    { length: params.passengers },
+    () => ({ type: 'adult' })
   );
 
+  console.log('[Duffel] Starting search with SDK (verbose mode enabled):', {
+    origin: params.origin,
+    destination: params.destination,
+    departureDate: params.departureDate,
+    returnDate: params.returnDate,
+    cabinClass: params.cabinClass,
+    passengers: params.passengers,
+  });
+
   try {
-    const response = await fetch(
-      `${DUFFEL_BASE_URL}/air/offer_requests?return_offers=true`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          'Accept-Encoding': 'gzip',
-          'Duffel-Version': 'v2',
-        },
-        body: JSON.stringify(requestBody),
-      }
-    );
+    // Type assertion needed due to SDK type constraints
+    const maxConn = Math.min(params.maxConnections ?? 1, 2) as 0 | 1 | 2;
+    
+    const response = await duffel.offerRequests.create({
+      slices: slices as any, // SDK types are overly strict
+      passengers,
+      cabin_class: params.cabinClass,
+      max_connections: maxConn,
+      return_offers: true,
+    });
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-
-      // Handle specific error codes
-      if (response.status === 401) {
-        console.error('[Duffel] Authentication failed - check API key');
-        throw new Error('Duffel API authentication failed');
-      }
-
-      if (response.status === 429) {
-        console.error('[Duffel] Rate limit exceeded');
-        throw new Error('Duffel API rate limit exceeded');
-      }
-
-      if (response.status === 422) {
-        console.error('[Duffel] Validation error:', errorBody);
-        throw new Error(`Duffel API validation error: ${errorBody}`);
-      }
-
-      throw new Error(`Duffel API error: ${response.status} ${errorBody}`);
-    }
-
-    const data = await response.json();
+    // Log request ID for debugging/tracking in Duffel Dashboard
+    console.log('[Duffel] Request completed - Offer Request ID:', response.data.id);
 
     // Extract offers from response
-    const offers = data.data?.offers || [];
+    const offers = response.data.offers || [];
     console.log(`[Duffel] Found ${offers.length} offers`);
 
     // Format and limit results
     const maxResults = params.maxResults || 10;
     return offers
       .slice(0, maxResults)
-      .map((offer: any) => formatDuffelOffer(offer));
+      .map((offer) => formatDuffelOffer(offer));
   } catch (error) {
     console.error('[Duffel] Search failed:', error);
     throw error;

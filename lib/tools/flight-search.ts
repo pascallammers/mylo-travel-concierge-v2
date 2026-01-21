@@ -6,6 +6,7 @@ import { recordToolCall, updateToolCall } from '@/lib/db/queries';
 import { mergeSessionState } from '@/lib/db/queries';
 import { resolveIATACode } from '@/lib/utils/airport-codes';
 import { buildGoogleFlightsUrl, buildSkyscannerUrl } from '@/lib/utils/flight-search-links';
+import { createDuffelBookingSession, buildDuffelFallbackUrl } from '@/lib/utils/duffel-links';
 
 /**
  * Flight Search Tool - Searches both award flights (Seats.aero) and cash flights (Duffel)
@@ -250,7 +251,7 @@ Examples of queries that should trigger this tool:
       }
 
       // 6. Format response for LLM
-      return formatFlightResults(result, params);
+      return await formatFlightResults(result, params);
     } catch (error) {
       console.error('[Flight Search] ❌ Error:', error);
 
@@ -275,8 +276,32 @@ Examples of queries that should trigger this tool:
 /**
  * Format flight results for LLM response
  */
-function formatFlightResults(result: any, params: any): string {
+async function formatFlightResults(result: any, params: any): Promise<string> {
   const sections: string[] = [];
+
+  // Try to create Duffel booking session for direct booking link
+  let duffelBookingUrl: string | null = null;
+  if (result.cash.count > 0) {
+    try {
+      const session = await createDuffelBookingSession({
+        origin: result.cash.flights[0].departure.airport,
+        destination: result.cash.flights[0].arrival.airport,
+        departDate: params.departDate,
+        returnDate: params.returnDate,
+        passengers: params.passengers,
+      });
+      duffelBookingUrl = session.url;
+    } catch (error) {
+      console.warn('[Flight Search] Duffel Links session creation failed, using fallback:', error);
+      duffelBookingUrl = buildDuffelFallbackUrl({
+        origin: result.cash.flights[0].departure.airport,
+        destination: result.cash.flights[0].arrival.airport,
+        departDate: params.departDate,
+        returnDate: params.returnDate,
+        passengers: params.passengers,
+      });
+    }
+  }
 
   // Award Flights Section (renamed from "Award-Flüge" to hide Seats.aero source)
   if (result.seats.count > 0) {
@@ -327,6 +352,11 @@ function formatFlightResults(result: any, params: any): string {
         ? `**CO₂:** ${flight.emissionsKg} kg\n`
         : '';
 
+      // Build booking links string with Duffel as additional option
+      const bookingLinks = duffelBookingUrl
+        ? `[Google Flights](${googleFlightsUrl}) | [Skyscanner](${skyscannerUrl}) | [Direkt buchen](${duffelBookingUrl})`
+        : `[Google Flights](${googleFlightsUrl}) | [Skyscanner](${skyscannerUrl})`;
+
       sections.push(
         `### ${idx + 1}. ${flight.airline}\n` +
           `**Preis:** ${flight.price.total} ${flight.price.currency}\n` +
@@ -339,13 +369,10 @@ function formatFlightResults(result: any, params: any): string {
           `**Dauer:** ${flight.duration}\n` +
           `**Stops:** ${flight.stops === 0 ? 'Nonstop' : `${flight.stops} Stop(s)`}\n` +
           emissionsInfo +
-          `**Buchen:** [Google Flights](${googleFlightsUrl}) | [Skyscanner](${skyscannerUrl})\n\n`
+          `**Buchen:** ${bookingLinks}\n\n`
       );
     });
   }
-
-  // Note: External booking links are now included directly with each cash flight result
-  // to provide immediate booking options for specific flights
 
   // No results
   if (result.seats.count === 0 && result.cash.count === 0) {
