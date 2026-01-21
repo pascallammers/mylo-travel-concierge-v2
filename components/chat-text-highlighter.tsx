@@ -32,9 +32,7 @@ export const ChatTextHighlighter: React.FC<ChatTextHighlighterProps> = ({
   const handleCopy = useCallback(async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      console.log('Text copied:', text);
-    } catch (err) {
-      console.error('Copy failed:', err);
+    } catch {
       // Fallback method
       const textArea = document.createElement('textarea');
       textArea.value = text;
@@ -46,9 +44,8 @@ export const ChatTextHighlighter: React.FC<ChatTextHighlighterProps> = ({
       textArea.select();
       try {
         document.execCommand('copy');
-        console.log('Fallback copy succeeded');
-      } catch (fallbackErr) {
-        console.error('Fallback copy failed:', fallbackErr);
+      } catch {
+        // Silent fail for copy
       }
       document.body.removeChild(textArea);
     }

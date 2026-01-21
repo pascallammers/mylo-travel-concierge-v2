@@ -2054,9 +2054,6 @@ const ExtremeSearchComponent = ({
 
   // Render sources section (matching multi-search design)
   const renderSources = (sources: ExtremeSearchSource[]) => {
-    console.log('[ExtremeSearch] renderSources called with:', sources.length, 'sources');
-    console.log('[ExtremeSearch] Sources data:', sources);
-
     return (
       <div className="w-full">
         <div
@@ -2139,10 +2136,6 @@ const ExtremeSearchComponent = ({
 
   // Final result view
   if (isCompleted) {
-    console.log('[ExtremeSearch] 🎯 RENDERING COMPLETED STATE');
-    console.log('[ExtremeSearch] allSources length:', allSources.length);
-    console.log('[ExtremeSearch] allCharts length:', allCharts.length);
-
     return (
       <div className="space-y-2">
         {/* Research Process */}

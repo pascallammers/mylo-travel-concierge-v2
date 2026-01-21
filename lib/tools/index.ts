@@ -23,3 +23,4 @@ export * from './text-translate';
 export * from './knowledge-base';
 export * from './supermemory';
 export * from './knowledge-base-query';
+export * from './loyalty-balances';

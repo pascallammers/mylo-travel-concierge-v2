@@ -32,12 +32,10 @@ export function useShareDialog({
   const [isOpen, setIsOpen] = useState(false);
 
   const openDialog = useCallback(() => {
-    console.log('🔄 useShareDialog: Opening share dialog for chatId:', chatId);
     setIsOpen(true);
-  }, [chatId]);
+  }, []);
 
   const closeDialog = useCallback(() => {
-    console.log('🔄 useShareDialog: Closing share dialog');
     setIsOpen(false);
   }, []);
 

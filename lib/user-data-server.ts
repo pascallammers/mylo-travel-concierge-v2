@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { cache } from 'react';
 import { eq } from 'drizzle-orm';
 import { subscription, payment, user } from './db/schema';
 import { db } from './db';
@@ -76,7 +77,11 @@ export function clearAllUserDataCache(): void {
   userDataCache.clear();
 }
 
-export async function getComprehensiveUserData(): Promise<ComprehensiveUserData | null> {
+/**
+ * Get comprehensive user data with React.cache() for request deduplication.
+ * Multiple calls within the same request will only execute once.
+ */
+export const getComprehensiveUserData = cache(async (): Promise<ComprehensiveUserData | null> => {
   try {
     // Get session once
     const session = await auth.api.getSession({
@@ -220,7 +225,7 @@ export async function getComprehensiveUserData(): Promise<ComprehensiveUserData 
     console.error('Error getting comprehensive user data:', error);
     return null;
   }
-}
+});
 
 // Helper functions for backward compatibility and specific use cases
 export async function isUserPro(): Promise<boolean> {

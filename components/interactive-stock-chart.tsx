@@ -1,5 +1,6 @@
 import React, { useMemo, useCallback, useEffect, useState } from 'react';
 import ReactECharts, { EChartsOption } from 'echarts-for-react';
+import dynamic from 'next/dynamic';
 import { Badge } from '@/components/ui/badge';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
@@ -28,8 +29,16 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { Chart03Icon } from '@hugeicons/core-free-icons';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MarkdownRenderer } from '@/components/markdown';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+// Dynamic import for heavy MarkdownRenderer component (~1000 lines with KaTeX, syntax highlighting)
+const MarkdownRenderer = dynamic(
+  () => import('@/components/markdown').then((mod) => ({ default: mod.MarkdownRenderer })),
+  {
+    loading: () => <div className="animate-pulse h-4 bg-muted rounded w-full" />,
+    ssr: true,
+  },
+);
 
 // Currency symbol mapping with modern design tokens
 const CURRENCY_SYMBOLS = {

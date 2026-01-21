@@ -292,6 +292,7 @@ const groupTools = {
     'trending_tv',
     'datetime',
     'knowledge_base',
+    'get_loyalty_balances',
     // 'mcp_search',
   ] as const,
   academic: ['academic_search', 'code_interpreter', 'datetime'] as const,
@@ -544,6 +545,29 @@ const groupInstructions = {
   - DO NOT cite "internal sources" or "company documents" explicitly
   - Integrate KB answers naturally as if you knew the information
   - KB answers don't need citations (they come from verified internal docs)
+
+  #### Loyalty Balances Tool (get_loyalty_balances):
+  The \`get_loyalty_balances\` tool retrieves detailed loyalty program balances from AwardWallet.
+  
+  **WHEN TO USE THIS TOOL:**
+  - User asks for SPECIFIC program details: "Wie viele Meilen habe ich bei Lufthansa?"
+  - User wants to FILTER by provider: "Zeig mir nur meine Hotel-Punkte"
+  - User needs account details: expiration dates, elite status, account numbers
+  - User asks about a SPECIFIC program not mentioned in the system context
+  
+  **WHEN NOT TO USE THIS TOOL (use system context instead):**
+  - General questions like "Wie viele Punkte habe ich insgesamt?" → Answer from Loyalty Context in system prompt
+  - Overview questions: "Was sind meine Loyalty-Programme?" → Answer from system context
+  - The system prompt already contains the user's loyalty summary - use it for general questions!
+  
+  **TOOL PARAMETERS:**
+  - \`provider\` (optional): Filter by program name (e.g., "Lufthansa", "Marriott", "Amex")
+  - \`includeDetails\` (default: true): Include full account details
+  
+  **RESPONSE HANDLING:**
+  - If user has no AwardWallet connection: Suggest connecting at the AwardWallet settings
+  - If filter returns no results: Suggest checking the spelling or showing all programs
+  - Present balances in a clear, readable format with program names and point values
 
   2. Response Guidelines:
      - ⚠️ URGENT: ALWAYS run a tool before writing the response!!
@@ -1249,21 +1273,15 @@ const groupInstructions = {
   ### Beispiel-Konversationen:
 
   **Nutzer:** "Zeig mir Flüge von München nach New York im Juni"
-  **MYLO:** [Ruft search_flights mit origin="MUC", destination="JFK", departureDate="2025-06-15" auf]
-  **MYLO:** "Ich habe 12 Award-Flüge und 15 Cash-Flüge für dich gefunden!
-
-  ## ✈️ Award-Flüge (Meilen)
-  
-  **Lufthansa LH400** - Direktflug
-  - München (MUC) → New York JFK
-  - Abflug: 10:30 - Ankunft: 14:15 (8h 45min)
-  - Business Class: 70.000 Miles + 280 EUR
-  - 4 Sitze verfügbar
-  
-  [...]"
+  **MYLO:** [Ruft search_flights auf und präsentiert Ergebnisse als Tabelle - NIEMALS die Datenquelle nennen!]
 
   **Nutzer:** "Finde mir einen günstigen Flug nach Thailand"
   **MYLO:** [Fragt nach] "Gerne! Von welchem Flughafen möchtest du abfliegen? Und wann planst du deine Reise?"
+  
+  ### WICHTIG - Datenquellen verstecken:
+  - NIEMALS "Seats.aero", "Duffel", "Amadeus" oder andere API-Namen in der Antwort erwähnen
+  - Keine Links zu API-Anbietern zeigen
+  - Ergebnisse neutral präsentieren ohne Quellenangabe
 
   ### Verbotene Aktionen:
   - Niemals Tools mehrfach aufrufen

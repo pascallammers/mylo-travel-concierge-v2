@@ -1,7 +1,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { searchSeatsAero, TravelClass } from '@/lib/api/seats-aero-client';
-import { searchAmadeus } from '@/lib/api/amadeus-client';
+import { searchDuffel, mapCabinClass } from '@/lib/api/duffel-client';
 import { recordToolCall, updateToolCall } from '@/lib/db/queries';
 import { mergeSessionState } from '@/lib/db/queries';
 import { resolveIATACode } from '@/lib/utils/airport-codes';
@@ -10,16 +10,17 @@ import {
   buildSkyscannerUrl,
   FlightSearchLinkParams,
 } from '@/lib/utils/flight-search-links';
+import { createDuffelBookingSession } from '@/lib/utils/duffel-links';
 import { formatGracefulFlightError } from '@/lib/utils/tool-error-response';
 
 /**
- * Flight Search Tool - Searches both award flights and cash flights
+ * Flight Search Tool - Searches both award flights (Seats.aero) and cash flights (Duffel)
  */
 export const flightSearchTool = tool({
   description: `Search for flights between any two cities or airports worldwide.
 
 This tool automatically:
-- Searches BOTH award flights (bookable with miles/points) AND cash flights
+- Searches BOTH award flights (bookable with miles/points via Seats.aero) AND cash flights (via Duffel)
 - Converts city names to airport codes (e.g., "Frankfurt" → "FRA", "Phuket" → "HKT", "New York" → "JFK")
 - Handles flexible date ranges and cabin class preferences
 - Returns comprehensive pricing in both points/miles and cash
@@ -155,10 +156,10 @@ Examples of queries that should trigger this tool:
 
     try {
       console.log('[Flight Search] 🔄 Calling Seats.aero with:', { origin, destination, departDate: params.departDate, cabin: params.cabin });
-      console.log('[Flight Search] 🔄 Calling Amadeus with:', { origin, destination, departDate: params.departDate, returnDate: params.returnDate, cabin: params.cabin });
-      
+      console.log('[Flight Search] 🔄 Calling Duffel with:', { origin, destination, departDate: params.departDate, returnDate: params.returnDate, cabin: params.cabin });
+
       // 2. Parallel API calls
-      const [seatsResult, amadeusResult] = await Promise.all([
+      const [seatsResult, duffelResult] = await Promise.all([
         // Seats.aero: Award flights
         searchSeatsAero({
           origin,
@@ -175,33 +176,33 @@ Examples of queries that should trigger this tool:
           return null;
         }),
 
-        // Amadeus: Cash flights (skip if awardOnly)
+        // Duffel: Cash flights (skip if awardOnly)
         params.awardOnly
           ? Promise.resolve(null)
-          : searchAmadeus({
+          : searchDuffel({
               origin,
               destination,
               departureDate: params.departDate,
               returnDate: params.returnDate,
-              travelClass: params.cabin,
+              cabinClass: mapCabinClass(params.cabin),
               passengers: params.passengers,
-              nonStop: params.nonStop,
+              maxConnections: params.nonStop ? 0 : 1,
             }).then((result) => {
-              console.log('[Flight Search] Amadeus SUCCESS:', result ? `${result.length} flights` : 'null');
+              console.log('[Flight Search] Duffel SUCCESS:', result ? `${result.length} flights` : 'null');
               return result;
             }).catch((err) => {
-              console.error('[Flight Search] Amadeus FAILED:', err.message, err);
+              console.error('[Flight Search] Duffel FAILED:', err.message, err);
               return null;
             }),
       ]);
 
       // 3. Check if we have results and track provider failures
       const hasSeats = seatsResult && seatsResult.length > 0;
-      const hasAmadeus = amadeusResult && amadeusResult.length > 0;
+      const hasDuffel = duffelResult && duffelResult.length > 0;
       
       // Track which providers failed (null means error, empty array means no results)
       const seatsError = seatsResult === null;
-      const amadeusError = amadeusResult === null;
+      const duffelError = duffelResult === null;
 
       // Build search params for fallback links
       const searchLinkParams: FlightSearchLinkParams = {
@@ -214,16 +215,16 @@ Examples of queries that should trigger this tool:
       };
 
       // Handle complete failure (no results from any provider)
-      if (!hasSeats && !hasAmadeus) {
+      if (!hasSeats && !hasDuffel) {
         // Determine error type based on what failed
-        const errorType = seatsError || amadeusError ? 'provider_unavailable' : 'no_results';
+        const errorType = seatsError || duffelError ? 'provider_unavailable' : 'no_results';
         const technicalDetails =
-          seatsError && amadeusError
-            ? 'Both Seats.aero and Amadeus failed'
+          seatsError && duffelError
+            ? 'Both Seats.aero and Duffel failed'
             : seatsError
               ? 'Seats.aero failed'
-              : amadeusError
-                ? 'Amadeus failed'
+              : duffelError
+                ? 'Duffel failed'
                 : 'No flights matched search criteria';
 
         // Return graceful error message instead of throwing
@@ -244,10 +245,10 @@ Examples of queries that should trigger this tool:
           count: seatsResult?.length || 0,
           error: seatsError,
         },
-        amadeus: {
-          flights: amadeusResult || [],
-          count: amadeusResult?.length || 0,
-          error: amadeusError,
+        cash: {
+          flights: duffelResult || [],
+          count: duffelResult?.length || 0,
+          error: duffelError,
         },
         searchParams: params,
         searchLinkParams,
@@ -255,7 +256,7 @@ Examples of queries that should trigger this tool:
 
       console.log('[Flight Search] Results:', {
         seatsCount: result.seats.count,
-        amadeusCount: result.amadeus.count,
+        cashCount: result.cash.count,
       });
 
       // 4. Update tool call status (if DB logging is enabled)
@@ -291,7 +292,7 @@ Examples of queries that should trigger this tool:
       }
 
       // 6. Format response for LLM
-      return formatFlightResults(result, params);
+      return await formatFlightResults(result, params);
     } catch (error) {
       console.error('[Flight Search] ❌ Error:', error);
 
@@ -316,7 +317,7 @@ Examples of queries that should trigger this tool:
 /**
  * Format flight results for LLM response
  */
-function formatFlightResults(result: any, params: any): string {
+async function formatFlightResults(result: any, params: any): Promise<string> {
   const sections: string[] = [];
   const partialFailures: string[] = [];
 
@@ -328,29 +329,51 @@ function formatFlightResults(result: any, params: any): string {
     partialFailures.push('Cash-Flüge');
   }
 
-  // Award Flights Section (renamed from "Award-Flüge" to hide Seats.aero source)
-  if (result.seats.count > 0) {
-    sections.push(`## Flüge mit Meilen/Punkten (${result.seats.count} Ergebnisse)\n`);
-
-    result.seats.flights.forEach((flight: any, idx: number) => {
-      sections.push(
-        `### ${idx + 1}. ${flight.airline} - ${flight.cabin}\n` +
-          `**Preis:** ${flight.price}\n` +
-          `**Abflug:** ${flight.outbound.departure.airport} um ${flight.outbound.departure.time}\n` +
-          `**Ankunft:** ${flight.outbound.arrival.airport} um ${flight.outbound.arrival.time}\n` +
-          `**Dauer:** ${flight.outbound.duration}\n` +
-          `**Stops:** ${flight.outbound.stops}\n` +
-          `**Verfügbare Sitze:** ${flight.seatsLeft || 'Unbekannt'}\n` +
-          `**Flugnummern:** ${flight.outbound.flightNumbers}\n\n`
-      );
-    });
+  // Try to create Duffel booking session for direct booking link
+  let duffelBookingUrl: string | null = null;
+  if (result.cash.count > 0) {
+    try {
+      const session = await createDuffelBookingSession({
+        origin: result.cash.flights[0].departure.airport,
+        destination: result.cash.flights[0].arrival.airport,
+        departDate: params.departDate,
+        returnDate: params.returnDate,
+        passengers: params.passengers,
+      });
+      duffelBookingUrl = session.url;
+    } catch (error) {
+      // Duffel Links requires Duffel Payments to be enabled.
+      // If session creation fails, we simply don't show the direct booking link.
+      console.warn('[Flight Search] Duffel Links session creation failed (Duffel Payments may not be enabled):', error);
+      duffelBookingUrl = null;
+    }
   }
 
-  // Cash Flights Section (renamed from "Cash-Flüge" to hide Amadeus source)
-  if (result.amadeus.count > 0) {
-    sections.push(`## Flüge mit Barzahlung (${result.amadeus.count} Ergebnisse)\n`);
+  // Award Flights Section - Table format
+  if (result.seats.count > 0) {
+    sections.push(`## Flüge mit Meilen/Punkten (${result.seats.count} Ergebnisse)\n`);
+    sections.push(`| Nr. | Airline | Klasse | Preis | Abflug | Ankunft | Dauer | Stops | Sitze | Flugnummer |`);
+    sections.push(`|-----|---------|--------|-------|--------|---------|-------|-------|-------|------------|`);
 
-    result.amadeus.flights.forEach((flight: any, idx: number) => {
+    result.seats.flights.forEach((flight: any, idx: number) => {
+      const departTime = formatTime(flight.outbound.departure.time);
+      const arriveTime = formatTime(flight.outbound.arrival.time);
+      const seats = flight.seatsLeft || '-';
+      
+      sections.push(
+        `| ${idx + 1} | ${flight.airline} | ${flight.cabin} | ${flight.price} | ${flight.outbound.departure.airport} ${departTime} | ${flight.outbound.arrival.airport} ${arriveTime} | ${flight.outbound.duration} | ${flight.outbound.stops} | ${seats} | ${flight.outbound.flightNumbers} |`
+      );
+    });
+    sections.push('');
+  }
+
+  // Cash Flights Section - Table format
+  if (result.cash.count > 0) {
+    sections.push(`## Flüge mit Barzahlung (${result.cash.count} Ergebnisse)\n`);
+    sections.push(`| Nr. | Airline | Preis | Abflug | Ankunft | Dauer | Stops | Buchen |`);
+    sections.push(`|-----|---------|-------|--------|---------|-------|-------|--------|`);
+
+    result.cash.flights.forEach((flight: any, idx: number) => {
       // Extract departure date in YYYY-MM-DD format
       const departureDate = flight.departure.time.split('T')[0];
       
@@ -373,27 +396,28 @@ function formatFlightResults(result: any, params: any): string {
         passengers: params.passengers,
       });
 
+      // Build booking links string with Duffel as additional option
+      const bookingLinks = duffelBookingUrl
+        ? `[Google](${googleFlightsUrl}) [Skyscanner](${skyscannerUrl}) [Buchen](${duffelBookingUrl})`
+        : `[Google](${googleFlightsUrl}) [Skyscanner](${skyscannerUrl})`;
+
+      const departTime = new Date(flight.departure.time).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      const arriveTime = new Date(flight.arrival.time).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      const stops = flight.stops === 0 ? 'Nonstop' : `${flight.stops} Stop(s)`;
+      const price = `${flight.price.total} ${flight.price.currency}`;
+
       sections.push(
-        `### ${idx + 1}. ${flight.airline}\n` +
-          `**Preis:** ${flight.price.total} ${flight.price.currency}\n` +
-          `**Abflug:** ${flight.departure.airport} um ${new Date(
-            flight.departure.time
-          ).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}\n` +
-          `**Ankunft:** ${flight.arrival.airport} um ${new Date(
-            flight.arrival.time
-          ).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}\n` +
-          `**Dauer:** ${flight.duration}\n` +
-          `**Stops:** ${flight.stops === 0 ? 'Nonstop' : `${flight.stops} Stop(s)`}\n` +
-          `**Buchen:** [Google Flights](${googleFlightsUrl}) | [Skyscanner](${skyscannerUrl})\n\n`
+        `| ${idx + 1} | ${flight.airline} | ${price} | ${flight.departure.airport} ${departTime} | ${flight.arrival.airport} ${arriveTime} | ${flight.duration} | ${stops} | ${bookingLinks} |`
       );
     });
+    sections.push('');
   }
 
   // Note: External booking links are now included directly with each cash flight result
   // to provide immediate booking options for specific flights
 
   // Add partial failure notice if some providers failed
-  if (partialFailures.length > 0 && (result.seats.count > 0 || result.amadeus.count > 0)) {
+  if (partialFailures.length > 0 && (result.seats.count > 0 || result.cash.count > 0)) {
     const failedTypes = partialFailures.join(' und ');
     sections.push(
       `\n---\n\n_**Hinweis:** ${failedTypes} konnten nicht geladen werden. ` +
@@ -411,7 +435,7 @@ function formatFlightResults(result: any, params: any): string {
 
   // No results case is now handled by formatGracefulFlightError before this function is called
   // This is kept as a safety fallback
-  if (result.seats.count === 0 && result.amadeus.count === 0) {
+  if (result.seats.count === 0 && result.cash.count === 0) {
     sections.push(
       `Leider wurden keine Flüge für Ihre Suche gefunden.\n\n` +
         `**Suchparameter:**\n` +
@@ -426,4 +450,24 @@ function formatFlightResults(result: any, params: any): string {
   }
 
   return sections.join('\n');
+}
+
+/**
+ * Format time string for table display
+ * Handles both ISO strings and already formatted times
+ */
+function formatTime(timeStr: string): string {
+  if (!timeStr || timeStr === 'N/A') return '-';
+  
+  // If already in HH:MM format, return as is
+  if (/^\d{2}:\d{2}$/.test(timeStr)) return timeStr;
+  
+  // Try to parse as ISO date
+  try {
+    const date = new Date(timeStr);
+    if (isNaN(date.getTime())) return timeStr;
+    return date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return timeStr;
+  }
 }

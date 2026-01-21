@@ -15,3 +15,13 @@ export {
   type KBConfig,
   type KBSupportedMimeType,
 } from './knowledge-base';
+
+export {
+  AMEX_TRANSFER_PARTNERS_DACH,
+  calculateRequiredAmexPoints,
+  calculatePartnerMiles,
+  getPartnersByEffectiveRate,
+  getAirlinePartners,
+  formatTransferRatio,
+  type AmexTransferPartner,
+} from './amex-transfer-ratios';

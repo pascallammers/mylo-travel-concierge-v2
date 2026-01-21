@@ -463,7 +463,6 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = React.memo(
       // If current model requires pro but user is not pro, switch to default
       // Also prevent infinite loops by ensuring we're not already on the default model
       if (currentModelExists && currentModelRequiresPro && !isProUser && selectedModel !== 'scira-default') {
-        console.log(`Auto-switching from pro model '${selectedModel}' to 'scira-default' - user lost pro access`);
         setSelectedModel('scira-default');
 
         // Show a toast notification to inform the user
@@ -496,7 +495,6 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = React.memo(
           return;
         }
 
-        console.log('Selected model:', model.value);
         setSelectedModel(model.value.trim());
 
         if (onModelSelect) {
@@ -1951,29 +1949,13 @@ const FormComponent: React.FC<FormComponentProps> = ({
     const defaultUSDPrice = PRICING.PRO_MONTHLY;
     const defaultINRPrice = PRICING.PRO_MONTHLY_INR;
 
-    console.log('calculatePricing called with:', {
-      discountConfig,
-      isIndia: location.isIndia,
-      nodeEnv: process.env.NODE_ENV,
-    });
-
     // Check if discount should be applied
     const isDevMode = discountConfig?.dev || process.env.NODE_ENV === 'development';
     const shouldApplyDiscount = isDevMode
       ? discountConfig?.code && discountConfig?.message
       : discountConfig?.enabled && discountConfig?.code && discountConfig?.message;
 
-    console.log('Discount check:', {
-      isDevMode,
-      shouldApplyDiscount,
-      enabled: discountConfig?.enabled,
-      code: discountConfig?.code,
-      message: discountConfig?.message,
-      percentage: discountConfig?.percentage,
-    });
-
     if (!discountConfig || !shouldApplyDiscount) {
-      console.log('No discount applied - returning default pricing');
       return {
         usd: { originalPrice: defaultUSDPrice, finalPrice: defaultUSDPrice, hasDiscount: false },
         inr: location.isIndia
@@ -2451,8 +2433,6 @@ const FormComponent: React.FC<FormComponentProps> = ({
       const blockedPdfFiles: File[] = [];
 
       allFiles.forEach((file) => {
-        console.log(`Processing file: ${file.name} (${file.type})`);
-
         if (file.size > MAX_FILE_SIZE) {
           oversizedFiles.push(file);
           return;
@@ -2471,31 +2451,15 @@ const FormComponent: React.FC<FormComponentProps> = ({
         }
       });
 
-      console.log(
-        `Images: ${imageFiles.length}, PDFs: ${pdfFiles.length}, Unsupported: ${unsupportedFiles.length}, Oversized: ${oversizedFiles.length}`,
-      );
-
       if (unsupportedFiles.length > 0) {
-        console.log(
-          'Unsupported files:',
-          unsupportedFiles.map((f) => `${f.name} (${f.type})`),
-        );
         toast.error(`Some files not supported: ${unsupportedFiles.map((f) => f.name).join(', ')}`);
       }
 
       if (oversizedFiles.length > 0) {
-        console.log(
-          'Oversized files:',
-          oversizedFiles.map((f) => `${f.name} (${f.size} bytes)`),
-        );
         toast.error(`Some files exceed the 5MB limit: ${oversizedFiles.map((f) => f.name).join(', ')}`);
       }
 
       if (blockedPdfFiles.length > 0) {
-        console.log(
-          'Blocked PDF files for non-Pro user:',
-          blockedPdfFiles.map((f) => f.name),
-        );
         toast.error(`PDF uploads require Pro subscription. Upgrade to access PDF analysis.`, {
           action: {
             label: 'Upgrade',
@@ -2511,16 +2475,12 @@ const FormComponent: React.FC<FormComponentProps> = ({
 
       const currentModelData = models.find((m) => m.value === selectedModel);
       if (pdfFiles.length > 0 && (!currentModelData || !currentModelData.pdf)) {
-        console.log('PDFs detected, switching to compatible model');
-
         const compatibleModel = models.find((m) => m.pdf && m.vision);
 
         if (compatibleModel) {
-          console.log('Switching to compatible model:', compatibleModel.value);
           setSelectedModel(compatibleModel.value);
           toast.info(`Switching to ${compatibleModel.label} to support PDF files`);
         } else {
-          console.warn('No PDF-compatible model found');
           toast.error('PDFs are only supported by Gemini and Claude models');
           if (imageFiles.length === 0) return;
         }
@@ -2531,11 +2491,6 @@ const FormComponent: React.FC<FormComponentProps> = ({
         validFiles = [...validFiles, ...pdfFiles];
       }
 
-      console.log(
-        'Files to upload:',
-        validFiles.map((f) => `${f.name} (${f.type})`),
-      );
-
       const totalAttachments = attachments.length + validFiles.length;
       if (totalAttachments > MAX_FILES) {
         toast.error(`You can only attach up to ${MAX_FILES} files.`);
@@ -2543,38 +2498,29 @@ const FormComponent: React.FC<FormComponentProps> = ({
       }
 
       if (validFiles.length === 0) {
-        console.error('No valid files to upload after filtering');
         toast.error('No valid files to upload');
         return;
       }
 
       if (imageFiles.length > 0) {
         try {
-          console.log('Checking image moderation for', imageFiles.length, 'images');
           toast.info('Checking images for safety...');
 
           const imageDataURLs = await Promise.all(imageFiles.map((file) => fileToDataURL(file)));
 
           const moderationResult = await checkImageModeration(imageDataURLs);
-          console.log('Moderation result:', moderationResult);
 
           if (moderationResult !== 'safe') {
             const [status, category] = moderationResult.split('\n');
             if (status === 'unsafe') {
-              console.warn('Unsafe image detected, category:', category);
               toast.error(`Image content violates safety guidelines (${category}). Please choose different images.`);
               return;
             }
           }
-
-          console.log('Images passed moderation check');
-        } catch (error) {
-          console.error('Error during image moderation:', error);
-          // Show warning but allow upload to proceed
+        } catch {
           toast.warning('Safety check unavailable - proceeding with upload', {
             description: 'Please ensure your images comply with content guidelines.',
           });
-          // Don't return - continue with upload
         }
       }
 
@@ -2592,7 +2538,6 @@ const FormComponent: React.FC<FormComponentProps> = ({
           visionModel = getFirstVisionModel();
         }
 
-        console.log('Switching to vision model:', visionModel);
         setSelectedModel(visionModel);
       }
 
@@ -2601,21 +2546,15 @@ const FormComponent: React.FC<FormComponentProps> = ({
 
       setTimeout(async () => {
         try {
-          console.log('Beginning upload of', validFiles.length, 'files');
-
           const uploadedAttachments: Attachment[] = [];
           for (const file of validFiles) {
             try {
-              console.log(`Uploading file: ${file.name} (${file.type})`);
               const attachment = await uploadFile(file);
               uploadedAttachments.push(attachment);
-              console.log(`Successfully uploaded: ${file.name}`);
-            } catch (err) {
-              console.error(`Failed to upload ${file.name}:`, err);
+            } catch {
+              // Silent fail for individual file uploads
             }
           }
-
-          console.log('Upload completed for', uploadedAttachments.length, 'files');
 
           if (uploadedAttachments.length > 0) {
             setAttachments((currentAttachments) => [...currentAttachments, ...uploadedAttachments]);
@@ -2656,10 +2595,6 @@ const FormComponent: React.FC<FormComponentProps> = ({
       const oversizedFiles = files.filter((file) => file.size > MAX_FILE_SIZE);
 
       if (oversizedFiles.length > 0) {
-        console.log(
-          'Oversized files:',
-          oversizedFiles.map((f) => `${f.name} (${f.size} bytes)`),
-        );
         toast.error(`Some files exceed the 5MB limit: ${oversizedFiles.map((f) => f.name || 'unnamed').join(', ')}`);
 
         const validFiles = files.filter((file) => file.size <= MAX_FILE_SIZE);
@@ -2676,33 +2611,25 @@ const FormComponent: React.FC<FormComponentProps> = ({
 
       if (filesToUpload.length > 0) {
         try {
-          console.log('Checking image moderation for', filesToUpload.length, 'pasted images');
           toast.info('Checking pasted images for safety...');
 
           const imageDataURLs = await Promise.all(filesToUpload.map((file) => fileToDataURL(file)));
 
           const moderationResult = await checkImageModeration(imageDataURLs);
-          console.log('Moderation result:', moderationResult);
 
           if (moderationResult !== 'safe') {
             const [status, category] = moderationResult.split('\n');
             if (status === 'unsafe') {
-              console.warn('Unsafe pasted image detected, category:', category);
               toast.error(
                 `Pasted image content violates safety guidelines (${category}). Please choose different images.`,
               );
               return;
             }
           }
-
-          console.log('Pasted images passed moderation check');
-        } catch (error) {
-          console.error('Error during pasted image moderation:', error);
-          // Show warning but allow upload to proceed
+        } catch {
           toast.warning('Safety check unavailable - proceeding with upload', {
             description: 'Please ensure your images comply with content guidelines.',
           });
-          // Don't return - continue with upload
         }
       }
 
@@ -2715,8 +2642,7 @@ const FormComponent: React.FC<FormComponentProps> = ({
         setAttachments((currentAttachments) => [...currentAttachments, ...uploadedAttachments]);
 
         toast.success('Image pasted successfully');
-      } catch (error) {
-        console.error('Error uploading pasted files!', error);
+      } catch {
         toast.error('Failed to upload pasted image. Please try again.');
       } finally {
         setUploadQueue([]);

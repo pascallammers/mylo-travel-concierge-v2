@@ -25,9 +25,18 @@ import {
   RefreshCw,
   LogIn,
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { TextUIPart, UIMessagePart } from 'ai';
-import { MarkdownRenderer } from '@/components/markdown';
 import { ChatTextHighlighter } from '@/components/chat-text-highlighter';
+
+// Dynamic import for heavy MarkdownRenderer component (~1000 lines with KaTeX, syntax highlighting)
+const MarkdownRenderer = dynamic(
+  () => import('@/components/markdown').then((mod) => ({ default: mod.MarkdownRenderer })),
+  {
+    loading: () => <div className="animate-pulse h-4 bg-muted rounded w-full" />,
+    ssr: true,
+  },
+);
 import { deleteTrailingMessages } from '@/app/actions';
 import { getErrorActions, getErrorIcon, isSignInRequired, isProRequired, isRateLimited } from '@/lib/errors';
 import { saveMemoryFromChat, MemoryContext } from '@/lib/memory-actions';
@@ -641,7 +650,7 @@ export const Message: React.FC<MessageProps> = ({
     // Check if the message has parts that should be rendered
     if (message.parts && Array.isArray(message.parts) && message.parts.length > 0) {
       return (
-        <div className="mb-0! px-0">
+        <div className="mb-0! px-0 message-item">
           <div className="grow min-w-0">
             {mode === 'edit' ? (
               <MessageEditor
@@ -831,7 +840,7 @@ export const Message: React.FC<MessageProps> = ({
 
     // Fallback to the original rendering if no parts are present
     return (
-      <div className="mb-0! px-0">
+      <div className="mb-0! px-0 message-item">
         <div className="grow min-w-0">
           {mode === 'edit' ? (
             <MessageEditor
@@ -961,9 +970,8 @@ export const Message: React.FC<MessageProps> = ({
 
   if (message.role === 'assistant') {
     return (
-      <div className={cn(shouldReduceHeight ? '' : 'min-h-[calc(100vh-18rem)]', '')}>
+      <div className={cn(shouldReduceHeight ? '' : 'min-h-[calc(100vh-18rem)]', 'message-item')}>
         {message.parts?.map((part: ChatMessage['parts'][number], partIndex: number) => {
-          console.log(`🔧 Rendering part ${partIndex}:`, { type: part.type, hasText: part.type === 'text' });
           const key = `${message.id || index}-part-${partIndex}-${part.type}`;
 
           // Check for Knowledge Base prefix in text parts
@@ -1379,10 +1387,6 @@ export const AttachmentsBadge = ({ attachments }: { attachments: Attachment[] })
       att.contentType === 'application/pdf' ||
       att.mediaType === 'application/pdf',
   );
-
-  React.useEffect(() => {
-    console.log('fileAttachments', fileAttachments);
-  }, [fileAttachments]);
 
   if (fileAttachments.length === 0) return null;
 

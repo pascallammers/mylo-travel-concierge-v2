@@ -7,7 +7,8 @@ import { CheckIcon } from 'lucide-react';
 import { PRICING } from '@/lib/constants';
 import { DiscountConfig } from '@/lib/discount';
 import { getDiscountConfigAction } from '@/app/actions';
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
 // Pro Badge Component
 const ProBadge = ({ className = '' }: { className?: string }) => (
@@ -24,22 +25,12 @@ interface PostMessageUpgradeDialogProps {
 }
 
 export const PostMessageUpgradeDialog = React.memo(({ open, onOpenChange }: PostMessageUpgradeDialogProps) => {
-  const [discountConfig, setDiscountConfig] = useState<DiscountConfig | null>(null);
-
-  useEffect(() => {
-    const fetchDiscountConfig = async () => {
-      try {
-        const config = await getDiscountConfigAction();
-        setDiscountConfig(config);
-      } catch (error) {
-        console.warn('Failed to fetch discount config:', error);
-      }
-    };
-
-    if (open) {
-      fetchDiscountConfig();
-    }
-  }, [open]);
+  const { data: discountConfig } = useQuery({
+    queryKey: ['discountConfig'],
+    queryFn: () => getDiscountConfigAction(),
+    enabled: open,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 
   const pricing = useMemo(() => {
     const defaultUSDPrice = PRICING.PRO_MONTHLY;

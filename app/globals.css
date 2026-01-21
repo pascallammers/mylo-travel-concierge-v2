@@ -601,3 +601,27 @@ body {
 .dark .sh__token--punctuation {
   color: #03dac6;
 }
+
+/* Performance: content-visibility for message lists */
+.message-item {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 200px;
+}
+
+/* Disable content-visibility for active/streaming messages to ensure they render */
+.message-item:last-child {
+  content-visibility: visible;
+  contain-intrinsic-size: initial;
+}
+
+/* Apply to chat history items for performance */
+[data-chat-id] {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 48px;
+}
+
+/* Memory items in dialog */
+.memory-item {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 100px;
+}

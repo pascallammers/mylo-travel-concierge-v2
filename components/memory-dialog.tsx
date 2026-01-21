@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 
 export function MemoryDialog() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [isPending, startTransition] = useTransition();
   const queryClient = useQueryClient();
 
   // Infinite query for memories with pagination
@@ -61,7 +62,9 @@ export function MemoryDialog() {
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      await performSearch();
+      startTransition(async () => {
+        await performSearch();
+      });
     }
   };
 
@@ -124,8 +127,8 @@ const handleClearSearch = () => {
             placeholder="Search memories..."
             className="flex-1"
           />
-          <Button type="submit" size="icon" variant="secondary" disabled={isSearching || !searchQuery.trim()}>
-            {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+          <Button type="submit" size="icon" variant="secondary" disabled={isSearching || isPending || !searchQuery.trim()}>
+            {(isSearching || isPending) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
           </Button>
         </form>
 
@@ -160,7 +163,7 @@ const handleClearSearch = () => {
               {displayedMemories.map((memory: MemoryItem) => (
                 <div
                   key={memory.id}
-                  className="group relative p-4 rounded-lg border bg-card transition-all hover:shadow-sm"
+                  className="group relative p-4 rounded-lg border bg-card transition-all hover:shadow-sm memory-item"
                 >
                   <div className="flex flex-col gap-2">
                     <p className="text-sm leading-relaxed whitespace-pre-wrap">{getMemoryContent(memory)}</p>

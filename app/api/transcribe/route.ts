@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { after } from 'next/server';
 
 import { elevenlabs } from '@ai-sdk/elevenlabs';
 import { experimental_transcribe as transcribe } from 'ai';
@@ -17,7 +18,10 @@ export async function POST(request: NextRequest) {
       audio: await audio.arrayBuffer(),
     });
 
-    console.log(result);
+    // Non-blocking: log transcription result
+    after(() => {
+      console.log(`[Transcribe] Completed: ${result.text.length} chars`);
+    });
 
     return NextResponse.json({ text: result.text });
   } catch (error) {

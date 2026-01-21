@@ -1,9 +1,18 @@
 import React, { memo, useCallback, useState, useRef, useEffect } from 'react';
 import isEqual from 'fast-deep-equal';
+import dynamic from 'next/dynamic';
 import { ReasoningUIPart, DataUIPart, isToolUIPart } from 'ai';
 import { ReasoningPartView } from '@/components/reasoning-part';
-import { MarkdownRenderer } from '@/components/markdown';
 import { ChatTextHighlighter } from '@/components/chat-text-highlighter';
+
+// Dynamic import for heavy MarkdownRenderer component (~1000 lines with KaTeX, syntax highlighting)
+const MarkdownRenderer = dynamic(
+  () => import('@/components/markdown').then((mod) => ({ default: mod.MarkdownRenderer })),
+  {
+    loading: () => <div className="animate-pulse h-4 bg-muted rounded w-full" />,
+    ssr: true,
+  },
+);
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -2119,17 +2128,10 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
       }
     }
 
-    // Log unhandled part types for debugging
-    console.log(
-      'Unhandled part type:',
-      typeof part === 'object' && part !== null && 'type' in part ? part.type : 'unknown',
-      part,
-    );
-
     return null;
   },
   (prevProps: MessagePartRendererProps, nextProps: MessagePartRendererProps) => {
-    const areEqual =
+    return (
       isEqual(prevProps.part, nextProps.part) &&
       prevProps.messageIndex === nextProps.messageIndex &&
       prevProps.partIndex === nextProps.partIndex &&
@@ -2143,14 +2145,8 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
       prevProps.isOwner === nextProps.isOwner &&
       prevProps.selectedVisibilityType === nextProps.selectedVisibilityType &&
       prevProps.chatId === nextProps.chatId &&
-      isEqual(prevProps.annotations, nextProps.annotations);
-
-    // Debug logging (can be removed in production)
-    if (!areEqual) {
-      console.log('MessagePartRenderer re-rendering');
-    }
-
-    return areEqual;
+      isEqual(prevProps.annotations, nextProps.annotations)
+    );
   },
 );
 
