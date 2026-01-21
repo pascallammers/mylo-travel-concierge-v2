@@ -478,10 +478,10 @@ export const devLog = (...args: unknown[]) => {
 - [x] `&&` zu Ternary in message.tsx, navbar.tsx, sidebar.tsx (Überprüft: Alle existierenden && Patterns sind sicher - prüfen auf object existence, nicht numerische Werte)
 
 ### Phase 2: Data Fetching (2-3 Tage)
-- [ ] `React.cache()` für getUser, getSession etc.
-- [ ] chat-history-dialog.tsx auf TanStack Query umstellen
-- [ ] chat-dialogs.tsx auf TanStack Query umstellen
-- [ ] user-edit-modal.tsx auf TanStack Query umstellen
+- [x] `React.cache()` für getComprehensiveUserData (lib/user-data-server.ts)
+- [x] chat-history-dialog.tsx auf TanStack Query umstellen (bereits implementiert!)
+- [x] chat-dialogs.tsx auf TanStack Query umstellen (PostMessageUpgradeDialog)
+- [x] user-edit-modal.tsx auf TanStack Query umstellen (passwordResetHistory + batchVerifyMutation)
 
 ### Phase 3: Performance Optimierung (3-5 Tage)
 - [ ] `startTransition` für Search-Komponenten

@@ -24,8 +24,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { Mail, Ban, AlertTriangle, Loader2, History, Clock, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { Mail, Ban, AlertTriangle, Loader2, History, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 type ResendDeliveryStatus = 'delivered' | 'bounced' | 'complained' | 'opened' | 'clicked' | 'pending';
 
@@ -93,12 +94,10 @@ export function UserEditModal({
   onSuccess,
   onPasswordReset,
 }: UserEditModalProps) {
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
-  const [passwordResetHistory, setPasswordResetHistory] = useState<PasswordResetHistoryEntry[]>([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
   const [verifyingEntries, setVerifyingEntries] = useState<Set<string>>(new Set());
-  const [batchVerifying, setBatchVerifying] = useState(false);
 
   // Form state
   const [name, setName] = useState('');
@@ -126,27 +125,42 @@ export function UserEditModal({
     }
   }, [user]);
 
-  // Load password reset history when modal opens
-  useEffect(() => {
-    if (open && user) {
-      setHistoryLoading(true);
-      fetch(`/api/admin/users/${user.id}/password-reset-history`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            setPasswordResetHistory(data.history);
-          }
-        })
-        .catch((err) => {
-          console.error('Error loading password reset history:', err);
-        })
-        .finally(() => {
-          setHistoryLoading(false);
+  // Load password reset history with TanStack Query
+  const { data: passwordResetHistory = [], isLoading: historyLoading } = useQuery<PasswordResetHistoryEntry[]>({
+    queryKey: ['passwordResetHistory', user?.id],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/users/${user!.id}/password-reset-history`);
+      const data = await res.json();
+      return data.success ? (data.history as PasswordResetHistoryEntry[]) : [];
+    },
+    enabled: open && !!user?.id,
+    staleTime: 30 * 1000, // 30 seconds
+  });
+
+  // Batch verify mutation
+  const batchVerifyMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/admin/users/${user!.id}/password-reset-history/verify`);
+      return response.json();
+    },
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ['passwordResetHistory', user?.id] });
+        toast.success('Batch-Verifizierung abgeschlossen', {
+          description: `${result.verified} von ${result.total} E-Mails verifiziert`,
         });
-    } else if (!open) {
-      setPasswordResetHistory([]);
-    }
-  }, [open, user]);
+      } else {
+        toast.error('Verifizierung fehlgeschlagen', {
+          description: result.message,
+        });
+      }
+    },
+    onError: () => {
+      toast.error('Fehler', {
+        description: 'Batch-Verifizierung fehlgeschlagen',
+      });
+    },
+  });
 
   const handleSave = async () => {
     if (!user) return;
@@ -245,13 +259,7 @@ export function UserEditModal({
         description: 'Password Reset E-Mail wurde versendet',
       });
       // Reload history to show new entry
-      fetch(`/api/admin/users/${user.id}/password-reset-history`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            setPasswordResetHistory(data.history);
-          }
-        });
+      queryClient.invalidateQueries({ queryKey: ['passwordResetHistory', user.id] });
     } catch (error) {
       console.error('Error sending password reset:', error);
     } finally {
@@ -276,14 +284,8 @@ export function UserEditModal({
       const result = await response.json();
       
       if (result.success && result.status) {
-        // Update the entry in state
-        setPasswordResetHistory((prev) =>
-          prev.map((entry) =>
-            entry.id === historyId
-              ? { ...entry, resendStatus: result.status, resendVerifiedAt: result.verifiedAt }
-              : entry
-          )
-        );
+        // Invalidate query to refetch updated data
+        queryClient.invalidateQueries({ queryKey: ['passwordResetHistory', user.id] });
         
         const statusLabel = getResendStatusBadge(result.status, true).label;
         toast.success('Status verifiziert', {
@@ -311,38 +313,9 @@ export function UserEditModal({
   /**
    * Batch verify all unverified emails
    */
-  const handleBatchVerify = async () => {
+  const handleBatchVerify = () => {
     if (!user) return;
-    
-    setBatchVerifying(true);
-    try {
-      const response = await fetch(`/api/admin/users/${user.id}/password-reset-history/verify`);
-      const result = await response.json();
-      
-      if (result.success) {
-        // Reload history to get updated statuses
-        const historyResponse = await fetch(`/api/admin/users/${user.id}/password-reset-history`);
-        const historyData = await historyResponse.json();
-        if (historyData.success) {
-          setPasswordResetHistory(historyData.history);
-        }
-        
-        toast.success('Batch-Verifizierung abgeschlossen', {
-          description: `${result.verified} von ${result.total} E-Mails verifiziert`,
-        });
-      } else {
-        toast.error('Verifizierung fehlgeschlagen', {
-          description: result.message,
-        });
-      }
-    } catch (error) {
-      console.error('Error batch verifying:', error);
-      toast.error('Fehler', {
-        description: 'Batch-Verifizierung fehlgeschlagen',
-      });
-    } finally {
-      setBatchVerifying(false);
-    }
+    batchVerifyMutation.mutate();
   };
 
   if (!user) return null;
@@ -526,10 +499,10 @@ export function UserEditModal({
                     variant="ghost"
                     size="sm"
                     onClick={handleBatchVerify}
-                    disabled={batchVerifying}
+                    disabled={batchVerifyMutation.isPending}
                     className="h-7 text-xs"
                   >
-                    {batchVerifying ? (
+                    {batchVerifyMutation.isPending ? (
                       <Loader2 className="h-3 w-3 animate-spin mr-1" />
                     ) : (
                       <RefreshCw className="h-3 w-3 mr-1" />
