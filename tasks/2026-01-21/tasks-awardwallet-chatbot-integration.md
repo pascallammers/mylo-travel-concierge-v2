@@ -3,8 +3,9 @@
 ## Relevant Files
 
 - `lib/db/queries/awardwallet.ts` - Bestehende DB-Queries für Loyalty-Daten (`getUserLoyaltyData`, `getConnection`)
-- `lib/tools/loyalty-balances.ts` - Neues Tool für Loyalty-Abfragen (zu erstellen)
-- `lib/tools/loyalty-balances.test.ts` - Unit Tests für das neue Tool (zu erstellen)
+- `lib/tools/loyalty-balances.ts` - Tool für Loyalty-Abfragen
+- `lib/tools/loyalty-balances-utils.ts` - Pure Utility-Funktionen (testbar)
+- `lib/tools/loyalty-balances.test.ts` - Unit Tests für das Tool
 - `lib/tools/index.ts` - Tool-Export Registry (Tool hinzufügen)
 - `app/actions.ts` - Group Tools und Instructions (Tool registrieren, Loyalty-Kontext)
 - `app/api/search/route.ts` - Chat API Route (Loyalty-Daten laden, System-Prompt erweitern)
@@ -55,12 +56,12 @@ Update the file after completing each sub-task, not just after completing an ent
   - [x] 4.4 Registriere Tool in der `createToolRegistry` Funktion in `app/api/search/route.ts`
   - [x] 4.5 Erweitere `groupInstructions.web` mit Anweisungen zur Tool-Nutzung
 
-- [ ] 5.0 Implement Unit and Integration Tests
-  - [ ] 5.1 Erstelle `lib/tools/loyalty-balances.test.ts` mit Unit Tests
-  - [ ] 5.2 Teste Tool mit verbundenem AwardWallet User (Mock)
-  - [ ] 5.3 Teste Tool mit nicht verbundenem User (Mock)
-  - [ ] 5.4 Teste Filter-Funktionalität für `provider` Parameter
-  - [ ] 5.5 Führe `pnpm lint && pnpm typecheck && pnpm test` aus und behebe Fehler
+- [x] 5.0 Implement Unit and Integration Tests
+  - [x] 5.1 Erstelle `lib/tools/loyalty-balances.test.ts` mit Unit Tests
+  - [x] 5.2 Teste Tool mit verbundenem AwardWallet User (Mock)
+  - [x] 5.3 Teste Tool mit nicht verbundenem User (Mock)
+  - [x] 5.4 Teste Filter-Funktionalität für `provider` Parameter
+  - [x] 5.5 Führe `pnpm lint && pnpm typecheck && pnpm test` aus und behebe Fehler
 
 - [ ] 6.0 Manual Testing and Verification
   - [ ] 6.1 Starte Dev-Server und teste Chatbot mit verbundenem AwardWallet Account
