@@ -42,6 +42,14 @@ function useSidebar() {
   return context;
 }
 
+/**
+ * Optional version of useSidebar that returns null if not within a SidebarProvider.
+ * Useful for components that may be used both inside and outside of a sidebar context.
+ */
+function useSidebarOptional() {
+  return React.useContext(SidebarContext);
+}
+
 function SidebarProvider({
   defaultOpen = true,
   open: openProp,
@@ -674,4 +682,5 @@ export {
   SidebarSeparator,
   SidebarTrigger,
   useSidebar,
+  useSidebarOptional,
 };

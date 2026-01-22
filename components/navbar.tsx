@@ -7,9 +7,9 @@ import { PlusIcon, GlobeHemisphereWestIcon } from '@phosphor-icons/react';
 
 import { Button } from '@/components/ui/button';
 import { UserProfile, NavigationMenu } from '@/components/user-profile';
-import { ChatHistoryButton } from '@/components/chat-history-dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { LoyaltyHeaderWidget } from '@/components/awardwallet';
+import { SidebarTrigger, useSidebarOptional } from '@/components/ui/sidebar';
 
 import { ShareButton } from '@/components/share';
 import { cn } from '@/lib/utils';
@@ -26,7 +26,6 @@ interface NavbarProps {
   onVisibilityChange: (visibility: VisibilityType) => void | Promise<void>;
   status: string;
   user: ComprehensiveUserData | null;
-  onHistoryClick: () => void;
   isOwner?: boolean;
   subscriptionData?: any;
   isProUser?: boolean;
@@ -47,7 +46,6 @@ const Navbar = memo(
     onVisibilityChange,
     status,
     user,
-    onHistoryClick,
     isOwner = true,
     subscriptionData,
     isProUser,
@@ -62,6 +60,10 @@ const Navbar = memo(
     const router = useRouter();
     const pathname = usePathname();
     const isSearchWithId = useMemo(() => Boolean(pathname && /^\/search\/[^/]+/.test(pathname)), [pathname]);
+    
+    // Get sidebar context - will be null if not within SidebarProvider
+    const sidebarContext = useSidebarOptional();
+    const isMobile = sidebarContext?.isMobile ?? false;
 
     // Use passed Pro status directly
     const hasActiveSubscription = isProUser;
@@ -79,7 +81,11 @@ const Navbar = memo(
                 : 'bg-background',
           )}
         >
-          <div className={cn('flex items-center gap-3', isDialogOpen ? 'pointer-events-auto' : '')}>
+          <div className={cn('flex items-center gap-2', isDialogOpen ? 'pointer-events-auto' : '')}>
+            {/* Mobile Sidebar Trigger - only shown on mobile when user is logged in */}
+            {user && isMobile && sidebarContext && (
+              <SidebarTrigger className="pointer-events-auto" />
+            )}
             <Link href="/new">
               <Button
                 type="button"
@@ -174,8 +180,6 @@ const Navbar = memo(
                 }}
               />
             )}
-            {/* Chat History Button */}
-            {user && <ChatHistoryButton onClickAction={onHistoryClick} />}
             {/* Navigation Menu - settings icon for general navigation */}
             <NavigationMenu />
             {/* User Profile - focused on authentication and account management */}

@@ -490,7 +490,6 @@ const ChatInterface = memo(
           onVisibilityChange={handleVisibilityChange}
           status={status}
           user={user || null}
-          onHistoryClick={() => dispatch({ type: 'SET_COMMAND_DIALOG_OPEN', payload: true })}
           isOwner={isOwner}
           subscriptionData={subscriptionData}
           isProUser={isUserPro}
