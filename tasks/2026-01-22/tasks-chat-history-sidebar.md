@@ -31,8 +31,8 @@ Update the file after completing each sub-task, not just after completing an ent
 
 ## Tasks
 
-- [ ] 0.0 Create feature branch
-  - [ ] 0.1 Create and checkout a new branch: `git checkout -b feature/chat-history-sidebar`
+- [x] 0.0 Create feature branch
+  - [x] 0.1 Create and checkout a new branch: `git checkout -b feature/chat-history-sidebar`
 
 - [ ] 1.0 Extract reusable Chat History Hook
   - [ ] 1.1 Erstelle `hooks/use-chat-history.ts` mit der Logik aus `chat-history-dialog.tsx`
