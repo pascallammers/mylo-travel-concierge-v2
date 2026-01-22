@@ -43,17 +43,17 @@ Update the file after completing each sub-task, not just after completing an ent
   - [ ] 1.6 Schreibe Unit Tests für `use-chat-history.ts`
   - [x] 1.7 Schreibe Unit Tests für `lib/chat-utils.ts`
 
-- [ ] 2.0 Create ChatSidebar Component Structure
-  - [ ] 2.1 Erstelle Ordner `components/chat-sidebar/` mit `index.ts` Barrel Export
-  - [ ] 2.2 Erstelle `chat-sidebar.tsx` als Container-Komponente mit `Sidebar`, `SidebarContent`, `SidebarRail`
-  - [ ] 2.3 Erstelle `chat-sidebar-header.tsx` mit `SidebarHeader` und "Neuer Chat" Button (Link zu `/new`)
-  - [ ] 2.4 Erstelle `chat-sidebar-search.tsx` mit Suchfeld und Modus-Switcher (alle bestehenden Modi: all, title, date, visibility)
-  - [ ] 2.5 Erstelle `chat-sidebar-list.tsx` mit `SidebarGroup`, kategorisierter Liste und Infinite Scroll
-  - [ ] 2.6 Erstelle `chat-sidebar-item.tsx` mit `SidebarMenuButton`, Titel, Zeitstempel, Visibility-Icon, Edit/Delete Aktionen
-  - [ ] 2.7 Implementiere aktiven Chat-Zustand (visuelles Highlighting via `isActive` prop)
-  - [ ] 2.8 Implementiere Inline-Editing für Chat-Titel
-  - [ ] 2.9 Implementiere Inline-Löschen mit Bestätigung
-  - [ ] 2.10 Stelle sicher, dass alle Komponenten den `useChatHistory` Hook verwenden
+- [x] 2.0 Create ChatSidebar Component Structure
+  - [x] 2.1 Erstelle Ordner `components/chat-sidebar/` mit `index.ts` Barrel Export
+  - [x] 2.2 Erstelle `chat-sidebar.tsx` als Container-Komponente mit `Sidebar`, `SidebarContent`, `SidebarRail`
+  - [x] 2.3 Erstelle `chat-sidebar-header.tsx` mit `SidebarHeader` und "Neuer Chat" Button (Link zu `/new`)
+  - [x] 2.4 Erstelle `chat-sidebar-search.tsx` mit Suchfeld und Modus-Switcher (alle bestehenden Modi: all, title, date, visibility)
+  - [x] 2.5 Erstelle `chat-sidebar-list.tsx` mit `SidebarGroup`, kategorisierter Liste und Infinite Scroll
+  - [x] 2.6 Erstelle `chat-sidebar-item.tsx` mit `SidebarMenuButton`, Titel, Zeitstempel, Visibility-Icon, Edit/Delete Aktionen
+  - [x] 2.7 Implementiere aktiven Chat-Zustand (visuelles Highlighting via `isActive` prop)
+  - [x] 2.8 Implementiere Inline-Editing für Chat-Titel
+  - [x] 2.9 Implementiere Inline-Löschen mit Bestätigung
+  - [x] 2.10 Stelle sicher, dass alle Komponenten den `useChatHistory` Hook verwenden
 
 - [ ] 3.0 Integrate Sidebar into App Layout
   - [ ] 3.1 Erstelle oder aktualisiere `app/(chat)/layout.tsx` mit `SidebarProvider` Wrapper
