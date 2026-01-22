@@ -34,14 +34,14 @@ Update the file after completing each sub-task, not just after completing an ent
 - [x] 0.0 Create feature branch
   - [x] 0.1 Create and checkout a new branch: `git checkout -b feature/chat-history-sidebar`
 
-- [ ] 1.0 Extract reusable Chat History Hook
-  - [ ] 1.1 Erstelle `hooks/use-chat-history.ts` mit der Logik aus `chat-history-dialog.tsx`
-  - [ ] 1.2 Extrahiere `categorizeChatsByDate()` und `formatCompactTime()` nach `lib/chat-utils.ts`
-  - [ ] 1.3 Extrahiere Such-/Filterfunktionen (`fuzzySearch`, `advancedSearch`, `parseDateQuery`) nach `lib/chat-utils.ts`
-  - [ ] 1.4 Implementiere `useChatHistory` Hook mit: `useInfiniteQuery`, `deleteMutation`, `updateTitleMutation`, `searchQuery`, `searchMode`, `filteredChats`, `categorizedChats`
-  - [ ] 1.5 Exportiere alle Typen (`Chat`, `SearchMode`, etc.) aus dem Hook
+- [x] 1.0 Extract reusable Chat History Hook
+  - [x] 1.1 Erstelle `hooks/use-chat-history.ts` mit der Logik aus `chat-history-dialog.tsx`
+  - [x] 1.2 Extrahiere `categorizeChatsByDate()` und `formatCompactTime()` nach `lib/chat-utils.ts`
+  - [x] 1.3 Extrahiere Such-/Filterfunktionen (`fuzzySearch`, `advancedSearch`, `parseDateQuery`) nach `lib/chat-utils.ts`
+  - [x] 1.4 Implementiere `useChatHistory` Hook mit: `useInfiniteQuery`, `deleteMutation`, `updateTitleMutation`, `searchQuery`, `searchMode`, `filteredChats`, `categorizedChats`
+  - [x] 1.5 Exportiere alle Typen (`Chat`, `SearchMode`, etc.) aus dem Hook
   - [ ] 1.6 Schreibe Unit Tests für `use-chat-history.ts`
-  - [ ] 1.7 Schreibe Unit Tests für `lib/chat-utils.ts`
+  - [x] 1.7 Schreibe Unit Tests für `lib/chat-utils.ts`
 
 - [ ] 2.0 Create ChatSidebar Component Structure
   - [ ] 2.1 Erstelle Ordner `components/chat-sidebar/` mit `index.ts` Barrel Export
