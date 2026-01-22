@@ -55,12 +55,12 @@ Update the file after completing each sub-task, not just after completing an ent
   - [x] 2.9 Implementiere Inline-Löschen mit Bestätigung
   - [x] 2.10 Stelle sicher, dass alle Komponenten den `useChatHistory` Hook verwenden
 
-- [ ] 3.0 Integrate Sidebar into App Layout
-  - [ ] 3.1 Erstelle oder aktualisiere `app/(chat)/layout.tsx` mit `SidebarProvider` Wrapper
-  - [ ] 3.2 Füge `ChatSidebar` als erstes Kind im Layout hinzu
-  - [ ] 3.3 Wrappe den Main Content mit `SidebarInset`
-  - [ ] 3.4 Stelle sicher, dass der `defaultOpen` Zustand aus dem Cookie gelesen wird
-  - [ ] 3.5 Teste, dass der Sidebar-Zustand bei Seitenwechsel erhalten bleibt
+- [x] 3.0 Integrate Sidebar into App Layout
+  - [x] 3.1 Erstelle oder aktualisiere `app/(chat)/layout.tsx` mit `SidebarProvider` Wrapper
+  - [x] 3.2 Füge `ChatSidebar` als erstes Kind im Layout hinzu
+  - [x] 3.3 Wrappe den Main Content mit `SidebarInset`
+  - [x] 3.4 Stelle sicher, dass der `defaultOpen` Zustand aus dem Cookie gelesen wird
+  - [x] 3.5 Teste, dass der Sidebar-Zustand bei Seitenwechsel erhalten bleibt
 
 - [ ] 4.0 Implement Mobile Drawer Behavior
   - [ ] 4.1 Verifiziere, dass die shadcn/ui Sidebar automatisch als Sheet/Drawer auf Mobile rendert
