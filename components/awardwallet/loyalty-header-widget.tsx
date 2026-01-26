@@ -2,14 +2,13 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { LoyaltyProgramCard } from './loyalty-program-card';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Wallet02Icon } from '@hugeicons/core-free-icons';
-import { Loader2, Settings2 } from 'lucide-react';
+import { Settings2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMediaQuery } from '@/hooks/use-media-query';
+import Image from 'next/image';
 
 interface LoyaltyAccount {
   id: string;
@@ -33,24 +32,23 @@ interface LoyaltyHeaderWidgetProps {
   className?: string;
 }
 
+interface LoyaltyHeaderBannerProps {
+  onOpenSettings?: () => void;
+  className?: string;
+}
+
 /**
- * Abbreviates large numbers for compact display
+ * Formats balance with locale-aware number formatting (full numbers, not abbreviated)
  */
-function abbreviateNumber(num: number): string {
-  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
-  if (num >= 1_000) return `${(num / 1_000).toFixed(0)}K`;
+function formatFullBalance(num: number): string {
   return num.toLocaleString('de-DE');
 }
 
 /**
- * Compact header widget showing top loyalty programs
- * Click opens Settings to Loyalty tab
- * @param onOpenSettings - Callback to open settings with loyalty tab
+ * Custom hook to fetch loyalty accounts data
  */
-export function LoyaltyHeaderWidget({ onOpenSettings, className }: LoyaltyHeaderWidgetProps) {
-  const isMobile = useMediaQuery('(max-width: 768px)');
-
-  const { data, isLoading } = useQuery<AccountsResponse>({
+function useLoyaltyAccounts() {
+  return useQuery<AccountsResponse>({
     queryKey: ['awardwallet', 'accounts'],
     queryFn: async () => {
       const res = await fetch('/api/awardwallet/accounts');
@@ -60,17 +58,118 @@ export function LoyaltyHeaderWidget({ onOpenSettings, className }: LoyaltyHeader
     staleTime: 1000 * 60 * 5,
     retry: 1,
   });
+}
 
-  // Don't render anything while loading on first mount
+/**
+ * Horizontal banner showing all loyalty programs with full details
+ * Displays in the top area with scrollable list of all programs
+ */
+export function LoyaltyHeaderBanner({ onOpenSettings, className }: LoyaltyHeaderBannerProps) {
+  const isMobile = useMediaQuery('(max-width: 768px)');
+  const { data, isLoading } = useLoyaltyAccounts();
+
+  if (isLoading) {
+    return (
+      <div className={cn('h-10 animate-pulse bg-muted/30 rounded-lg', className)} />
+    );
+  }
+
+  const isConnected = data?.connected ?? false;
+  const accounts = data?.accounts ?? [];
+
+  if (!isConnected || accounts.length === 0) {
+    return null;
+  }
+
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-2 px-3 py-2 rounded-xl',
+        'bg-gradient-to-r from-zinc-900/90 via-zinc-800/80 to-zinc-900/90',
+        'border border-zinc-700/50 backdrop-blur-sm',
+        'shadow-lg shadow-black/20',
+        className
+      )}
+    >
+      {/* Scrollable programs list */}
+      <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
+        {accounts.map((account, index) => (
+          <div
+            key={account.id}
+            className={cn(
+              'flex items-center gap-2 shrink-0',
+              'group cursor-default',
+              index !== accounts.length - 1 && 'pr-3 border-r border-zinc-700/50'
+            )}
+          >
+            {/* Logo */}
+            {account.logoUrl ? (
+              <Image
+                src={account.logoUrl}
+                alt={account.providerName}
+                width={20}
+                height={20}
+                className="rounded object-contain shrink-0"
+                unoptimized
+              />
+            ) : (
+              <div className="w-5 h-5 rounded bg-zinc-700 flex items-center justify-center text-[9px] font-bold text-zinc-300 shrink-0">
+                {account.providerCode.slice(0, 2).toUpperCase()}
+              </div>
+            )}
+
+            {/* Program name and balance */}
+            <div className="flex flex-col leading-tight">
+              <span className="text-[10px] text-zinc-400 font-medium truncate max-w-[120px]">
+                {account.providerName}
+              </span>
+              <span className="text-xs font-semibold text-zinc-100 tabular-nums">
+                {formatFullBalance(account.balance)}{' '}
+                <span className="text-zinc-500 font-normal text-[10px]">
+                  {account.balanceUnit}
+                </span>
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Settings button */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onOpenSettings}
+            className="h-7 w-7 p-0 shrink-0 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700/50"
+          >
+            <Settings2 className="w-3.5 h-3.5" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" sideOffset={4}>
+          Treueprogramme verwalten
+        </TooltipContent>
+      </Tooltip>
+    </div>
+  );
+}
+
+/**
+ * Compact header widget for navbar (icon only)
+ * Click opens Settings to Loyalty tab
+ */
+export function LoyaltyHeaderWidget({ onOpenSettings, className }: LoyaltyHeaderWidgetProps) {
+  const isMobile = useMediaQuery('(max-width: 768px)');
+  const { data, isLoading } = useLoyaltyAccounts();
+
   if (isLoading) {
     return null;
   }
 
   const isConnected = data?.connected ?? false;
   const accounts = data?.accounts ?? [];
-  const topAccounts = accounts.slice(0, 3);
 
-  // Not connected: Show connect button (desktop only, mobile is too crowded)
+  // Not connected: Show connect button (desktop only)
   if (!isConnected) {
     if (isMobile) return null;
 
@@ -94,108 +193,29 @@ export function LoyaltyHeaderWidget({ onOpenSettings, className }: LoyaltyHeader
   }
 
   // No accounts yet
-  if (topAccounts.length === 0) {
+  if (accounts.length === 0) {
     return null;
   }
 
-  // Mobile: Just show icon with total count
-  if (isMobile) {
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onOpenSettings}
-            className={cn('h-8 px-2 relative', className)}
-          >
-            <HugeiconsIcon icon={Wallet02Icon} size={16} color="currentColor" strokeWidth={1.5} />
-            <span className="absolute -top-0.5 -right-0.5 bg-primary text-primary-foreground text-[9px] font-medium rounded-full w-4 h-4 flex items-center justify-center">
-              {accounts.length}
-            </span>
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" sideOffset={4}>
-          {accounts.length} Treueprogramme
-        </TooltipContent>
-      </Tooltip>
-    );
-  }
-
-  // Desktop: Show popover with top accounts
+  // Show icon with total count badge
   return (
-    <Popover>
-      <PopoverTrigger asChild>
+    <Tooltip>
+      <TooltipTrigger asChild>
         <Button
           variant="ghost"
           size="sm"
-          className={cn(
-            'h-8 px-2 gap-2 text-muted-foreground hover:text-foreground',
-            className,
-          )}
+          onClick={onOpenSettings}
+          className={cn('h-8 px-2 relative', className)}
         >
           <HugeiconsIcon icon={Wallet02Icon} size={16} color="currentColor" strokeWidth={1.5} />
-          <div className="flex items-center gap-1.5">
-            {topAccounts.slice(0, 2).map((account, idx) => (
-              <span
-                key={account.id}
-                className="text-xs font-medium whitespace-nowrap"
-                title={`${account.providerName}: ${account.balance.toLocaleString()} ${account.balanceUnit}`}
-              >
-                {idx > 0 && <span className="text-muted-foreground/50 mr-1.5">·</span>}
-                {abbreviateNumber(account.balance)}
-              </span>
-            ))}
-            {accounts.length > 2 && (
-              <span className="text-[10px] text-muted-foreground">+{accounts.length - 2}</span>
-            )}
-          </div>
+          <span className="absolute -top-0.5 -right-0.5 bg-primary text-primary-foreground text-[9px] font-medium rounded-full w-4 h-4 flex items-center justify-center">
+            {accounts.length}
+          </span>
         </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end" sideOffset={8}>
-        <div className="p-3 border-b">
-          <div className="flex items-center justify-between">
-            <h4 className="font-medium text-sm">Deine Treueprogramme</h4>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onOpenSettings}
-              className="h-7 px-2 text-xs text-muted-foreground"
-            >
-              <Settings2 className="w-3.5 h-3.5 mr-1" />
-              Verwalten
-            </Button>
-          </div>
-        </div>
-        <div className="max-h-64 overflow-y-auto">
-          {topAccounts.map((account) => (
-            <div key={account.id} className="px-3 py-2 border-b last:border-0">
-              <LoyaltyProgramCard
-                providerName={account.providerName}
-                providerCode={account.providerCode}
-                balance={account.balance}
-                balanceUnit={account.balanceUnit}
-                eliteStatus={account.eliteStatus}
-                expirationDate={account.expirationDate ? new Date(account.expirationDate) : null}
-                logoUrl={account.logoUrl}
-                compact
-              />
-            </div>
-          ))}
-        </div>
-        {accounts.length > 3 && (
-          <div className="p-2 border-t bg-muted/30">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onOpenSettings}
-              className="w-full h-7 text-xs"
-            >
-              Alle {accounts.length} Programme anzeigen
-            </Button>
-          </div>
-        )}
-      </PopoverContent>
-    </Popover>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" sideOffset={4}>
+        {accounts.length} Treueprogramme
+      </TooltipContent>
+    </Tooltip>
   );
 }

@@ -94,7 +94,7 @@ const Navbar = memo(
                 className="rounded-lg bg-accent hover:bg-accent/80 group transition-all hover:scale-105 pointer-events-auto"
               >
                 <PlusIcon size={16} className="group-hover:rotate-90 transition-all" />
-                <span className="text-sm ml-1.5 group-hover:block hidden animate-in fade-in duration-300">Neuer Chat</span>
+                <span className="text-sm ml-1.5">Neuer Chat</span>
               </Button>
             </Link>
           </div>
@@ -172,8 +172,8 @@ const Navbar = memo(
               </>
             )}
 
-            {/* Loyalty Programs Widget */}
-            {user && (
+            {/* Loyalty Programs Widget - only on mobile since desktop uses banner */}
+            {user && isMobile && (
               <LoyaltyHeaderWidget
                 onOpenSettings={() => {
                   onOpenSettingsWithTab?.('loyalty') ?? setSettingsOpen?.(true);

@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TooltipProvider } from '@radix-ui/react-tooltip';
 import { UserProvider } from '@/contexts/user-context';
 import { DataStreamProvider } from '@/components/data-stream-provider';
+import { Agentation } from 'agentation';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -27,11 +28,12 @@ export function Providers({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <UserProvider>
         <DataStreamProvider>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
             <TooltipProvider>{children}</TooltipProvider>
           </ThemeProvider>
         </DataStreamProvider>
       </UserProvider>
+      {process.env.NODE_ENV === 'development' && <Agentation />}
     </QueryClientProvider>
   );
 }
