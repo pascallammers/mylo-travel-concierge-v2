@@ -24,6 +24,7 @@ import { suggestQuestions, updateChatVisibility } from '@/app/actions';
 import { ChatDialogs } from '@/components/chat-dialogs';
 import Messages from '@/components/messages';
 import { Navbar } from '@/components/navbar';
+import { LoyaltyHeaderBanner } from '@/components/awardwallet';
 import { Button } from '@/components/ui/button';
 import FormComponent from '@/components/ui/form-component';
 
@@ -490,7 +491,6 @@ const ChatInterface = memo(
           onVisibilityChange={handleVisibilityChange}
           status={status}
           user={user || null}
-          onHistoryClick={() => dispatch({ type: 'SET_COMMAND_DIALOG_OPEN', payload: true })}
           isOwner={isOwner}
           subscriptionData={subscriptionData}
           isProUser={isUserPro}
@@ -502,6 +502,15 @@ const ChatInterface = memo(
           settingsInitialTab={settingsInitialTab}
           onOpenSettingsWithTab={handleOpenSettings}
         />
+
+        {/* Loyalty Programs Banner - positioned in main content area, below navbar */}
+        {user && (
+          <div className="absolute top-16 left-4 z-20 hidden md:block">
+            <LoyaltyHeaderBanner
+              onOpenSettings={() => handleOpenSettings('loyalty')}
+            />
+          </div>
+        )}
 
         {/* Chat Dialogs Component */}
         <ChatDialogs
