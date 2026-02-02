@@ -32,26 +32,26 @@ Wenn Suche keine Treffer liefert, schlage automatisch nahegelegene Flughäfen vo
 ---
 
 ## REQ-003: Flexible Datumssuche
-**Priority:** LOW | **Status:** Active
+**Priority:** LOW | **Status:** Complete
 
 Bei 0 Ergebnissen optional +/- 3 Tage anbieten.
 
 **Acceptance Criteria:**
-- [ ] Nutze bestehende Seats.aero date-range Funktion
-- [ ] Für Duffel: parallele Requests mit Rate-Limiting
-- [ ] User-Opt-in: "Auch andere Daten prüfen?"
+- [x] Nutze bestehende Seats.aero date-range Funktion
+- [x] Für Duffel: parallele Requests mit Rate-Limiting
+- [x] User-Opt-in: "Auch andere Daten prüfen?"
 
 ---
 
 ## REQ-004: Fehler-Monitoring
-**Priority:** MEDIUM | **Status:** Active
+**Priority:** MEDIUM | **Status:** Complete
 
 Tracke fehlgeschlagene Suchen für proaktive Verbesserung.
 
 **Acceptance Criteria:**
-- [ ] Logge: Query, extrahierte Codes, Ergebnis-Count, Timestamp
-- [ ] Speichere in DB-Tabelle (Convex)
-- [ ] Einfaches Dashboard oder Vercel Logs Query
+- [x] Logge: Query, extrahierte Codes, Ergebnis-Count, Timestamp
+- [x] Speichere in DB-Tabelle (PostgreSQL via Drizzle)
+- [x] Einfaches Dashboard unter /admin/failed-searches
 
 ---
 
@@ -70,5 +70,5 @@ Tracke fehlgeschlagene Suchen für proaktive Verbesserung.
 |-------------|-------|--------|
 | REQ-001 | Phase 1 | Complete |
 | REQ-002 | Phase 2 | Complete |
-| REQ-003 | Phase 3 | Pending |
-| REQ-004 | Phase 3 | Pending |
+| REQ-003 | Phase 3 | Complete |
+| REQ-004 | Phase 3 | Complete |

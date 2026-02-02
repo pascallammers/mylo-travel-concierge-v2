@@ -8,7 +8,7 @@ Transform Mylo's flight search from brittle static airport mapping to intelligen
 
 - [x] **Phase 1: LLM Airport Resolution** - Replace static airport-codes.ts with xAI/Grok extraction
 - [x] **Phase 2: Alternative Airports** - Suggest nearby airports when search returns no results
-- [ ] **Phase 3: Observability & Enhancement** - Track failed searches and add flexible date option
+- [x] **Phase 3: Observability & Enhancement** - Track failed searches and add flexible date option
 
 ## Phase Details
 
@@ -55,8 +55,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Failed search logging with admin UI and 30-day TTL
-- [ ] 03-02-PLAN.md — Flexible date search fallback with ±3 day range
+- [x] 03-01-PLAN.md — Failed search logging with admin UI and 30-day TTL
+- [x] 03-02-PLAN.md — Flexible date search fallback with ±3 day range
 
 ## Progress
 
@@ -67,7 +67,7 @@ Phases execute in numeric order: 1 -> 2 -> 3
 |-------|----------------|--------|-----------|
 | 1. LLM Airport Resolution | 2/2 | Complete | 2026-02-02 |
 | 2. Alternative Airports | 2/2 | Complete | 2026-02-02 |
-| 3. Observability & Enhancement | 0/2 | Not started | - |
+| 3. Observability & Enhancement | 2/2 | Complete | 2026-02-02 |
 
 ## Requirement Coverage
 
