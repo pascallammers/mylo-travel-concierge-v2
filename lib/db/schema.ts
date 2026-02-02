@@ -553,3 +553,49 @@ export const loyaltyAccounts = pgTable('loyalty_accounts', {
 });
 
 export type LoyaltyAccount = InferSelectModel<typeof loyaltyAccounts>;
+
+// ============================================
+// Failed Search Logs for Monitoring
+// ============================================
+
+/**
+ * Failed Search Logs table.
+ * Tracks flight searches that returned no results for pattern analysis.
+ * Automatically expires after 30 days.
+ */
+export const failedSearchLogs = pgTable('failed_search_logs', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => generateId()),
+  chatId: text('chat_id')
+    .notNull()
+    .references(() => chat.id, { onDelete: 'cascade' }),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+
+  // Query data
+  queryText: text('query_text').notNull(),
+  extractedOrigin: text('extracted_origin'),
+  extractedDestination: text('extracted_destination'),
+  departDate: text('depart_date'),
+  returnDate: text('return_date'),
+  cabin: text('cabin'),
+
+  // Context
+  resultCount: integer('result_count').notNull().default(0),
+  errorType: text('error_type'), // 'no_results', 'provider_unavailable', 'extraction_failed'
+  errorMessage: text('error_message'),
+
+  // Metadata
+  timestamp: timestamp('timestamp').notNull().defaultNow(),
+  expiresAt: timestamp('expires_at')
+    .notNull()
+    .$defaultFn(() => {
+      const date = new Date();
+      date.setDate(date.getDate() + 30);
+      return date;
+    }),
+});
+
+export type FailedSearchLog = InferSelectModel<typeof failedSearchLogs>;
