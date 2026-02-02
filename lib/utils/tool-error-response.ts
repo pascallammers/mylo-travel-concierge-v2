@@ -61,6 +61,25 @@ export interface GracefulErrorParams {
 }
 
 /**
+ * Alternative airport for display in error messages
+ */
+export interface AlternativeAirport {
+  code: string;
+  name: string;
+  city: string;
+  distance: string;  // Already formatted as "~1,5h Fahrt"
+}
+
+/**
+ * Extended error params with alternative airports
+ */
+export interface GracefulErrorWithAlternatives extends GracefulErrorParams {
+  alternatives?: AlternativeAirport[];
+  emptyAirport?: 'origin' | 'destination';
+  originalAirportName?: string;  // e.g., "Frankfurt (FRA)"
+}
+
+/**
  * Creates a user-friendly error response for flight search failures
  *
  * @param params - Error parameters
@@ -237,4 +256,51 @@ export async function withRetry<T>(
   }
 
   throw lastError || new Error('All retry attempts failed');
+}
+
+/**
+ * Format flight error with alternative airport suggestions
+ *
+ * @param params - Error parameters with alternatives
+ * @returns Formatted error string with alternative airports inline
+ */
+export function formatFlightErrorWithAlternatives(
+  params: GracefulErrorWithAlternatives
+): string {
+  // If no alternatives, fall back to standard error formatting
+  if (!params.alternatives || params.alternatives.length === 0) {
+    return formatGracefulFlightError(params);
+  }
+
+  const sections: string[] = [];
+
+  // Header
+  sections.push('## Keine Flüge gefunden\n');
+
+  // Context message
+  const airportReference = params.originalAirportName || params.searchParams?.origin || 'diesem Flughafen';
+  sections.push(`Leider keine direkten Flüge ab ${airportReference}.\n`);
+
+  // Alternatives subheader
+  sections.push('**Diese Flughäfen sind in der Nähe:**\n');
+
+  // Format each alternative (max 3)
+  params.alternatives.slice(0, 3).forEach((alt) => {
+    sections.push(`- **${alt.city}** — ${alt.name} (${alt.code}) — ${alt.distance}`);
+  });
+
+  // Guidance
+  sections.push('\nKlicken Sie auf einen Flughafen, um die Suche zu wiederholen.');
+
+  // Fallback links if search params available
+  if (params.searchParams) {
+    const googleUrl = buildGoogleFlightsUrl(params.searchParams);
+    const skyscannerUrl = buildSkyscannerUrl(params.searchParams);
+
+    sections.push('\n**Oder nutzen Sie alternative Suchen:**');
+    sections.push(`- [Google Flights](${googleUrl})`);
+    sections.push(`- [Skyscanner](${skyscannerUrl})`);
+  }
+
+  return sections.join('\n');
 }
