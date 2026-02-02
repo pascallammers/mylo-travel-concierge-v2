@@ -6,7 +6,7 @@ Transform Mylo's flight search from brittle static airport mapping to intelligen
 
 ## Phases
 
-- [ ] **Phase 1: LLM Airport Resolution** - Replace static airport-codes.ts with xAI/Grok extraction
+- [x] **Phase 1: LLM Airport Resolution** - Replace static airport-codes.ts with xAI/Grok extraction
 - [ ] **Phase 2: Alternative Airports** - Suggest nearby airports when search returns no results
 - [ ] **Phase 3: Observability & Enhancement** - Track failed searches and add flexible date option
 
@@ -25,8 +25,8 @@ Transform Mylo's flight search from brittle static airport mapping to intelligen
 **Plans**: 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — LLM airport resolver with xAI/Grok structured output
-- [ ] 01-02-PLAN.md — Caching layer, Duffel validation, and flight-search integration
+- [x] 01-01-PLAN.md — LLM airport resolver with xAI/Grok structured output
+- [x] 01-02-PLAN.md — Caching layer, Duffel validation, and flight-search integration
 
 ### Phase 2: Alternative Airports
 **Goal**: Customers never hit a dead end when flights exist at nearby airports
@@ -65,7 +65,7 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. LLM Airport Resolution | 0/2 | Planned | - |
+| 1. LLM Airport Resolution | 2/2 | Complete | 2026-02-02 |
 | 2. Alternative Airports | 0/2 | Not started | - |
 | 3. Observability & Enhancement | 0/2 | Not started | - |
 
