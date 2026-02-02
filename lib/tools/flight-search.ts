@@ -1,7 +1,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { searchSeatsAero, TravelClass } from '@/lib/api/seats-aero-client';
-import { searchDuffel, mapCabinClass, getNearbyAirports, NearbyAirport } from '@/lib/api/duffel-client';
+import { searchDuffel, searchDuffelFlexibleDates, mapCabinClass, getNearbyAirports, NearbyAirport } from '@/lib/api/duffel-client';
 import { recordToolCall, updateToolCall } from '@/lib/db/queries';
 import { mergeSessionState } from '@/lib/db/queries';
 import { resolveIATACode, resolveAirportCodesWithLLM, type AirportResolutionResult } from '@/lib/utils/airport-codes';
@@ -182,19 +182,22 @@ Bitte geben Sie mehr Details an, zum Beispiel das Land oder einen alternativen F
     }
 
     try {
-      console.log('[Flight Search] 🔄 Calling Seats.aero with:', { origin, destination, departDate: params.departDate, cabin: params.cabin });
-      console.log('[Flight Search] 🔄 Calling Duffel with:', { origin, destination, departDate: params.departDate, returnDate: params.returnDate, cabin: params.cabin });
+      // Detect flexible date search from query text (user clicked "Mit flexiblen Daten suchen")
+      const isFlexibleDateSearch = fullQuery.includes('flexiblen Daten') || (params.flexibility && params.flexibility > 0);
+
+      console.log('[Flight Search] 🔄 Calling Seats.aero with:', { origin, destination, departDate: params.departDate, cabin: params.cabin, isFlexible: isFlexibleDateSearch });
+      console.log('[Flight Search] 🔄 Calling Duffel with:', { origin, destination, departDate: params.departDate, returnDate: params.returnDate, cabin: params.cabin, isFlexible: isFlexibleDateSearch });
 
       // 2. Parallel API calls
       const [seatsResult, duffelResult] = await Promise.all([
-        // Seats.aero: Award flights
+        // Seats.aero: Award flights (use flexibility: 3 for flexible date search)
         searchSeatsAero({
           origin,
           destination,
           departureDate: params.departDate,
           travelClass: params.cabin as TravelClass,
-          flexibility: params.flexibility,
-          maxResults: 5,
+          flexibility: isFlexibleDateSearch ? 3 : params.flexibility,
+          maxResults: isFlexibleDateSearch ? 15 : 5, // More results for flexible search
         }).then((result) => {
           console.log('[Flight Search] Seats.aero SUCCESS:', result ? `${result.length} flights` : 'null');
           return result;
@@ -203,24 +206,40 @@ Bitte geben Sie mehr Details an, zum Beispiel das Land oder einen alternativen F
           return null;
         }),
 
-        // Duffel: Cash flights (skip if awardOnly)
+        // Duffel: Cash flights (use flexible date search for +/- 3 days)
         params.awardOnly
           ? Promise.resolve(null)
-          : searchDuffel({
-              origin,
-              destination,
-              departureDate: params.departDate,
-              returnDate: params.returnDate,
-              cabinClass: mapCabinClass(params.cabin),
-              passengers: params.passengers,
-              maxConnections: params.nonStop ? 0 : 2,
-            }).then((result) => {
-              console.log('[Flight Search] Duffel SUCCESS:', result ? `${result.length} flights` : 'null');
-              return result;
-            }).catch((err) => {
-              console.error('[Flight Search] Duffel FAILED:', err.message, err);
-              return null;
-            }),
+          : isFlexibleDateSearch
+            ? searchDuffelFlexibleDates({
+                origin,
+                destination,
+                departureDate: params.departDate,
+                returnDate: params.returnDate,
+                cabinClass: mapCabinClass(params.cabin),
+                passengers: params.passengers,
+                maxConnections: params.nonStop ? 0 : 2,
+              }, 3).then((result) => {
+                console.log('[Flight Search] Duffel Flexible SUCCESS:', result ? `${result.length} flights` : 'null');
+                return result;
+              }).catch((err) => {
+                console.error('[Flight Search] Duffel Flexible FAILED:', err.message, err);
+                return null;
+              })
+            : searchDuffel({
+                origin,
+                destination,
+                departureDate: params.departDate,
+                returnDate: params.returnDate,
+                cabinClass: mapCabinClass(params.cabin),
+                passengers: params.passengers,
+                maxConnections: params.nonStop ? 0 : 2,
+              }).then((result) => {
+                console.log('[Flight Search] Duffel SUCCESS:', result ? `${result.length} flights` : 'null');
+                return result;
+              }).catch((err) => {
+                console.error('[Flight Search] Duffel FAILED:', err.message, err);
+                return null;
+              }),
       ]);
 
       // 3. Check if we have results and track provider failures
@@ -269,7 +288,34 @@ Bitte geben Sie mehr Details an, zum Beispiel das Land oder einen alternativen F
 
         // Only search for alternatives if this is a "no_results" case (not provider failure)
         if (errorType === 'no_results') {
-          console.log('[Flight Search] No results, searching for nearby airports...');
+          console.log('[Flight Search] No results found, checking fallback chain...');
+
+          // Check if this is already a flexible date search (avoid infinite loop)
+          // Detect via query text or flexibility param
+          const isFlexibleSearch = fullQuery.includes('flexiblen Daten') || (params.flexibility && params.flexibility > 0);
+
+          if (!isFlexibleSearch) {
+            // STEP 1: First attempt - Offer flexible date search to user
+            console.log('[Flight Search] Returning flexible date offer to user');
+
+            return JSON.stringify({
+              type: 'no_results_offer_flexible',
+              message: `Fuer Ihre Suche am ${params.departDate} wurden keine Fluege gefunden. Moechten Sie auch +/- 3 Tage suchen?`,
+              originalSearch: {
+                origin,
+                destination,
+                departureDate: params.departDate,
+                returnDate: params.returnDate,
+                passengers: params.passengers,
+                cabinClass: params.cabin,
+                originDisplay,
+                destinationDisplay,
+              },
+            });
+          }
+
+          // STEP 2: If already flexible search with no results, try alternative airports (Phase 2 functionality)
+          console.log('[Flight Search] Flexible search had no results, falling back to alternative airports...');
 
           // Determine which airport to find alternatives for
           // Heuristic: If origin is a major hub, likely destination had no flights
@@ -287,7 +333,7 @@ Bitte geben Sie mehr Details an, zum Beispiel das Land oder einen alternativen F
             nearbyAirports.map(a => `${a.code} (${a.driveTime})`).join(', '));
 
           if (nearbyAirports.length > 0) {
-            // Map to AlternativeAirport format
+            // STEP 3: Return alternative airports if found
             const alternatives: AlternativeAirport[] = nearbyAirports.map(apt => ({
               code: apt.code,
               name: apt.name,
@@ -303,7 +349,7 @@ Bitte geben Sie mehr Details an, zum Beispiel das Land oder einen alternativen F
             // Return BOTH the formatted text AND structured data for UI rendering
             const formattedMessage = formatFlightErrorWithAlternatives({
               type: 'no_results',
-              message: `Für Ihre Suchkriterien wurden leider keine Flüge gefunden.`,
+              message: `Fuer Ihre Suchkriterien wurden leider keine Fluege gefunden.`,
               alternatives,
               emptyAirport: emptyAirportType,
               originalAirportName: emptyAirportDisplay,
@@ -332,8 +378,8 @@ Bitte geben Sie mehr Details an, zum Beispiel das Land oder einen alternativen F
             });
           }
 
-          // No alternatives found - fall through to regular error
-          console.log('[Flight Search] No nearby airports found within search radius');
+          // STEP 4: No alternatives found - fall through to generic error
+          console.log('[Flight Search] No nearby airports found, returning generic error');
         }
 
         // Provider failure or no alternatives - use existing error handling
@@ -354,6 +400,102 @@ Bitte geben Sie mehr Details an, zum Beispiel das Land oder einen alternativen F
               : 'Keine Flüge gefunden. Versuchen Sie andere Daten.',
           searchParams: searchLinkParams,
           technicalDetails,
+        });
+      }
+
+      // Process flexible date results - return special response type for UI rendering
+      if (isFlexibleDateSearch && (hasSeats || hasDuffel)) {
+        console.log('[Flight Search] Processing flexible date results');
+
+        // Merge all results
+        const allFlights: any[] = [];
+
+        // Add Seats.aero results with searchedDate from their departure info
+        if (seatsResult) {
+          seatsResult.forEach((flight: any) => {
+            allFlights.push({
+              ...flight,
+              source: 'seats.aero',
+              searchedDate: flight.outbound?.departure?.date || flight.departureDate || params.departDate,
+            });
+          });
+        }
+
+        // Add Duffel results (already have searchedDate from flexible search)
+        if (duffelResult) {
+          duffelResult.forEach((flight: any) => {
+            allFlights.push({
+              ...flight,
+              source: 'duffel',
+              searchedDate: flight.searchedDate || flight.departure?.time?.split('T')[0] || params.departDate,
+            });
+          });
+        }
+
+        console.log(`[Flight Search] Merged ${allFlights.length} flexible date flights`);
+
+        // Add date metadata to each flight
+        const flightsWithDateLabels = allFlights.map(flight => {
+          const searchedDate = flight.searchedDate || params.departDate;
+          const originalDate = new Date(params.departDate);
+          const flightDate = new Date(searchedDate);
+          const daysDiff = Math.round((flightDate.getTime() - originalDate.getTime()) / (1000 * 60 * 60 * 24));
+
+          let dateLabel: string;
+          if (daysDiff === 0) {
+            dateLabel = 'Originaldatum';
+          } else if (daysDiff < 0) {
+            dateLabel = `${Math.abs(daysDiff)} ${Math.abs(daysDiff) === 1 ? 'Tag' : 'Tage'} frueher`;
+          } else {
+            dateLabel = `${daysDiff} ${daysDiff === 1 ? 'Tag' : 'Tage'} spaeter`;
+          }
+
+          return {
+            ...flight,
+            searchedDate,
+            dateOffset: daysDiff,
+            dateLabel,
+          };
+        });
+
+        // Sort by price (lowest first) - per CONTEXT.md "Preis-Badge zeigt guenstigere Tage"
+        flightsWithDateLabels.sort((a, b) => {
+          // For Seats.aero, price is a string like "15,000 Miles"
+          // For Duffel, price is an object { total: "123.45", currency: "EUR" }
+          const getPriceValue = (flight: any): number => {
+            if (flight.source === 'duffel' && flight.price?.total) {
+              return parseFloat(flight.price.total);
+            }
+            if (flight.source === 'seats.aero' && flight.price) {
+              // Extract numeric value from "15,000 Miles" format
+              const match = String(flight.price).replace(/,/g, '').match(/[\d.]+/);
+              return match ? parseFloat(match[0]) : 999999;
+            }
+            return 999999;
+          };
+
+          return getPriceValue(a) - getPriceValue(b);
+        });
+
+        // Limit to top 10 per CONTEXT.md
+        const top10 = flightsWithDateLabels.slice(0, 10);
+
+        console.log(`[Flight Search] Returning top ${top10.length} flexible date results`);
+
+        // Calculate date range for display
+        const startDate = new Date(params.departDate);
+        startDate.setDate(startDate.getDate() - 3);
+        const endDate = new Date(params.departDate);
+        endDate.setDate(endDate.getDate() + 3);
+
+        return JSON.stringify({
+          type: 'flexible_date_results',
+          flights: top10,
+          originalDate: params.departDate,
+          dateRange: {
+            start: startDate.toISOString().split('T')[0],
+            end: endDate.toISOString().split('T')[0],
+          },
         });
       }
 

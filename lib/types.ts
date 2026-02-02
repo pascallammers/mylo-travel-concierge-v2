@@ -222,3 +222,31 @@ export interface AlternativeAirportResponse {
     cabinClass: string;
   };
 }
+
+export interface FlexibleDateResponse {
+  type: 'no_results_offer_flexible';
+  message: string;
+  originalSearch: {
+    origin: string;
+    destination: string;
+    departureDate: string;
+    returnDate?: string;
+    passengers: number;
+    cabinClass: string;
+    originDisplay: string;
+    destinationDisplay: string;
+  };
+}
+
+export interface FlexibleDateResultsResponse {
+  type: 'flexible_date_results';
+  flights: Array<{
+    // Base flight fields from DuffelFlight/SeatsAeroFlight plus:
+    searchedDate: string;
+    dateOffset: number; // -3 to +3
+    dateLabel: string;  // "3 Tage frueher" or "2 Tage spaeter"
+    [key: string]: unknown; // Allow pass-through of other flight properties
+  }>;
+  originalDate: string;
+  dateRange: { start: string; end: string };
+}
