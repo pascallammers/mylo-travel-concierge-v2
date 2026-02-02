@@ -242,4 +242,171 @@ export async function validateIATACode(code: string): Promise<boolean> {
   return true;
 }
 
+/**
+ * Nearby airport result with distance and drive time
+ */
+export interface NearbyAirport {
+  code: string;
+  name: string;
+  city: string;
+  country: string;
+  distanceMeters: number;
+  driveTime: string;  // "~1,5h Fahrt"
+}
+
+/**
+ * Calculate distance between two geographic coordinates using Haversine formula
+ * @param lat1 - Latitude of first point
+ * @param lon1 - Longitude of first point
+ * @param lat2 - Latitude of second point
+ * @param lon2 - Longitude of second point
+ * @returns Distance in meters
+ */
+function calculateHaversineDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const R = 6371000; // Earth radius in meters
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+}
+
+/**
+ * Format distance in meters to German drive time string
+ * @param meters - Distance in meters
+ * @returns Formatted drive time (e.g., "~1,5h Fahrt")
+ */
+function formatDriveTime(meters: number): string {
+  const kmPerHour = 70; // Average effective speed
+  const hours = meters / 1000 / kmPerHour;
+
+  if (hours < 0.5) {
+    return '~30min Fahrt';
+  } else if (hours <= 1.5) {
+    // Round to 0.5 increments, use German decimal comma
+    const rounded = Math.round(hours * 2) / 2;
+    return `~${rounded.toFixed(1).replace('.', ',')}h Fahrt`;
+  } else {
+    // Round to whole hours
+    const rounded = Math.round(hours);
+    return `~${rounded}h Fahrt`;
+  }
+}
+
+/**
+ * Determine search radius based on country code
+ * @param countryCode - ISO 2-letter country code
+ * @returns Radius in meters
+ */
+export function getDynamicRadius(countryCode: string): number {
+  // Dense regions: smaller radius
+  const denseRegions = ['GB', 'DE', 'NL', 'BE', 'CH', 'AT', 'JP', 'KR'];
+  if (denseRegions.includes(countryCode)) {
+    return 100000; // 100km
+  }
+
+  // Sparse regions: larger radius
+  const sparseRegions = ['US', 'CA', 'AU', 'BR', 'RU', 'CN', 'IN'];
+  if (sparseRegions.includes(countryCode)) {
+    return 250000; // 250km
+  }
+
+  // Default: medium radius
+  return 150000; // 150km
+}
+
+/**
+ * Find nearby airports using Duffel Places API
+ * @param airportCode - Origin airport IATA code
+ * @param radiusMeters - Optional search radius (defaults to dynamic based on country)
+ * @returns List of up to 3 nearby airports with drive time estimates
+ */
+export async function getNearbyAirports(
+  airportCode: string,
+  radiusMeters?: number
+): Promise<NearbyAirport[]> {
+  const duffel = getDuffelClient();
+
+  try {
+    // Step 1: Get origin airport coordinates
+    console.log('[Duffel] Searching nearby airports:', { origin: airportCode });
+
+    const originSearch = await duffel.suggestions.list({
+      query: airportCode,
+    });
+
+    // Step 2: Find origin airport in results
+    const originAirport = originSearch.data.find(
+      (place: any) => place.type === 'airport' && place.iata_code === airportCode
+    );
+
+    if (!originAirport || !originAirport.latitude || !originAirport.longitude) {
+      console.warn('[Duffel] Origin airport not found or missing coordinates:', airportCode);
+      return [];
+    }
+
+    // Step 3: Determine search radius
+    const radius = radiusMeters ?? getDynamicRadius(originAirport.iata_country_code || '');
+
+    console.log('[Duffel] Searching nearby airports:', {
+      origin: airportCode,
+      lat: originAirport.latitude,
+      lng: originAirport.longitude,
+      radius: `${radius}m (${Math.round(radius / 1000)}km)`,
+    });
+
+    // Step 4: Search for nearby airports
+    const nearbySearch = await duffel.suggestions.list({
+      lat: originAirport.latitude.toString(),
+      lng: originAirport.longitude.toString(),
+      rad: radius.toString(),
+    });
+
+    // Step 5: Filter and process results
+    const nearbyAirports = nearbySearch.data
+      .filter(
+        (place: any) =>
+          place.type === 'airport' &&
+          place.iata_code &&
+          place.iata_code !== airportCode
+      )
+      .map((place: any) => {
+        const distance = calculateHaversineDistance(
+          originAirport.latitude,
+          originAirport.longitude,
+          place.latitude,
+          place.longitude
+        );
+
+        return {
+          code: place.iata_code,
+          name: place.name,
+          city: place.city_name || place.city?.name || 'Unknown',
+          country: place.iata_country_code || '',
+          distanceMeters: distance,
+          driveTime: formatDriveTime(distance),
+        };
+      })
+      .sort((a: NearbyAirport, b: NearbyAirport) => a.distanceMeters - b.distanceMeters)
+      .slice(0, 3);
+
+    console.log('[Duffel] Found nearby airports:', nearbyAirports.length);
+    return nearbyAirports;
+  } catch (error) {
+    console.error('[Duffel] Nearby airport search failed:', error);
+    return [];
+  }
+}
+
 export { mapCabinClass };
