@@ -379,7 +379,9 @@ export async function getNearbyAirports(
         (place: any) =>
           place.type === 'airport' &&
           place.iata_code &&
-          place.iata_code !== airportCode
+          place.iata_code !== airportCode &&
+          place.latitude !== null &&
+          place.longitude !== null
       )
       .map((place: any) => {
         const distance = calculateHaversineDistance(
