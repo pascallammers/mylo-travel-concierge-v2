@@ -4,7 +4,7 @@ import { searchSeatsAero, TravelClass } from '@/lib/api/seats-aero-client';
 import { searchDuffel, mapCabinClass } from '@/lib/api/duffel-client';
 import { recordToolCall, updateToolCall } from '@/lib/db/queries';
 import { mergeSessionState } from '@/lib/db/queries';
-import { resolveIATACode } from '@/lib/utils/airport-codes';
+import { resolveIATACode, resolveAirportCodesWithLLM, type AirportResolutionResult } from '@/lib/utils/airport-codes';
 import {
   buildGoogleFlightsUrl,
   buildSkyscannerUrl,
@@ -122,9 +122,27 @@ Examples of queries that should trigger this tool:
       }
     }
 
-    // Resolve city names to IATA codes
-    const origin = resolveIATACode(params.origin);
-    const destination = resolveIATACode(params.destination);
+    // Build full query for context-aware extraction
+    const fullQuery = `${params.origin} nach ${params.destination}`;
+    console.log('[Flight Search] Resolving airports from query:', fullQuery);
+
+    const resolution = await resolveAirportCodesWithLLM(fullQuery);
+
+    // Handle clarification needed
+    if (resolution.needsClarification) {
+      const clarifyType = resolution.needsClarification.type;
+      const clarifyMessage = resolution.needsClarification.message;
+
+      return `Ich brauche eine Klarstellung für ${clarifyType === 'origin' ? 'den Abflugort' : clarifyType === 'destination' ? 'das Ziel' : 'Abflug- und Zielort'}:
+
+${clarifyMessage}
+
+Bitte geben Sie mehr Details an, zum Beispiel das Land oder einen alternativen Flughafennamen.`;
+    }
+
+    // Extract codes or fall back to sync resolver
+    const origin = resolution.origin?.code || resolveIATACode(params.origin);
+    const destination = resolution.destination?.code || resolveIATACode(params.destination);
 
     if (!origin || !destination) {
       throw new Error(
@@ -132,7 +150,15 @@ Examples of queries that should trigger this tool:
       );
     }
 
-    console.log(`[Flight Search] Resolved: ${params.origin} → ${origin}, ${params.destination} → ${destination}`);
+    // Display extracted airports to user (per CONTEXT.md decision)
+    const originDisplay = resolution.origin
+      ? `${resolution.origin.name} (${resolution.origin.code})`
+      : origin;
+    const destinationDisplay = resolution.destination
+      ? `${resolution.destination.name} (${resolution.destination.code})`
+      : destination;
+
+    console.log(`[Flight Search] Suche Fluege: ${originDisplay} -> ${destinationDisplay}`);
 
     // 1. Record tool call (non-blocking, don't let DB failures stop execution)
     let toolCallId: string | null = null;
