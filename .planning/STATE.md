@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-02)
 
 **Core value:** Kunden bekommen immer hilfreiche Fluginformationen - selbst wenn die exakte Suche keine Treffer liefert
-**Current focus:** Phase 2 - Alternative Airports
+**Current focus:** Phase 3 - Observability Enhancement
 
 ## Current Position
 
-Phase: 2 of 3 (Alternative Airports)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-02 - Completed 02-02-PLAN.md
+Phase: 3 of 3 (Observability Enhancement)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-02 - Completed 03-01-PLAN.md
 
-Progress: [████------] 67% (4/6 total plans)
+Progress: [█████-----] 83% (5/6 total plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
-- Average duration: 7.75 min
-- Total execution time: 0.52 hours
+- Total plans completed: 5
+- Average duration: 6.8 min
+- Total execution time: 0.57 hours
 
 **By Phase:**
 
@@ -29,10 +29,11 @@ Progress: [████------] 67% (4/6 total plans)
 |-------|-------|-------|----------|
 | 01-llm-airport-resolution | 2 | 22 min | 11 min |
 | 02-alternative-airports | 2 | 9 min | 4.5 min |
+| 03-observability-enhancement | 1 | 3 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (9 min), 01-02 (13 min), 02-01 (3 min), 02-02 (6 min)
-- Trend: Stabilizing at high velocity (~5 min/plan for Phase 02)
+- Last 5 plans: 01-02 (13 min), 02-01 (3 min), 02-02 (6 min), 03-01 (3 min)
+- Trend: Maintaining high velocity (~3-6 min/plan)
 
 *Updated after each plan completion*
 
@@ -59,6 +60,9 @@ Recent decisions affecting current work:
 - Structured JSON response: Return type-marked JSON for UI to parse and render interactively (02-02)
 - AlertDialog confirmation: User must confirm before triggering alternative airport search (02-02)
 - sendMessage for re-search: Use sendMessage() directly instead of form submission (02-02)
+- Non-blocking logging: await logFailedSearch but catch errors to not block tool execution (03-01)
+- 30-day TTL via expiresAt column with $defaultFn, not DB-level TTL (03-01)
+- Cron runs at 2 AM UTC for off-peak cleanup (03-01)
 
 ### Pending Todos
 
@@ -70,9 +74,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-02T10:20:33Z
-Stopped at: Completed 02-02-PLAN.md (Flight Search Tool Integration with Interactive UI)
-Resume file: None - Phase 02 complete, ready for Phase 03
+Last session: 2026-02-02T11:12:00Z
+Stopped at: Completed 03-01-PLAN.md (Failed Search Logging)
+Resume file: None - ready for 03-02-PLAN.md
 
 Config:
 {
