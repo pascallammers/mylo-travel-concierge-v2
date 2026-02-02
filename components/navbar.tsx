@@ -8,7 +8,7 @@ import { PlusIcon, GlobeHemisphereWestIcon } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { UserProfile, NavigationMenu } from '@/components/user-profile';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { LoyaltyHeaderWidget } from '@/components/awardwallet';
+import { LoyaltyHeaderWidget, LoyaltyHeaderBanner } from '@/components/awardwallet';
 import { SidebarTrigger, useSidebarOptional } from '@/components/ui/sidebar';
 
 import { ShareButton } from '@/components/share';
@@ -172,7 +172,15 @@ const Navbar = memo(
               </>
             )}
 
-            {/* Loyalty Programs Widget - only on mobile since desktop uses banner */}
+            {/* Loyalty Programs Banner - desktop only */}
+            {user && !isMobile && (
+              <LoyaltyHeaderBanner
+                onOpenSettings={() => {
+                  onOpenSettingsWithTab?.('loyalty') ?? setSettingsOpen?.(true);
+                }}
+              />
+            )}
+            {/* Loyalty Programs Widget - mobile only (compact icon) */}
             {user && isMobile && (
               <LoyaltyHeaderWidget
                 onOpenSettings={() => {

@@ -84,10 +84,10 @@ export function LoyaltyHeaderBanner({ onOpenSettings, className }: LoyaltyHeader
   return (
     <div
       className={cn(
-        'flex items-center gap-2 px-3 py-2 rounded-xl',
+        'flex items-center gap-2 px-2.5 py-1.5 rounded-lg',
         'bg-gradient-to-r from-zinc-900/90 via-zinc-800/80 to-zinc-900/90',
         'border border-zinc-700/50 backdrop-blur-sm',
-        'shadow-lg shadow-black/20',
+        'shadow-sm',
         className
       )}
     >

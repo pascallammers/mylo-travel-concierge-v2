@@ -24,7 +24,7 @@ import { suggestQuestions, updateChatVisibility } from '@/app/actions';
 import { ChatDialogs } from '@/components/chat-dialogs';
 import Messages from '@/components/messages';
 import { Navbar } from '@/components/navbar';
-import { LoyaltyHeaderBanner } from '@/components/awardwallet';
+
 import { Button } from '@/components/ui/button';
 import FormComponent from '@/components/ui/form-component';
 
@@ -503,15 +503,6 @@ const ChatInterface = memo(
           onOpenSettingsWithTab={handleOpenSettings}
         />
 
-        {/* Loyalty Programs Banner - positioned in main content area, below navbar */}
-        {user && (
-          <div className="absolute top-16 left-4 z-20 hidden md:block">
-            <LoyaltyHeaderBanner
-              onOpenSettings={() => handleOpenSettings('loyalty')}
-            />
-          </div>
-        )}
-
         {/* Chat Dialogs Component */}
         <ChatDialogs
           commandDialogOpen={chatState.commandDialogOpen}
@@ -601,7 +592,7 @@ const ChatInterface = memo(
                   'transition-all duration-500',
                   messages.length === 0 && !chatState.hasSubmitted
                     ? 'relative w-full max-w-2xl mx-auto'
-                    : 'fixed bottom-0 left-0 right-0 z-20 !pb-6 mt-1 mx-4 sm:mx-2 p-0',
+                    : 'fixed bottom-0 z-20 !pb-6 mt-1 px-4 sm:px-2 p-0 left-0 right-0 md:left-[var(--sidebar-width)] md:group-data-[collapsible=icon]:left-[var(--sidebar-width-icon)]',
                 )}
               >
                 <FormComponent
@@ -640,10 +631,10 @@ const ChatInterface = memo(
             !isLimitBlocked &&
             (messages.length > 0 || chatState.hasSubmitted) && (
               <div
-                className="fixed left-0 right-0 z-10 bg-gradient-to-t from-background via-background/95 to-background/80 backdrop-blur-sm pointer-events-none"
+                className="fixed left-0 right-0 md:left-[var(--sidebar-width)] md:group-data-[collapsible=icon]:left-[var(--sidebar-width-icon)] z-10 bg-gradient-to-t from-background via-background/95 to-background/80 backdrop-blur-sm pointer-events-none"
                 style={{
                   bottom: 0,
-                  height: '120px', // Adjust height as needed
+                  height: '120px',
                 }}
               />
             )}
