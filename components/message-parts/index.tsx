@@ -55,6 +55,7 @@ import {
   TextIcon,
   Pause,
   Play as PlayIcon,
+  Calendar,
 } from 'lucide-react';
 import {
   RedditLogoIcon,
@@ -94,6 +95,11 @@ const InteractiveStockChart = lazy(() => import('@/components/interactive-stock-
 const AlternativeAirportSelector = lazy(() =>
   import('@/components/alternative-airport-selector').then((module) => ({
     default: module.AlternativeAirportSelector
+  })),
+);
+const FlexibleDateSelector = lazy(() =>
+  import('@/components/flexible-date-selector').then((module) => ({
+    default: module.FlexibleDateSelector
   })),
 );
 
@@ -274,6 +280,92 @@ const ToolErrorDisplay = ({ errorText, toolName }: { errorText: string; toolName
     </div>
   </div>
 );
+
+// Compact flight card for flexible date results
+const FlexibleDateFlightCard = ({ flight }: { flight: any }) => {
+  // Determine if this is a Seats.aero (award) or Duffel (cash) flight
+  const isAward = flight.source === 'seats.aero';
+
+  // Format price display
+  const priceDisplay = isAward
+    ? flight.price || 'N/A'
+    : flight.price?.total
+      ? `${flight.price.total} ${flight.price.currency || 'EUR'}`
+      : 'N/A';
+
+  // Format departure info
+  const departureAirport = isAward
+    ? flight.outbound?.departure?.airport || flight.origin || 'N/A'
+    : flight.departure?.airport || 'N/A';
+
+  const arrivalAirport = isAward
+    ? flight.outbound?.arrival?.airport || flight.destination || 'N/A'
+    : flight.arrival?.airport || 'N/A';
+
+  const departureTime = isAward
+    ? flight.outbound?.departure?.time || 'N/A'
+    : flight.departure?.time
+      ? new Date(flight.departure.time).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+      : 'N/A';
+
+  const arrivalTime = isAward
+    ? flight.outbound?.arrival?.time || 'N/A'
+    : flight.arrival?.time
+      ? new Date(flight.arrival.time).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+      : 'N/A';
+
+  const airline = flight.airline || 'Unknown';
+  const duration = isAward ? flight.outbound?.duration : flight.duration;
+
+  return (
+    <div className="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        {/* Left: Flight info */}
+        <div className="flex-1 min-w-0">
+          {/* Date badge - prominent per CONTEXT.md */}
+          {flight.searchedDate && (
+            <p className="text-sm font-medium text-primary mb-1">
+              {new Date(flight.searchedDate).toLocaleDateString('de-DE', {
+                weekday: 'short',
+                day: '2-digit',
+                month: 'short',
+              })}
+            </p>
+          )}
+          <div className="flex items-center gap-2 text-sm">
+            <span className="font-medium">{departureAirport}</span>
+            <span className="text-muted-foreground">{departureTime}</span>
+            <span className="text-muted-foreground">→</span>
+            <span className="font-medium">{arrivalAirport}</span>
+            <span className="text-muted-foreground">{arrivalTime}</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+            <Plane className="h-3 w-3" />
+            <span>{airline}</span>
+            {duration && <span>• {duration}</span>}
+          </div>
+        </div>
+
+        {/* Right: Price and date label */}
+        <div className="flex flex-col items-end gap-1">
+          {/* Date offset badge */}
+          {flight.dateLabel && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+              {flight.dateLabel}
+            </span>
+          )}
+          {/* Price */}
+          <span className={`text-sm font-semibold ${isAward ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
+            {priceDisplay}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {isAward ? 'Meilen' : 'Cash'}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 interface MessagePartRendererProps {
   part: ChatMessage['parts'][number];
@@ -2062,10 +2154,60 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
                   </React.Fragment>
                 );
               case 'output-available':
-                // Check if this is an alternatives response
+                // Check if this is a special structured response
                 if (isToolUIPart(part) && part.output) {
                   try {
                     const parsed = JSON.parse(part.output as string);
+
+                    // Check for flexible date offer (before alternatives check)
+                    if (parsed.type === 'no_results_offer_flexible') {
+                      return (
+                        <Suspense fallback={<ComponentLoader />} key={`${messageIndex}-${partIndex}-tool`}>
+                          <FlexibleDateSelector
+                            data={parsed}
+                            onAcceptFlexible={(query) => {
+                              // Use sendMessage to trigger new search with flexible dates
+                              if (sendMessage) {
+                                sendMessage({
+                                  parts: [{ type: 'text', text: query }],
+                                  role: 'user',
+                                });
+                              }
+                            }}
+                          />
+                        </Suspense>
+                      );
+                    }
+
+                    // Check for flexible date results
+                    if (parsed.type === 'flexible_date_results') {
+                      return (
+                        <div key={`${messageIndex}-${partIndex}-tool`} className="space-y-4">
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Calendar className="h-4 w-4" />
+                            <span>
+                              Ergebnisse vom {new Date(parsed.dateRange.start).toLocaleDateString('de-DE')} bis{' '}
+                              {new Date(parsed.dateRange.end).toLocaleDateString('de-DE')}
+                            </span>
+                          </div>
+                          <div className="space-y-3">
+                            {parsed.flights.map((flight: any, idx: number) => (
+                              <FlexibleDateFlightCard
+                                key={flight.id || `flight-${idx}`}
+                                flight={flight}
+                              />
+                            ))}
+                          </div>
+                          {parsed.flights.length === 10 && (
+                            <p className="text-xs text-muted-foreground text-center">
+                              Top 10 Ergebnisse angezeigt (sortiert nach Preis)
+                            </p>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    // Check for alternatives response (fallback after flexible dates)
                     if (parsed.type === 'no_results_with_alternatives') {
                       return (
                         <Suspense fallback={<ComponentLoader />} key={`${messageIndex}-${partIndex}-tool`}>
@@ -2085,7 +2227,7 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
                       );
                     }
                   } catch {
-                    // Not JSON or not alternatives response, fall through
+                    // Not JSON or not special response, fall through
                   }
                 }
                 // Flight search results are rendered as text by the AI
