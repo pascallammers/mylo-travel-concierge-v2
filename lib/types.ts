@@ -201,3 +201,24 @@ export interface Attachment {
   mediaType?: string;
   size?: number;
 }
+
+export interface AlternativeAirportResponse {
+  type: 'no_results_with_alternatives';
+  message: string;
+  alternatives: Array<{
+    code: string;
+    name: string;
+    city: string;
+    distance: string;
+    originalAirport: string;
+    replaceType: 'origin' | 'destination';
+  }>;
+  originalSearch: {
+    origin: string;
+    destination: string;
+    departureDate: string;
+    returnDate?: string;
+    passengers: number;
+    cabinClass: string;
+  };
+}

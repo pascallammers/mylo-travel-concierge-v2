@@ -91,6 +91,11 @@ const CurrencyConverter = lazy(() =>
   import('@/components/currency_conv').then((module) => ({ default: module.CurrencyConverter })),
 );
 const InteractiveStockChart = lazy(() => import('@/components/interactive-stock-chart'));
+const AlternativeAirportSelector = lazy(() =>
+  import('@/components/alternative-airport-selector').then((module) => ({
+    default: module.AlternativeAirportSelector
+  })),
+);
 
 // Realistic animated loader component for stock chart
 const StockChartLoader = ({ title, input }: { title?: string; input?: any }) => {
@@ -294,6 +299,8 @@ interface MessagePartRendererProps {
   onHighlight?: (text: string) => void;
   onAddToMemory?: (text: string) => void | Promise<void>;
   annotations?: DataUIPart<CustomUIDataTypes>[];
+  setInput?: (value: string) => void;
+  sendMessage?: UseChatHelpers<ChatMessage>['sendMessage'];
 }
 
 export const MessagePartRenderer = memo<MessagePartRendererProps>(
@@ -321,6 +328,8 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
     onHighlight,
     onAddToMemory,
     annotations,
+    setInput,
+    sendMessage,
   }) => {
     // Handle text parts
     if (part.type === 'text') {
@@ -2053,6 +2062,32 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
                   </React.Fragment>
                 );
               case 'output-available':
+                // Check if this is an alternatives response
+                if (isToolUIPart(part) && part.output) {
+                  try {
+                    const parsed = JSON.parse(part.output as string);
+                    if (parsed.type === 'no_results_with_alternatives') {
+                      return (
+                        <Suspense fallback={<ComponentLoader />} key={`${messageIndex}-${partIndex}-tool`}>
+                          <AlternativeAirportSelector
+                            data={parsed}
+                            onSelectAirport={(query) => {
+                              // Use sendMessage to trigger new search
+                              if (sendMessage) {
+                                sendMessage({
+                                  parts: [{ type: 'text', text: query }],
+                                  role: 'user',
+                                });
+                              }
+                            }}
+                          />
+                        </Suspense>
+                      );
+                    }
+                  } catch {
+                    // Not JSON or not alternatives response, fall through
+                  }
+                }
                 // Flight search results are rendered as text by the AI
                 // This state should not render anything special
                 return null;

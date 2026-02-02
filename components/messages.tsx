@@ -56,6 +56,7 @@ const Messages: React.FC<MessagesProps> = ({
   onHighlight,
   sendMessage,
   regenerate,
+  setInput,
 }) => {
   // Track visibility state for each reasoning section using messageIndex-partIndex as key
   const [reasoningVisibilityMap, setReasoningVisibilityMap] = useState<Record<string, boolean>>({});
@@ -242,6 +243,8 @@ const Messages: React.FC<MessagesProps> = ({
           onHighlight={onHighlight}
           onAddToMemory={(text: string) => handleAddToMemory(text, message.id, message.role)}
           annotations={annotations}
+          setInput={setInput}
+          sendMessage={sendMessage}
         />
       );
     },
@@ -263,6 +266,8 @@ const Messages: React.FC<MessagesProps> = ({
       setReasoningFullscreenMap,
       onHighlight,
       handleAddToMemory,
+      setInput,
+      sendMessage,
     ],
   );
 
