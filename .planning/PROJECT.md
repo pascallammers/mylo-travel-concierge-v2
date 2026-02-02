@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Verbesserung der Mylo Travel Concierge Flugsuche, damit Kunden zuverlässiger Ergebnisse erhalten. Das System soll intelligenter Airport-Codes auflösen, bei fehlenden Ergebnissen automatisch Alternativen vorschlagen, und Probleme frühzeitig durch Monitoring erkennen.
+Mylo Travel Concierge Flugsuche mit intelligenter LLM-basierter Airport-Auflösung, automatischen Alternativen bei leeren Ergebnissen, und proaktivem Fehler-Monitoring. Das System versteht natürliche Sprache, schlägt nahegelegene Flughäfen vor, und bietet flexible Datumsoptionen.
 
 ## Core Value
 
@@ -12,60 +12,66 @@ Verbesserung der Mylo Travel Concierge Flugsuche, damit Kunden zuverlässiger Er
 
 ### Validated
 
-Existierende Flugsuche-Funktionalität:
+v1.0 Robuste Flugsuche (shipped 2026-02-02):
+- ✓ LLM-basierte Airport-Code-Extraktion aus natürlicher Sprache — v1.0
+- ✓ Kontext-Verständnis für mehrdeutige Städte (Liberia, San Jose) — v1.0
+- ✓ Performance Cache für LLM-Extractions (24h TTL) — v1.0
+- ✓ User Correction Cache (7-Tage TTL) — v1.0
+- ✓ Alternative Flughäfen bei leeren Ergebnissen (max 3, Drive-Time) — v1.0
+- ✓ Flexible Datumssuche (±3 Tage) als Fallback — v1.0
+- ✓ Failed Search Logging mit Admin Dashboard — v1.0
+- ✓ Vollständige Fallback-Chain: Exact → Flexible → Alternatives → Error — v1.0
 
+Existierende Funktionalität (vor v1.0):
 - ✓ Flugsuche via Duffel API (Cash-Flüge) — existing
 - ✓ Award-Suche via Seats.aero — existing
-- ✓ Statisches Airport-Code-Mapping — existing
 - ✓ Round-Trip und One-Way Suche — existing
 - ✓ Kabinen-Klassen-Auswahl — existing
 - ✓ Google Flights / Skyscanner Fallback-Links — existing
 
 ### Active
 
-- [ ] LLM-basierte Airport-Code-Extraktion aus natürlicher Sprache
-- [ ] Fallback-Chain: LLM → statisches Mapping → API-Lookup
-- [ ] Alternative Flughäfen bei leeren Ergebnissen (geografisch nah)
-- [ ] Flexible Datumssuche (+/- 1-3 Tage) wenn exaktes Datum keine Treffer
-- [ ] Alternative Kabinen-Vorschläge wenn gewählte Klasse nicht verfügbar
-- [ ] Fehlerhafte Suchen loggen und tracken
-- [ ] Dashboard/Alert für häufige Fehlschläge
+(Für nächsten Milestone definieren via `/gsd:new-milestone`)
 
 ### Out of Scope
 
-- Buchungsfunktion (existiert bereits, wird nicht geändert) — außerhalb dieses Projekts
-- Neue Flug-APIs integrieren — Duffel + Seats.aero bleiben die Quellen
-- UI-Redesign — nur Backend-Verbesserungen
+- Buchungsfunktion — existiert bereits, wird nicht geändert
+- Neue Flug-APIs — Duffel + Seats.aero bleiben die Quellen
+- UI-Redesign — nur Backend/Tool-Verbesserungen
+- Multi-Language Support — Deutsch reicht für aktuelle Zielgruppe
 
 ## Context
 
-**Auslöser:** Kundin suchte "Frankfurt nach costa rica liberia" — keine Ergebnisse, obwohl Duffel direkt Flüge zeigt. Problem: "liberia" war nicht im Airport-Mapping, wurde zu "LIB" statt "LIR" aufgelöst.
+**Shipped:** v1.0 Robuste Flugsuche (2026-02-02)
 
-**Quick Fix bereits implementiert:**
-- Central America Airports (inkl. LIR) hinzugefügt
-- max_connections von 1 auf 2 erhöht
-- Commit: `2f6b982`
+**Codebase:** 85.786 LOC TypeScript
+**Tech Stack:** Next.js 15, TypeScript, Vercel AI SDK, xAI/Grok, PostgreSQL/Drizzle, Duffel API, Seats.aero API
 
-**Architektur-Kontext:**
-- Flugsuche läuft über `lib/tools/flight-search.ts` (AI Tool)
-- Airport-Auflösung in `lib/utils/airport-codes.ts`
-- Duffel-Client in `lib/api/duffel-client.ts`
-- XAI (Grok) ist aktuell der primäre LLM-Provider
+**Architektur-Highlights:**
+- `lib/utils/llm-airport-resolver.ts` — LLM extraction mit Zod structured output
+- `lib/utils/airport-codes.ts` — Drei-stufige Resolution (Direct → Static → LLM)
+- `lib/api/duffel-client.ts` — getNearbyAirports, searchDuffelFlexibleDates
+- `lib/tools/flight-search.ts` — Vollständige Fallback-Chain
+- `lib/db/queries/failed-search.ts` — Logging und Admin queries
 
 ## Constraints
 
-- **Tech Stack**: Next.js 15, TypeScript, Vercel AI SDK, XAI/Grok als primärer LLM
-- **API-Limits**: Duffel hat Rate-Limits, parallele Alternativ-Suchen müssen throttled werden
-- **Kosten**: LLM-Calls für Airport-Extraktion sollten minimal gehalten werden (Caching)
-- **UX**: Antwortzeit sollte nicht signifikant steigen (<2s zusätzlich für Alternativen)
+- **Tech Stack**: Next.js 15, TypeScript, Vercel AI SDK, xAI/Grok als primärer LLM
+- **API-Limits**: Duffel Rate-Limits (max 3 concurrent für flexible dates)
+- **Kosten**: LLM-Calls minimiert durch 24h Cache
+- **UX**: Antwortzeit <2s für Airport-Auflösung (Timeout enforced)
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| LLM-First für Airport-Lookup | Nutzer schreiben natürliche Sprache, LLM versteht Kontext besser als Pattern-Matching | — Pending |
-| Geografische Nähe für Alternative Airports | Logischer Fallback, Kunden akzeptieren nahegelegene Flughäfen | — Pending |
-| Monitoring via Vercel Logs + eigene Tabelle | Keine zusätzliche Infrastruktur nötig | — Pending |
+| LLM-First für Airport-Lookup | Nutzer schreiben natürliche Sprache, LLM versteht Kontext | ✓ Funktioniert (liberia+costa rica=LIR) |
+| Drei-tier Resolution | Performance: Direct codes und static mapping vor LLM | ✓ Minimiert API-Calls |
+| Drive-Time statt Distanz | Benutzer können Fahrtzeit besser einschätzen | ✓ Bessere UX |
+| Major Hub Heuristic | Intelligent raten welcher Airport Alternativen braucht | ✓ Meist korrekt |
+| Non-blocking Logging | Fehler-Logging darf Tool nicht blockieren | ✓ Stabil |
+| Batched Duffel Requests | Rate-Limits respektieren | ✓ Max 3 concurrent |
+| 30-day TTL mit Cron | Einfacher als DB-level TTL | ✓ Funktioniert |
 
 ---
-*Last updated: 2026-02-02 after initialization*
+*Last updated: 2026-02-02 after v1.0 milestone*
