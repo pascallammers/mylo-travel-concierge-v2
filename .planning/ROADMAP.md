@@ -37,11 +37,11 @@ Plans:
   2. Nearby airport suggestions include distance from original airport
   3. User can click to re-search with alternative airport
   4. Nearby airports within 150km radius are found
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: Duffel Places API integration for nearby airports
-- [ ] 02-02: UX integration and alternative display
+- [ ] 02-01-PLAN.md — Duffel Places API integration with getNearbyAirports and drive time formatting
+- [ ] 02-02-PLAN.md — Flight search integration and alternative display in no-results handling
 
 ### Phase 3: Observability & Enhancement
 **Goal**: Failed searches are tracked for improvement, and flexible dates help find more options
