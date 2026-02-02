@@ -4,6 +4,8 @@
  */
 
 import { extractAirportCodes, type AirportExtractionResult } from './llm-airport-resolver';
+import { airportExtractionCache, airportCorrectionCache, createAirportKey } from '../performance-cache';
+import { validateIATACode } from '../api/duffel-client';
 
 /**
  * Airport IATA code mapping
@@ -368,6 +370,56 @@ export interface AirportResolutionResult {
 }
 
 /**
+ * Cache entry type for airport extractions (imported from performance-cache)
+ */
+interface AirportExtractionCacheEntry {
+  origin: { code: string; name: string; confidence: string } | null;
+  destination: { code: string; name: string; confidence: string } | null;
+  cachedAt: number;
+}
+
+/**
+ * Convert cache entry to full AirportResolutionResult
+ */
+function cacheEntryToResult(entry: AirportExtractionCacheEntry): AirportResolutionResult {
+  return {
+    origin: entry.origin ? {
+      code: entry.origin.code,
+      name: entry.origin.name,
+      city: entry.origin.name,
+      country: '',
+      confidence: entry.origin.confidence as 'high' | 'medium' | 'low',
+    } : null,
+    destination: entry.destination ? {
+      code: entry.destination.code,
+      name: entry.destination.name,
+      city: entry.destination.name,
+      country: '',
+      confidence: entry.destination.confidence as 'high' | 'medium' | 'low',
+    } : null,
+  };
+}
+
+/**
+ * Convert AirportResolutionResult to cache entry
+ */
+function resultToCacheEntry(result: AirportResolutionResult): AirportExtractionCacheEntry {
+  return {
+    origin: result.origin ? {
+      code: result.origin.code,
+      name: result.origin.name,
+      confidence: result.origin.confidence,
+    } : null,
+    destination: result.destination ? {
+      code: result.destination.code,
+      name: result.destination.name,
+      confidence: result.destination.confidence,
+    } : null,
+    cachedAt: Date.now(),
+  };
+}
+
+/**
  * Try to extract direct IATA codes from query (e.g., "FRA to LIR")
  */
 function tryDirectCodeExtraction(query: string): AirportResolutionResult | null {
@@ -495,12 +547,30 @@ function convertLLMResult(llmResult: AirportExtractionResult): AirportResolution
 }
 
 /**
+ * LLM timeout constant (2 seconds for airport resolution)
+ */
+const LLM_TIMEOUT_MS = 2000;
+
+/**
+ * Extract airport codes with timeout wrapper
+ */
+async function extractWithTimeout(query: string): Promise<AirportExtractionResult> {
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error('LLM timeout')), LLM_TIMEOUT_MS)
+  );
+
+  return Promise.race([extractAirportCodes(query), timeoutPromise]) as Promise<AirportExtractionResult>;
+}
+
+/**
  * Resolve airport codes from natural language query using LLM
  *
  * Uses a tiered approach:
  * 1. Try direct IATA code extraction (e.g., "FRA to LIR")
- * 2. Try static mapping for simple city names
- * 3. Fall back to LLM extraction for complex/ambiguous queries
+ * 2. Check cache for previous extractions
+ * 3. Try static mapping for simple city names
+ * 4. Fall back to LLM extraction for complex/ambiguous queries
+ * 5. Validate low-confidence results
  *
  * @param query - Natural language query (e.g., "Frankfurt nach costa rica liberia")
  * @returns Airport resolution result with confidence levels
@@ -513,16 +583,43 @@ export async function resolveAirportCodesWithLLM(query: string): Promise<Airport
     return directMatch;
   }
 
-  // Tier 2: Try static mapping for simple city names
+  // Tier 2: Cache lookup
+  const cacheKey = createAirportKey(query);
+  const cached = airportExtractionCache.get(cacheKey);
+  if (cached) {
+    console.log('[Airport] Cache hit:', cacheKey);
+    return cacheEntryToResult(cached);
+  }
+
+  // Check for user corrections that apply to this query
+  const correction = airportCorrectionCache.get(cacheKey);
+  if (correction) {
+    console.log(`[Airport] Applying previous user correction: ${correction.extractedCode} -> ${correction.correctedCode}`);
+    // Correction will be applied during result conversion
+  }
+
+  // Tier 3: Try static mapping for simple city names
   const staticResult = tryStaticMapping(query);
   if (staticResult && staticResult.origin?.confidence === 'high' && staticResult.destination?.confidence === 'high') {
     console.log('[Airport Resolution] Static mapping match:', staticResult);
+    airportExtractionCache.set(cacheKey, resultToCacheEntry(staticResult));
     return staticResult;
   }
 
-  // Tier 3: LLM extraction for complex/ambiguous queries
+  // Tier 4: LLM extraction for complex/ambiguous queries
   console.log('[Airport Resolution] Using LLM extraction for:', query);
-  const llmResult = await extractAirportCodes(query);
+
+  let llmResult: AirportExtractionResult;
+  try {
+    llmResult = await extractWithTimeout(query);
+  } catch (error) {
+    console.error('[Airport Resolution] LLM extraction failed:', error);
+    return {
+      origin: null,
+      destination: null,
+      error: 'Failed to extract airport codes from query (timeout or error)',
+    };
+  }
 
   if ('error' in llmResult) {
     return {
@@ -532,5 +629,37 @@ export async function resolveAirportCodesWithLLM(query: string): Promise<Airport
     };
   }
 
-  return convertLLMResult(llmResult);
+  const result = convertLLMResult(llmResult);
+
+  // Tier 5: Validate low-confidence results
+  if (result.origin?.confidence === 'low' && result.origin?.code) {
+    const valid = await validateIATACode(result.origin.code);
+    if (!valid) {
+      result.origin = null;
+      result.needsClarification = {
+        type: 'origin',
+        message: `Origin airport code "${result.origin.code}" is invalid`,
+      };
+    }
+  }
+
+  if (result.destination?.confidence === 'low' && result.destination?.code) {
+    const valid = await validateIATACode(result.destination.code);
+    if (!valid) {
+      result.destination = null;
+      result.needsClarification = {
+        type: result.needsClarification?.type === 'origin' ? 'both' : 'destination',
+        message: result.needsClarification?.message
+          ? `${result.needsClarification.message}; Destination airport code "${result.destination.code}" is invalid`
+          : `Destination airport code "${result.destination.code}" is invalid`,
+      };
+    }
+  }
+
+  // Cache successful extractions (not low-confidence or failed validations)
+  if (result.origin?.confidence !== 'low' && result.destination?.confidence !== 'low' && !result.error) {
+    airportExtractionCache.set(cacheKey, resultToCacheEntry(result));
+  }
+
+  return result;
 }
