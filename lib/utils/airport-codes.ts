@@ -3,6 +3,8 @@
  * Automatically converts city names to their primary airport IATA codes
  */
 
+import { extractAirportCodes, type AirportExtractionResult } from './llm-airport-resolver';
+
 /**
  * Airport IATA code mapping
  * Maps common city names (lowercase) to their primary airport codes
@@ -342,4 +344,193 @@ export function getCityNameForIATA(iataCode: string): string {
   const normalized = iataCode.toUpperCase();
   const entry = Object.entries(AIRPORT_CODES).find(([, code]) => code === normalized);
   return entry ? entry[0] : iataCode;
+}
+
+/**
+ * Airport resolution result with confidence levels
+ */
+export interface Airport {
+  code: string;
+  name: string;
+  city: string;
+  country: string;
+  confidence: 'high' | 'medium' | 'low';
+}
+
+export interface AirportResolutionResult {
+  origin: Airport | null;
+  destination: Airport | null;
+  needsClarification?: {
+    type: 'origin' | 'destination' | 'both';
+    message: string;
+  };
+  error?: string;
+}
+
+/**
+ * Try to extract direct IATA codes from query (e.g., "FRA to LIR")
+ */
+function tryDirectCodeExtraction(query: string): AirportResolutionResult | null {
+  // Match patterns like "FRA to LIR", "FRA nach LIR", "FRA → LIR"
+  const patterns = [
+    /\b([A-Z]{3})\s+(?:to|nach|→|-|->)\s+([A-Z]{3})\b/i,
+    /\b([A-Z]{3})\s*-\s*([A-Z]{3})\b/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = query.match(pattern);
+    if (match && match[1] && match[2]) {
+      const originCode = match[1].toUpperCase();
+      const destCode = match[2].toUpperCase();
+
+      if (isValidIATACode(originCode) && isValidIATACode(destCode)) {
+        return {
+          origin: {
+            code: originCode,
+            name: getCityNameForIATA(originCode),
+            city: getCityNameForIATA(originCode),
+            country: '',
+            confidence: 'high',
+          },
+          destination: {
+            code: destCode,
+            name: getCityNameForIATA(destCode),
+            city: getCityNameForIATA(destCode),
+            country: '',
+            confidence: 'high',
+          },
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Try static mapping for simple city names
+ */
+function tryStaticMapping(query: string): AirportResolutionResult | null {
+  // Normalize query
+  const normalized = query.toLowerCase().trim();
+
+  // Try to match patterns like "city1 to city2" or "city1 nach city2"
+  const patterns = [
+    /^(.+?)\s+(?:to|nach|→)\s+(.+?)$/i,
+    /^from\s+(.+?)\s+to\s+(.+?)$/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    if (match && match[1] && match[2]) {
+      const origin = match[1].trim();
+      const destination = match[2].trim();
+
+      const originCode = AIRPORT_CODES[origin];
+      const destCode = AIRPORT_CODES[destination];
+
+      if (originCode && destCode) {
+        return {
+          origin: {
+            code: originCode,
+            name: getCityNameForIATA(originCode),
+            city: origin,
+            country: '',
+            confidence: 'high',
+          },
+          destination: {
+            code: destCode,
+            name: getCityNameForIATA(destCode),
+            city: destination,
+            country: '',
+            confidence: 'high',
+          },
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Convert LLM extraction result to AirportResolutionResult
+ */
+function convertLLMResult(llmResult: AirportExtractionResult): AirportResolutionResult {
+  const origin = llmResult.originConfidence !== 'none' ? {
+    code: llmResult.originCode,
+    name: llmResult.originName,
+    city: llmResult.originCity,
+    country: llmResult.originCountry,
+    confidence: llmResult.originConfidence as 'high' | 'medium' | 'low',
+  } : null;
+
+  const destination = llmResult.destinationConfidence !== 'none' ? {
+    code: llmResult.destinationCode,
+    name: llmResult.destinationName,
+    city: llmResult.destinationCity,
+    country: llmResult.destinationCountry,
+    confidence: llmResult.destinationConfidence as 'high' | 'medium' | 'low',
+  } : null;
+
+  const result: AirportResolutionResult = {
+    origin,
+    destination,
+  };
+
+  // Check for low confidence requiring clarification
+  if (origin && origin.confidence === 'low') {
+    result.needsClarification = {
+      type: destination && destination.confidence === 'low' ? 'both' : 'origin',
+      message: llmResult.reasoning || 'Origin airport is ambiguous',
+    };
+  } else if (destination && destination.confidence === 'low') {
+    result.needsClarification = {
+      type: 'destination',
+      message: llmResult.reasoning || 'Destination airport is ambiguous',
+    };
+  }
+
+  return result;
+}
+
+/**
+ * Resolve airport codes from natural language query using LLM
+ *
+ * Uses a tiered approach:
+ * 1. Try direct IATA code extraction (e.g., "FRA to LIR")
+ * 2. Try static mapping for simple city names
+ * 3. Fall back to LLM extraction for complex/ambiguous queries
+ *
+ * @param query - Natural language query (e.g., "Frankfurt nach costa rica liberia")
+ * @returns Airport resolution result with confidence levels
+ */
+export async function resolveAirportCodesWithLLM(query: string): Promise<AirportResolutionResult> {
+  // Tier 1: Check if already valid IATA codes (e.g., "FRA to LIR")
+  const directMatch = tryDirectCodeExtraction(query);
+  if (directMatch) {
+    console.log('[Airport Resolution] Direct code match:', directMatch);
+    return directMatch;
+  }
+
+  // Tier 2: Try static mapping for simple city names
+  const staticResult = tryStaticMapping(query);
+  if (staticResult && staticResult.origin?.confidence === 'high' && staticResult.destination?.confidence === 'high') {
+    console.log('[Airport Resolution] Static mapping match:', staticResult);
+    return staticResult;
+  }
+
+  // Tier 3: LLM extraction for complex/ambiguous queries
+  console.log('[Airport Resolution] Using LLM extraction for:', query);
+  const llmResult = await extractAirportCodes(query);
+
+  if ('error' in llmResult) {
+    return {
+      origin: null,
+      destination: null,
+      error: 'Failed to extract airport codes from query',
+    };
+  }
+
+  return convertLLMResult(llmResult);
 }
