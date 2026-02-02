@@ -48,15 +48,15 @@ Plans:
 **Depends on**: Phase 2
 **Requirements**: REQ-003, REQ-004
 **Success Criteria** (what must be TRUE):
-  1. Failed searches are logged to Convex with query, extracted codes, timestamp
+  1. Failed searches are logged with query, extracted codes, timestamp
   2. Logs can be queried to find common failure patterns
   3. User can opt-in to "+/- 3 Tage" flexible date search
   4. Flexible date search returns results across 7-day window
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: Search monitoring and Convex logging
-- [ ] 03-02: Flexible date search implementation
+- [ ] 03-01-PLAN.md — Failed search logging with admin UI and 30-day TTL
+- [ ] 03-02-PLAN.md — Flexible date search fallback with ±3 day range
 
 ## Progress
 
