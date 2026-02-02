@@ -119,6 +119,39 @@ export const createPaymentKey = (userId: string) => `payments:${userId}`;
 export const createPaymentExpirationKey = (userId: string) => `payment-expiration:${userId}`;
 export const createDodoProStatusKey = (userId: string) => `dodo-pro-status:${userId}`;
 
+// Airport extraction cache types
+interface AirportExtractionCacheEntry {
+  origin: { code: string; name: string; confidence: string } | null;
+  destination: { code: string; name: string; confidence: string } | null;
+  cachedAt: number;
+}
+
+interface AirportCorrectionEntry {
+  originalQuery: string;      // e.g., "liberia costa rica"
+  extractedCode: string;      // what LLM originally extracted: "LIB"
+  correctedCode: string;      // what user corrected to: "LIR"
+  correctedAt: number;
+}
+
+// Airport extraction cache - 24h TTL, 500 entries
+export const airportExtractionCache = new PerformanceCache<AirportExtractionCacheEntry>(
+  'airport-extractions',
+  500,
+  24 * 60 * 60 * 1000  // 24 hours TTL
+);
+
+// User correction cache - stores user-validated corrections to influence future extractions
+// Key: normalized original query pattern, Value: corrected IATA code
+export const airportCorrectionCache = new PerformanceCache<AirportCorrectionEntry>(
+  'airport-corrections',
+  200,
+  7 * 24 * 60 * 60 * 1000  // 7 days TTL - corrections are valuable long-term
+);
+
+// Cache key generator for airport queries
+export const createAirportKey = (query: string) =>
+  `airport:${query.toLowerCase().trim().replace(/\s+/g, '-')}`;
+
 // Extract session token from headers
 export function extractSessionToken(headers: Headers): string | null {
   const cookies = headers.get('cookie');

@@ -224,4 +224,22 @@ function calculateTotalDuration(segments: any[]): string {
   return `PT${hours}H${minutes}M`;
 }
 
+/**
+ * Validate IATA code format and basic sanity check
+ * @param code - IATA code to validate
+ * @returns true if valid IATA code format (3 uppercase letters)
+ */
+export async function validateIATACode(code: string): Promise<boolean> {
+  // Basic format validation: exactly 3 uppercase letters
+  if (!/^[A-Z]{3}$/.test(code)) {
+    console.warn('[IATA Validation] Invalid format:', code);
+    return false;
+  }
+
+  // For low-confidence extractions, we validate format only
+  // Full validation would require Duffel API call which is not available in current SDK version
+  console.log('[IATA Validation] Format check passed:', code);
+  return true;
+}
+
 export { mapCabinClass };
