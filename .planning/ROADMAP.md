@@ -22,11 +22,11 @@ Transform Mylo's flight search from brittle static airport mapping to intelligen
   3. Ambiguous queries without context ask user to clarify
   4. Response time for airport resolution is under 2 seconds
   5. Repeated queries hit cache (no redundant LLM calls)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: LLM airport resolver with structured output
-- [ ] 01-02: Caching layer and integration
+- [ ] 01-01-PLAN.md — LLM airport resolver with xAI/Grok structured output
+- [ ] 01-02-PLAN.md — Caching layer, Duffel validation, and flight-search integration
 
 ### Phase 2: Alternative Airports
 **Goal**: Customers never hit a dead end when flights exist at nearby airports
@@ -65,7 +65,7 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. LLM Airport Resolution | 0/2 | Not started | - |
+| 1. LLM Airport Resolution | 0/2 | Planned | - |
 | 2. Alternative Airports | 0/2 | Not started | - |
 | 3. Observability & Enhancement | 0/2 | Not started | - |
 
