@@ -714,25 +714,27 @@ export async function resolveAirportCodesWithLLM(query: string): Promise<Airport
 
   // Tier 5: Validate low-confidence results
   if (result.origin?.confidence === 'low' && result.origin?.code) {
-    const valid = await validateIATACode(result.origin.code);
+    const originCode = result.origin.code;
+    const valid = await validateIATACode(originCode);
     if (!valid) {
       result.origin = null;
       result.needsClarification = {
         type: 'origin',
-        message: `Origin airport code "${result.origin.code}" is invalid`,
+        message: `Origin airport code "${originCode}" is invalid`,
       };
     }
   }
 
   if (result.destination?.confidence === 'low' && result.destination?.code) {
-    const valid = await validateIATACode(result.destination.code);
+    const destCode = result.destination.code;
+    const valid = await validateIATACode(destCode);
     if (!valid) {
       result.destination = null;
       result.needsClarification = {
         type: result.needsClarification?.type === 'origin' ? 'both' : 'destination',
         message: result.needsClarification?.message
-          ? `${result.needsClarification.message}; Destination airport code "${result.destination.code}" is invalid`
-          : `Destination airport code "${result.destination.code}" is invalid`,
+          ? `${result.needsClarification.message}; Destination airport code "${destCode}" is invalid`
+          : `Destination airport code "${destCode}" is invalid`,
       };
     }
   }
