@@ -12,6 +12,7 @@ import {
 } from '@/lib/utils/flight-search-links';
 import { createDuffelBookingSession } from '@/lib/utils/duffel-links';
 import { formatGracefulFlightError, formatFlightErrorWithAlternatives, AlternativeAirport } from '@/lib/utils/tool-error-response';
+import { logFailedSearch } from '@/lib/db/queries/failed-search';
 
 /**
  * Flight Search Tool - Searches both award flights (Seats.aero) and cash flights (Duffel)
@@ -244,6 +245,27 @@ Bitte geben Sie mehr Details an, zum Beispiel das Land oder einen alternativen F
       if (!hasSeats && !hasDuffel) {
         // Determine error type based on what failed
         const errorType = seatsError || duffelError ? 'provider_unavailable' : 'no_results';
+
+        // Log the failed search for monitoring (non-blocking)
+        try {
+          const userId = (messages as any)?.[0]?.userId || 'anonymous';
+          await logFailedSearch({
+            chatId,
+            userId,
+            queryText: fullQuery,
+            extractedOrigin: origin,
+            extractedDestination: destination,
+            departDate: params.departDate,
+            returnDate: params.returnDate || undefined,
+            cabin: params.cabin,
+            resultCount: 0,
+            errorType,
+            errorMessage: seatsError && duffelError ? 'Both providers failed' : undefined,
+          });
+          console.log('[Flight Search] Logged failed search to database');
+        } catch (logError) {
+          console.warn('[Flight Search] Failed to log search failure (non-blocking):', logError);
+        }
 
         // Only search for alternatives if this is a "no_results" case (not provider failure)
         if (errorType === 'no_results') {
