@@ -19,15 +19,15 @@ Ersetze die statische `airport-codes.ts` Mapping-Datei durch LLM-basierte Extrak
 ---
 
 ## REQ-002: Alternative Flughäfen bei 0 Ergebnissen
-**Priority:** MEDIUM | **Status:** Active
+**Priority:** MEDIUM | **Status:** Complete
 
 Wenn Suche keine Treffer liefert, schlage automatisch nahegelegene Flughäfen vor.
 
 **Acceptance Criteria:**
-- [ ] Nutze Duffel Places API für Nearby-Airports
-- [ ] Radius: 150km default
-- [ ] Zeige max 3 Alternativen
-- [ ] Klare UX: "Keine Flüge gefunden. Alternativen in der Nähe:"
+- [x] Nutze Duffel Places API für Nearby-Airports
+- [x] Radius: 150km default (dynamisch je nach Region)
+- [x] Zeige max 3 Alternativen
+- [x] Klare UX: "Keine Flüge gefunden. Alternativen in der Nähe:"
 
 ---
 
@@ -69,6 +69,6 @@ Tracke fehlgeschlagene Suchen für proaktive Verbesserung.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | REQ-001 | Phase 1 | Complete |
-| REQ-002 | Phase 2 | Pending |
+| REQ-002 | Phase 2 | Complete |
 | REQ-003 | Phase 3 | Pending |
 | REQ-004 | Phase 3 | Pending |
