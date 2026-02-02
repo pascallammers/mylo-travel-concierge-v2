@@ -186,7 +186,7 @@ Examples of queries that should trigger this tool:
               returnDate: params.returnDate,
               cabinClass: mapCabinClass(params.cabin),
               passengers: params.passengers,
-              maxConnections: params.nonStop ? 0 : 1,
+              maxConnections: params.nonStop ? 0 : 2,
             }).then((result) => {
               console.log('[Flight Search] Duffel SUCCESS:', result ? `${result.length} flights` : 'null');
               return result;
