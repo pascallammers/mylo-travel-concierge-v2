@@ -1,15 +1,15 @@
 # Requirements: Robuste Flugsuche
 
 ## REQ-001: LLM-basierte Airport-Extraktion
-**Priority:** HIGH | **Status:** Active
+**Priority:** HIGH | **Status:** Complete
 
 Ersetze die statische `airport-codes.ts` Mapping-Datei durch LLM-basierte Extraktion.
 
 **Acceptance Criteria:**
-- [ ] xAI/Grok extrahiert IATA-Codes aus natürlicher Sprache
-- [ ] Kontext-Verständnis: "costa rica liberia" → LIR (nicht LIB)
-- [ ] Strukturierte Ausgabe via Vercel AI SDK
-- [ ] Fallback auf Duffel Places API wenn LLM unsicher
+- [x] xAI/Grok extrahiert IATA-Codes aus natürlicher Sprache
+- [x] Kontext-Verständnis: "costa rica liberia" → LIR (nicht LIB)
+- [x] Strukturierte Ausgabe via Vercel AI SDK
+- [x] Fallback auf Duffel Places API wenn LLM unsicher
 
 **Constraints:**
 - Nutze bestehenden xAI/Grok Provider
@@ -68,7 +68,7 @@ Tracke fehlgeschlagene Suchen für proaktive Verbesserung.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REQ-001 | Phase 1 | Pending |
+| REQ-001 | Phase 1 | Complete |
 | REQ-002 | Phase 2 | Pending |
 | REQ-003 | Phase 3 | Pending |
 | REQ-004 | Phase 3 | Pending |
