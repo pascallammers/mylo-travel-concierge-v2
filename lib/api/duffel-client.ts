@@ -356,6 +356,10 @@ export async function getNearbyAirports(
       return [];
     }
 
+    // Extract coordinates (TypeScript narrowing doesn't work in closures)
+    const originLat = originAirport.latitude;
+    const originLng = originAirport.longitude;
+
     // Step 3: Determine search radius
     const radius = radiusMeters ?? getDynamicRadius(originAirport.iata_country_code || '');
 
@@ -385,8 +389,8 @@ export async function getNearbyAirports(
       )
       .map((place: any) => {
         const distance = calculateHaversineDistance(
-          originAirport.latitude,
-          originAirport.longitude,
+          originLat,
+          originLng,
           place.latitude,
           place.longitude
         );
