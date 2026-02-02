@@ -556,6 +556,28 @@ Bitte geben Sie mehr Details an, zum Beispiel das Land oder einen alternativen F
     } catch (error) {
       console.error('[Flight Search] ❌ Error:', error);
 
+      // Log failed search for monitoring (non-blocking)
+      // This catches exceptions that bypass the normal no-results logging
+      try {
+        const userId = (messages as any)?.[0]?.userId || 'anonymous';
+        await logFailedSearch({
+          chatId,
+          userId,
+          queryText: `${params.origin} nach ${params.destination}`,
+          extractedOrigin: params.origin, // Use raw params since resolution may have failed
+          extractedDestination: params.destination,
+          departDate: params.departDate,
+          returnDate: params.returnDate || undefined,
+          cabin: params.cabin,
+          resultCount: 0,
+          errorType: 'exception',
+          errorMessage: error instanceof Error ? error.message : String(error),
+        });
+        console.log('[Flight Search] 📊 Exception logged to failed_search_logs');
+      } catch (logError) {
+        console.warn('[Flight Search] ⚠️ Failed to log exception (non-critical):', logError instanceof Error ? logError.message : logError);
+      }
+
       // Update DB status if logging is enabled
       if (toolCallId) {
         try {
