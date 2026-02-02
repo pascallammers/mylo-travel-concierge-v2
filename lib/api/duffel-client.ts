@@ -411,4 +411,62 @@ export async function getNearbyAirports(
   }
 }
 
+/**
+ * Search Duffel across flexible date range with batched parallelism
+ * @param params - Base search parameters
+ * @param flexDays - Days to search before and after (default: 3)
+ * @returns Array of flights with searchedDate metadata
+ */
+export async function searchDuffelFlexibleDates(
+  params: DuffelSearchParams,
+  flexDays: number = 3
+): Promise<(DuffelFlight & { searchedDate: string })[]> {
+  const baseDate = new Date(params.departureDate);
+  const dates: string[] = [];
+
+  // Generate date range (+/- flexDays, excluding original date already searched)
+  for (let offset = -flexDays; offset <= flexDays; offset++) {
+    if (offset === 0) continue; // Skip original date
+    const date = new Date(baseDate);
+    date.setDate(date.getDate() + offset);
+    dates.push(date.toISOString().split('T')[0]);
+  }
+
+  console.log(`[Duffel] Searching ${dates.length} flexible dates with concurrency limit`);
+
+  const results: (DuffelFlight & { searchedDate: string })[] = [];
+  const batchSize = 3; // Max 3 concurrent requests to respect rate limits
+
+  for (let i = 0; i < dates.length; i += batchSize) {
+    const batch = dates.slice(i, i + batchSize);
+    console.log(`[Duffel] Processing batch ${Math.floor(i/batchSize) + 1}: ${batch.join(', ')}`);
+
+    const promises = batch.map(date =>
+      searchDuffel({ ...params, departureDate: date })
+        .then(flights => flights.map(f => ({ ...f, searchedDate: date })))
+        .catch(err => {
+          console.warn(`[Duffel] Date ${date} failed:`, err.message);
+          return []; // Return empty array on failure
+        })
+    );
+
+    const batchResults = await Promise.allSettled(promises);
+
+    // Extract successful results
+    batchResults.forEach((result) => {
+      if (result.status === 'fulfilled') {
+        results.push(...result.value);
+      }
+    });
+
+    // Small delay between batches to be respectful to API
+    if (i + batchSize < dates.length) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+  }
+
+  console.log(`[Duffel] Flexible search complete: ${results.length} total flights`);
+  return results;
+}
+
 export { mapCabinClass };
