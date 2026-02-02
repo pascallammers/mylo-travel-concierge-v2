@@ -1,7 +1,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { searchSeatsAero, TravelClass } from '@/lib/api/seats-aero-client';
-import { searchDuffel, mapCabinClass } from '@/lib/api/duffel-client';
+import { searchDuffel, mapCabinClass, getNearbyAirports, NearbyAirport } from '@/lib/api/duffel-client';
 import { recordToolCall, updateToolCall } from '@/lib/db/queries';
 import { mergeSessionState } from '@/lib/db/queries';
 import { resolveIATACode, resolveAirportCodesWithLLM, type AirportResolutionResult } from '@/lib/utils/airport-codes';
@@ -11,7 +11,7 @@ import {
   FlightSearchLinkParams,
 } from '@/lib/utils/flight-search-links';
 import { createDuffelBookingSession } from '@/lib/utils/duffel-links';
-import { formatGracefulFlightError } from '@/lib/utils/tool-error-response';
+import { formatGracefulFlightError, formatFlightErrorWithAlternatives, AlternativeAirport } from '@/lib/utils/tool-error-response';
 
 /**
  * Flight Search Tool - Searches both award flights (Seats.aero) and cash flights (Duffel)
@@ -244,6 +244,77 @@ Bitte geben Sie mehr Details an, zum Beispiel das Land oder einen alternativen F
       if (!hasSeats && !hasDuffel) {
         // Determine error type based on what failed
         const errorType = seatsError || duffelError ? 'provider_unavailable' : 'no_results';
+
+        // Only search for alternatives if this is a "no_results" case (not provider failure)
+        if (errorType === 'no_results') {
+          console.log('[Flight Search] No results, searching for nearby airports...');
+
+          // Determine which airport to find alternatives for
+          // Heuristic: If origin is a major hub, likely destination had no flights
+          // Otherwise, assume origin needs alternatives
+          const majorHubs = ['LHR', 'FRA', 'CDG', 'AMS', 'JFK', 'LAX', 'DXB', 'SIN', 'HKG', 'NRT'];
+          const emptyAirportCode = majorHubs.includes(origin) ? destination : origin;
+          const emptyAirportType: 'origin' | 'destination' = majorHubs.includes(origin) ? 'destination' : 'origin';
+
+          console.log(`[Flight Search] Looking for alternatives to ${emptyAirportType}: ${emptyAirportCode}`);
+
+          // Get nearby alternatives
+          const nearbyAirports = await getNearbyAirports(emptyAirportCode);
+
+          console.log(`[Flight Search] Found ${nearbyAirports.length} nearby airports for ${emptyAirportCode}:`,
+            nearbyAirports.map(a => `${a.code} (${a.driveTime})`).join(', '));
+
+          if (nearbyAirports.length > 0) {
+            // Map to AlternativeAirport format
+            const alternatives: AlternativeAirport[] = nearbyAirports.map(apt => ({
+              code: apt.code,
+              name: apt.name,
+              city: apt.city,
+              distance: apt.driveTime,
+            }));
+
+            // Build display name for the empty airport
+            const emptyAirportDisplay = emptyAirportType === 'origin'
+              ? originDisplay
+              : destinationDisplay;
+
+            // Return BOTH the formatted text AND structured data for UI rendering
+            const formattedMessage = formatFlightErrorWithAlternatives({
+              type: 'no_results',
+              message: `Für Ihre Suchkriterien wurden leider keine Flüge gefunden.`,
+              alternatives,
+              emptyAirport: emptyAirportType,
+              originalAirportName: emptyAirportDisplay,
+              searchParams: searchLinkParams,
+            });
+
+            console.log('[Flight Search] Returning alternatives response with interactive UI data');
+
+            // Return structured response that can be rendered as interactive UI
+            return JSON.stringify({
+              type: 'no_results_with_alternatives',
+              message: formattedMessage,
+              alternatives: alternatives.map(alt => ({
+                ...alt,
+                originalAirport: emptyAirportCode,
+                replaceType: emptyAirportType,
+              })),
+              originalSearch: {
+                origin,
+                destination,
+                departureDate: params.departDate,
+                returnDate: params.returnDate,
+                passengers: params.passengers,
+                cabinClass: params.cabin,
+              },
+            });
+          }
+
+          // No alternatives found - fall through to regular error
+          console.log('[Flight Search] No nearby airports found within search radius');
+        }
+
+        // Provider failure or no alternatives - use existing error handling
         const technicalDetails =
           seatsError && duffelError
             ? 'Both Seats.aero and Duffel failed'
@@ -253,13 +324,12 @@ Bitte geben Sie mehr Details an, zum Beispiel das Land oder einen alternativen F
                 ? 'Duffel failed'
                 : 'No flights matched search criteria';
 
-        // Return graceful error message instead of throwing
         return formatGracefulFlightError({
           type: errorType,
           message:
             errorType === 'provider_unavailable'
               ? 'Die Flugsuche konnte keine Ergebnisse laden, da einige unserer Datenquellen vorübergehend nicht erreichbar sind.'
-              : 'Für Ihre Suchkriterien wurden leider keine Flüge gefunden.',
+              : 'Keine Flüge gefunden. Versuchen Sie andere Daten.',
           searchParams: searchLinkParams,
           technicalDetails,
         });
