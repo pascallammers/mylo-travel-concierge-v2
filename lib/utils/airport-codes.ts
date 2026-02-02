@@ -563,6 +563,76 @@ async function extractWithTimeout(query: string): Promise<AirportExtractionResul
 }
 
 /**
+ * Detects if a user message is correcting a previous airport extraction.
+ * Patterns: "nein, ich meinte LIR", "nicht LIB sondern LIR", "korrektur: LIR"
+ * @param message - User's follow-up message
+ * @param previousExtraction - The previous extraction result to correct
+ * @returns Corrected result or null if not a correction
+ */
+export function detectCorrectionIntent(
+  message: string,
+  previousExtraction: AirportResolutionResult | null
+): { type: 'origin' | 'destination'; correctedCode: string } | null {
+  if (!previousExtraction) return null;
+
+  const correctionPatterns = [
+    /(?:nein|nicht|falsch)[,\s]+(?:ich meinte?|sondern|das ist)\s+([A-Z]{3})/i,
+    /korrektur[:\s]+([A-Z]{3})/i,
+    /(?:eigentlich|richtig ist)\s+([A-Z]{3})/i,
+    /^([A-Z]{3})$/,  // Just the code alone as a correction
+  ];
+
+  for (const pattern of correctionPatterns) {
+    const match = message.match(pattern);
+    if (match) {
+      const correctedCode = match[1].toUpperCase();
+      // Determine if correcting origin or destination based on context
+      const type = inferCorrectionTarget(previousExtraction, correctedCode);
+      return { type, correctedCode };
+    }
+  }
+  return null;
+}
+
+/**
+ * Infer which field (origin or destination) is being corrected
+ */
+function inferCorrectionTarget(
+  previous: AirportResolutionResult,
+  correctedCode: string
+): 'origin' | 'destination' {
+  // If previous had needsClarification, use that
+  if (previous.needsClarification?.type === 'origin' || previous.needsClarification?.type === 'both') {
+    return 'origin';
+  }
+  if (previous.needsClarification?.type === 'destination') {
+    return 'destination';
+  }
+  // Default to destination (most common correction case)
+  return 'destination';
+}
+
+/**
+ * Stores a user correction to influence future extractions.
+ * When LLM extracts LIB but user corrects to LIR for "liberia costa rica",
+ * this mapping is cached so future similar queries prefer LIR.
+ */
+export function storeCorrectionMapping(
+  originalQuery: string,
+  extractedCode: string,
+  correctedCode: string
+): void {
+  const key = createAirportKey(originalQuery);
+  airportCorrectionCache.set(key, {
+    originalQuery: originalQuery.toLowerCase(),
+    extractedCode,
+    correctedCode,
+    correctedAt: Date.now(),
+  });
+  console.log(`[Airport] Stored correction: "${originalQuery}" ${extractedCode} -> ${correctedCode}`);
+}
+
+/**
  * Resolve airport codes from natural language query using LLM
  *
  * Uses a tiered approach:
@@ -594,8 +664,19 @@ export async function resolveAirportCodesWithLLM(query: string): Promise<Airport
   // Check for user corrections that apply to this query
   const correction = airportCorrectionCache.get(cacheKey);
   if (correction) {
-    console.log(`[Airport] Applying previous user correction: ${correction.extractedCode} -> ${correction.correctedCode}`);
-    // Correction will be applied during result conversion
+    console.log(`[Airport] Found previous user correction: ${correction.extractedCode} -> ${correction.correctedCode}`);
+    // Apply the correction by returning a high-confidence result with the corrected code
+    const correctedResult: AirportResolutionResult = {
+      origin: null,
+      destination: {
+        code: correction.correctedCode,
+        name: getCityNameForIATA(correction.correctedCode),
+        city: getCityNameForIATA(correction.correctedCode),
+        country: '',
+        confidence: 'high',
+      },
+    };
+    return correctedResult;
   }
 
   // Tier 3: Try static mapping for simple city names
