@@ -17,6 +17,7 @@ import { ChatMessage } from '../types';
 import FirecrawlApp from '@mendable/firecrawl-js';
 import { getTweet } from 'react-tweet/api';
 import { XaiProviderOptions, xai } from '@ai-sdk/xai';
+import { getExaSearchType } from './exa-search-type';
 
 const pythonLibsAvailable = [
   'pandas',
@@ -79,7 +80,7 @@ const searchWeb = async (query: string, category?: SearchCategory, include_domai
   try {
     const { results } = await exa.searchAndContents(query, {
       numResults: 5,
-      type: 'auto',
+      type: getExaSearchType(),
       ...(category
         ? {
             category: category as SearchCategory,

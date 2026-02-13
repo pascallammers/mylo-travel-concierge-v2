@@ -5,6 +5,7 @@ import { tavily } from '@tavily/core';
 import Exa from 'exa-js';
 import { serverEnv } from '@/env/server';
 import { isUserProCached } from '@/lib/subscription';
+import { getExaSearchType } from './exa-search-type';
 
 const CURRENCY_SYMBOLS = {
   USD: '$',
@@ -268,7 +269,7 @@ export const stockChartTool = tool({
             text: true,
             category: 'financial report',
             livecrawl: 'preferred',
-            type: 'hybrid',
+            type: getExaSearchType(),
             numResults: 10,
             summary: {
               query: 'all important information relevent to the important for investors',

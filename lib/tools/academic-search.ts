@@ -2,6 +2,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import Exa from 'exa-js';
 import { serverEnv } from '@/env/server';
+import { getExaSearchType } from './exa-search-type';
 
 export const academicSearchTool = tool({
   description: 'Search academic papers and research.',
@@ -13,7 +14,7 @@ export const academicSearchTool = tool({
       const exa = new Exa(serverEnv.EXA_API_KEY as string);
 
       const result = await exa.searchAndContents(query, {
-        type: 'auto',
+        type: getExaSearchType(),
         numResults: 20,
         category: 'research paper',
         summary: {

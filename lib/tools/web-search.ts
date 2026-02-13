@@ -7,6 +7,7 @@ import { ChatMessage } from '../types';
 import Parallel from 'parallel-web';
 import FirecrawlApp, { SearchResultWeb, SearchResultNews, SearchResultImages, Document } from '@mendable/firecrawl-js';
 import { tavily, type TavilyClient } from '@tavily/core';
+import { getExaSearchTypeForQuality } from './exa-search-type';
 
 const extractDomain = (url: string | null | undefined): string => {
   if (!url || typeof url !== 'string') return '';
@@ -510,7 +511,7 @@ class ExaSearchStrategy implements SearchStrategy {
 
         const searchOptions: any = {
           text: true,
-          type: currentQuality === 'best' ? 'hybrid' : 'auto',
+          type: getExaSearchTypeForQuality(currentQuality),
           numResults: currentMaxResults < 10 ? 10 : currentMaxResults,
           livecrawl: 'preferred',
           useAutoprompt: true,

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import Exa from 'exa-js';
 import { serverEnv } from '@/env/server';
 import { getSubtitles, getVideoDetails } from 'youtube-caption-extractor';
+import { type ExaSdkSearchType, getExaSearchType } from './exa-search-type';
 
 interface VideoDetails {
   title?: string;
@@ -79,7 +80,7 @@ export const youtubeSearchTool = tool({
       }
 
       interface ExaSearchOptions {
-        type?: 'auto' | 'neural' | 'keyword' | 'hybrid' | 'fast';
+        type?: ExaSdkSearchType;
         numResults?: number;
         includeDomains?: string[];
         startPublishedDate?: string;
@@ -87,7 +88,7 @@ export const youtubeSearchTool = tool({
       }
 
       const searchOptions: ExaSearchOptions = {
-        type: 'auto',
+        type: getExaSearchType(),
         numResults: 5,
         includeDomains: ['youtube.com', 'youtu.be', 'm.youtube.com'],
       };
