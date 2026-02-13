@@ -34,8 +34,9 @@ export default function AuthCard() {
         {
           onSuccess: () => {
             toast.success('Erfolgreich eingeloggt!');
-            // Use window.location for full page reload to ensure session cookie is recognized
-            window.location.href = '/';
+            // Use client navigation first to avoid a full page reload after sign-in.
+            router.replace('/');
+            router.refresh();
           },
           onError: (ctx) => {
             toast.error(ctx.error.message || 'Login fehlgeschlagen. Bitte prüfe deine Zugangsdaten.');
@@ -43,8 +44,9 @@ export default function AuthCard() {
           },
         },
       );
-    } catch (error: any) {
-      toast.error(error?.message || 'Login fehlgeschlagen. Bitte prüfe deine Zugangsdaten.');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Login fehlgeschlagen. Bitte prüfe deine Zugangsdaten.';
+      toast.error(message);
       console.error('Auth error:', error);
       setLoading(false);
     }

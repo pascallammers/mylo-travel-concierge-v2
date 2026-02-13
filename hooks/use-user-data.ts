@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getCurrentUser } from '@/app/actions';
+import { getCurrentUserBootstrapData } from '@/app/user-actions';
 import { type ComprehensiveUserData } from '@/lib/user-data';
 import { shouldBypassRateLimits } from '@/ai/providers';
 
@@ -12,7 +12,7 @@ export function useUserData() {
     isRefetching,
   } = useQuery({
     queryKey: ['comprehensive-user-data'],
-    queryFn: getCurrentUser,
+    queryFn: getCurrentUserBootstrapData,
     staleTime: 1000 * 60 * 30, // 30 minutes - matches server cache
     gcTime: 1000 * 60 * 60, // 1 hour cache retention
     refetchOnWindowFocus: false,
