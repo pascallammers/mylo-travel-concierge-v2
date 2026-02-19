@@ -7,6 +7,7 @@ import { db } from './db';
 import { auth } from './auth';
 import { headers } from 'next/headers';
 import { getPaymentsByUserId, getDodoPaymentsExpirationInfo } from './db/queries';
+import { doesSubscriptionGrantAccess } from './subscription-access';
 
 // Configurable subscription duration for DodoPayments (in months)
 const DODO_SUBSCRIPTION_DURATION_MONTHS = parseInt(process.env.DODO_SUBSCRIPTION_DURATION_MONTHS || '1');
@@ -120,10 +121,16 @@ export const getComprehensiveUserData = cache(async (): Promise<ComprehensiveUse
       return null;
     }
 
+    const now = new Date();
+
     // Process Polar subscription
+    const latestPolarSubscription = polarSubscriptions.sort(
+      (a, b) => new Date(b.currentPeriodEnd).getTime() - new Date(a.currentPeriodEnd).getTime(),
+    )[0];
+
     const activePolarSubscription = polarSubscriptions
-      .filter((sub) => sub.status === 'active')
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+      .filter((sub) => doesSubscriptionGrantAccess(sub.status, sub.currentPeriodEnd, now))
+      .sort((a, b) => new Date(b.currentPeriodEnd).getTime() - new Date(a.currentPeriodEnd).getTime())[0];
 
     // Process DodoPayments
     const successfulDodoPayments = dodoPayments
@@ -138,39 +145,42 @@ export const getComprehensiveUserData = cache(async (): Promise<ComprehensiveUse
       const paymentDate = new Date(mostRecentPayment.createdAt);
       const subscriptionEndDate = new Date(paymentDate);
       subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + DODO_SUBSCRIPTION_DURATION_MONTHS);
-      isDodoActive = subscriptionEndDate > new Date();
+      isDodoActive = subscriptionEndDate > now;
     }
 
     // Determine overall Pro status and source
     let isProUser = false;
     let proSource: 'polar' | 'dodo' | 'none' = 'none';
     let subscriptionStatus: 'active' | 'canceled' | 'expired' | 'none' = 'none';
+    const isAccountActive =
+      userData.role === 'admin' ||
+      (userData.isActive !== false && (!userData.activationStatus || userData.activationStatus === 'active'));
 
-    if (activePolarSubscription) {
+    if (isAccountActive && activePolarSubscription) {
       isProUser = true;
       proSource = 'polar';
-      subscriptionStatus = 'active';
-    } else if (isDodoActive) {
+      subscriptionStatus =
+        activePolarSubscription.status === 'canceled' || activePolarSubscription.cancelAtPeriodEnd ? 'canceled' : 'active';
+    } else if (isAccountActive && isDodoActive) {
       isProUser = true;
       proSource = 'dodo';
       subscriptionStatus = 'active';
     } else {
-      // Check for expired/canceled Polar subscriptions
-      const latestPolarSubscription = polarSubscriptions.sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      )[0];
-
       if (latestPolarSubscription) {
-        const now = new Date();
-        const isExpired = new Date(latestPolarSubscription.currentPeriodEnd) < now;
-        const isCanceled = latestPolarSubscription.status === 'canceled';
+        const isExpired = new Date(latestPolarSubscription.currentPeriodEnd) <= now;
+        const isCanceled = latestPolarSubscription.status === 'canceled' || latestPolarSubscription.cancelAtPeriodEnd;
 
-        if (isCanceled) {
-          subscriptionStatus = 'canceled';
-        } else if (isExpired) {
+        if (isExpired) {
           subscriptionStatus = 'expired';
+        } else if (isCanceled) {
+          subscriptionStatus = 'canceled';
         }
       }
+    }
+
+    // Admins keep platform access even without a paid subscription.
+    if (userData.role === 'admin') {
+      isProUser = true;
     }
 
     // Build comprehensive user data

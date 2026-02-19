@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react';
 import { UserTable } from '@/components/admin/user-table';
 import { UserEditModal } from '@/components/admin/user-edit-modal';
 import { UserCreateModal } from '@/components/admin/user-create-modal';
+import { AccessAuditCard } from '@/components/admin/access-audit-card';
 import { useAdminUsers, type AdminUser } from '@/hooks/use-admin-users';
+import { useAdminAccessAudit } from '@/hooks/use-admin-access-audit';
 import { toast } from 'sonner';
 
 /**
@@ -40,6 +42,15 @@ export default function UsersPage() {
     hasActiveFilters,
     refetch,
   } = useAdminUsers();
+  const {
+    summary: accessAuditSummary,
+    issues: accessAuditIssues,
+    isLoading: isAccessAuditLoading,
+    isFetching: isAccessAuditFetching,
+    revokeSessions,
+    isRevoking: isAccessAuditRevoking,
+    refetch: refetchAccessAudit,
+  } = useAdminAccessAudit();
 
   // Modal state
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
@@ -179,6 +190,7 @@ export default function UsersPage() {
    */
   const handleModalSuccess = () => {
     refetch();
+    refetchAccessAudit();
   };
 
   /**
@@ -218,6 +230,25 @@ export default function UsersPage() {
     }
   };
 
+  /**
+   * Revokes active sessions for users flagged by access audit.
+   */
+  const handleRevokeAccessAuditSessions = async () => {
+    try {
+      const result = await revokeSessions();
+      toast.success('Sessions bereinigt', {
+        description: `${result.revokedSessions} Session(s) bei ${result.affectedUsers} Nutzer(n) beendet`,
+      });
+      refetch();
+      refetchAccessAudit();
+    } catch (err) {
+      console.error('Error revoking access audit sessions:', err);
+      toast.error('Fehler', {
+        description: err instanceof Error ? err.message : 'Sessions konnten nicht bereinigt werden',
+      });
+    }
+  };
+
   // Error state
   if (isError) {
     return (
@@ -240,6 +271,18 @@ export default function UsersPage() {
           Manage user roles and view activity statistics
         </p>
       </div>
+
+      <AccessAuditCard
+        summary={accessAuditSummary}
+        issues={accessAuditIssues}
+        isLoading={isAccessAuditLoading}
+        isFetching={isAccessAuditFetching}
+        isRevoking={isAccessAuditRevoking}
+        onRefresh={() => {
+          void refetchAccessAudit();
+        }}
+        onRevokeSessions={handleRevokeAccessAuditSessions}
+      />
 
       {isLoading && !data ? (
         <div className="flex items-center justify-center py-12">

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionCookie } from 'better-auth/cookies';
-import { checkUserAccess } from '@/lib/access-control';
 
 const authRoutes = ['/sign-in', '/reset-password'];
 const publicRoutes = ['/terms', '/privacy-policy', '/subscription-expired', '/pricing'];
@@ -50,12 +49,6 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/sign-in', request.url));
     }
     return NextResponse.redirect(new URL('/#settings', request.url));
-  }
-
-  // If user is authenticated but trying to access auth routes, redirect to home
-  if (sessionCookie && authRoutes.some((route) => pathname.startsWith(route))) {
-    console.log('Redirecting authenticated user to home');
-    return NextResponse.redirect(new URL('/', request.url));
   }
 
   // If user is NOT authenticated and trying to access protected routes, redirect to sign-in

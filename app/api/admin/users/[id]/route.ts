@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isCurrentUserAdmin } from '@/lib/auth-utils';
 import { db } from '@/lib/db';
-import { user, subscription } from '@/lib/db/schema';
+import { user, subscription, session } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { invalidateUserCaches } from '@/lib/performance-cache';
 import { clearUserDataCache } from '@/lib/user-data-server';
@@ -98,6 +98,15 @@ export async function PATCH(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    const shouldRevokeSessions =
+      updates.isActive === false ||
+      (updates.activationStatus !== undefined && updates.activationStatus !== 'active');
+
+    if (shouldRevokeSessions) {
+      await db.delete(session).where(eq(session.userId, userId));
+      console.log(`🔒 Revoked all sessions for user ${userId} after account status update`);
+    }
+
     // Invalidate caches
     invalidateUserCaches(userId);
     clearUserDataCache(userId);
@@ -148,6 +157,8 @@ export async function DELETE(
     if (!deactivatedUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+
+    await db.delete(session).where(eq(session.userId, userId));
 
     // Invalidate caches
     invalidateUserCaches(userId);

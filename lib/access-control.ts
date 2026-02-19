@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { subscription, user } from '@/lib/db/schema';
-import { eq, and, gt } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
+import { doesSubscriptionGrantAccess } from './subscription-access';
 
 export type AccessCheckResult = {
   hasAccess: boolean;
@@ -37,50 +38,52 @@ export async function checkUserAccess(userId: string): Promise<AccessCheckResult
     }
 
     // 3. Check if user account is active
-    if (!userRecord.isActive || userRecord.activationStatus !== 'active') {
+    if (userRecord.isActive === false || (userRecord.activationStatus && userRecord.activationStatus !== 'active')) {
       console.log(`❌ User ${userId} is inactive (isActive: ${userRecord.isActive}, status: ${userRecord.activationStatus})`);
       return { hasAccess: false, reason: 'inactive_user' };
     }
 
-    // 4. Check for active subscription
+    // 4. Check latest subscription validity
     const now = new Date();
-    const activeSubscription = await db.query.subscription.findFirst({
-      where: and(
-        eq(subscription.userId, userId),
-        eq(subscription.status, 'active'),
-        gt(subscription.currentPeriodEnd, now)
-      ),
+    const latestSubscription = await db.query.subscription.findFirst({
+      where: eq(subscription.userId, userId),
       columns: { currentPeriodEnd: true, status: true },
-      orderBy: (subscription, { desc }) => [desc(subscription.currentPeriodEnd)],
+      orderBy: [desc(subscription.currentPeriodEnd)],
     });
 
-    if (activeSubscription) {
-      console.log(`✅ Active subscription found for user ${userId}, valid until ${activeSubscription.currentPeriodEnd}`);
+    if (!latestSubscription) {
+      console.log(`❌ No subscription found for user ${userId}`);
+      return { hasAccess: false, reason: 'no_subscription' };
+    }
+
+    if (doesSubscriptionGrantAccess(latestSubscription.status, latestSubscription.currentPeriodEnd, now)) {
+      console.log(
+        `✅ Valid subscription found for user ${userId}, valid until ${latestSubscription.currentPeriodEnd} (status: ${latestSubscription.status})`
+      );
       return {
         hasAccess: true,
         reason: 'active_subscription',
-        subscriptionEndDate: activeSubscription.currentPeriodEnd,
+        subscriptionEndDate: latestSubscription.currentPeriodEnd,
       };
     }
 
-    // 5. Check for any subscription (might be expired)
-    const anySubscription = await db.query.subscription.findFirst({
-      where: eq(subscription.userId, userId),
-      columns: { status: true, currentPeriodEnd: true },
-      orderBy: (subscription, { desc }) => [desc(subscription.currentPeriodEnd)],
-    });
-
-    if (anySubscription && anySubscription.currentPeriodEnd < now) {
-      console.log(`❌ Expired subscription for user ${userId}, expired on ${anySubscription.currentPeriodEnd}`);
+    if (latestSubscription.currentPeriodEnd <= now) {
+      console.log(`❌ Expired subscription for user ${userId}, expired on ${latestSubscription.currentPeriodEnd}`);
       return {
         hasAccess: false,
         reason: 'expired_subscription',
-        subscriptionEndDate: anySubscription.currentPeriodEnd,
+        subscriptionEndDate: latestSubscription.currentPeriodEnd,
       };
     }
 
-    console.log(`❌ No subscription found for user ${userId}`);
-    return { hasAccess: false, reason: 'no_subscription' };
+    console.log(
+      `❌ Invalid subscription status for user ${userId} (status: ${latestSubscription.status}, validUntil: ${latestSubscription.currentPeriodEnd})`
+    );
+    return {
+      hasAccess: false,
+      reason: 'no_subscription',
+      subscriptionEndDate: latestSubscription.currentPeriodEnd,
+    };
   } catch (error) {
     console.error('❌ Error checking user access:', error);
     // Fail closed: deny access on error
@@ -95,14 +98,11 @@ export async function checkUserAccess(userId: string): Promise<AccessCheckResult
  */
 export async function hasActiveSubscription(userId: string): Promise<boolean> {
   const now = new Date();
-  const activeSubscription = await db.query.subscription.findFirst({
-    where: and(
-      eq(subscription.userId, userId),
-      eq(subscription.status, 'active'),
-      gt(subscription.currentPeriodEnd, now)
-    ),
-    columns: { id: true },
+  const latestSubscription = await db.query.subscription.findFirst({
+    where: eq(subscription.userId, userId),
+    columns: { status: true, currentPeriodEnd: true },
+    orderBy: [desc(subscription.currentPeriodEnd)],
   });
 
-  return !!activeSubscription;
+  return doesSubscriptionGrantAccess(latestSubscription?.status, latestSubscription?.currentPeriodEnd, now);
 }

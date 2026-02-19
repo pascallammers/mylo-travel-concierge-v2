@@ -1,4 +1,5 @@
 import { betterAuth } from 'better-auth';
+import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { nextCookies } from 'better-auth/next-js';
 import {
   user,
@@ -32,6 +33,7 @@ import { invalidateUserCaches } from './performance-cache';
 import { clearUserDataCache } from './user-data-server';
 import bcrypt from 'bcryptjs';
 import { buildResetPasswordUrl, resolveBaseUrl } from './password-reset';
+import { checkUserAccess, type AccessCheckResult } from './access-control';
 
 config({
   path: '.env.local',
@@ -42,6 +44,27 @@ function safeParseDate(value: string | Date | null | undefined): Date | null {
   if (!value) return null;
   if (value instanceof Date) return value;
   return new Date(value);
+}
+
+/**
+ * Creates a localized login denial message from an access check result.
+ * @param accessResult - Result returned by the access-control service.
+ * @returns Human-friendly error shown on the sign-in form.
+ */
+function getAccessDeniedMessage(accessResult: AccessCheckResult): string {
+  if (accessResult.reason === 'inactive_user') {
+    return 'Dein Account ist deaktiviert. Bitte kontaktiere den Support.';
+  }
+
+  if (accessResult.reason === 'expired_subscription') {
+    return 'Dein Abo ist abgelaufen. Bitte verlängere dein Abo, um MYLO weiter zu nutzen.';
+  }
+
+  if (accessResult.reason === 'no_subscription') {
+    return 'Dein Abo ist nicht aktiv. Bitte kontaktiere den Support.';
+  }
+
+  return 'Der Login ist für diesen Account derzeit nicht möglich. Bitte kontaktiere den Support.';
 }
 
 const polarClient = new Polar({
@@ -125,6 +148,45 @@ export const auth = betterAuth({
         throw error;
       }
     },
+  },
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      if (!ctx.path.startsWith('/sign-in')) {
+        return;
+      }
+
+      if (!ctx.body || typeof ctx.body !== 'object') {
+        return;
+      }
+
+      const emailValue = 'email' in ctx.body ? ctx.body.email : undefined;
+      if (typeof emailValue !== 'string') {
+        return;
+      }
+
+      const normalizedEmail = emailValue.toLowerCase().trim();
+      if (!normalizedEmail) {
+        return;
+      }
+
+      const matchedUser = await db.query.user.findFirst({
+        where: eq(user.email, normalizedEmail),
+        columns: { id: true },
+      });
+
+      if (!matchedUser) {
+        return;
+      }
+
+      const accessResult = await checkUserAccess(matchedUser.id);
+      if (accessResult.hasAccess) {
+        return;
+      }
+
+      throw new APIError('FORBIDDEN', {
+        message: getAccessDeniedMessage(accessResult),
+      });
+    }),
   },
   pluginRoutes: {
     autoNamespace: true,

@@ -79,6 +79,12 @@ interface User {
   subscriptionValidUntil?: string | null;
 }
 
+function toEditableSubscriptionStatus(
+  status: User['subscriptionStatus'] | undefined,
+): 'active' | 'canceled' {
+  return status === 'active' ? 'active' : 'canceled';
+}
+
 interface UserEditModalProps {
   user: User | null;
   open: boolean;
@@ -104,7 +110,9 @@ export function UserEditModal({
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'user' | 'admin'>('user');
   const [isActive, setIsActive] = useState(true);
-  const [activationStatus, setActivationStatus] = useState<'active' | 'inactive' | 'grace_period' | 'suspended' | 'cancelled'>('active');
+  const [activationStatus, setActivationStatus] = useState<
+    'active' | 'inactive' | 'grace_period' | 'suspended' | 'cancelled'
+  >('active');
   const [subscriptionValidUntil, setSubscriptionValidUntil] = useState<Date | undefined>();
   const [subscriptionStatus, setSubscriptionStatus] = useState<'active' | 'canceled'>('active');
 
@@ -115,7 +123,8 @@ export function UserEditModal({
       setEmail(user.email);
       setRole(user.role);
       setIsActive(user.isActive ?? true);
-      setActivationStatus(user.activationStatus || 'active');
+      setActivationStatus(user.activationStatus === 'cancelled' ? 'suspended' : (user.activationStatus || 'active'));
+      setSubscriptionStatus(toEditableSubscriptionStatus(user.subscriptionStatus));
       
       if (user.subscriptionValidUntil) {
         setSubscriptionValidUntil(new Date(user.subscriptionValidUntil));
@@ -167,6 +176,8 @@ export function UserEditModal({
 
     setLoading(true);
     try {
+      const normalizedActivationStatus = activationStatus === 'cancelled' ? 'suspended' : activationStatus;
+
       // Update user data
       const userResponse = await fetch(`/api/admin/users/${user.id}`, {
         method: 'PATCH',
@@ -176,7 +187,7 @@ export function UserEditModal({
           email,
           role,
           isActive,
-          activationStatus,
+          activationStatus: normalizedActivationStatus,
         }),
       });
 
@@ -185,12 +196,18 @@ export function UserEditModal({
       }
 
       // Update subscription if changed
-      if (subscriptionValidUntil) {
+      const initialSubscriptionStatus = toEditableSubscriptionStatus(user.subscriptionStatus);
+      const shouldUpdateSubscription =
+        user.subscriptionStatus !== 'none' ||
+        subscriptionValidUntil !== undefined ||
+        subscriptionStatus !== initialSubscriptionStatus;
+
+      if (shouldUpdateSubscription) {
         const subscriptionResponse = await fetch(`/api/admin/users/${user.id}/subscription`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            validUntil: subscriptionValidUntil.toISOString(),
+            validUntil: subscriptionValidUntil?.toISOString(),
             status: subscriptionStatus,
           }),
         });

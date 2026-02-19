@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isCurrentUserAdmin } from '@/lib/auth-utils';
 import { db } from '@/lib/db';
-import { subscription } from '@/lib/db/schema';
+import { subscription, session } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { invalidateUserCaches } from '@/lib/performance-cache';
 import { clearUserDataCache } from '@/lib/user-data-server';
@@ -81,6 +81,15 @@ export async function PATCH(
         { error: 'Failed to update subscription' },
         { status: 500 }
       );
+    }
+
+    const shouldRevokeSessions =
+      updatedSubscription.currentPeriodEnd <= new Date() ||
+      ['incomplete', 'incomplete_expired', 'unpaid'].includes(updatedSubscription.status);
+
+    if (shouldRevokeSessions) {
+      await db.delete(session).where(eq(session.userId, userId));
+      console.log(`🔒 Revoked all sessions for user ${userId} after subscription update`);
     }
 
     // Invalidate caches
