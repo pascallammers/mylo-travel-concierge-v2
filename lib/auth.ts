@@ -82,9 +82,11 @@ export const auth = betterAuth({
     max: 50,
     window: 60,
   },
-  cookieCache: {
-    enabled: true,
-    maxAge: 5 * 60,
+  session: {
+    cookieCache: {
+      enabled: true,
+      maxAge: 5 * 60,
+    },
   },
   database: drizzleAdapter(db, {
     provider: 'pg',
@@ -521,11 +523,6 @@ export const auth = betterAuth({
     nextCookies(),
   ],
   trustedOrigins: [
-    'http://localhost:3000',
-    'https://mylo-travel-concierge-v2.vercel.app',
-    'https://mylo-travel-concierge-v2-*.vercel.app', // Preview deployments
-  ],
-  allowedOrigins: [
     'http://localhost:3000',
     'https://mylo-travel-concierge-v2.vercel.app',
     'https://mylo-travel-concierge-v2-*.vercel.app', // Preview deployments
