@@ -29,12 +29,11 @@ export async function POST(req: NextRequest) {
       payload = Object.fromEntries(formData.entries()) as unknown as ThriveCartWebhookPayload;
 
       // Parse nested JSON fields that ThriveCart sends as strings
-      for (const key of ['customer', 'order', 'purchases', 'purchase_map'] as const) {
-        if (typeof (payload as Record<string, unknown>)[key] === 'string') {
+      const raw = payload as unknown as Record<string, unknown>;
+      for (const key of ['customer', 'order', 'purchases', 'purchase_map']) {
+        if (typeof raw[key] === 'string') {
           try {
-            (payload as Record<string, unknown>)[key] = JSON.parse(
-              (payload as Record<string, unknown>)[key] as string
-            );
+            raw[key] = JSON.parse(raw[key] as string);
           } catch {
             // Leave as string if not valid JSON
           }
