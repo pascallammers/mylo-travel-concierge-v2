@@ -149,6 +149,8 @@ export const subscription = pgTable('subscription', {
   lastPaymentDate: timestamp('last_payment_date'),
   nextPaymentDate: timestamp('next_payment_date'),
   paymentMethod: text('payment_method'),
+  // ThriveCart sync tracking
+  lastSyncedAt: timestamp('last_synced_at'),
 });
 
 // Extreme search usage tracking table
@@ -234,6 +236,36 @@ export const payment = pgTable('payment', {
   thrivecardCustomerId: text('thrivecard_customer_id'),
   paymentProvider: text('payment_provider').default('thrivecard'), // 'thrivecard', 'polar', 'dodo'
   webhookSource: text('webhook_source'), // 'zapier', 'direct', etc.
+  syncSource: text('sync_source'), // 'webhook' | 'sync' | 'manual'
+});
+
+// ThriveCart webhook event log for idempotency and debugging
+export const thrivecartWebhookLog = pgTable('thrivecart_webhook_log', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => generateId()),
+  eventType: text('event_type').notNull(),
+  eventId: text('event_id'),
+  orderId: text('order_id'),
+  customerEmail: text('customer_email').notNull(),
+  payload: json('payload'),
+  processedAt: timestamp('processed_at').notNull().defaultNow(),
+  result: text('result').notNull(), // 'success' | 'error' | 'skipped'
+  errorMessage: text('error_message'),
+});
+
+// ThriveCart sync job log
+export const thrivecartSyncLog = pgTable('thrivecart_sync_log', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => generateId()),
+  startedAt: timestamp('started_at').notNull().defaultNow(),
+  completedAt: timestamp('completed_at'),
+  totalChecked: integer('total_checked').default(0),
+  totalCorrected: integer('total_corrected').default(0),
+  totalErrors: integer('total_errors').default(0),
+  details: json('details'),
+  status: text('status').notNull().default('running'), // 'running' | 'completed' | 'failed'
 });
 
 // Lookout table for scheduled searches
@@ -489,6 +521,8 @@ export type AmadeusToken = InferSelectModel<typeof amadeusTokens>;
 export type UserAccessControl = InferSelectModel<typeof userAccessControl>;
 export type KBDocument = InferSelectModel<typeof kbDocuments>;
 export type PasswordResetHistory = InferSelectModel<typeof passwordResetHistory>;
+export type ThriveCartWebhookLog = InferSelectModel<typeof thrivecartWebhookLog>;
+export type ThriveCartSyncLog = InferSelectModel<typeof thrivecartSyncLog>;
 
 // ============================================
 // AwardWallet Integration
