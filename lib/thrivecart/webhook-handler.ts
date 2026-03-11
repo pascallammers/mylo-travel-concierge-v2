@@ -211,19 +211,12 @@ async function handleSubscriptionPayment(
   const foundUser = await findUserByEmail(email);
   if (!foundUser) return { success: false, action: 'rebill', error: `User not found: ${email}` };
 
-  // Idempotency: check if this order was already processed
-  const orderId = String(payload.order_id || '');
-  if (orderId) {
-    const [existing] = await db
-      .select()
-      .from(payment)
-      .where(eq(payment.thrivecardPaymentId, orderId))
-      .limit(1);
-    if (existing) return { success: true, action: 'rebill_already_processed' };
-  }
-
   const sub = await findUserSubscription(foundUser.id);
   if (!sub) return { success: false, action: 'rebill', error: `No subscription for: ${email}` };
+
+  // Idempotency is already handled at the top level via event_id in processWebhookEvent.
+  // Do NOT check order_id here — ThriveCart reuses the same order_id for initial purchase
+  // and all subsequent rebills, which would incorrectly skip all recurring payments.
 
   await extendSubscriptionPeriod(sub.id);
   if (!foundUser.isActive || foundUser.activationStatus !== 'active') {
@@ -231,8 +224,9 @@ async function handleSubscriptionPayment(
   }
 
   const myloPurchase = payload.purchases?.find((p) => p.product_id === 5) || payload.purchases?.[0];
+  const eventId = payload.event_id ? String(payload.event_id) : crypto.randomBytes(8).toString('hex');
   await recordPayment(foundUser.id, {
-    orderId,
+    orderId: eventId,
     customerId: String(payload.customer_id || ''),
     amount: myloPurchase?.amount || payload.order?.total || 0,
     currency: payload.currency || 'EUR',

@@ -1,10 +1,11 @@
 import { db } from '@/lib/db';
 import { user, subscription, thrivecartSyncLog } from '@/lib/db/schema';
-import { eq, isNotNull, desc } from 'drizzle-orm';
+import { eq, isNotNull, desc, and, ne } from 'drizzle-orm';
 import { getCustomerByEmail, rateLimitDelay } from './client';
 import {
   reactivateUser,
   markSubscriptionCancelled,
+  suspendUser,
 } from '@/app/api/webhooks/subscription/_lib/helpers';
 import type { SyncResult, SyncDiscrepancy } from './types';
 import { generateId } from 'ai';
@@ -184,4 +185,62 @@ export async function runFullSync(): Promise<SyncResult> {
   }
 
   return result;
+}
+
+/**
+ * Deactivate users whose subscription has expired.
+ * Finds all active, non-admin users with subscriptions where
+ * the latest currentPeriodEnd is in the past, then suspends them.
+ */
+export async function deactivateExpiredUsers(): Promise<number> {
+  const now = new Date();
+
+  // Get all active non-admin users who have at least one subscription
+  const usersWithSubs = await db
+    .select({
+      userId: user.id,
+      subId: subscription.id,
+      currentPeriodEnd: subscription.currentPeriodEnd,
+      subStatus: subscription.status,
+    })
+    .from(user)
+    .innerJoin(subscription, eq(subscription.userId, user.id))
+    .where(
+      and(
+        eq(user.isActive, true),
+        ne(user.role, 'admin')
+      )
+    )
+    .orderBy(desc(subscription.currentPeriodEnd));
+
+  // Deduplicate: keep only the latest subscription per user
+  const seen = new Set<string>();
+  const latestPerUser = usersWithSubs.filter((row) => {
+    if (seen.has(row.userId)) return false;
+    seen.add(row.userId);
+    return true;
+  });
+
+  // Filter to users whose latest subscription has expired
+  const expired = latestPerUser.filter((row) => row.currentPeriodEnd <= now);
+
+  let deactivated = 0;
+  for (const row of expired) {
+    try {
+      await suspendUser(row.userId);
+      if (row.subStatus !== 'expired') {
+        await db
+          .update(subscription)
+          .set({ status: 'expired', modifiedAt: now })
+          .where(eq(subscription.id, row.subId));
+      }
+      deactivated++;
+      console.log(`[Expired Check] Deactivated user ${row.userId}`);
+    } catch (error) {
+      console.error(`[Expired Check] Failed to deactivate user ${row.userId}:`, error);
+    }
+  }
+
+  console.log(`[Expired Check] ${deactivated} users deactivated out of ${expired.length} expired`);
+  return deactivated;
 }

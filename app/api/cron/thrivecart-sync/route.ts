@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { serverEnv } from '@/env/server';
-import { runFullSync } from '@/lib/thrivecart/sync';
+import { runFullSync, deactivateExpiredUsers } from '@/lib/thrivecart/sync';
 
 /**
  * POST /api/cron/thrivecart-sync
  * Scheduled sync for all ThriveCart subscriptions.
+ * Also deactivates users with expired subscriptions.
  * Runs every 6 hours via Vercel Cron.
  */
 export async function POST(request: NextRequest) {
@@ -19,10 +20,15 @@ export async function POST(request: NextRequest) {
   console.log('[ThriveCart Cron] Starting scheduled sync...');
 
   try {
+    // 1. Deactivate users with expired subscriptions
+    const deactivated = await deactivateExpiredUsers();
+
+    // 2. Sync with ThriveCart API
     const result = await runFullSync();
 
     return NextResponse.json({
       success: true,
+      deactivatedExpired: deactivated,
       ...result,
     });
   } catch (error) {
