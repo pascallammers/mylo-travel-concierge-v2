@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUser, getUserRole } from '@/lib/auth-utils';
 import { db } from '@/lib/db';
 import { thrivecartWebhookLog, thrivecartSyncLog } from '@/lib/db/schema';
-import { desc, eq, like } from 'drizzle-orm';
+import { desc, like } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
   const user = await getUser();
@@ -22,22 +22,16 @@ export async function GET(request: NextRequest) {
 
   try {
     if (type === 'webhooks') {
-      let query = db
+      const whereClause = search
+        ? like(thrivecartWebhookLog.customerEmail, `%${search}%`)
+        : undefined;
+
+      const logs = await db
         .select()
         .from(thrivecartWebhookLog)
+        .where(whereClause)
         .orderBy(desc(thrivecartWebhookLog.processedAt))
         .limit(limit);
-
-      if (search) {
-        query = db
-          .select()
-          .from(thrivecartWebhookLog)
-          .where(like(thrivecartWebhookLog.customerEmail, `%${search}%`))
-          .orderBy(desc(thrivecartWebhookLog.processedAt))
-          .limit(limit);
-      }
-
-      const logs = await query;
       return NextResponse.json({ logs, count: logs.length });
     }
 
