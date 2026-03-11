@@ -123,7 +123,7 @@ async function handleOrderSuccess(
 
     if (existingSub) {
       // Extend existing subscription
-      const updated = await extendSubscriptionPeriod(existingSub.id, new Date());
+      await extendSubscriptionPeriod(existingSub.id);
       if (!existingUser.isActive) await reactivateUser(existingUser.id);
       return {
         success: true,
@@ -225,7 +225,7 @@ async function handleSubscriptionPayment(
   const sub = await findUserSubscription(foundUser.id);
   if (!sub) return { success: false, action: 'rebill', error: `No subscription for: ${email}` };
 
-  await extendSubscriptionPeriod(sub.id, new Date());
+  await extendSubscriptionPeriod(sub.id);
   if (!foundUser.isActive || foundUser.activationStatus !== 'active') {
     await reactivateUser(foundUser.id);
   }

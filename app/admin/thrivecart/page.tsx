@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, RefreshCw, Webhook, ArrowDownUp } from 'lucide-react';
+import { Search, RefreshCw, Webhook, ArrowDownUp, Repeat } from 'lucide-react';
 
 interface WebhookLog {
   id: string;
@@ -89,7 +89,8 @@ export default function ThriveCartPage() {
 
   const eventBadge = (eventType: string) => {
     const label = eventType.replace('order.', '').replace('_', ' ');
-    const isPayment = eventType.includes('success') || eventType.includes('subscription_payment');
+    const isRebill = eventType.includes('subscription_payment');
+    const isPayment = eventType.includes('success') || isRebill;
     const isCancel = eventType.includes('cancelled') || eventType.includes('paused');
     const isFailed = eventType.includes('failed');
     const styles = isPayment
@@ -99,7 +100,12 @@ export default function ThriveCartPage() {
         : isFailed
           ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
           : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
-    return <span className={`px-2 py-1 rounded text-xs font-medium ${styles}`}>{label}</span>;
+    return (
+      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${styles}`}>
+        {isRebill && <Repeat className="h-3 w-3" />}
+        {label}
+      </span>
+    );
   };
 
   return (
