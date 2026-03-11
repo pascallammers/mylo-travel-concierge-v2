@@ -1,12 +1,14 @@
 import type { NextConfig } from 'next';
 import { fileURLToPath } from "node:url";
 import { createJiti } from "jiti";
+import createNextIntlPlugin from 'next-intl/plugin';
 
 const jiti = createJiti(fileURLToPath(import.meta.url));
 
 jiti.import('./env/server.ts');
 jiti.import('./env/client.ts');
 
+const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
 const nextConfig: NextConfig = {
   eslint: {
@@ -188,4 +190,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

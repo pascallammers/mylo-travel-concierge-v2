@@ -5,10 +5,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Share } from 'lucide-react';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { MyloLogo } from '@/components/logos/mylo-logo';
+import { useTranslations } from 'next-intl';
 
 export function InstallPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [isDismissed, setIsDismissed] = useLocalStorage('installPromptDismissed', false);
+  const t = useTranslations('installPrompt');
 
   useEffect(() => {
     if (isDismissed) return;
@@ -43,7 +45,7 @@ export function InstallPrompt() {
             {/* App Icon */}
             <MyloLogo className="size-9" />
             <div className="flex-grow">
-              <p className="text-sm font-semibold text-foreground">Installiere MYLO auf deinem Gerät</p>
+              <p className="text-sm font-semibold text-foreground">{t('title')}</p>
               <p className="mt-0.5 text-xs text-muted-foreground inline-flex items-center gap-1">
                 Tap <Share className="w-3 h-3 text-primary" /> then &quot;Add to Home Screen&quot;{' '}
                 <span role="img" aria-label="plus icon" className="text-primary font-medium">

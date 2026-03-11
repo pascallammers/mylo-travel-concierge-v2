@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import isEqual from 'fast-deep-equal';
+import { useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -550,6 +551,7 @@ export const Message: React.FC<MessageProps> = ({
   // Mode state for editing
   const [mode, setMode] = useState<'view' | 'edit'>('view');
   // State for memory save loading
+  const tChat = useTranslations('chat');
   const [isSavingMemory, setIsSavingMemory] = useState(false);
 
   // Handler for saving text to memory
@@ -1005,10 +1007,10 @@ export const Message: React.FC<MessageProps> = ({
                     <AlertCircle className="h-5 w-5 text-secondary-foreground dark:text-secondary-foreground mt-0.5 flex-shrink-0" />
                     <div className="flex-1">
                       <h3 className="font-medium text-secondary-foreground dark:text-secondary-foreground mb-1">
-                        Keine Antwort generiert
+                        {tChat('noResponseTitle')}
                       </h3>
                       <p className="text-sm text-secondary-foreground/80 dark:text-secondary-foreground/80">
-                        Es sieht so aus, als hätte der Assistent keine Antwort auf deine Nachricht gegeben.
+                        {tChat('noResponse')}
                       </p>
                     </div>
                   </div>

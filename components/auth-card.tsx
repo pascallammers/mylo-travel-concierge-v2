@@ -6,9 +6,10 @@ import { Label } from '@/components/ui/label';
 import { useState } from 'react';
 import { signIn } from '@/lib/auth-client';
 import { toast } from 'sonner';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 
 /**
  * Login-only authentication component
@@ -19,6 +20,8 @@ export default function AuthCard() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const t = useTranslations('auth');
+  const tc = useTranslations('common');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,19 +36,18 @@ export default function AuthCard() {
         },
         {
           onSuccess: () => {
-            toast.success('Erfolgreich eingeloggt!');
-            // Use client navigation first to avoid a full page reload after sign-in.
+            toast.success(t('loginSuccess'));
             router.replace('/');
             router.refresh();
           },
           onError: (ctx) => {
-            toast.error(ctx.error.message || 'Login fehlgeschlagen. Bitte prüfe deine Zugangsdaten.');
+            toast.error(ctx.error.message || t('loginError'));
             setLoading(false);
           },
         },
       );
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Login fehlgeschlagen. Bitte prüfe deine Zugangsdaten.';
+      const message = error instanceof Error ? error.message : t('loginError');
       toast.error(message);
       console.error('Auth error:', error);
       setLoading(false);
@@ -54,7 +56,6 @@ export default function AuthCard() {
 
   return (
     <div className="w-full max-w-md mx-auto space-y-12">
-      {/* Logo */}
       <div className="flex items-center justify-center">
         <Image
           src="/mylo-logo.png"
@@ -65,22 +66,19 @@ export default function AuthCard() {
         />
       </div>
 
-      {/* Login Form */}
       <div className="space-y-6">
-        {/* Header */}
         <div className="text-center space-y-2">
-          <h1 className="text-2xl font-medium">Willkommen zurück</h1>
-          <p className="text-sm text-muted-foreground">Melde dich mit deinen Zugangsdaten an</p>
+          <h1 className="text-2xl font-medium">{t('welcomeBack')}</h1>
+          <p className="text-sm text-muted-foreground">{t('loginSubtitle')}</p>
         </div>
 
-        {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">E-Mail</Label>
+            <Label htmlFor="email">{t('emailLabel')}</Label>
             <Input
               id="email"
               type="email"
-              placeholder="deine@email.de"
+              placeholder={t('emailPlaceholder')}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -90,9 +88,9 @@ export default function AuthCard() {
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="password">Passwort</Label>
+              <Label htmlFor="password">{t('passwordLabel')}</Label>
               <Link href="/reset-password" className="text-xs text-muted-foreground hover:text-foreground">
-                Vergessen?
+                {t('forgot')}
               </Link>
             </div>
             <Input
@@ -108,17 +106,16 @@ export default function AuthCard() {
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Lädt...' : 'Anmelden'}
+            {loading ? tc('loading') : t('loginButton')}
           </Button>
         </form>
 
-        {/* Footer */}
         <div className="pt-4">
           <p className="text-xs text-center text-muted-foreground">
-            Noch kein Zugang?{' '}
-            <Link href="https://chat.never-economy-again.com" className="text-foreground hover:underline" target="_blank">
-              MYLO jetzt kaufen
-            </Link>
+            {t('noAccount')}{' '}
+            <a href="https://chat.never-economy-again.com" className="text-foreground hover:underline" target="_blank">
+              {t('buyNow')}
+            </a>
           </p>
         </div>
       </div>

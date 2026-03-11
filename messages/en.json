@@ -1,0 +1,148 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "next": "Next",
+    "close": "Close",
+    "search": "Search",
+    "error": "Error",
+    "success": "Success",
+    "signOut": "Sign out",
+    "signIn": "Sign in",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name",
+    "notSpecified": "Not specified"
+  },
+  "metadata": {
+    "title": "MYLO - Your Travel Concierge",
+    "description": "MYLO is your AI-powered travel assistant for optimal flight search, Miles & Points advice, and Premium Cabin upgrades."
+  },
+  "navbar": {
+    "newChat": "New Chat",
+    "shared": "Shared"
+  },
+  "auth": {
+    "welcomeBack": "Welcome back",
+    "loginSubtitle": "Sign in with your credentials",
+    "emailLabel": "Email",
+    "emailPlaceholder": "your@email.com",
+    "passwordLabel": "Password",
+    "forgot": "Forgot?",
+    "loginButton": "Sign in",
+    "loginSuccess": "Successfully signed in!",
+    "loginError": "Login failed. Please check your credentials.",
+    "noAccount": "No account yet?",
+    "buyNow": "Get MYLO now",
+    "signOutSuccess": "Successfully signed out",
+    "signOutError": "Error signing out"
+  },
+  "resetPassword": {
+    "title": "Reset password",
+    "subtitle": "Enter your email address",
+    "sendResetLink": "Send reset link",
+    "emailSentTitle": "Email sent",
+    "emailSentMessage": "Check your inbox for further instructions.",
+    "backToLogin": "Back to login",
+    "sendError": "Error sending email",
+    "sendErrorRetry": "Error sending email. Please try again later.",
+    "emailSentSuccess": "Password reset email has been sent!"
+  },
+  "resetPasswordConfirm": {
+    "title": "Set new password",
+    "subtitle": "Choose a secure new password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "resetButton": "Reset password",
+    "backToLogin": "Back to login",
+    "invalidLink": "Invalid reset link",
+    "noToken": "No valid token found",
+    "minLength": "Password must be at least 8 characters long",
+    "mismatch": "Passwords do not match",
+    "resetError": "Error resetting password",
+    "resetErrorExpired": "Error resetting password. The link may have expired.",
+    "resetSuccess": "Password successfully reset!"
+  },
+  "subscriptionExpired": {
+    "title": "Your access has expired",
+    "description": "Your subscription is no longer active. To continue using MYLO, you need to renew your subscription.",
+    "whatNow": "What now?",
+    "renewHint": "Renew your subscription via our pricing page",
+    "supportHint": "Contact our support for any questions",
+    "dataHint": "Your data and chats remain saved",
+    "renewButton": "Renew subscription",
+    "contactSupport": "Contact support"
+  },
+  "settings": {
+    "emailAddress": "Email address",
+    "passwordSection": "Password",
+    "change": "Change",
+    "currentPassword": "Current password",
+    "currentPasswordPlaceholder": "Enter current password",
+    "newPassword": "New password",
+    "newPasswordPlaceholder": "New password (min. 8 characters)",
+    "confirmNewPassword": "Confirm new password",
+    "confirmNewPasswordPlaceholder": "Repeat new password",
+    "changingPassword": "Changing...",
+    "changePassword": "Change password",
+    "fillAllFields": "Please fill in all fields",
+    "newPasswordMinLength": "New password must be at least 8 characters long",
+    "passwordsMismatch": "Passwords do not match",
+    "currentPasswordWrong": "Current password is incorrect",
+    "passwordChanged": "Password successfully changed",
+    "passwordChangeError": "Error changing password",
+    "dailySearchVolume": "Daily search volume",
+    "activityLast9Months": "Activity (Last 9 months)",
+    "loadingActivity": "Loading activity data..."
+  },
+  "chatHistory": {
+    "chatDeleted": "Chat deleted",
+    "chatDeleteError": "Error deleting chat. Please try again.",
+    "openingChat": "Opening \"{title}\"...",
+    "deleteConfirm": "Delete {title}? Press Enter to confirm, Escape to cancel",
+    "openChat": "Open chat: {title}",
+    "loadingLabel": "Loading",
+    "publicChat": "Public chat",
+    "deleteChat": "Delete \"{title}\"?",
+    "confirmDelete": "Confirm delete",
+    "cancelDelete": "Cancel delete",
+    "deleteChatLabel": "Delete {title}",
+    "loginPrompt": "Sign in to seamlessly view, search, and manage all your previous conversations.",
+    "recentConversations": "Recent conversations",
+    "older": "Older",
+    "noResults": "Try a different search term or change the search mode",
+    "publicFilter": "public:",
+    "privateFilter": "private:",
+    "todayFilter": "today:",
+    "weekFilter": "week:",
+    "monthFilter": "month:",
+    "dateFilter": "date:",
+    "visibilityHint": "for visibility",
+    "dateHint": "for date",
+    "specificDateHint": "for specific date (DD/MM/YY)",
+    "tapToOpen": "Tap to open",
+    "openShortcut": "open",
+    "renameHint": "Click to rename • Click to delete",
+    "closeShortcut": "close",
+    "noChatsFound": "No chats found for \"{query}\""
+  },
+  "chat": {
+    "noResponse": "It looks like the assistant didn't provide a response to your message.",
+    "noResponseTitle": "No response generated",
+    "loadingChat": "Loading chat..."
+  },
+  "installPrompt": {
+    "title": "Install MYLO on your device"
+  },
+  "checkout": {
+    "completePayment": "Complete your one-time payment for MYLO Pro"
+  },
+  "loyalty": {
+    "addPrograms": "Add programs in AwardWallet to see them here.",
+    "expiresAt": "Expires: {date}"
+  }
+}

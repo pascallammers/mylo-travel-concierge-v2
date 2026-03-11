@@ -45,6 +45,7 @@ import { ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { getAllMemories, searchMemories, deleteMemory, MemoryItem } from '@/lib/memory-actions';
 import { Loader2, Search } from 'lucide-react';
@@ -95,6 +96,8 @@ interface SettingsDialogProps {
 function ProfileSection({ user, subscriptionData, isProUser, isProStatusLoading }: any) {
   const { isProUser: fastProStatus, isLoading: fastProLoading } = useIsProUser();
   const isMobile = useMediaQuery('(max-width: 768px)');
+  const tSettings = useTranslations('settings');
+  const tCommon = useTranslations('common');
 
   // Use comprehensive Pro status from user data (includes both Polar + DodoPayments)
   const isProUserActive: boolean = user?.isProUser || fastProStatus || false;
@@ -109,17 +112,17 @@ function ProfileSection({ user, subscriptionData, isProUser, isProStatusLoading 
 
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
-      toast.error('Bitte alle Felder ausfüllen');
+      toast.error(tSettings('fillAllFields'));
       return;
     }
 
     if (newPassword.length < 8) {
-      toast.error('Das neue Passwort muss mindestens 8 Zeichen lang sein');
+      toast.error(tSettings('newPasswordMinLength'));
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      toast.error('Passwörter stimmen nicht überein');
+      toast.error(tSettings('passwordsMismatch'));
       return;
     }
 
@@ -132,16 +135,16 @@ function ProfileSection({ user, subscriptionData, isProUser, isProStatusLoading 
       });
 
       if (error) {
-        toast.error('Aktuelles Passwort ist falsch');
+        toast.error(tSettings('currentPasswordWrong'));
       } else {
-        toast.success('Passwort erfolgreich geändert');
+        toast.success(tSettings('passwordChanged'));
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
         setShowPasswordForm(false);
       }
     } catch (err) {
-      toast.error('Fehler beim Ändern des Passworts');
+      toast.error(tSettings('passwordChangeError'));
     } finally {
       setIsChangingPassword(false);
     }
@@ -187,18 +190,18 @@ function ProfileSection({ user, subscriptionData, isProUser, isProStatusLoading 
         <div className={cn('bg-muted/50 rounded-lg space-y-3', isMobile ? 'p-3' : 'p-4')}>
           <div>
             <Label className="text-xs text-muted-foreground">Name</Label>
-            <p className="text-sm font-medium mt-1">{user?.name || 'Nicht angegeben'}</p>
+            <p className="text-sm font-medium mt-1">{user?.name || tCommon('notSpecified')}</p>
           </div>
           <div>
-            <Label className="text-xs text-muted-foreground">E-Mail-Adresse</Label>
-            <p className="text-sm font-medium mt-1 break-all">{user?.email || 'Nicht angegeben'}</p>
+            <Label className="text-xs text-muted-foreground">{tSettings('emailAddress')}</Label>
+            <p className="text-sm font-medium mt-1 break-all">{user?.email || tCommon('notSpecified')}</p>
           </div>
         </div>
 
         {/* Password Change Section */}
         <div className={cn('bg-muted/50 rounded-lg', isMobile ? 'p-3' : 'p-4')}>
           <div className="flex items-center justify-between mb-2">
-            <Label className="text-xs text-muted-foreground">Passwort</Label>
+            <Label className="text-xs text-muted-foreground">{tSettings('passwordSection')}</Label>
             {!showPasswordForm && (
               <Button
                 variant="ghost"
@@ -206,7 +209,7 @@ function ProfileSection({ user, subscriptionData, isProUser, isProStatusLoading 
                 onClick={() => setShowPasswordForm(true)}
                 className="h-7 text-xs"
               >
-                Ändern
+                {tSettings('change')}
               </Button>
             )}
           </div>
@@ -215,42 +218,42 @@ function ProfileSection({ user, subscriptionData, isProUser, isProStatusLoading 
             <div className="space-y-3">
               <div>
                 <Label htmlFor="current-password" className="text-xs">
-                  Aktuelles Passwort
+                  {tSettings('currentPassword')}
                 </Label>
                 <Input
                   id="current-password"
                   type="password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Aktuelles Passwort eingeben"
+                  placeholder={tSettings('currentPasswordPlaceholder')}
                   className="mt-1 h-9"
                   disabled={isChangingPassword}
                 />
               </div>
               <div>
                 <Label htmlFor="new-password" className="text-xs">
-                  Neues Passwort
+                  {tSettings('newPassword')}
                 </Label>
                 <Input
                   id="new-password"
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Neues Passwort (mind. 8 Zeichen)"
+                  placeholder={tSettings('newPasswordPlaceholder')}
                   className="mt-1 h-9"
                   disabled={isChangingPassword}
                 />
               </div>
               <div>
                 <Label htmlFor="confirm-password" className="text-xs">
-                  Neues Passwort bestätigen
+                  {tSettings('confirmNewPassword')}
                 </Label>
                 <Input
                   id="confirm-password"
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Neues Passwort wiederholen"
+                  placeholder={tSettings('confirmNewPasswordPlaceholder')}
                   className="mt-1 h-9"
                   disabled={isChangingPassword}
                 />
@@ -265,10 +268,10 @@ function ProfileSection({ user, subscriptionData, isProUser, isProStatusLoading 
                   {isChangingPassword ? (
                     <>
                       <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
-                      Wird geändert...
+                      {tSettings('changingPassword')}
                     </>
                   ) : (
-                    'Passwort ändern'
+                    tSettings('changePassword')
                   )}
                 </Button>
                 <Button
@@ -489,6 +492,7 @@ function UsageSection({ user }: any) {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const isMobile = useMediaQuery('(max-width: 768px)');
+  const tSettings = useTranslations('settings');
   const isProUser = user?.isProUser;
 
   const {
@@ -588,7 +592,7 @@ function UsageSection({ user }: any) {
   return (
     <div className={cn(isMobile ? 'space-y-3' : 'space-y-4')}>
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold">Tägliches Suchvolumen</h3>
+        <h3 className="text-sm font-semibold">{tSettings('dailySearchVolume')}</h3>
         <Button
           variant="ghost"
           size="sm"
@@ -637,7 +641,7 @@ function UsageSection({ user }: any) {
       {!usageLoading && (
         <div className={cn('space-y-2')}>
           <h4 className={cn('font-semibold text-muted-foreground', isMobile ? 'text-[11px]' : 'text-xs')}>
-            Aktivität (Letzte 9 Monate)
+            {tSettings('activityLast9Months')}
           </h4>
           <div className={cn('bg-muted/50 dark:bg-card rounded-lg p-3')}>
             {historicalLoading ? (
@@ -648,7 +652,7 @@ function UsageSection({ user }: any) {
                   blockMargin={isMobile ? 3 : 4}
                   fontSize={isMobile ? 9 : 12}
                   labels={{
-                    totalCount: 'Lade Aktivitätsdaten...',
+                    totalCount: tSettings('loadingActivity'),
                     legend: {
                       less: 'Weniger',
                       more: 'Mehr',

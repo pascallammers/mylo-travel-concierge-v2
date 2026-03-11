@@ -3,27 +3,31 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle, CreditCard, LogOut, Mail } from 'lucide-react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { authClient } from '@/lib/auth-client';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 
 export default function SubscriptionExpiredPage() {
   const router = useRouter();
+  const t = useTranslations('subscriptionExpired');
+  const ta = useTranslations('auth');
+  const tc = useTranslations('common');
 
   const handleSignOut = async () => {
     try {
       await authClient.signOut({
         fetchOptions: {
           onSuccess: () => {
-            toast.success('Erfolgreich abgemeldet');
+            toast.success(ta('signOutSuccess'));
             router.push('/sign-in');
           },
         },
       });
     } catch (error) {
       console.error('Error signing out:', error);
-      toast.error('Fehler beim Abmelden');
+      toast.error(ta('signOutError'));
     }
   };
 
@@ -34,27 +38,27 @@ export default function SubscriptionExpiredPage() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
             <AlertCircle className="h-8 w-8 text-destructive" />
           </div>
-          <CardTitle className="text-2xl font-bold">Dein Zugriff ist abgelaufen</CardTitle>
+          <CardTitle className="text-2xl font-bold">{t('title')}</CardTitle>
           <CardDescription className="mt-2 text-base">
-            Deine Subscription ist nicht mehr aktiv. Um MYLO weiterhin nutzen zu können, musst du dein Abo verlängern.
+            {t('description')}
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-4">
           <div className="rounded-lg border border-border bg-muted/50 p-4">
-            <h3 className="font-semibold mb-2">Was jetzt?</h3>
+            <h3 className="font-semibold mb-2">{t('whatNow')}</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li className="flex items-start gap-2">
                 <span className="text-primary">•</span>
-                <span>Verlängere dein Abo über unsere Pricing-Seite</span>
+                <span>{t('renewHint')}</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-primary">•</span>
-                <span>Bei Fragen wende dich an unseren Support</span>
+                <span>{t('supportHint')}</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-primary">•</span>
-                <span>Deine Daten und Chats bleiben gespeichert</span>
+                <span>{t('dataHint')}</span>
               </li>
             </ul>
           </div>
@@ -63,14 +67,14 @@ export default function SubscriptionExpiredPage() {
             <Link href="/pricing">
               <Button className="w-full" size="lg">
                 <CreditCard className="mr-2 h-5 w-5" />
-                Subscription verlängern
+                {t('renewButton')}
               </Button>
             </Link>
 
             <a href="mailto:support@never-economy-again.com">
               <Button variant="outline" className="w-full" size="lg">
                 <Mail className="mr-2 h-5 w-5" />
-                Support kontaktieren
+                {t('contactSupport')}
               </Button>
             </a>
           </div>
@@ -79,7 +83,7 @@ export default function SubscriptionExpiredPage() {
         <CardFooter className="flex justify-center border-t pt-6">
           <Button variant="ghost" onClick={handleSignOut} className="text-muted-foreground">
             <LogOut className="mr-2 h-4 w-4" />
-            Abmelden
+            {tc('signOut')}
           </Button>
         </CardFooter>
       </Card>

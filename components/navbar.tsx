@@ -2,8 +2,9 @@
 
 /* eslint-disable @next/next/no-img-element */
 import React, { memo, useMemo } from 'react';
-import Link from 'next/link';
 import { PlusIcon, GlobeHemisphereWestIcon } from '@phosphor-icons/react';
+import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 
 import { Button } from '@/components/ui/button';
 import { UserProfile, NavigationMenu } from '@/components/user-profile';
@@ -12,6 +13,7 @@ import { LoyaltyHeaderWidget, LoyaltyHeaderBanner } from '@/components/awardwall
 import { SidebarTrigger, useSidebarOptional } from '@/components/ui/sidebar';
 
 import { ShareButton } from '@/components/share';
+import { LanguageSwitcher } from '@/components/language-switcher';
 import { cn } from '@/lib/utils';
 
 import { useRouter, usePathname } from 'next/navigation';
@@ -64,6 +66,7 @@ const Navbar = memo(
     // Get sidebar context - will be null if not within SidebarProvider
     const sidebarContext = useSidebarOptional();
     const isMobile = sidebarContext?.isMobile ?? false;
+    const t = useTranslations('navbar');
 
     // Use passed Pro status directly
     const hasActiveSubscription = isProUser;
@@ -94,7 +97,7 @@ const Navbar = memo(
                 className="rounded-lg bg-accent hover:bg-accent/80 group transition-all hover:scale-105 pointer-events-auto"
               >
                 <PlusIcon size={16} className="group-hover:rotate-90 transition-all" />
-                <span className="text-sm ml-1.5">Neuer Chat</span>
+                <span className="text-sm ml-1.5">{t('newChat')}</span>
               </Button>
             </Link>
           </div>
@@ -188,6 +191,8 @@ const Navbar = memo(
                 }}
               />
             )}
+            {/* Language Switcher */}
+            <LanguageSwitcher />
             {/* Navigation Menu - settings icon for general navigation */}
             <NavigationMenu />
             {/* User Profile - focused on authentication and account management */}
