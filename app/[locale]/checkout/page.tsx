@@ -18,6 +18,7 @@ import { useLocation } from '@/hooks/use-location';
 import { useSession } from '@/lib/auth-client';
 import { useIsProUser } from '@/contexts/user-context';
 import { PRICING } from '@/lib/constants';
+import { useTranslations } from 'next-intl';
 import { getDiscountConfigAction } from '@/app/actions';
 import { DiscountConfig } from '@/lib/discount';
 
@@ -44,6 +45,7 @@ export default function CheckoutPage() {
   const location = useLocation();
   const { data: session, isPending } = useSession();
   const { isProUser, isLoading: isProStatusLoading } = useIsProUser();
+  const t = useTranslations('checkout');
 
   const form = useForm<CheckoutFormData>({
     resolver: zodResolver(checkoutSchema),
@@ -210,7 +212,7 @@ export default function CheckoutPage() {
             Checkout
           </h1>
           <p className="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed">
-            Schließe deine einmalige Zahlung für MYLO Pro ab
+            {t('completePayment')}
           </p>
           <div className="mt-4 space-y-2">
             <div className="inline-flex items-center bg-secondary text-secondary-foreground px-4 py-2 rounded-full text-sm">

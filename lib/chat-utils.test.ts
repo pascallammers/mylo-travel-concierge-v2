@@ -16,6 +16,31 @@ import {
   SearchMode,
 } from './chat-utils';
 
+// Mock translator for timeAgo namespace (simulates German translations)
+const mockTimeAgoTranslator = (key: string, params: { count: number }) => {
+  const labels: Record<string, string> = {
+    seconds: `vor ${params.count}s`,
+    minutes: `vor ${params.count}m`,
+    hours: `vor ${params.count}h`,
+    days: `vor ${params.count}T`,
+    weeks: `vor ${params.count}W`,
+    months: `vor ${params.count}Mo`,
+    years: `vor ${params.count}J`,
+  };
+  return labels[key] ?? key;
+};
+
+// Mock translator for searchMode namespace
+const mockSearchModeTranslator = (key: string) => {
+  const labels: Record<string, string> = {
+    all: 'Alle',
+    title: 'Titel',
+    date: 'Datum',
+    visibility: 'Sichtbarkeit',
+  };
+  return labels[key] ?? key;
+};
+
 // Helper to create a chat with a specific date
 function createChat(id: string, daysAgo: number, visibility: 'public' | 'private' = 'private'): Chat {
   const date = new Date();
@@ -92,56 +117,56 @@ describe('formatCompactTime', () => {
   it('formats seconds ago', () => {
     const date = new Date();
     date.setSeconds(date.getSeconds() - 30);
-    const result = formatCompactTime(date);
+    const result = formatCompactTime(date, mockTimeAgoTranslator);
     assert.match(result, /vor \d+s/);
   });
 
   it('formats minutes ago', () => {
     const date = new Date();
     date.setMinutes(date.getMinutes() - 5);
-    const result = formatCompactTime(date);
+    const result = formatCompactTime(date, mockTimeAgoTranslator);
     assert.match(result, /vor \d+m/);
   });
 
   it('formats hours ago', () => {
     const date = new Date();
     date.setHours(date.getHours() - 3);
-    const result = formatCompactTime(date);
+    const result = formatCompactTime(date, mockTimeAgoTranslator);
     assert.match(result, /vor \d+h/);
   });
 
   it('formats days ago', () => {
     const date = new Date();
     date.setDate(date.getDate() - 3);
-    const result = formatCompactTime(date);
+    const result = formatCompactTime(date, mockTimeAgoTranslator);
     assert.match(result, /vor \d+T/);
   });
 
   it('formats weeks ago', () => {
     const date = new Date();
     date.setDate(date.getDate() - 14);
-    const result = formatCompactTime(date);
+    const result = formatCompactTime(date, mockTimeAgoTranslator);
     assert.match(result, /vor \d+W/);
   });
 
   it('formats months ago', () => {
     const date = new Date();
     date.setMonth(date.getMonth() - 3);
-    const result = formatCompactTime(date);
+    const result = formatCompactTime(date, mockTimeAgoTranslator);
     assert.match(result, /vor \d+Mo/);
   });
 
   it('formats years ago', () => {
     const date = new Date();
     date.setFullYear(date.getFullYear() - 2);
-    const result = formatCompactTime(date);
+    const result = formatCompactTime(date, mockTimeAgoTranslator);
     assert.match(result, /vor \d+J/);
   });
 
   it('uses cache for repeated calls', () => {
     const date = new Date();
-    const result1 = formatCompactTime(date);
-    const result2 = formatCompactTime(date);
+    const result1 = formatCompactTime(date, mockTimeAgoTranslator);
+    const result2 = formatCompactTime(date, mockTimeAgoTranslator);
     assert.equal(result1, result2);
   });
 });
@@ -281,10 +306,10 @@ describe('advancedSearch', () => {
 
 describe('getSearchModeLabel', () => {
   it('returns correct labels for each mode', () => {
-    assert.equal(getSearchModeLabel('all'), 'Alle');
-    assert.equal(getSearchModeLabel('title'), 'Titel');
-    assert.equal(getSearchModeLabel('date'), 'Datum');
-    assert.equal(getSearchModeLabel('visibility'), 'Sichtbarkeit');
+    assert.equal(getSearchModeLabel('all', mockSearchModeTranslator), 'Alle');
+    assert.equal(getSearchModeLabel('title', mockSearchModeTranslator), 'Titel');
+    assert.equal(getSearchModeLabel('date', mockSearchModeTranslator), 'Datum');
+    assert.equal(getSearchModeLabel('visibility', mockSearchModeTranslator), 'Sichtbarkeit');
   });
 });
 

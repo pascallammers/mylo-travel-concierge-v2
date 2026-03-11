@@ -7,6 +7,7 @@
 
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +26,7 @@ export interface ChatSidebarHeaderProps {
  */
 export function ChatSidebarHeader({ onNewChat }: ChatSidebarHeaderProps) {
   const { setOpenMobile, isMobile } = useSidebar();
+  const t = useTranslations('sidebar');
 
   const handleNewChatClick = () => {
     if (isMobile) {
@@ -45,11 +47,11 @@ export function ChatSidebarHeader({ onNewChat }: ChatSidebarHeaderProps) {
               'bg-primary text-primary-foreground',
               'hover:bg-primary/90 hover:text-primary-foreground',
             )}
-            tooltip="Neuer Chat"
+            tooltip={t('newChat')}
           >
             <Link href="/new" onClick={handleNewChatClick}>
               <Plus className="size-4" />
-              <span>Neuer Chat</span>
+              <span>{t('newChat')}</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>

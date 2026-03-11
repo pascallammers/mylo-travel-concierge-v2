@@ -9,6 +9,7 @@
 import { useCallback, useState } from 'react';
 import Link from 'next/link';
 import { Globe, Lock, Pencil, Trash, Check, X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { SidebarMenuItem, SidebarMenuButton, SidebarMenuAction, useSidebar } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -67,10 +68,12 @@ export function ChatSidebarItem({
   onSetDeletingChatId,
 }: ChatSidebarItemProps) {
   const { setOpenMobile, isMobile } = useSidebar();
+  const t = useTranslations('chatHistory');
+  const tTimeAgo = useTranslations('timeAgo');
   const isPublic = chat.visibility === 'public';
   const isEditingThis = editingChatId === chat.id;
   const isDeletingThis = deletingChatId === chat.id;
-  const displayTitle = chat.title || 'Unbenannte Unterhaltung';
+  const displayTitle = chat.title || t('untitledChat');
 
   const handleSelect = useCallback(() => {
     if (!isEditingThis && !isDeletingThis) {
@@ -166,7 +169,7 @@ export function ChatSidebarItem({
           )}
         >
           <span className="flex-1 truncate text-sm text-red-700 dark:text-red-300 font-medium">
-            &quot;{displayTitle}&quot; löschen?
+            {t('deleteChat', { title: displayTitle })}
           </span>
           <Button
             variant="ghost"
@@ -212,7 +215,7 @@ export function ChatSidebarItem({
             onKeyDown={handleKeyDown}
             onClick={(e) => e.stopPropagation()}
             className="flex-1 bg-background border border-muted-foreground/10 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-muted-foreground/20"
-            placeholder="Titel eingeben..."
+            placeholder={t('enterTitle')}
             autoFocus
             maxLength={100}
           />
@@ -273,7 +276,7 @@ export function ChatSidebarItem({
 
       {/* Timestamp badge */}
       <span className="absolute right-12 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground whitespace-nowrap pointer-events-none group-data-[collapsible=icon]:hidden">
-        {formatCompactTime(new Date(chat.createdAt))}
+        {formatCompactTime(new Date(chat.createdAt), tTimeAgo)}
       </span>
 
       {/* Edit action */}
@@ -284,7 +287,7 @@ export function ChatSidebarItem({
         disabled={!!editingChatId || !!deletingChatId}
       >
         <Pencil className="size-3" />
-        <span className="sr-only">Titel bearbeiten</span>
+        <span className="sr-only">{t('editTitleLabel')}</span>
       </SidebarMenuAction>
 
       {/* Delete action */}
@@ -295,7 +298,7 @@ export function ChatSidebarItem({
         disabled={!!editingChatId || !!deletingChatId}
       >
         <Trash className="size-3" />
-        <span className="sr-only">Chat löschen</span>
+        <span className="sr-only">{t('deleteChatAction')}</span>
       </SidebarMenuAction>
     </SidebarMenuItem>
   );

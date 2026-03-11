@@ -9,6 +9,7 @@
 import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { Sidebar, SidebarRail } from '@/components/ui/sidebar';
 import { useChatHistory, ChatHistoryUser } from '@/hooks/use-chat-history';
 import { invalidateChatsCache } from '@/lib/utils';
@@ -43,6 +44,7 @@ export function ChatSidebar({
   collapsible = 'offcanvas',
 }: ChatSidebarProps) {
   const router = useRouter();
+  const t = useTranslations('chatHistory');
 
   const {
     // Query state
@@ -84,8 +86,8 @@ export function ChatSidebar({
   const handleSelectChat = useCallback(
     (chatId: string) => {
       const chat = allChats.find((c) => c.id === chatId);
-      const displayTitle = chat?.title || 'Unbenannte Unterhaltung';
-      toast.info(`Öffne "${displayTitle}"...`);
+      const displayTitle = chat?.title || t('untitledChat');
+      toast.info(t('openingChat', { title: displayTitle }));
       invalidateChatsCache();
       router.push(`/search/${chatId}`);
     },
@@ -110,8 +112,8 @@ export function ChatSidebar({
         <ChatSidebarHeader />
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="text-center text-sm text-muted-foreground">
-            <p>Melden Sie sich an, um</p>
-            <p>Ihren Chatverlauf zu sehen</p>
+            <p>{t('signInToSee')}</p>
+            <p>{t('signInToSee2')}</p>
           </div>
         </div>
         <SidebarRail />

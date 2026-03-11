@@ -50,6 +50,11 @@ export interface ToolSuccessResponse<T> {
 export type ToolResponse<T> = ToolSuccessResponse<T> | ToolErrorResponse;
 
 /**
+ * Supported locale for tool error responses.
+ */
+export type ToolErrorLocale = 'de' | 'en';
+
+/**
  * Parameters for creating a graceful error response
  */
 export interface GracefulErrorParams {
@@ -58,6 +63,7 @@ export interface GracefulErrorParams {
   suggestions?: string[];
   searchParams?: FlightSearchLinkParams;
   technicalDetails?: string;
+  locale?: ToolErrorLocale;
 }
 
 /**
@@ -89,36 +95,32 @@ export function formatGracefulFlightError(params: GracefulErrorParams): string {
   const {
     type,
     message,
-    suggestions = getDefaultSuggestions(type),
+    locale = 'de',
+    suggestions = getDefaultSuggestions(type, locale),
     searchParams,
     technicalDetails,
   } = params;
 
   const sections: string[] = [];
 
-  // Header based on error type
-  sections.push(getErrorHeader(type));
+  sections.push(getErrorHeader(type, locale));
 
-  // User-friendly message
   sections.push(`\n${message}\n`);
 
-  // Suggestions
   if (suggestions.length > 0) {
-    sections.push('\n**Was Sie tun können:**');
+    sections.push(`\n**${locale === 'de' ? 'Was Sie tun können' : 'What you can do'}:**`);
     suggestions.forEach((s) => sections.push(`- ${s}`));
   }
 
-  // Fallback links if search params available
   if (searchParams) {
     const googleUrl = buildGoogleFlightsUrl(searchParams);
     const skyscannerUrl = buildSkyscannerUrl(searchParams);
 
-    sections.push('\n**Alternative Suchoptionen:**');
-    sections.push(`- [Google Flights öffnen](${googleUrl})`);
-    sections.push(`- [Skyscanner öffnen](${skyscannerUrl})`);
+    sections.push(`\n**${locale === 'de' ? 'Alternative Suchoptionen' : 'Alternative search options'}:**`);
+    sections.push(`- [Google Flights ${locale === 'de' ? 'öffnen' : 'open'}](${googleUrl})`);
+    sections.push(`- [Skyscanner ${locale === 'de' ? 'öffnen' : 'open'}](${skyscannerUrl})`);
   }
 
-  // Technical details for debugging (hidden from user but visible in logs)
   if (technicalDetails) {
     console.warn(`[Tool Error] Technical details: ${technicalDetails}`);
   }
@@ -127,67 +129,91 @@ export function formatGracefulFlightError(params: GracefulErrorParams): string {
 }
 
 /**
- * Returns appropriate header based on error type
+ * Returns appropriate header based on error type and locale
  */
-function getErrorHeader(type: ToolErrorType): string {
-  switch (type) {
-    case 'no_results':
-      return '## Keine Flüge gefunden';
-    case 'provider_unavailable':
-      return '## Flugsuche vorübergehend eingeschränkt';
-    case 'partial_failure':
-      return '## Teilweise Ergebnisse verfügbar';
-    case 'validation_error':
-      return '## Ungültige Suchparameter';
-    case 'rate_limited':
-      return '## Zu viele Anfragen';
-    case 'timeout':
-      return '## Suche hat zu lange gedauert';
-    default:
-      return '## Flugsuche nicht möglich';
-  }
+function getErrorHeader(type: ToolErrorType, locale: ToolErrorLocale = 'de'): string {
+  const headers: Record<ToolErrorType, Record<ToolErrorLocale, string>> = {
+    no_results: { de: '## Keine Flüge gefunden', en: '## No flights found' },
+    provider_unavailable: { de: '## Flugsuche vorübergehend eingeschränkt', en: '## Flight search temporarily limited' },
+    partial_failure: { de: '## Teilweise Ergebnisse verfügbar', en: '## Partial results available' },
+    validation_error: { de: '## Ungültige Suchparameter', en: '## Invalid search parameters' },
+    rate_limited: { de: '## Zu viele Anfragen', en: '## Too many requests' },
+    timeout: { de: '## Suche hat zu lange gedauert', en: '## Search took too long' },
+  };
+  return headers[type]?.[locale] ?? (locale === 'de' ? '## Flugsuche nicht möglich' : '## Flight search unavailable');
 }
 
 /**
- * Returns default suggestions based on error type
+ * Returns default suggestions based on error type and locale
  */
-function getDefaultSuggestions(type: ToolErrorType): string[] {
-  switch (type) {
-    case 'no_results':
-      return [
+function getDefaultSuggestions(type: ToolErrorType, locale: ToolErrorLocale = 'de'): string[] {
+  const suggestions: Record<ToolErrorType, Record<ToolErrorLocale, string[]>> = {
+    no_results: {
+      de: [
         'Andere Reisedaten ausprobieren',
         'Flexibilität bei den Daten erhöhen',
         'Alternative Flughäfen in der Nähe prüfen',
         'Zwischenstopps erlauben',
-      ];
-    case 'provider_unavailable':
-      return [
+      ],
+      en: [
+        'Try different travel dates',
+        'Increase date flexibility',
+        'Check alternative nearby airports',
+        'Allow stopovers',
+      ],
+    },
+    provider_unavailable: {
+      de: [
         'In einigen Minuten erneut versuchen',
         'Die alternativen Suchlinks unten nutzen',
         'Direkt bei der Airline suchen',
-      ];
-    case 'partial_failure':
-      return [
+      ],
+      en: [
+        'Try again in a few minutes',
+        'Use the alternative search links below',
+        'Search directly on the airline website',
+      ],
+    },
+    partial_failure: {
+      de: [
         'Die verfügbaren Ergebnisse prüfen',
         'Für mehr Optionen die alternativen Links nutzen',
-      ];
-    case 'validation_error':
-      return [
+      ],
+      en: [
+        'Check the available results',
+        'Use the alternative links for more options',
+      ],
+    },
+    validation_error: {
+      de: [
         'Flughafencodes überprüfen (z.B. FRA, JFK)',
         'Datumsformat prüfen (YYYY-MM-DD)',
         'Sicherstellen, dass das Datum in der Zukunft liegt',
-      ];
-    case 'rate_limited':
-      return ['Einige Minuten warten', 'Weniger Suchanfragen gleichzeitig stellen'];
-    case 'timeout':
-      return [
+      ],
+      en: [
+        'Check airport codes (e.g., FRA, JFK)',
+        'Verify date format (YYYY-MM-DD)',
+        'Make sure the date is in the future',
+      ],
+    },
+    rate_limited: {
+      de: ['Einige Minuten warten', 'Weniger Suchanfragen gleichzeitig stellen'],
+      en: ['Wait a few minutes', 'Make fewer concurrent search requests'],
+    },
+    timeout: {
+      de: [
         'Einfachere Suche versuchen (weniger Flexibilität)',
         'Später erneut versuchen',
         'Alternative Suchlinks nutzen',
-      ];
-    default:
-      return ['Suche erneut versuchen', 'Alternative Suchlinks nutzen'];
-  }
+      ],
+      en: [
+        'Try a simpler search (less flexibility)',
+        'Try again later',
+        'Use alternative search links',
+      ],
+    },
+  };
+  return suggestions[type]?.[locale] ?? (locale === 'de' ? ['Suche erneut versuchen', 'Alternative Suchlinks nutzen'] : ['Try searching again', 'Use alternative search links']);
 }
 
 /**
@@ -267,37 +293,39 @@ export async function withRetry<T>(
 export function formatFlightErrorWithAlternatives(
   params: GracefulErrorWithAlternatives
 ): string {
-  // If no alternatives, fall back to standard error formatting
   if (!params.alternatives || params.alternatives.length === 0) {
     return formatGracefulFlightError(params);
   }
 
+  const locale = params.locale ?? 'de';
   const sections: string[] = [];
 
-  // Header
-  sections.push('## Keine Flüge gefunden\n');
+  sections.push(locale === 'de' ? '## Keine Flüge gefunden\n' : '## No flights found\n');
 
-  // Context message
-  const airportReference = params.originalAirportName || params.searchParams?.origin || 'diesem Flughafen';
-  sections.push(`Leider keine direkten Flüge ab ${airportReference}.\n`);
+  const airportReference = params.originalAirportName || params.searchParams?.origin || (locale === 'de' ? 'diesem Flughafen' : 'this airport');
+  sections.push(locale === 'de'
+    ? `Leider keine direkten Flüge ab ${airportReference}.\n`
+    : `Unfortunately no direct flights from ${airportReference}.\n`);
 
-  // Alternatives subheader
-  sections.push('**Diese Flughäfen sind in der Nähe:**\n');
+  sections.push(locale === 'de'
+    ? '**Diese Flughäfen sind in der Nähe:**\n'
+    : '**These airports are nearby:**\n');
 
-  // Format each alternative (max 3)
   params.alternatives.slice(0, 3).forEach((alt) => {
     sections.push(`- **${alt.city}** — ${alt.name} (${alt.code}) — ${alt.distance}`);
   });
 
-  // Guidance
-  sections.push('\nKlicken Sie auf einen Flughafen, um die Suche zu wiederholen.');
+  sections.push(locale === 'de'
+    ? '\nKlicken Sie auf einen Flughafen, um die Suche zu wiederholen.'
+    : '\nClick on an airport to repeat the search.');
 
-  // Fallback links if search params available
   if (params.searchParams) {
     const googleUrl = buildGoogleFlightsUrl(params.searchParams);
     const skyscannerUrl = buildSkyscannerUrl(params.searchParams);
 
-    sections.push('\n**Oder nutzen Sie alternative Suchen:**');
+    sections.push(locale === 'de'
+      ? '\n**Oder nutzen Sie alternative Suchen:**'
+      : '\n**Or use alternative searches:**');
     sections.push(`- [Google Flights](${googleUrl})`);
     sections.push(`- [Skyscanner](${skyscannerUrl})`);
   }

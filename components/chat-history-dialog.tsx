@@ -21,13 +21,6 @@ import {
   isThisWeek,
   isThisMonth,
   subWeeks,
-  differenceInSeconds,
-  differenceInMinutes,
-  differenceInHours,
-  differenceInDays,
-  differenceInWeeks,
-  differenceInMonths,
-  differenceInYears,
 } from 'date-fns';
 import { deleteChat, getUserChats, loadMoreChats, updateChatTitle } from '@/app/actions';
 import { Button } from './ui/button';
@@ -35,9 +28,11 @@ import { toast } from 'sonner';
 import { User } from '@/lib/db/schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { cn, invalidateChatsCache } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ClassicLoader } from './ui/loading';
+import { formatCompactTime } from '@/lib/chat-utils';
 
 // Constants
 const SCROLL_BUFFER_MAX = 100;
@@ -100,65 +95,8 @@ function categorizeChatsByDate(chats: Chat[]) {
   return { today, yesterday, thisWeek, lastWeek, thisMonth, older };
 }
 
-// Format time in a compact way with memoization
-const formatCompactTime = (() => {
-  const cache = new Map<string, { result: string; timestamp: number }>();
-  const CACHE_DURATION = 30000; // 30 seconds cache duration
-
-  return function (date: Date): string {
-    const now = new Date();
-    const dateKey = date.getTime().toString();
-    const cached = cache.get(dateKey);
-
-    // Check if cache is valid (less than 30 seconds old)
-    if (cached && now.getTime() - cached.timestamp < CACHE_DURATION) {
-      return cached.result;
-    }
-
-    const seconds = differenceInSeconds(now, date);
-
-    let result: string;
-    if (seconds < 60) {
-      result = `vor ${seconds}s`;
-    } else {
-      const minutes = differenceInMinutes(now, date);
-      if (minutes < 60) {
-        result = `vor ${minutes}m`;
-      } else {
-        const hours = differenceInHours(now, date);
-        if (hours < 24) {
-          result = `vor ${hours}h`;
-        } else {
-          const days = differenceInDays(now, date);
-          if (days < 7) {
-            result = `vor ${days}T`;
-          } else {
-            const weeks = differenceInWeeks(now, date);
-            if (weeks < 4) {
-              result = `vor ${weeks}W`;
-            } else {
-              const months = differenceInMonths(now, date);
-              if (months < 12) {
-                result = `vor ${months}Mo`;
-              } else {
-                const years = differenceInYears(now, date);
-                result = `vor ${years}J`;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // Keep cache size reasonable
-    if (cache.size > 1000) {
-      cache.clear();
-    }
-
-    cache.set(dateKey, { result, timestamp: now.getTime() });
-    return result;
-  };
-})();
+// Format time using translations (replaced by inline call with tTimeAgo)
+// Removed: local formatCompactTime - now uses formatCompactTime from @/lib/chat-utils
 
 // Custom fuzzy search function
 function fuzzySearch(query: string, text: string): boolean {
@@ -283,6 +221,11 @@ function advancedSearch(chat: Chat, query: string, mode: SearchMode): boolean {
 
 // Main component
 export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialogProps) {
+  const t = useTranslations('chatHistory');
+  const tCommon = useTranslations('common');
+  const tCategories = useTranslations('categories');
+  const tSearchMode = useTranslations('searchMode');
+  const tTimeAgo = useTranslations('timeAgo');
   const pathname = usePathname();
   const router = useRouter();
   const rawChatId = pathname?.startsWith('/search/') ? pathname.split('/')[2] : null;
@@ -438,7 +381,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
       await deleteChat(id);
     },
     onSuccess: (_, id) => {
-      toast.success('Chat gelöscht');
+      toast.success(t('chatDeleted'));
       // Update cache after successful deletion
       queryClient.setQueryData(['chats', user?.id], (oldData: any) => {
         if (!oldData) return oldData;
@@ -453,7 +396,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
     },
     onError: (error) => {
       console.error('Failed to delete chat:', error);
-      toast.error('Fehler beim Löschen des Chats. Bitte versuchen Sie es erneut.');
+      toast.error(t('chatDeleteError'));
       queryClient.invalidateQueries({ queryKey: ['chats', user?.id] });
     },
   });
@@ -464,7 +407,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
     },
     onSuccess: (updatedChat, { id, title }) => {
       if (updatedChat) {
-        toast.success('Titel aktualisiert');
+        toast.success(t('titleUpdated'));
         // Update cache after successful title update
         queryClient.setQueryData(['chats', user?.id], (oldData: any) => {
           if (!oldData) return oldData;
@@ -477,12 +420,12 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
           };
         });
       } else {
-        toast.error('Fehler beim Aktualisieren des Titels. Bitte versuchen Sie es erneut.');
+        toast.error(t('titleUpdateError'));
       }
     },
     onError: (error) => {
       console.error('Failed to update chat title:', error);
-      toast.error('Fehler beim Aktualisieren des Titels. Bitte versuchen Sie es erneut.');
+      toast.error(t('titleUpdateError'));
     },
   });
 
@@ -541,8 +484,8 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
   const handleSelectChat = useCallback(
     (id: string, title: string) => {
       setNavigating(id);
-      const displayTitle = title || 'Unbenannte Unterhaltung';
-      toast.info(`Öffne "${displayTitle}"...`);
+      const displayTitle = title || t('untitledChat');
+      toast.info(t('openingChat', { title: displayTitle }));
       invalidateChatsCache();
       onOpenChange(false);
       router.push(`/search/${id}`);
@@ -608,12 +551,12 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
       e.stopPropagation();
 
       if (!editingTitle.trim()) {
-        toast.error('Titel darf nicht leer sein');
+        toast.error(t('titleEmpty'));
         return;
       }
 
       if (editingTitle.trim().length > 100) {
-        toast.error('Titel ist zu lang (max 100 Zeichen)');
+        toast.error(t('titleTooLong'));
         return;
       }
 
@@ -652,14 +595,14 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
   const getSearchModeInfo = (mode: SearchMode) => {
     switch (mode) {
       case 'title':
-        return { icon: Hash, label: 'Titel' };
+        return { icon: Hash, label: tSearchMode('title') };
       case 'date':
-        return { icon: Calendar, label: 'Datum' };
+        return { icon: Calendar, label: tSearchMode('date') };
       case 'visibility':
-        return { icon: Globe, label: 'Sichtbarkeit' };
+        return { icon: Globe, label: tSearchMode('visibility') };
       case 'all':
       default:
-        return { icon: Search, label: 'Alle' };
+        return { icon: Search, label: tSearchMode('all') };
     }
   };
 
@@ -681,7 +624,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
     const isPublic = chat.visibility === 'public';
     const isDeleting = deletingChatId === chat.id;
     const isEditing = editingChatId === chat.id;
-    const displayTitle = chat.title || 'Unbenannte Unterhaltung';
+    const displayTitle = chat.title || t('untitledChat');
 
     return (
       <CommandItem
@@ -700,10 +643,10 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
         role="option"
         aria-label={
           isDeleting
-            ? `${displayTitle} löschen? Drücken Sie Enter zum Bestätigen, Escape zum Abbrechen`
+            ? t('deleteConfirm', { title: displayTitle })
             : isEditing
-              ? `Titel bearbeiten: ${displayTitle}`
-              : `Chat öffnen: ${displayTitle}`
+              ? `${t('editTitleLabel')}: ${displayTitle}`
+              : t('openChat', { title: displayTitle })
         }
       >
         <div className="grid grid-cols-[auto_1fr_auto] w-full gap-3 items-center">
@@ -712,7 +655,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
             {navigating === chat.id ? (
               <div
                 className="h-4 w-4 shrink-0 animate-spin rounded-full border-b-2 border-foreground"
-                aria-label="Lädt"
+                aria-label={t('loadingLabel')}
               ></div>
             ) : isPublic ? (
               <Globe
@@ -720,12 +663,12 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                   'h-4 w-4 shrink-0',
                   isCurrentChat ? 'text-blue-600 dark:text-blue-400' : 'text-blue-500/70 dark:text-blue-500/70',
                 )}
-                aria-label="Öffentlicher Chat"
+                aria-label={t('publicChat')}
               />
             ) : (
               <Lock
                 className={cn('h-4 w-4 shrink-0', isCurrentChat ? 'text-foreground' : 'text-muted-foreground')}
-                aria-label="Privater Chat"
+                aria-label={t('privateChat')}
               />
             )}
           </div>
@@ -740,7 +683,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                 onKeyDown={(e) => handleTitleKeyPress(e, chat.id)}
                 onClick={(e) => e.stopPropagation()}
                 className="w-full bg-background border border-muted-foreground/10 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-muted-foreground/20 focus:border-muted-foreground/20"
-                placeholder="Titel eingeben..."
+                placeholder={t('enterTitle')}
                 autoFocus
                 maxLength={100}
               />
@@ -753,7 +696,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                   isEditing && 'text-muted-foreground',
                 )}
               >
-                {isDeleting ? `"${displayTitle}" löschen?` : displayTitle}
+                {isDeleting ? `"${displayTitle}" ${tCommon('delete')}?` : displayTitle}
               </span>
             )}
           </div>
@@ -782,7 +725,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                   size="icon"
                   className="h-7 w-7 flex-shrink-0 text-muted-foreground hover:text-muted-foreground hover:bg-muted/50"
                   onClick={cancelDeleteChat}
-                  aria-label="Löschen abbrechen"
+                  aria-label={t('cancelDelete')}
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -795,7 +738,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                   size="icon"
                   className="h-7 w-7 flex-shrink-0 text-foreground hover:text-foreground hover:bg-muted"
                   onClick={(e) => saveEditedTitle(e, chat.id)}
-                  aria-label="Titel speichern"
+                  aria-label={t('saveTitle')}
                   disabled={updateTitleMutation.isPending}
                 >
                   {updateTitleMutation.isPending ? (
@@ -809,7 +752,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                   size="icon"
                   className="h-7 w-7 flex-shrink-0 text-muted-foreground hover:text-muted-foreground hover:bg-muted/50"
                   onClick={cancelEditTitle}
-                  aria-label="Bearbeiten abbrechen"
+                  aria-label={t('cancelEdit')}
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -819,7 +762,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
               <>
                 {/* Timestamp - more compact */}
                 <span className="text-xs text-muted-foreground whitespace-nowrap w-16 text-right">
-                  {formatCompactTime(new Date(chat.createdAt))}
+                  {formatCompactTime(new Date(chat.createdAt), tTimeAgo)}
                 </span>
 
                 {/* Actions - contextual based on states */}
@@ -838,7 +781,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                       'opacity-50 pointer-events-none',
                   )}
                   onClick={(e) => handleEditTitle(e, chat.id, chat.title)}
-                  aria-label={`Titel von ${displayTitle} bearbeiten`}
+                  aria-label={t('editTitle', { title: displayTitle })}
                   disabled={
                     navigating === chat.id ||
                     deleteMutation.isPending ||
@@ -864,7 +807,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                       'opacity-50 pointer-events-none',
                   )}
                   onClick={(e) => handleDeleteChat(e, chat.id, chat.title)}
-                  aria-label={`${displayTitle} löschen`}
+                  aria-label={t('deleteChatLabel', { title: displayTitle })}
                   disabled={
                     navigating === chat.id ||
                     deleteMutation.isPending ||
@@ -877,7 +820,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                 </Button>
                 <div className="w-6 flex justify-end">
                   {isCurrentChat ? (
-                    <span className="text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded-sm">Aktuell</span>
+                    <span className="text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded-sm">{t('current')}</span>
                   ) : (
                     <ArrowUpRight className="h-3 w-3" />
                   )}
@@ -902,17 +845,17 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
       <CommandDialog open={open} onOpenChange={onOpenChange}>
         <div className="flex flex-col items-center justify-center p-6 text-center h-full min-h-[250px]">
           <History className="size-8 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-1">Greifen Sie auf Ihren Chatverlauf zu</h3>
+          <h3 className="text-lg font-semibold mb-1">{t('accessHistory')}</h3>
           <p className="text-sm text-muted-foreground mb-6 max-w-xs">
-            Melden Sie sich an, um alle Ihre früheren Unterhaltungen nahtlos anzuzeigen, zu durchsuchen und zu verwalten.
+            {t('loginPrompt')}
           </p>
 
           <Button onClick={handleSignIn} className="w-full max-w-[200px]">
-            Anmelden
+            {tCommon('signIn')}
           </Button>
 
           <p className="text-xs text-muted-foreground mt-4">
-            Ihre Unterhaltungen werden automatisch gespeichert, wenn Sie angemeldet sind.
+            {t('autoSaved')}
           </p>
         </div>
       </CommandDialog>
@@ -929,7 +872,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
             <input
               ref={inputRef}
               className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 pr-2"
-              placeholder={`Suche ${currentModeInfo.label}...`}
+              placeholder={`${tCommon('search')} ${currentModeInfo.label}...`}
               value={searchQuery}
               onChange={(e) => {
                 const value = e.target.value;
@@ -966,7 +909,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
           >
             {isLoading ? (
               <div>
-                <CommandGroup heading="Kürzliche Unterhaltungen">
+                <CommandGroup heading={t('recentConversations')}>
                   {Array(5)
                     .fill(0)
                     .map((_, i) => (
@@ -993,12 +936,12 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                 {allChats.length > 0 ? (
                   <>
                     {[
-                      { key: 'today', heading: 'Heute' },
-                      { key: 'yesterday', heading: 'Gestern' },
-                      { key: 'thisWeek', heading: 'Diese Woche' },
-                      { key: 'lastWeek', heading: 'Letzte Woche' },
-                      { key: 'thisMonth', heading: 'Diesen Monat' },
-                      { key: 'older', heading: 'Älter' },
+                      { key: 'today', heading: tCategories('today') },
+                      { key: 'yesterday', heading: tCategories('yesterday') },
+                      { key: 'thisWeek', heading: tCategories('thisWeek') },
+                      { key: 'lastWeek', heading: tCategories('lastWeek') },
+                      { key: 'thisMonth', heading: tCategories('thisMonth') },
+                      { key: 'older', heading: tCategories('older') },
                     ].map(({ key, heading }) => {
                       const chats = categorizedChats[key as keyof typeof categorizedChats];
                       return (
@@ -1020,7 +963,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                         {isFetchingNextPage ? (
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <ClassicLoader size="sm" />
-                            Lade mehr...
+                            {t('loadMore')}
                           </div>
                         ) : (
                           <div className="h-1"></div>
@@ -1032,28 +975,28 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
                   <CommandEmpty>
                     <div className="py-6 px-4 text-center flex flex-col items-center">
                       <History className="size-10 text-muted-foreground mb-3" />
-                      <p className="text-sm font-medium">Keine Unterhaltungen gefunden</p>
+                      <p className="text-sm font-medium">{t('noConversations')}</p>
                       {searchQuery && (
                         <div className="text-xs text-muted-foreground mt-2 space-y-1">
-                          <p>Versuchen Sie einen anderen Suchbegriff oder ändern Sie den Suchmodus</p>
+                          <p>{t('noResults')}</p>
                           <div className="text-xs text-muted-foreground/70">
-                            <p>Suchtipps:</p>
+                            <p>{t('searchTips')}</p>
                             <p>
-                              • <code>public:</code> oder <code>private:</code> für Sichtbarkeit
+                              • <code>{t('publicFilter')}</code> or <code>{t('privateFilter')}</code> {t('visibilityHint')}
                             </p>
                             <p>
-                              • <code>today:</code>, <code>week:</code>, <code>month:</code> für Datum
+                              • <code>{t('todayFilter')}</code>, <code>{t('weekFilter')}</code>, <code>{t('monthFilter')}</code> {t('dateHint')}
                             </p>
                             <p>
-                              • <code>date:22/05/25</code> für spezifisches Datum (TT/MM/JJ)
+                              • <code>{t('dateFilter')}22/05/25</code> {t('specificDateHint')}
                             </p>
                             <p>
-                              • Wechseln Sie in den Datumsmodus und geben Sie <code>22/05/25</code> ein
+                              • {t('switchToDateMode', { format: '22/05/25' })}
                             </p>
                           </div>
                         </div>
                       )}
-                      {!searchQuery && <p className="text-xs text-muted-foreground mt-1">Starten Sie einen neuen Chat, um zu beginnen</p>}
+                      {!searchQuery && <p className="text-xs text-muted-foreground mt-1">{t('startNewChat')}</p>}
                     </div>
                   </CommandEmpty>
                 )}
@@ -1064,11 +1007,11 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
           {/* Mobile hints */}
           <div className="block sm:hidden bottom-0 left-0 right-0 p-3 text-xs text-center text-muted-foreground border-t border-border bg-background/90">
             <div className="flex justify-center items-center gap-3">
-              <span>Tippen zum Öffnen</span>
+              <span>{t('tapToOpen')}</span>
               <span>•</span>
-              <span>Umbenennen</span>
+              <span>{t('rename')}</span>
               <span>•</span>
-              <span>Löschen</span>
+              <span>{tCommon('delete')}</span>
             </div>
           </div>
 
@@ -1078,23 +1021,23 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
               {/* Important navigation shortcuts on the left */}
               <div className="flex items-center gap-4">
                 <span className="flex items-center gap-1.5">
-                  <kbd className="rounded border px-1.5 py-0.5 bg-muted text-xs">⏎</kbd> öffnen
+                  <kbd className="rounded border px-1.5 py-0.5 bg-muted text-xs">⏎</kbd> {t('openShortcut')}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <kbd className="rounded border px-1.5 py-0.5 bg-muted text-xs">↑</kbd>
                   <kbd className="rounded border px-1.5 py-0.5 bg-muted text-xs">↓</kbd>
-                  navigieren
+                  {t('navigate')}
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <kbd className="rounded border px-1.5 py-0.5 bg-muted text-xs">Tab</kbd> Modus wechseln
+                  <kbd className="rounded border px-1.5 py-0.5 bg-muted text-xs">Tab</kbd> {t('switchMode')}
                 </span>
               </div>
 
               {/* Less critical shortcuts on the right */}
               <div className="flex items-center gap-4">
-                <span className="text-muted-foreground/80">Klicken zum Umbenennen • Klicken zum Löschen</span>
+                <span className="text-muted-foreground/80">{t('renameHint')}</span>
                 <span className="flex items-center gap-1.5">
-                  <kbd className="rounded border px-1.5 py-0.5 bg-muted text-xs">Esc</kbd> schließen
+                  <kbd className="rounded border px-1.5 py-0.5 bg-muted text-xs">Esc</kbd> {t('closeShortcut')}
                 </span>
               </div>
             </div>
@@ -1107,6 +1050,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
 
 // Navigation Button component for navbar
 export function ChatHistoryButton({ onClickAction }: { onClickAction: () => void }) {
+  const t = useTranslations('chatHistory');
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -1122,7 +1066,7 @@ export function ChatHistoryButton({ onClickAction }: { onClickAction: () => void
         </Button>
       </TooltipTrigger>
       <TooltipContent side="bottom" sideOffset={4}>
-        Verlauf
+        {t('history')}
       </TooltipContent>
     </Tooltip>
   );

@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { AlertTriangleIcon } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface LoyaltyProgramCardProps {
   providerName: string;
@@ -71,6 +72,7 @@ export function LoyaltyProgramCard({
 }: LoyaltyProgramCardProps) {
   const expiring = isExpiringSoon(expirationDate);
   const formattedExpiration = formatExpirationDate(expirationDate);
+  const t = useTranslations('loyalty');
 
   if (compact) {
     return (
@@ -142,7 +144,7 @@ export function LoyaltyProgramCard({
             )}
           >
             {expiring && <AlertTriangleIcon className="w-3 h-3" />}
-            <span>Läuft ab: {formattedExpiration}</span>
+            <span>{t('expiresAt', { date: formattedExpiration })}</span>
           </div>
         )}
       </div>

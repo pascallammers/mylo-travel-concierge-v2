@@ -97,17 +97,24 @@ const CACHE_DURATION = 30000; // 30 seconds cache duration
 const MAX_CACHE_SIZE = 1000;
 
 /**
- * Formats a date as a compact relative time string (e.g., "vor 5m", "vor 2h").
+ * Translation function type for compact time formatting.
+ * Expects keys: seconds, minutes, hours, days, weeks, months, years
+ * Each with a {count} placeholder.
+ */
+export type TimeAgoTranslator = (key: string, params: { count: number }) => string;
+
+/**
+ * Formats a date as a compact relative time string (e.g., "5s ago", "2h ago").
  * Uses an internal cache for performance optimization.
  * @param date - The date to format
- * @returns Formatted relative time string in German
+ * @param t - Translation function from useTranslations('timeAgo')
+ * @returns Formatted relative time string
  */
-export function formatCompactTime(date: Date): string {
+export function formatCompactTime(date: Date, t: TimeAgoTranslator): string {
   const now = new Date();
   const dateKey = date.getTime().toString();
   const cached = timeFormatCache.get(dateKey);
 
-  // Check if cache is valid (less than 30 seconds old)
   if (cached && now.getTime() - cached.timestamp < CACHE_DURATION) {
     return cached.result;
   }
@@ -116,30 +123,30 @@ export function formatCompactTime(date: Date): string {
 
   let result: string;
   if (seconds < 60) {
-    result = `vor ${seconds}s`;
+    result = t('seconds', { count: seconds });
   } else {
     const minutes = differenceInMinutes(now, date);
     if (minutes < 60) {
-      result = `vor ${minutes}m`;
+      result = t('minutes', { count: minutes });
     } else {
       const hours = differenceInHours(now, date);
       if (hours < 24) {
-        result = `vor ${hours}h`;
+        result = t('hours', { count: hours });
       } else {
         const days = differenceInDays(now, date);
         if (days < 7) {
-          result = `vor ${days}T`;
+          result = t('days', { count: days });
         } else {
           const weeks = differenceInWeeks(now, date);
           if (weeks < 4) {
-            result = `vor ${weeks}W`;
+            result = t('weeks', { count: weeks });
           } else {
             const months = differenceInMonths(now, date);
             if (months < 12) {
-              result = `vor ${months}Mo`;
+              result = t('months', { count: months });
             } else {
               const years = differenceInYears(now, date);
-              result = `vor ${years}J`;
+              result = t('years', { count: years });
             }
           }
         }
@@ -147,7 +154,6 @@ export function formatCompactTime(date: Date): string {
     }
   }
 
-  // Keep cache size reasonable
   if (timeFormatCache.size > MAX_CACHE_SIZE) {
     timeFormatCache.clear();
   }
@@ -306,22 +312,19 @@ export function advancedSearch(chat: Chat, query: string, mode: SearchMode): boo
 }
 
 /**
- * Returns icon and label information for a search mode.
- * @param mode - The search mode
- * @returns Object with label string for the mode
+ * Translation function type for search mode labels.
+ * Expects keys: all, title, date, visibility
  */
-export function getSearchModeLabel(mode: SearchMode): string {
-  switch (mode) {
-    case 'title':
-      return 'Titel';
-    case 'date':
-      return 'Datum';
-    case 'visibility':
-      return 'Sichtbarkeit';
-    case 'all':
-    default:
-      return 'Alle';
-  }
+export type SearchModeTranslator = (key: string) => string;
+
+/**
+ * Returns the label for a search mode using the provided translation function.
+ * @param mode - The search mode
+ * @param t - Translation function from useTranslations('searchMode')
+ * @returns Translated label string for the mode
+ */
+export function getSearchModeLabel(mode: SearchMode, t: SearchModeTranslator): string {
+  return t(mode);
 }
 
 /**

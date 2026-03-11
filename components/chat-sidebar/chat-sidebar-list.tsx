@@ -7,6 +7,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { History } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import {
   SidebarContent,
   SidebarGroup,
@@ -28,16 +29,16 @@ const INTERSECTION_ROOT_MARGIN = '100px';
  */
 interface CategoryConfig {
   key: keyof CategorizedChats;
-  heading: string;
+  headingKey: string;
 }
 
 const CATEGORIES: CategoryConfig[] = [
-  { key: 'today', heading: 'Heute' },
-  { key: 'yesterday', heading: 'Gestern' },
-  { key: 'thisWeek', heading: 'Diese Woche' },
-  { key: 'lastWeek', heading: 'Letzte Woche' },
-  { key: 'thisMonth', heading: 'Diesen Monat' },
-  { key: 'older', heading: 'Älter' },
+  { key: 'today', headingKey: 'today' },
+  { key: 'yesterday', headingKey: 'yesterday' },
+  { key: 'thisWeek', headingKey: 'thisWeek' },
+  { key: 'lastWeek', headingKey: 'lastWeek' },
+  { key: 'thisMonth', headingKey: 'thisMonth' },
+  { key: 'older', headingKey: 'older' },
 ];
 
 /**
@@ -110,6 +111,8 @@ export function ChatSidebarList({
   onSetDeletingChatId,
   searchQuery = '',
 }: ChatSidebarListProps) {
+  const t = useTranslations('chatHistory');
+  const tCategories = useTranslations('categories');
   const contentRef = useRef<HTMLDivElement>(null);
   const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
 
@@ -159,7 +162,7 @@ export function ChatSidebarList({
     return (
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Kürzliche Unterhaltungen</SidebarGroupLabel>
+          <SidebarGroupLabel>{t('recentConversations')}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {Array.from({ length: 5 }).map((_, i) => (
@@ -178,20 +181,20 @@ export function ChatSidebarList({
       <SidebarContent className="flex items-center justify-center">
         <div className="flex flex-col items-center justify-center p-6 text-center">
           <History className="size-10 text-muted-foreground mb-3" />
-          <p className="text-sm font-medium">Keine Unterhaltungen</p>
+          <p className="text-sm font-medium">{t('noConversationsEmpty')}</p>
           {searchQuery ? (
             <div className="text-xs text-muted-foreground mt-2 space-y-1">
-              <p>Versuchen Sie einen anderen Suchbegriff</p>
+              <p>{t('tryDifferentSearch')}</p>
               <div className="text-[10px] text-muted-foreground/70 mt-2">
-                <p>Suchtipps:</p>
-                <p>• <code className="bg-muted px-1 rounded">public:</code> oder <code className="bg-muted px-1 rounded">private:</code></p>
-                <p>• <code className="bg-muted px-1 rounded">today:</code>, <code className="bg-muted px-1 rounded">week:</code>, <code className="bg-muted px-1 rounded">month:</code></p>
-                <p>• <code className="bg-muted px-1 rounded">date:22/05/25</code></p>
+                <p>{t('searchTips')}</p>
+                <p>• <code className="bg-muted px-1 rounded">{t('publicFilter')}</code> or <code className="bg-muted px-1 rounded">{t('privateFilter')}</code></p>
+                <p>• <code className="bg-muted px-1 rounded">{t('todayFilter')}</code>, <code className="bg-muted px-1 rounded">{t('weekFilter')}</code>, <code className="bg-muted px-1 rounded">{t('monthFilter')}</code></p>
+                <p>• <code className="bg-muted px-1 rounded">{t('dateFilter')}22/05/25</code></p>
               </div>
             </div>
           ) : (
             <p className="text-xs text-muted-foreground mt-1">
-              Starten Sie einen neuen Chat
+              {t('startNewChatShort')}
             </p>
           )}
         </div>
@@ -207,9 +210,9 @@ export function ChatSidebarList({
       <SidebarContent className="flex items-center justify-center">
         <div className="flex flex-col items-center justify-center p-6 text-center">
           <History className="size-10 text-muted-foreground mb-3" />
-          <p className="text-sm font-medium">Keine Ergebnisse</p>
+          <p className="text-sm font-medium">{t('noResultsShort')}</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Keine Chats für &quot;{searchQuery}&quot; gefunden
+            {t('noChatsFound', { query: searchQuery })}
           </p>
         </div>
       </SidebarContent>
@@ -218,13 +221,13 @@ export function ChatSidebarList({
 
   return (
     <SidebarContent ref={contentRef} onScroll={handleScroll}>
-      {CATEGORIES.map(({ key, heading }) => {
+      {CATEGORIES.map(({ key, headingKey }) => {
         const chats = categorizedChats[key];
         if (chats.length === 0) return null;
 
         return (
           <SidebarGroup key={key}>
-            <SidebarGroupLabel>{heading}</SidebarGroupLabel>
+            <SidebarGroupLabel>{tCategories(headingKey)}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {chats.map((chat) => (
@@ -257,7 +260,7 @@ export function ChatSidebarList({
           {isFetchingNextPage ? (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <ClassicLoader size="sm" />
-              <span>Lade mehr...</span>
+              <span>{t('loadMore')}</span>
             </div>
           ) : (
             <div className="h-1" />

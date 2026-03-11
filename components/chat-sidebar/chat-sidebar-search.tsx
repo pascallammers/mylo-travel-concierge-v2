@@ -6,10 +6,11 @@
 'use client';
 
 import { Search, Hash, Calendar, Globe } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { SidebarGroup, SidebarInput } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { SearchMode, getSearchModeLabel } from '@/lib/chat-utils';
+import { SearchMode } from '@/lib/chat-utils';
 
 /**
  * Props for the ChatSidebarSearch component.
@@ -58,9 +59,12 @@ export function ChatSidebarSearch({
   onCycleMode,
   placeholder,
 }: ChatSidebarSearchProps) {
+  const tSearch = useTranslations('searchMode');
+  const tCommon = useTranslations('common');
+  const tChat = useTranslations('chatHistory');
   const IconComponent = getSearchModeIcon(searchMode);
-  const modeLabel = getSearchModeLabel(searchMode);
-  const defaultPlaceholder = `Suche ${modeLabel}...`;
+  const modeLabel = tSearch(searchMode);
+  const defaultPlaceholder = `${tCommon('search')} ${modeLabel}...`;
 
   return (
     <SidebarGroup className="py-2 px-2 border-b border-sidebar-border">
@@ -93,7 +97,7 @@ export function ChatSidebarSearch({
       </div>
       <div className="mt-1.5 text-[10px] text-muted-foreground/70 px-1">
         <span className="hidden group-data-[collapsible=icon]:hidden sm:inline">
-          <kbd className="rounded border px-1 py-0.5 bg-muted text-[9px]">Tab</kbd> Modus wechseln
+          <kbd className="rounded border px-1 py-0.5 bg-muted text-[9px]">Tab</kbd> {tChat('switchMode')}
         </span>
       </div>
     </SidebarGroup>

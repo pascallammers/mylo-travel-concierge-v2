@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { LoyaltyProgramCard } from './loyalty-program-card';
 import { Loader2, RefreshCw, Unplug } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -43,20 +44,20 @@ interface LoyaltyProgramsListProps {
 }
 
 /**
- * Formats the last synced timestamp for display
+ * Formats the last synced timestamp for display (uses translations from parent)
  */
-function formatLastSynced(dateStr: string | null): string {
-  if (!dateStr) return 'Noch nie synchronisiert';
+function formatLastSynced(dateStr: string | null, t: ReturnType<typeof useTranslations>): string {
+  if (!dateStr) return t('neverSynced');
   const date = new Date(dateStr);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / (1000 * 60));
 
-  if (diffMins < 1) return 'Gerade eben';
-  if (diffMins < 60) return `Vor ${diffMins} Minute${diffMins !== 1 ? 'n' : ''}`;
+  if (diffMins < 1) return t('justNow');
+  if (diffMins < 60) return t('minutesAgo', { count: diffMins });
 
   const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `Vor ${diffHours} Stunde${diffHours !== 1 ? 'n' : ''}`;
+  if (diffHours < 24) return t('hoursAgo', { count: diffHours });
 
   return date.toLocaleDateString('de-DE', {
     day: '2-digit',
@@ -73,6 +74,8 @@ function formatLastSynced(dateStr: string | null): string {
  */
 export function LoyaltyProgramsList({ onDisconnected, className }: LoyaltyProgramsListProps) {
   const queryClient = useQueryClient();
+  const t = useTranslations('loyalty');
+  const tCommon = useTranslations('common');
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
 
   const {
@@ -86,7 +89,7 @@ export function LoyaltyProgramsList({ onDisconnected, className }: LoyaltyProgra
       const res = await fetch('/api/awardwallet/accounts');
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || 'Fehler beim Laden der Treueprogramme');
+        throw new Error(err.message || t('loadError'));
       }
       return res.json();
     },
@@ -99,12 +102,12 @@ export function LoyaltyProgramsList({ onDisconnected, className }: LoyaltyProgra
       const res = await fetch('/api/awardwallet/sync', { method: 'POST' });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || 'Synchronisation fehlgeschlagen');
+        throw new Error(err.message || t('syncFailed'));
       }
       return res.json();
     },
     onSuccess: (result) => {
-      toast.success(`${result.accountCount} Programme synchronisiert`);
+      toast.success(t('programsSynced', { count: result.accountCount }));
       queryClient.invalidateQueries({ queryKey: ['awardwallet', 'accounts'] });
     },
     onError: (error: Error) => {
@@ -117,12 +120,12 @@ export function LoyaltyProgramsList({ onDisconnected, className }: LoyaltyProgra
       const res = await fetch('/api/awardwallet/disconnect', { method: 'POST' });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || 'Verbindung konnte nicht getrennt werden');
+        throw new Error(err.message || t('disconnectError'));
       }
       return res.json();
     },
     onSuccess: () => {
-      toast.success('AwardWallet-Verbindung wurde getrennt');
+      toast.success(t('disconnected'));
       queryClient.invalidateQueries({ queryKey: ['awardwallet'] });
       setShowDisconnectDialog(false);
       onDisconnected?.();
@@ -152,11 +155,11 @@ export function LoyaltyProgramsList({ onDisconnected, className }: LoyaltyProgra
     return (
       <div className={cn('text-center py-8', className)}>
         <p className="text-sm text-destructive mb-3">
-          {error instanceof Error ? error.message : 'Fehler beim Laden'}
+          {error instanceof Error ? error.message : t('loadErrorShort')}
         </p>
         <Button variant="outline" size="sm" onClick={() => refetch()}>
           <RefreshCw className="w-3.5 h-3.5 mr-2" />
-          Erneut versuchen
+          {t('retry')}
         </Button>
       </div>
     );
@@ -172,7 +175,7 @@ export function LoyaltyProgramsList({ onDisconnected, className }: LoyaltyProgra
     <div className={cn('space-y-4', className)}>
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          {formatLastSynced(data.lastSyncedAt)}
+          {formatLastSynced(data.lastSyncedAt, t)}
         </p>
         <Button
           variant="ghost"
@@ -186,17 +189,17 @@ export function LoyaltyProgramsList({ onDisconnected, className }: LoyaltyProgra
           ) : (
             <RefreshCw className="w-3.5 h-3.5" />
           )}
-          <span className="ml-1.5 text-xs">Aktualisieren</span>
+          <span className="ml-1.5 text-xs">{t('refresh')}</span>
         </Button>
       </div>
 
       {accounts.length === 0 ? (
         <div className="text-center py-6 border-2 border-dashed rounded-lg bg-muted/10">
           <p className="text-sm text-muted-foreground">
-            Keine Treueprogramme in deinem AwardWallet-Konto gefunden.
+            {t('noPrograms')}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Füge Programme in AwardWallet hinzu, um sie hier zu sehen.
+            {t('addPrograms')}
           </p>
         </div>
       ) : (
@@ -225,19 +228,18 @@ export function LoyaltyProgramsList({ onDisconnected, className }: LoyaltyProgra
               className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
             >
               <Unplug className="w-3.5 h-3.5 mr-2" />
-              AwardWallet-Verbindung trennen
+              {t('disconnect')}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Verbindung trennen?</AlertDialogTitle>
+              <AlertDialogTitle>{t('disconnectTitle')}</AlertDialogTitle>
               <AlertDialogDescription>
-                Wenn du die Verbindung trennst, werden alle synchronisierten Treueprogramm-Daten
-                aus MYLO entfernt. Du kannst dich jederzeit wieder verbinden.
+                {t('disconnectDescription')}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+              <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
               <AlertDialogAction
                 onClick={() => disconnectMutation.mutate()}
                 disabled={disconnectMutation.isPending}
@@ -246,10 +248,10 @@ export function LoyaltyProgramsList({ onDisconnected, className }: LoyaltyProgra
                 {disconnectMutation.isPending ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
-                    Trennen...
+                    {t('disconnecting')}
                   </>
                 ) : (
-                  'Ja, trennen'
+                  t('confirmDisconnect')
                 )}
               </AlertDialogAction>
             </AlertDialogFooter>

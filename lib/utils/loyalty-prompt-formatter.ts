@@ -79,7 +79,7 @@ export function formatAmexTransferOptions(amexBalance: number): string {
     .map(({ id, partner }) => {
       const resultMiles = calculatePartnerMiles(id, amexBalance);
       if (!resultMiles) return null;
-      return `- ${partner.name}: ${resultMiles.toLocaleString()} ${partner.currencyUnit} (${partner.amexPoints}:${partner.partnerMiles} Ratio)`;
+      return `- ${partner.name}: ${resultMiles.toLocaleString()} ${partner.currencyUnit.en} (${partner.amexPoints}:${partner.partnerMiles} Ratio)`;
     })
     .filter(Boolean)
     .join('\n');

@@ -23,6 +23,7 @@ import {
   InstagramLogoIcon,
 } from '@phosphor-icons/react';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 import { ThemeSwitcher } from './theme-switcher';
 import { useRouter } from 'next/navigation';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -34,6 +35,7 @@ import { SettingsIcon, type SettingsIconHandle } from '@/components/ui/settings'
 const NavigationMenu = memo(() => {
   const [isOpen, setIsOpen] = useState(false);
   const settingsIconRef = useRef<SettingsIconHandle>(null);
+  const t = useTranslations('userProfile');
 
   // Control the animation based on dropdown state
   useEffect(() => {
@@ -55,7 +57,7 @@ const NavigationMenu = memo(() => {
           </DropdownMenuTrigger>
         </TooltipTrigger>
         <TooltipContent side="bottom" sideOffset={4}>
-          Menu
+          {t('menu')}
         </TooltipContent>
       </Tooltip>
       <DropdownMenuContent className="w-[240px] z-[110] mr-5">
@@ -63,7 +65,7 @@ const NavigationMenu = memo(() => {
           <div className="flex items-center justify-between w-full px-0" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2">
               <SunIcon size={16} />
-              <span className="text-sm">Theme</span>
+              <span className="text-sm">{t('theme')}</span>
             </div>
             <ThemeSwitcher />
           </div>
@@ -72,7 +74,7 @@ const NavigationMenu = memo(() => {
         <DropdownMenuItem className="cursor-pointer" asChild>
           <a href={'https://www.instagram.com/never.economy.again/'} target="_blank" rel="noopener noreferrer" className="w-full flex items-center gap-2">
             <InstagramLogoIcon size={16} />
-            <span>Folge uns auf Instagram</span>
+            <span>{t('followInstagram')}</span>
           </a>
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -112,6 +114,7 @@ const UserProfile = memo(
     const [showEmail, setShowEmail] = useState(false);
     const { data: session, isPending } = useSession();
     const router = useRouter();
+    const t = useTranslations('userProfile');
 
     // Use passed user prop if available, otherwise fall back to session
     // BUT only use session for authentication check, not for settings dialog data
@@ -182,7 +185,7 @@ const UserProfile = memo(
                 </DropdownMenuTrigger>
               </TooltipTrigger>
               <TooltipContent side="bottom" sideOffset={4}>
-                Account
+                {t('account')}
               </TooltipContent>
             </Tooltip>
             <DropdownMenuContent className="w-[240px] z-[110] mr-5">
@@ -217,7 +220,7 @@ const UserProfile = memo(
                         className="size-6 text-muted-foreground hover:text-foreground"
                       >
                         {showEmail ? <EyeSlashIcon size={12} /> : <EyeIcon size={12} />}
-                        <span className="sr-only">{showEmail ? 'Hide email' : 'Show email'}</span>
+                        <span className="sr-only">{showEmail ? t('hideEmail') : t('showEmail')}</span>
                       </Button>
                     </div>
                   </div>
@@ -227,7 +230,7 @@ const UserProfile = memo(
               <DropdownMenuItem className="cursor-pointer" onClick={() => setSettingsOpen?.(true)}>
                 <div className="w-full flex items-center gap-2">
                   <GearIcon size={16} />
-                  <span>Einstellungen</span>
+                  <span>{t('settings')}</span>
                 </div>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -257,7 +260,7 @@ const UserProfile = memo(
                   })
                 }
               >
-                <span>Logout</span>
+                <span>{t('logout')}</span>
                 <SignOutIcon className="size-4" />
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -280,7 +283,7 @@ const UserProfile = memo(
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom" sideOffset={4}>
-              Sign in to save your progress
+              {t('signInToSave')}
             </TooltipContent>
           </Tooltip>
         )}

@@ -23,5 +23,8 @@ export {
   getPartnersByEffectiveRate,
   getAirlinePartners,
   formatTransferRatio,
+  getLocalizedValue,
   type AmexTransferPartner,
+  type LocalizedString,
+  type AmexLocale,
 } from './amex-transfer-ratios';
