@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, RefreshCw, Webhook, ArrowDownUp, Repeat } from 'lucide-react';
+import { Search, RefreshCw, Webhook, ArrowDownUp, Repeat, Info, ChevronDown } from 'lucide-react';
 
 interface WebhookLog {
   id: string;
@@ -36,6 +36,7 @@ interface SyncLog {
 }
 
 export default function ThriveCartPage() {
+  const [showInfo, setShowInfo] = useState(false);
   const [tab, setTab] = useState<'webhooks' | 'syncs'>('webhooks');
   const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>([]);
   const [syncLogs, setSyncLogs] = useState<SyncLog[]>([]);
@@ -116,6 +117,46 @@ export default function ThriveCartPage() {
           <RefreshCw className="h-4 w-4 mr-2" />
           Aktualisieren
         </Button>
+      </div>
+
+      {/* Info Box */}
+      <div className="rounded-lg border border-border/50 bg-muted/30">
+        <button
+          onClick={() => setShowInfo(!showInfo)}
+          className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Info className="h-4 w-4 shrink-0" />
+          <span>Automatisierung — Was passiert bei welchem Event?</span>
+          <ChevronDown className={`h-4 w-4 ml-auto shrink-0 transition-transform ${showInfo ? 'rotate-180' : ''}`} />
+        </button>
+        {showInfo && (
+          <div className="px-4 pb-4 grid gap-3 text-xs text-muted-foreground sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-1">
+              <p className="font-medium text-foreground">Neukauf (success)</p>
+              <p>User + Account + Abo anlegen, Welcome-E-Mail mit Zugangsdaten senden. Bei bestehendem User: Abo um 1 Monat verlaengern.</p>
+            </div>
+            <div className="space-y-1">
+              <p className="font-medium text-foreground">Rebill (subscription payment)</p>
+              <p>Abo wird um 1 Monat ab aktuellem Periodenende verlaengert. Gesperrte User werden automatisch reaktiviert.</p>
+            </div>
+            <div className="space-y-1">
+              <p className="font-medium text-foreground">Kuendigung (cancelled)</p>
+              <p>Zugang bleibt bis Periodenende aktiv, danach automatische Sperrung.</p>
+            </div>
+            <div className="space-y-1">
+              <p className="font-medium text-foreground">Zahlung fehlgeschlagen (rebill failed)</p>
+              <p>User wird sofort gesperrt. Admin erhaelt eine Alert-E-Mail.</p>
+            </div>
+            <div className="space-y-1">
+              <p className="font-medium text-foreground">Pause / Fortsetzen</p>
+              <p>Bei Pause: Abo auf past_due. Bei Fortsetzen: Abo reaktiviert, User freigeschaltet.</p>
+            </div>
+            <div className="space-y-1">
+              <p className="font-medium text-foreground">Cron-Job (alle 6 Std.)</p>
+              <p>Abgelaufene Abos werden deaktiviert. ThriveCart-API-Sync korrigiert Diskrepanzen.</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tab Switcher */}
