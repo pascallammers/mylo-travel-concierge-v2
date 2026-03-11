@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { MyloLogo } from '@/components/logos/mylo-logo';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 
 export default function ResetPasswordPage() {
@@ -15,6 +15,7 @@ export default function ResetPasswordPage() {
   const [sent, setSent] = useState(false);
   const t = useTranslations('resetPassword');
   const tc = useTranslations('common');
+  const locale = useLocale();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +27,7 @@ export default function ResetPasswordPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, locale }),
       });
 
       const data = await response.json();

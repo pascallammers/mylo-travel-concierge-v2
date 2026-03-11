@@ -3,6 +3,59 @@ import { Resend } from 'resend';
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = 'MYLO <support@never-economy-again.com>'; // TODO: Update domain after deployment
 
+export type EmailLocale = 'de' | 'en';
+
+const emailTranslations = {
+  welcome: {
+    de: {
+      subject: '🎉 Willkommen bei MYLO - Deine Zugangsdaten',
+      heading: '🎉 Willkommen bei MYLO!',
+      greeting: (name: string) => `Hallo ${name},`,
+      defaultUser: 'MYLO-Nutzer',
+      intro: 'vielen Dank für deinen Kauf! Dein MYLO Travel-Concierge ist jetzt bereit.',
+      credentialsHeading: 'Deine Zugangsdaten:',
+      emailLabel: 'E-Mail:',
+      passwordLabel: 'Passwort:',
+      warning: '⚠️ Wichtig: Bitte ändere dein Passwort nach dem ersten Login in den Einstellungen.',
+      loginButton: 'Jetzt anmelden',
+      footer: 'Falls du Probleme beim Login hast, antworte einfach auf diese E-Mail.',
+    },
+    en: {
+      subject: '🎉 Welcome to MYLO - Your Login Credentials',
+      heading: '🎉 Welcome to MYLO!',
+      greeting: (name: string) => `Hi ${name},`,
+      defaultUser: 'MYLO User',
+      intro: 'Thank you for your purchase! Your MYLO Travel Concierge is ready.',
+      credentialsHeading: 'Your login credentials:',
+      emailLabel: 'Email:',
+      passwordLabel: 'Password:',
+      warning: '⚠️ Important: Please change your password after your first login in the settings.',
+      loginButton: 'Sign in now',
+      footer: 'If you have any issues logging in, simply reply to this email.',
+    },
+  },
+  resetPassword: {
+    de: {
+      subject: 'Passwort zurücksetzen - MYLO',
+      heading: 'Passwort zurücksetzen',
+      intro: 'Du hast einen Passwort-Reset angefordert.',
+      instruction: 'Klicke auf den Button, um ein neues Passwort zu setzen:',
+      button: 'Passwort zurücksetzen',
+      footer: 'Falls du diese E-Mail nicht angefordert hast, ignoriere sie einfach.',
+      expiry: 'Der Link ist 1 Stunde gültig.',
+    },
+    en: {
+      subject: 'Reset Password - MYLO',
+      heading: 'Reset Password',
+      intro: 'You requested a password reset.',
+      instruction: 'Click the button below to set a new password:',
+      button: 'Reset Password',
+      footer: 'If you did not request this email, you can safely ignore it.',
+      expiry: 'The link is valid for 1 hour.',
+    },
+  },
+} as const;
+
 /**
  * Resend email status response type
  */
@@ -40,9 +93,15 @@ export async function getEmailStatus(emailId: string): Promise<ResendEmailStatus
  * @param email - User's email address
  * @param password - Generated temporary password
  * @param firstName - Optional first name for personalization
+ * @param locale - Language for the email content (default: 'en')
  */
-export async function sendWelcomeEmail(email: string, password: string, firstName?: string) {
-  // Always use production URL for emails
+export async function sendWelcomeEmail(
+  email: string,
+  password: string,
+  firstName?: string,
+  locale: EmailLocale = 'en',
+) {
+  const t = emailTranslations.welcome[locale];
   const APP_URL = process.env.NODE_ENV === 'production' 
     ? 'https://chat.never-economy-again.com' 
     : (process.env.NEXT_PUBLIC_APP_URL || 'https://chat.never-economy-again.com');
@@ -51,10 +110,10 @@ export async function sendWelcomeEmail(email: string, password: string, firstNam
     await resend.emails.send({
       from: FROM_EMAIL,
       to: email,
-      subject: '🎉 Willkommen bei MYLO - Deine Zugangsdaten',
+      subject: t.subject,
       html: `
         <!DOCTYPE html>
-        <html>
+        <html lang="${locale}">
           <head>
             <style>
               body {
@@ -107,35 +166,31 @@ export async function sendWelcomeEmail(email: string, password: string, firstNam
           <body>
             <div class="container">
               <div class="header">
-                <h1>🎉 Willkommen bei MYLO!</h1>
+                <h1>${t.heading}</h1>
               </div>
               <div class="content">
-                <p>Hallo ${firstName || 'MYLO-Nutzer'},</p>
+                <p>${t.greeting(firstName || t.defaultUser)}</p>
                 
-                <p>
-                  vielen Dank für deinen Kauf! Dein MYLO Travel-Concierge ist jetzt bereit.
-                </p>
+                <p>${t.intro}</p>
 
                 <div class="credentials">
-                  <h3>Deine Zugangsdaten:</h3>
-                  <p><strong>E-Mail:</strong><br/><code>${email}</code></p>
-                  <p><strong>Passwort:</strong><br/><code>${password}</code></p>
+                  <h3>${t.credentialsHeading}</h3>
+                  <p><strong>${t.emailLabel}</strong><br/><code>${email}</code></p>
+                  <p><strong>${t.passwordLabel}</strong><br/><code>${password}</code></p>
                 </div>
 
-                <p>
-                  <strong>⚠️ Wichtig:</strong> Bitte ändere dein Passwort nach dem ersten Login in den Einstellungen.
-                </p>
+                <p><strong>${t.warning}</strong></p>
 
                 <center>
                   <a href="${APP_URL}/sign-in" class="button">
-                    Jetzt anmelden
+                    ${t.loginButton}
                   </a>
                 </center>
 
                 <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
 
                 <p style="font-size: 12px; color: #6b7280;">
-                  Falls du Probleme beim Login hast, antworte einfach auf diese E-Mail.
+                  ${t.footer}
                 </p>
               </div>
             </div>
@@ -154,8 +209,14 @@ export async function sendWelcomeEmail(email: string, password: string, firstNam
  * Send password reset email
  * @param email - User's email address
  * @param url - Password reset URL with token
+ * @param locale - Language for the email content (default: 'en')
  */
-export async function sendPasswordResetEmail(email: string, url: string) {
+export async function sendPasswordResetEmail(
+  email: string,
+  url: string,
+  locale: EmailLocale = 'en',
+) {
+  const t = emailTranslations.resetPassword[locale];
   console.log('📧 Preparing password reset email for:', email);
   console.log('🔑 Resend API Key present:', !!process.env.RESEND_API_KEY);
   console.log('🔗 Reset URL:', url);
@@ -164,10 +225,10 @@ export async function sendPasswordResetEmail(email: string, url: string) {
     const result = await resend.emails.send({
       from: FROM_EMAIL,
       to: email,
-      subject: 'Passwort zurücksetzen - MYLO',
+      subject: t.subject,
       html: `
         <!DOCTYPE html>
-        <html>
+        <html lang="${locale}">
           <head>
             <style>
               body {
@@ -193,18 +254,18 @@ export async function sendPasswordResetEmail(email: string, url: string) {
           </head>
           <body>
             <div class="container">
-              <h2>Passwort zurücksetzen</h2>
-              <p>Du hast einen Passwort-Reset angefordert.</p>
-              <p>Klicke auf den Button, um ein neues Passwort zu setzen:</p>
+              <h2>${t.heading}</h2>
+              <p>${t.intro}</p>
+              <p>${t.instruction}</p>
               
               <center>
-                <a href="${url}" class="button">Passwort zurücksetzen</a>
+                <a href="${url}" class="button">${t.button}</a>
               </center>
 
               <p style="font-size: 12px; color: #6b7280; margin-top: 30px;">
-                Falls du diese E-Mail nicht angefordert hast, ignoriere sie einfach.
+                ${t.footer}
                 <br/>
-                Der Link ist 1 Stunde gültig.
+                ${t.expiry}
               </p>
             </div>
           </body>
@@ -222,7 +283,6 @@ export async function sendPasswordResetEmail(email: string, url: string) {
     console.error('🔗 Reset URL:', url);
     console.error('💥 Error details:', error);
 
-    // IMPORTANT: Re-throw error so Better-Auth knows it failed!
     throw error;
   }
 }

@@ -65,7 +65,7 @@
 - [x] `lib/config/amex-transfer-ratios.ts` - Zweisprachige `LocalizedString`-Datenstruktur ({de, en}) fuer transferDuration, currencyUnit, notes. Helper `getLocalizedValue()` hinzugefuegt.
 - [x] `lib/chat-utils.ts` - `formatCompactTime` nimmt jetzt `TimeAgoTranslator` als Parameter (nutzt `timeAgo`-Namespace), `getSearchModeLabel` nimmt `SearchModeTranslator` (nutzt `searchMode`-Namespace). Aufrufer (Sidebar-Item, Chat-History-Dialog) aktualisiert.
 - [x] `lib/utils/tool-error-response.ts` - Optionaler `locale`-Parameter bei allen Formatierungs-Funktionen. Error-Headers und Default-Suggestions in de/en. Fallback: deutsch.
-- [ ] `lib/email.ts` - Welcome-E-Mail, Passwort-Reset E-Mail (komplett deutsch)
+- [x] `lib/email.ts` - Welcome-E-Mail und Passwort-Reset E-Mail zweisprachig. `locale`-Parameter bei `sendWelcomeEmail` und `sendPasswordResetEmail`. Admin-Alert (`sendFailedPaymentAdminAlert`) bleibt deutsch. Aufrufer aktualisiert: Webhooks/Admin nutzen `'de'`, User-facing Reset-Password sendet aktuelle Locale mit.
 - [ ] `lib/auth.ts` - "Dein Abo ist abgelaufen", "Login nicht moeglich"
 - [ ] `lib/tools/flight-search.ts` - Viele deutsche Strings in Suchergebnissen/Fehlermeldungen
 - [ ] `lib/tools/loyalty-balances.ts` - "Keine Konten gefunden..."

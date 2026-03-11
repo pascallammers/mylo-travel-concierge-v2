@@ -67,7 +67,7 @@ export async function POST(
       email: targetUser.email,
     });
 
-    const emailResult = await sendPasswordResetEmail(targetUser.email, resetUrl);
+    const emailResult = await sendPasswordResetEmail(targetUser.email, resetUrl, 'de');
     const resendEmailId = emailResult?.data?.id || null;
 
     // Log to history with Resend email ID

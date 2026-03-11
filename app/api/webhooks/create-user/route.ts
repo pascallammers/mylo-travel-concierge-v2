@@ -217,7 +217,7 @@ export async function POST(req: NextRequest) {
 
     // 9. Send welcome email with login credentials
     try {
-      await sendWelcomeEmail(normalizedEmail, password, firstName);
+      await sendWelcomeEmail(normalizedEmail, password, firstName, 'de');
       console.log('✅ Welcome email sent to:', normalizedEmail);
     } catch (emailError) {
       console.error('❌ Failed to send welcome email:', emailError);

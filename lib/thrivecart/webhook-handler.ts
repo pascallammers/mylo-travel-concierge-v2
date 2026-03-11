@@ -191,7 +191,7 @@ async function handleOrderSuccess(
 
   // Send welcome email
   try {
-    await sendWelcomeEmail(email, password, firstName);
+    await sendWelcomeEmail(email, password, firstName, 'de');
   } catch (emailError) {
     console.error('[ThriveCart] Failed to send welcome email:', emailError);
   }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { user, verification } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { sendPasswordResetEmail } from '@/lib/email';
+import { sendPasswordResetEmail, type EmailLocale } from '@/lib/email';
 import crypto from 'crypto';
 import { buildResetPasswordUrl, resolveBaseUrl } from '@/lib/password-reset';
 
@@ -16,7 +16,8 @@ import { buildResetPasswordUrl, resolveBaseUrl } from '@/lib/password-reset';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email } = body;
+    const { email, locale: bodyLocale } = body;
+    const locale: EmailLocale = bodyLocale === 'de' ? 'de' : 'en';
 
     console.log('🔐 Custom forget-password endpoint called');
     console.log('📧 Email:', email);
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
 
     // 5. Send email via Resend (GUARANTEED)
     console.log('📤 Sending email via Resend...');
-    await sendPasswordResetEmail(targetUser.email, resetUrl);
+    await sendPasswordResetEmail(targetUser.email, resetUrl, locale);
 
     console.log('✅ Password reset email sent successfully via custom route');
 

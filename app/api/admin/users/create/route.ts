@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     // Send welcome email with credentials
     const firstName = name.split(' ')[0];
     try {
-      await sendWelcomeEmail(email, password, firstName);
+      await sendWelcomeEmail(email, password, firstName, 'de');
     } catch (emailError) {
       console.error('Failed to send welcome email:', emailError);
       // Return success but note email failure
