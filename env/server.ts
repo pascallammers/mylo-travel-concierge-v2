@@ -61,6 +61,11 @@ export const serverEnv = createEnv({
     AWARDWALLET_API_KEY: z.string().min(1),
     AWARDWALLET_CALLBACK_URL: z.string().url().optional(),
     AWARDWALLET_PROXY_URL: z.string().min(1).optional(),
+    // ThriveCart Integration
+    THRIVECART_API_KEY: z.string().min(1),
+    THRIVECART_SECRET_WORD: z.string().min(1),
+    THRIVECART_PRODUCT_ID: z.string().optional().default('5'),
+    THRIVECART_ACCOUNT_ID: z.string().optional().default('never-economy-again'),
   },
   experimental__runtimeEnv: process.env,
 });

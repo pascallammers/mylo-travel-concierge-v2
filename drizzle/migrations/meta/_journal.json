@@ -99,6 +99,13 @@
       "when": 1767342673869,
       "tag": "0013_add_awardwallet_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1773138803857,
+      "tag": "0014_broken_master_chief",
+      "breakpoints": true
     }
   ]
 }
