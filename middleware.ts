@@ -17,6 +17,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Skip i18n routing for admin routes (they live outside [locale])
+  if (pathname.startsWith('/admin')) {
+    const sessionCookie = getSessionCookie(request);
+    if (!sessionCookie) {
+      return NextResponse.redirect(new URL('/sign-in', request.url));
+    }
+    return NextResponse.next();
+  }
+
   // Run next-intl middleware first to handle locale routing
   const response = handleI18nRouting(request);
 
