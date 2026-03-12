@@ -10,15 +10,28 @@ import { ProxyAgent } from 'undici';
  * Documentation: https://awardwallet.com/api/account
  */
 const AWARDWALLET_BASE_URL = 'https://business.awardwallet.com/api/export/v1';
-const awardWalletDispatcher = serverEnv.AWARDWALLET_PROXY_URL
-  ? new ProxyAgent(serverEnv.AWARDWALLET_PROXY_URL)
-  : undefined;
+
+let awardWalletDispatcher: ProxyAgent | undefined;
+
+function getProxyDispatcher(): ProxyAgent | undefined {
+  if (!serverEnv.AWARDWALLET_PROXY_URL) return undefined;
+  if (!awardWalletDispatcher) {
+    try {
+      awardWalletDispatcher = new ProxyAgent(serverEnv.AWARDWALLET_PROXY_URL);
+    } catch (err) {
+      console.error('[AwardWallet] Failed to create ProxyAgent:', err);
+      return undefined;
+    }
+  }
+  return awardWalletDispatcher;
+}
 
 function withAwardWalletProxy(init: RequestInit): RequestInit {
-  if (!awardWalletDispatcher) {
+  const dispatcher = getProxyDispatcher();
+  if (!dispatcher) {
     return init;
   }
-  return { ...init, dispatcher: awardWalletDispatcher } as RequestInit;
+  return { ...init, dispatcher } as RequestInit;
 }
 
 /**
@@ -82,19 +95,33 @@ export async function createAuthUrl(): Promise<string> {
     granularSharing: false,
   };
 
+  const fetchOptions: RequestInit = {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Authentication': apiKey,
+    },
+    body: JSON.stringify(authPayload),
+  };
+
   try {
-    console.error('[AwardWallet] Calling create-auth-url API...');
-    const response = await fetch(
-      `${AWARDWALLET_BASE_URL}/create-auth-url`,
-      withAwardWalletProxy({
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Authentication': apiKey,
-        },
-        body: JSON.stringify(authPayload),
-      }),
-    );
+    const useProxy = !!getProxyDispatcher();
+    console.error('[AwardWallet] Calling create-auth-url API (proxy:', useProxy, ')');
+
+    let response: Response;
+    try {
+      response = await fetch(
+        `${AWARDWALLET_BASE_URL}/create-auth-url`,
+        withAwardWalletProxy(fetchOptions),
+      );
+    } catch (fetchError) {
+      if (useProxy) {
+        console.error('[AwardWallet] Proxy fetch failed, retrying without proxy:', fetchError);
+        response = await fetch(`${AWARDWALLET_BASE_URL}/create-auth-url`, fetchOptions);
+      } else {
+        throw fetchError;
+      }
+    }
 
     console.error('[AwardWallet] API response status:', response.status);
 
