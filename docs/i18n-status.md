@@ -59,17 +59,15 @@
 | `sidebar` | Sidebar-spezifische Strings | erledigt |
 | `userProfile` | Benutzer-Profil/Menue | erledigt |
 
-## Offene Dateien (noch nicht umgestellt)
-
-### Backend/Lib (AI-Antworten und E-Mails) - braucht anderen Ansatz (kein React-Hook verfuegbar)
+## Backend/Lib - Alle umgestellt (kein React-Hook, stattdessen locale-Parameter)
 - [x] `lib/config/amex-transfer-ratios.ts` - Zweisprachige `LocalizedString`-Datenstruktur ({de, en}) fuer transferDuration, currencyUnit, notes. Helper `getLocalizedValue()` hinzugefuegt.
 - [x] `lib/chat-utils.ts` - `formatCompactTime` nimmt jetzt `TimeAgoTranslator` als Parameter (nutzt `timeAgo`-Namespace), `getSearchModeLabel` nimmt `SearchModeTranslator` (nutzt `searchMode`-Namespace). Aufrufer (Sidebar-Item, Chat-History-Dialog) aktualisiert.
 - [x] `lib/utils/tool-error-response.ts` - Optionaler `locale`-Parameter bei allen Formatierungs-Funktionen. Error-Headers und Default-Suggestions in de/en. Fallback: deutsch.
 - [x] `lib/email.ts` - Welcome-E-Mail und Passwort-Reset E-Mail zweisprachig. `locale`-Parameter bei `sendWelcomeEmail` und `sendPasswordResetEmail`. Admin-Alert (`sendFailedPaymentAdminAlert`) bleibt deutsch. Aufrufer aktualisiert: Webhooks/Admin nutzen `'de'`, User-facing Reset-Password sendet aktuelle Locale mit.
-- [ ] `lib/auth.ts` - "Dein Abo ist abgelaufen", "Login nicht moeglich"
-- [ ] `lib/tools/flight-search.ts` - Viele deutsche Strings in Suchergebnissen/Fehlermeldungen
-- [ ] `lib/tools/loyalty-balances.ts` - "Keine Konten gefunden..."
-- [ ] `lib/utils/loyalty-prompt-formatter.ts` - Deutsche Hinweise
+- [x] `lib/auth.ts` - `getAccessDeniedMessage()` zweisprachig mit `accessDeniedMessages`-Map. Locale wird aus dem Referer-Header erkannt (`/de/sign-in` vs `/en/sign-in`). Fallback: englisch.
+- [x] `lib/tools/flight-search.ts` - Alle ~25 deutschen Strings in `flightI18n`-Map extrahiert (Fehler, Tabellen-Header, Labels, Hinweise). `formatFlightResults()` nimmt `locale`-Parameter. Default: deutsch.
+- [x] `lib/tools/loyalty-balances.ts` - Fehlermeldungen in `loyaltyI18n`-Map extrahiert (nicht verbunden, nicht authentifiziert, keine Konten). Default: deutsch.
+- [x] `lib/utils/loyalty-prompt-formatter.ts` - `formatLoyaltyDataForPrompt()` und `formatAmexTransferOptions()` nehmen optionalen `locale`-Parameter. Prompt-Texte, Labels und Amex-Warnungen in `promptI18n`-Map. Default: englisch (System-Prompt-Kontext).
 
 ### Admin (bewusst ausgelassen - bleibt deutsch)
 - `app/admin/**` - Alle Admin-Seiten bleiben deutsch

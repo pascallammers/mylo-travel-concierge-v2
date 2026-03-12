@@ -14,6 +14,112 @@ import { createDuffelBookingSession } from '@/lib/utils/duffel-links';
 import { formatGracefulFlightError, formatFlightErrorWithAlternatives, AlternativeAirport } from '@/lib/utils/tool-error-response';
 import { logFailedSearch } from '@/lib/db/queries/failed-search';
 
+type FlightLocale = 'de' | 'en';
+
+const flightI18n = {
+  pastDepartDate: {
+    de: (date: string, today: string) =>
+      `Das Abflugdatum (${date}) liegt in der Vergangenheit. Bitte geben Sie ein zukünftiges Datum an. Heutiges Datum: ${today}`,
+    en: (date: string, today: string) =>
+      `The departure date (${date}) is in the past. Please provide a future date. Today's date: ${today}`,
+  },
+  pastReturnDate: {
+    de: (date: string) =>
+      `Das Rückflugdatum (${date}) liegt in der Vergangenheit. Bitte geben Sie ein zukünftiges Datum an.`,
+    en: (date: string) =>
+      `The return date (${date}) is in the past. Please provide a future date.`,
+  },
+  returnBeforeDepart: {
+    de: (returnDate: string, departDate: string) =>
+      `Das Rückflugdatum (${returnDate}) liegt vor dem Abflugdatum (${departDate}). Bitte überprüfen Sie die Daten.`,
+    en: (returnDate: string, departDate: string) =>
+      `The return date (${returnDate}) is before the departure date (${departDate}). Please check the dates.`,
+  },
+  clarification: {
+    de: (type: string, message: string) =>
+      `Ich brauche eine Klarstellung für ${type === 'origin' ? 'den Abflugort' : type === 'destination' ? 'das Ziel' : 'Abflug- und Zielort'}:\n\n${message}\n\nBitte geben Sie mehr Details an, zum Beispiel das Land oder einen alternativen Flughafennamen.`,
+    en: (type: string, message: string) =>
+      `I need clarification for ${type === 'origin' ? 'the origin' : type === 'destination' ? 'the destination' : 'origin and destination'}:\n\n${message}\n\nPlease provide more details, such as the country or an alternative airport name.`,
+  },
+  noResultsFlexOffer: {
+    de: (date: string) =>
+      `Fuer Ihre Suche am ${date} wurden keine Fluege gefunden. Moechten Sie auch +/- 3 Tage suchen?`,
+    en: (date: string) =>
+      `No flights found for your search on ${date}. Would you like to search +/- 3 days as well?`,
+  },
+  noDirectFlights: {
+    de: (airport: string) => `Leider keine direkten Flüge ab ${airport}.`,
+    en: (airport: string) => `Unfortunately no direct flights from ${airport}.`,
+  },
+  nearbyAirports: {
+    de: 'Diese Flughäfen sind in der Nähe:',
+    en: 'These airports are nearby:',
+  },
+  clickToRepeat: {
+    de: 'Klicken Sie auf einen Flughafen, um die Suche zu wiederholen.',
+    en: 'Click on an airport to repeat the search.',
+  },
+  providerUnavailable: {
+    de: 'Die Flugsuche konnte keine Ergebnisse laden, da einige unserer Datenquellen vorübergehend nicht erreichbar sind.',
+    en: 'The flight search could not load results because some of our data sources are temporarily unavailable.',
+  },
+  noFlightsShort: {
+    de: 'Keine Flüge gefunden. Versuchen Sie andere Daten.',
+    en: 'No flights found. Try different dates.',
+  },
+  noResultsFound: {
+    de: 'Fuer Ihre Suchkriterien wurden leider keine Fluege gefunden.',
+    en: 'Unfortunately no flights were found for your search criteria.',
+  },
+  dateLabel: {
+    original: { de: 'Originaldatum', en: 'Original date' },
+    earlier: {
+      de: (n: number) => `${n} ${n === 1 ? 'Tag' : 'Tage'} frueher`,
+      en: (n: number) => `${n} ${n === 1 ? 'day' : 'days'} earlier`,
+    },
+    later: {
+      de: (n: number) => `${n} ${n === 1 ? 'Tag' : 'Tage'} spaeter`,
+      en: (n: number) => `${n} ${n === 1 ? 'day' : 'days'} later`,
+    },
+  },
+  awardHeader: {
+    de: (count: number) => `## Flüge mit Meilen/Punkten (${count} Ergebnisse)\n`,
+    en: (count: number) => `## Flights with Miles/Points (${count} results)\n`,
+  },
+  awardTableHeader: {
+    de: '| Nr. | Airline | Klasse | Preis | Abflug | Ankunft | Dauer | Stops | Sitze | Flugnummer |',
+    en: '| No. | Airline | Class | Price | Departure | Arrival | Duration | Stops | Seats | Flight No. |',
+  },
+  cashHeader: {
+    de: (count: number) => `## Flüge mit Barzahlung (${count} Ergebnisse)\n`,
+    en: (count: number) => `## Flights with Cash (${count} results)\n`,
+  },
+  cashTableHeader: {
+    de: '| Nr. | Airline | Preis | Abflug | Ankunft | Dauer | Stops | Buchen |',
+    en: '| No. | Airline | Price | Departure | Arrival | Duration | Stops | Book |',
+  },
+  nonstop: { de: 'Nonstop', en: 'Nonstop' },
+  stops: {
+    de: (n: number) => `${n} Stop(s)`,
+    en: (n: number) => `${n} stop(s)`,
+  },
+  partialFailureNote: {
+    de: (types: string) =>
+      `\n---\n\n_**Hinweis:** ${types} konnten nicht geladen werden. Für weitere Optionen können Sie die folgenden Links nutzen:_\n`,
+    en: (types: string) =>
+      `\n---\n\n_**Note:** ${types} could not be loaded. For more options you can use the following links:_\n`,
+  },
+  awardFlightsLabel: { de: 'Meilen/Punkte-Flüge', en: 'Miles/points flights' },
+  cashFlightsLabel: { de: 'Cash-Flüge', en: 'Cash flights' },
+  noResultsFallback: {
+    de: (origin: string, dest: string, date: string, cabin: string) =>
+      `Leider wurden keine Flüge für Ihre Suche gefunden.\n\n**Suchparameter:**\n- Route: ${origin} → ${dest}\n- Datum: ${date}\n- Klasse: ${cabin}\n\nVersuchen Sie:\n- Andere Daten wählen\n- Flexibilität erhöhen\n- Alternative Airports prüfen\n`,
+    en: (origin: string, dest: string, date: string, cabin: string) =>
+      `Unfortunately no flights were found for your search.\n\n**Search parameters:**\n- Route: ${origin} → ${dest}\n- Date: ${date}\n- Class: ${cabin}\n\nTry:\n- Choose different dates\n- Increase flexibility\n- Check alternative airports\n`,
+  },
+  andConnector: { de: ' und ', en: ' and ' },
+} as const;
+
 /**
  * Flight Search Tool - Searches both award flights (Seats.aero) and cash flights (Duffel)
  */
@@ -102,24 +208,23 @@ Examples of queries that should trigger this tool:
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Reset to midnight for fair comparison
     
+    // Detect locale from system prompt / message context (default: 'de' for backward compatibility)
+    const locale: FlightLocale = 'de';
+
     const departDate = new Date(params.departDate);
     if (departDate < today) {
       throw new Error(
-        `Das Abflugdatum (${params.departDate}) liegt in der Vergangenheit. Bitte geben Sie ein zukünftiges Datum an. Heutiges Datum: ${today.toISOString().split('T')[0]}`
+        flightI18n.pastDepartDate[locale](params.departDate, today.toISOString().split('T')[0])
       );
     }
 
     if (params.returnDate) {
       const returnDate = new Date(params.returnDate);
       if (returnDate < today) {
-        throw new Error(
-          `Das Rückflugdatum (${params.returnDate}) liegt in der Vergangenheit. Bitte geben Sie ein zukünftiges Datum an.`
-        );
+        throw new Error(flightI18n.pastReturnDate[locale](params.returnDate));
       }
       if (returnDate < departDate) {
-        throw new Error(
-          `Das Rückflugdatum (${params.returnDate}) liegt vor dem Abflugdatum (${params.departDate}). Bitte überprüfen Sie die Daten.`
-        );
+        throw new Error(flightI18n.returnBeforeDepart[locale](params.returnDate, params.departDate));
       }
     }
 
@@ -133,12 +238,7 @@ Examples of queries that should trigger this tool:
     if (resolution.needsClarification) {
       const clarifyType = resolution.needsClarification.type;
       const clarifyMessage = resolution.needsClarification.message;
-
-      return `Ich brauche eine Klarstellung für ${clarifyType === 'origin' ? 'den Abflugort' : clarifyType === 'destination' ? 'das Ziel' : 'Abflug- und Zielort'}:
-
-${clarifyMessage}
-
-Bitte geben Sie mehr Details an, zum Beispiel das Land oder einen alternativen Flughafennamen.`;
+      return flightI18n.clarification[locale](clarifyType, clarifyMessage);
     }
 
     // Extract codes or fall back to sync resolver
@@ -300,7 +400,7 @@ Bitte geben Sie mehr Details an, zum Beispiel das Land oder einen alternativen F
 
             return JSON.stringify({
               type: 'no_results_offer_flexible',
-              message: `Fuer Ihre Suche am ${params.departDate} wurden keine Fluege gefunden. Moechten Sie auch +/- 3 Tage suchen?`,
+              message: flightI18n.noResultsFlexOffer[locale](params.departDate),
               originalSearch: {
                 origin,
                 destination,
@@ -349,7 +449,8 @@ Bitte geben Sie mehr Details an, zum Beispiel das Land oder einen alternativen F
             // Return BOTH the formatted text AND structured data for UI rendering
             const formattedMessage = formatFlightErrorWithAlternatives({
               type: 'no_results',
-              message: `Fuer Ihre Suchkriterien wurden leider keine Fluege gefunden.`,
+              message: flightI18n.noResultsFound[locale],
+              locale,
               alternatives,
               emptyAirport: emptyAirportType,
               originalAirportName: emptyAirportDisplay,
@@ -396,10 +497,11 @@ Bitte geben Sie mehr Details an, zum Beispiel das Land oder einen alternativen F
           type: errorType,
           message:
             errorType === 'provider_unavailable'
-              ? 'Die Flugsuche konnte keine Ergebnisse laden, da einige unserer Datenquellen vorübergehend nicht erreichbar sind.'
-              : 'Keine Flüge gefunden. Versuchen Sie andere Daten.',
+              ? flightI18n.providerUnavailable[locale]
+              : flightI18n.noFlightsShort[locale],
           searchParams: searchLinkParams,
           technicalDetails,
+          locale,
         });
       }
 
@@ -443,11 +545,11 @@ Bitte geben Sie mehr Details an, zum Beispiel das Land oder einen alternativen F
 
           let dateLabel: string;
           if (daysDiff === 0) {
-            dateLabel = 'Originaldatum';
+            dateLabel = flightI18n.dateLabel.original[locale];
           } else if (daysDiff < 0) {
-            dateLabel = `${Math.abs(daysDiff)} ${Math.abs(daysDiff) === 1 ? 'Tag' : 'Tage'} frueher`;
+            dateLabel = flightI18n.dateLabel.earlier[locale](Math.abs(daysDiff));
           } else {
-            dateLabel = `${daysDiff} ${daysDiff === 1 ? 'Tag' : 'Tage'} spaeter`;
+            dateLabel = flightI18n.dateLabel.later[locale](daysDiff);
           }
 
           return {
@@ -552,7 +654,7 @@ Bitte geben Sie mehr Details an, zum Beispiel das Land oder einen alternativen F
       }
 
       // 6. Format response for LLM
-      return await formatFlightResults(result, params);
+      return await formatFlightResults(result, params, locale);
     } catch (error) {
       console.error('[Flight Search] ❌ Error:', error);
 
@@ -599,16 +701,16 @@ Bitte geben Sie mehr Details an, zum Beispiel das Land oder einen alternativen F
 /**
  * Format flight results for LLM response
  */
-async function formatFlightResults(result: any, params: any): Promise<string> {
+async function formatFlightResults(result: any, params: any, locale: FlightLocale = 'de'): Promise<string> {
   const sections: string[] = [];
   const partialFailures: string[] = [];
 
   // Track partial failures for user notification
   if (result.seats.error && result.amadeus.count > 0) {
-    partialFailures.push('Meilen/Punkte-Flüge');
+    partialFailures.push(flightI18n.awardFlightsLabel[locale]);
   }
   if (result.amadeus.error && result.seats.count > 0) {
-    partialFailures.push('Cash-Flüge');
+    partialFailures.push(flightI18n.cashFlightsLabel[locale]);
   }
 
   // Try to create Duffel booking session for direct booking link
@@ -633,8 +735,8 @@ async function formatFlightResults(result: any, params: any): Promise<string> {
 
   // Award Flights Section - Table format
   if (result.seats.count > 0) {
-    sections.push(`## Flüge mit Meilen/Punkten (${result.seats.count} Ergebnisse)\n`);
-    sections.push(`| Nr. | Airline | Klasse | Preis | Abflug | Ankunft | Dauer | Stops | Sitze | Flugnummer |`);
+    sections.push(flightI18n.awardHeader[locale](result.seats.count));
+    sections.push(flightI18n.awardTableHeader[locale]);
     sections.push(`|-----|---------|--------|-------|--------|---------|-------|-------|-------|------------|`);
 
     result.seats.flights.forEach((flight: any, idx: number) => {
@@ -651,8 +753,8 @@ async function formatFlightResults(result: any, params: any): Promise<string> {
 
   // Cash Flights Section - Table format
   if (result.cash.count > 0) {
-    sections.push(`## Flüge mit Barzahlung (${result.cash.count} Ergebnisse)\n`);
-    sections.push(`| Nr. | Airline | Preis | Abflug | Ankunft | Dauer | Stops | Buchen |`);
+    sections.push(flightI18n.cashHeader[locale](result.cash.count));
+    sections.push(flightI18n.cashTableHeader[locale]);
     sections.push(`|-----|---------|-------|--------|---------|-------|-------|--------|`);
 
     result.cash.flights.forEach((flight: any, idx: number) => {
@@ -685,7 +787,7 @@ async function formatFlightResults(result: any, params: any): Promise<string> {
 
       const departTime = new Date(flight.departure.time).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
       const arriveTime = new Date(flight.arrival.time).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-      const stops = flight.stops === 0 ? 'Nonstop' : `${flight.stops} Stop(s)`;
+      const stops = flight.stops === 0 ? flightI18n.nonstop[locale] : flightI18n.stops[locale](flight.stops);
       const price = `${flight.price.total} ${flight.price.currency}`;
 
       sections.push(
@@ -700,11 +802,8 @@ async function formatFlightResults(result: any, params: any): Promise<string> {
 
   // Add partial failure notice if some providers failed
   if (partialFailures.length > 0 && (result.seats.count > 0 || result.cash.count > 0)) {
-    const failedTypes = partialFailures.join(' und ');
-    sections.push(
-      `\n---\n\n_**Hinweis:** ${failedTypes} konnten nicht geladen werden. ` +
-        `Für weitere Optionen können Sie die folgenden Links nutzen:_\n`
-    );
+    const failedTypes = partialFailures.join(flightI18n.andConnector[locale]);
+    sections.push(flightI18n.partialFailureNote[locale](failedTypes));
 
     // Add fallback links
     if (result.searchLinkParams) {
@@ -718,17 +817,7 @@ async function formatFlightResults(result: any, params: any): Promise<string> {
   // No results case is now handled by formatGracefulFlightError before this function is called
   // This is kept as a safety fallback
   if (result.seats.count === 0 && result.cash.count === 0) {
-    sections.push(
-      `Leider wurden keine Flüge für Ihre Suche gefunden.\n\n` +
-        `**Suchparameter:**\n` +
-        `- Route: ${params.origin} → ${params.destination}\n` +
-        `- Datum: ${params.departDate}\n` +
-        `- Klasse: ${params.cabin}\n\n` +
-        `Versuchen Sie:\n` +
-        `- Andere Daten wählen\n` +
-        `- Flexibilität erhöhen\n` +
-        `- Alternative Airports prüfen\n`
-    );
+    sections.push(flightI18n.noResultsFallback[locale](params.origin, params.destination, params.departDate, params.cabin));
   }
 
   return sections.join('\n');

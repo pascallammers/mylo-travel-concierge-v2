@@ -46,25 +46,51 @@ function safeParseDate(value: string | Date | null | undefined): Date | null {
   return new Date(value);
 }
 
+type AuthLocale = 'de' | 'en';
+
+const accessDeniedMessages: Record<string, Record<AuthLocale, string>> = {
+  inactive_user: {
+    de: 'Dein Account ist deaktiviert. Bitte kontaktiere den Support.',
+    en: 'Your account is deactivated. Please contact support.',
+  },
+  expired_subscription: {
+    de: 'Dein Abo ist abgelaufen. Bitte verlängere dein Abo, um MYLO weiter zu nutzen.',
+    en: 'Your subscription has expired. Please renew your subscription to continue using MYLO.',
+  },
+  no_subscription: {
+    de: 'Dein Abo ist nicht aktiv. Bitte kontaktiere den Support.',
+    en: 'Your subscription is not active. Please contact support.',
+  },
+  default: {
+    de: 'Der Login ist für diesen Account derzeit nicht möglich. Bitte kontaktiere den Support.',
+    en: 'Login is currently not possible for this account. Please contact support.',
+  },
+};
+
+/**
+ * Detects locale from the request referer URL path (e.g. /en/sign-in or /de/sign-in).
+ * Falls back to 'en' when no locale prefix is found.
+ */
+function detectLocaleFromReferer(referer: string | null | undefined): AuthLocale {
+  if (!referer) return 'en';
+  try {
+    const url = new URL(referer);
+    const match = url.pathname.match(/^\/(de|en)\b/);
+    return (match?.[1] as AuthLocale) ?? 'en';
+  } catch {
+    return 'en';
+  }
+}
+
 /**
  * Creates a localized login denial message from an access check result.
  * @param accessResult - Result returned by the access-control service.
+ * @param locale - Language for the error message.
  * @returns Human-friendly error shown on the sign-in form.
  */
-function getAccessDeniedMessage(accessResult: AccessCheckResult): string {
-  if (accessResult.reason === 'inactive_user') {
-    return 'Dein Account ist deaktiviert. Bitte kontaktiere den Support.';
-  }
-
-  if (accessResult.reason === 'expired_subscription') {
-    return 'Dein Abo ist abgelaufen. Bitte verlängere dein Abo, um MYLO weiter zu nutzen.';
-  }
-
-  if (accessResult.reason === 'no_subscription') {
-    return 'Dein Abo ist nicht aktiv. Bitte kontaktiere den Support.';
-  }
-
-  return 'Der Login ist für diesen Account derzeit nicht möglich. Bitte kontaktiere den Support.';
+function getAccessDeniedMessage(accessResult: AccessCheckResult, locale: AuthLocale = 'en'): string {
+  const key = accessResult.reason ?? 'default';
+  return accessDeniedMessages[key]?.[locale] ?? accessDeniedMessages.default[locale];
 }
 
 const polarClient = new Polar({
@@ -185,8 +211,11 @@ export const auth = betterAuth({
         return;
       }
 
+      const referer = ctx.headers?.get?.('referer') ?? null;
+      const locale = detectLocaleFromReferer(referer);
+
       throw new APIError('FORBIDDEN', {
-        message: getAccessDeniedMessage(accessResult),
+        message: getAccessDeniedMessage(accessResult, locale),
       });
     }),
   },

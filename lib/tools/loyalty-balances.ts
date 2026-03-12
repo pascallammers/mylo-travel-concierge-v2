@@ -10,6 +10,25 @@ import {
 export { formatLoyaltyResponse };
 export type { LoyaltyBalancesResponse, LoyaltyAccountSummary };
 
+type LoyaltyLocale = 'de' | 'en';
+
+const loyaltyI18n = {
+  notAuthenticated: {
+    de: 'Benutzer nicht authentifiziert. Bitte melde dich an, um deine Treueprogramme zu sehen.',
+    en: 'User not authenticated. Please sign in to view your loyalty balances.',
+  },
+  notConnected: {
+    de: 'AwardWallet ist nicht verbunden. Verbinde dein AwardWallet-Konto, um deine Loyalty-Daten zu sehen.',
+    en: 'AwardWallet is not connected. Connect your AwardWallet account to view your loyalty data.',
+  },
+  noAccountsForProvider: {
+    de: (provider: string) =>
+      `Keine Konten gefunden für "${provider}". Überprüfe den Programmnamen oder zeige alle Konten an.`,
+    en: (provider: string) =>
+      `No accounts found for "${provider}". Check the program name or show all accounts.`,
+  },
+} as const;
+
 /**
  * Get Loyalty Balances Tool
  *
@@ -61,6 +80,9 @@ For general "How many points do I have?" questions, the system already has this 
 
     console.log('[Loyalty Balances] Starting lookup:', { chatId, provider, includeDetails });
 
+    // Default locale for tool responses (tool output is interpreted by the LLM)
+    const locale: LoyaltyLocale = 'de';
+
     if (!userId) {
       console.warn('[Loyalty Balances] No userId available in context');
       return {
@@ -69,7 +91,7 @@ For general "How many points do I have?" questions, the system already has this 
         totalPoints: 0,
         accountCount: 0,
         accounts: [],
-        error: 'User not authenticated. Please sign in to view your loyalty balances.',
+        error: loyaltyI18n.notAuthenticated[locale],
       };
     }
 
@@ -87,14 +109,14 @@ For general "How many points do I have?" questions, the system already has this 
       if (!response.connected) {
         return {
           ...response,
-          message: 'AwardWallet ist nicht verbunden. Verbinde dein AwardWallet-Konto, um deine Loyalty-Daten zu sehen.',
+          message: loyaltyI18n.notConnected[locale],
         };
       }
 
       if (provider && response.accountCount === 0) {
         return {
           ...response,
-          message: `Keine Konten gefunden für "${provider}". Überprüfe den Programmnamen oder zeige alle Konten an.`,
+          message: loyaltyI18n.noAccountsForProvider[locale](provider),
         };
       }
 
