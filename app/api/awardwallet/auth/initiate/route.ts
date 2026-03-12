@@ -25,7 +25,30 @@ export async function POST(request: NextRequest) {
 
     console.error('[AwardWallet] OAuth initiated for user:', session.user.id);
 
-    const authUrl = await createAuthUrl();
+    let authUrl: string;
+    try {
+      authUrl = await createAuthUrl();
+    } catch (createError) {
+      const errMsg = createError instanceof Error
+        ? `${createError.name}: ${createError.message}`
+        : String(createError);
+      const errCause = createError instanceof ChatSDKError
+        ? createError.cause
+        : undefined;
+      console.error('[AwardWallet] createAuthUrl failed:', errMsg, 'cause:', errCause);
+
+      if (createError instanceof ChatSDKError) {
+        return createError.toResponse();
+      }
+
+      return NextResponse.json(
+        {
+          code: 'bad_request:api',
+          message: 'Failed to generate authorization URL',
+        },
+        { status: 500 },
+      );
+    }
 
     if (!authUrl) {
       console.error('[AwardWallet] createAuthUrl returned falsy value:', authUrl);
@@ -38,10 +61,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.error('[AwardWallet] OAuth URL generated successfully for user:', session.user.id);
+    console.error('[AwardWallet] OAuth URL generated for user:', session.user.id);
     return NextResponse.json({ authUrl });
   } catch (error) {
-    console.error('[AwardWallet] Auth initiate error:', error);
+    const errMsg = error instanceof Error
+      ? `${error.name}: ${error.message}`
+      : String(error);
+    console.error('[AwardWallet] Auth initiate outer error:', errMsg);
 
     if (error instanceof ChatSDKError) {
       return error.toResponse();
