@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { user, subscription } from '@/lib/db/schema';
+import { user, subscription, session } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import type { BaseWebhookRequest, WebhookResponse } from './types';
 
@@ -71,10 +71,9 @@ export async function extendSubscriptionPeriod(
     throw new Error(`Subscription ${subscriptionId} not found`);
   }
 
-  // Calculate new period: extend from current end date or now, whichever is later
+  // Calculate new period: always extend from now (payment date) + 1 month
   const now = new Date();
-  const currentEnd = currentSub.currentPeriodEnd;
-  const extendFrom = fromDate || (currentEnd > now ? currentEnd : now);
+  const extendFrom = fromDate || now;
   
   const newPeriodStart = extendFrom;
   const newPeriodEnd = new Date(extendFrom);
@@ -183,6 +182,49 @@ export async function markSubscriptionPastDue(subscriptionId: string) {
     .returning();
 
   return updatedSubscription;
+}
+
+/**
+ * Immediately revoke user access: suspend user, cancel subscription, set period end to now,
+ * and delete all sessions. Used for refunds where access must end instantly.
+ * @param userId - User ID
+ * @param subscriptionId - Subscription ID
+ * @param reason - Reason for revocation (stored in cancellation comment)
+ */
+export async function revokeUserAccessImmediately(
+  userId: string,
+  subscriptionId: string,
+  reason: string = 'refund'
+) {
+  const now = new Date();
+
+  await db
+    .update(subscription)
+    .set({
+      status: 'canceled',
+      cancelAtPeriodEnd: false,
+      canceledAt: now,
+      currentPeriodEnd: now,
+      endedAt: now,
+      modifiedAt: now,
+      customerCancellationReason: reason,
+    })
+    .where(eq(subscription.id, subscriptionId));
+
+  await db
+    .update(user)
+    .set({
+      isActive: false,
+      activationStatus: 'suspended',
+      deactivatedAt: now,
+      updatedAt: now,
+    })
+    .where(eq(user.id, userId));
+
+  // Delete all active sessions so the user is logged out immediately
+  await db.delete(session).where(eq(session.userId, userId));
+
+  console.log(`[Webhook] Access revoked immediately for user ${userId} (reason: ${reason})`);
 }
 
 /**

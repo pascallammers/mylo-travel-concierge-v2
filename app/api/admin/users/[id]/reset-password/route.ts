@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { sendPasswordResetEmail } from '@/lib/email';
 import crypto from 'crypto';
 import { buildResetPasswordUrl, resolveBaseUrl } from '@/lib/password-reset';
+import { logAdminActivity } from '@/lib/admin/activity-logger';
 
 /**
  * POST /api/admin/users/[id]/reset-password
@@ -78,6 +79,8 @@ export async function POST(
       status: 'sent',
       resendEmailId,
     });
+
+    await logAdminActivity(targetUser.id, 'user.password_reset_sent', currentUser?.id ?? null);
 
     console.log('✅ Password reset initiated for user:', targetUser.email, 'Resend ID:', resendEmailId);
 

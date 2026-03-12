@@ -391,6 +391,49 @@ export const userAccessControl = pgTable('user_access_control', {
 });
 
 // ============================================
+// Admin Activity Log
+// ============================================
+
+/**
+ * Action types for admin activity tracking.
+ */
+export const adminActivityAction = [
+  'user.updated',
+  'user.created',
+  'user.deactivated',
+  'user.role_changed',
+  'user.password_reset_sent',
+  'user.bulk_password_reset',
+  'subscription.updated',
+  'subscription.cancelled',
+  'subscription.refunded',
+  'subscription.extended',
+  'sessions.revoked',
+  'webhook.refund_processed',
+  'webhook.cancellation_processed',
+] as const;
+export type AdminActivityAction = (typeof adminActivityAction)[number];
+
+/**
+ * Admin activity log table.
+ * Tracks all admin and system actions affecting user accounts.
+ */
+export const adminActivityLog = pgTable('admin_activity_log', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => generateId()),
+  targetUserId: text('target_user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  performedBy: text('performed_by').references(() => user.id, { onDelete: 'set null' }),
+  action: text('action').$type<AdminActivityAction>().notNull(),
+  details: json('details').$type<Record<string, unknown>>(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export type AdminActivityLog = InferSelectModel<typeof adminActivityLog>;
+
+// ============================================
 // Knowledge Base Documents
 // ============================================
 

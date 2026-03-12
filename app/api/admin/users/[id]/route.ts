@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isCurrentUserAdmin } from '@/lib/auth-utils';
+import { isCurrentUserAdmin, getUser } from '@/lib/auth-utils';
 import { db } from '@/lib/db';
 import { user, subscription, session } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { invalidateUserCaches } from '@/lib/performance-cache';
 import { clearUserDataCache } from '@/lib/user-data-server';
+import { logAdminActivity } from '@/lib/admin/activity-logger';
 
 /**
  * GET /api/admin/users/[id]
@@ -111,6 +112,12 @@ export async function PATCH(
     invalidateUserCaches(userId);
     clearUserDataCache(userId);
 
+    // Log admin activity
+    const adminUser = await getUser();
+    await logAdminActivity(userId, 'user.updated', adminUser?.id ?? null, {
+      changes: updates,
+    });
+
     console.log(`✅ User ${userId} updated by admin:`, updates);
 
     return NextResponse.json({
@@ -163,6 +170,10 @@ export async function DELETE(
     // Invalidate caches
     invalidateUserCaches(userId);
     clearUserDataCache(userId);
+
+    // Log admin activity
+    const adminUser = await getUser();
+    await logAdminActivity(userId, 'user.deactivated', adminUser?.id ?? null);
 
     console.log(`✅ User ${userId} deactivated by admin`);
 

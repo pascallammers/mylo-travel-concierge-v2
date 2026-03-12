@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isCurrentUserAdmin, updateUserRole, type UserRole } from '@/lib/auth-utils';
+import { isCurrentUserAdmin, getUser, updateUserRole, type UserRole } from '@/lib/auth-utils';
+import { logAdminActivity } from '@/lib/admin/activity-logger';
 
 /**
  * PUT /api/admin/users/[id]/role
@@ -34,6 +35,12 @@ export async function PUT(
 
     // Update user role
     const updatedUser = await updateUserRole(userId, role as UserRole);
+
+    // Log admin activity
+    const adminUser = await getUser();
+    await logAdminActivity(userId, 'user.role_changed', adminUser?.id ?? null, {
+      newRole: role,
+    });
 
     return NextResponse.json({
       success: true,

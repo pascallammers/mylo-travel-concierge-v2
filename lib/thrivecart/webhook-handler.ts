@@ -16,12 +16,14 @@ import {
   suspendUser,
   markSubscriptionCancelled,
   markSubscriptionPastDue,
+  revokeUserAccessImmediately,
   getGracePeriodDays,
   findUserByEmail,
   findUserSubscription,
 } from '@/app/api/webhooks/subscription/_lib/helpers';
 import type { ThriveCartWebhookPayload, WebhookProcessingResult } from './types';
 import { generateId } from 'ai';
+import { logAdminActivity } from '@/lib/admin/activity-logger';
 
 /**
  * Process a ThriveCart webhook event.
@@ -64,6 +66,9 @@ export async function processWebhookEvent(
         break;
       case 'order.subscription_cancelled':
         result = await handleSubscriptionCancelled(payload, email);
+        break;
+      case 'order.refund':
+        result = await handleRefund(payload, email);
         break;
       case 'order.rebill_failed':
         result = await handleRebillFailed(payload, email);
@@ -254,9 +259,54 @@ async function handleSubscriptionCancelled(
 
   await markSubscriptionCancelled(sub.id);
 
+  await logAdminActivity(foundUser.id, 'webhook.cancellation_processed', null, {
+    email,
+    orderId: String(payload.order_id || ''),
+    accessUntil: sub.currentPeriodEnd?.toISOString() ?? null,
+  });
+
   return {
     success: true,
     action: 'subscription_cancelled_at_period_end',
+    userId: foundUser.id,
+    subscriptionId: sub.id,
+  };
+}
+
+async function handleRefund(
+  payload: ThriveCartWebhookPayload,
+  email: string
+): Promise<WebhookProcessingResult> {
+  const foundUser = await findUserByEmail(email);
+  if (!foundUser) return { success: false, action: 'refund', error: `User not found: ${email}` };
+
+  const sub = await findUserSubscription(foundUser.id);
+  if (!sub) return { success: false, action: 'refund', error: `No subscription for: ${email}` };
+
+  // Refund = immediate access revocation (no grace period)
+  await revokeUserAccessImmediately(foundUser.id, sub.id, 'refund');
+
+  await logAdminActivity(foundUser.id, 'webhook.refund_processed', null, {
+    email,
+    orderId: String(payload.order_id || ''),
+    amount: payload.order?.total || 0,
+  });
+
+  // Record the refund payment with negative amount
+  const myloPurchase = payload.purchases?.find((p) => p.product_id === 5) || payload.purchases?.[0];
+  const eventId = payload.event_id ? String(payload.event_id) : crypto.randomBytes(8).toString('hex');
+  await recordPayment(foundUser.id, {
+    orderId: eventId,
+    customerId: String(payload.customer_id || ''),
+    amount: -(myloPurchase?.amount || payload.order?.total || 0),
+    currency: payload.currency || 'EUR',
+    event: 'refund',
+    productName: myloPurchase?.product_name,
+  });
+
+  return {
+    success: true,
+    action: 'subscription_refunded_access_revoked',
     userId: foundUser.id,
     subscriptionId: sub.id,
   };
@@ -346,7 +396,7 @@ async function createSubscription(
   const subId = crypto.randomBytes(16).toString('hex');
   const now = new Date();
   const periodEnd = new Date(now);
-  periodEnd.setDate(periodEnd.getDate() + 30);
+  periodEnd.setMonth(periodEnd.getMonth() + 1);
 
   await db.insert(subscription).values({
     id: subId,

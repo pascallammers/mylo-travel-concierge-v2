@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isCurrentUserAdmin } from '@/lib/auth-utils';
+import { isCurrentUserAdmin, getUser } from '@/lib/auth-utils';
 import { db } from '@/lib/db';
 import { subscription, session } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { invalidateUserCaches } from '@/lib/performance-cache';
 import { clearUserDataCache } from '@/lib/user-data-server';
+import { logAdminActivity } from '@/lib/admin/activity-logger';
 
 /**
  * PATCH /api/admin/users/[id]/subscription
@@ -95,6 +96,15 @@ export async function PATCH(
     // Invalidate caches
     invalidateUserCaches(userId);
     clearUserDataCache(userId);
+
+    // Log admin activity
+    const adminUser = await getUser();
+    await logAdminActivity(userId, 'subscription.updated', adminUser?.id ?? null, {
+      validUntil: body.validUntil ?? null,
+      status: body.status ?? null,
+      previousStatus: currentSubscription.status,
+      previousValidUntil: currentSubscription.currentPeriodEnd?.toISOString() ?? null,
+    });
 
     console.log(`✅ Subscription updated for user ${userId}`);
 

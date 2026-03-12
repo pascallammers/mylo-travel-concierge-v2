@@ -24,11 +24,74 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { Mail, Ban, AlertTriangle, Loader2, History, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { Mail, Ban, AlertTriangle, Loader2, History, CheckCircle, XCircle, RefreshCw, Activity } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 type ResendDeliveryStatus = 'delivered' | 'bounced' | 'complained' | 'opened' | 'clicked' | 'pending';
+
+interface ActivityLogEntry {
+  id: string;
+  action: string;
+  details: Record<string, unknown> | null;
+  createdAt: string;
+  performedBy: { id: string; name: string } | null;
+}
+
+const ACTION_LABELS: Record<string, string> = {
+  'user.updated': 'Benutzer bearbeitet',
+  'user.created': 'Benutzer erstellt',
+  'user.deactivated': 'Account deaktiviert',
+  'user.role_changed': 'Rolle geändert',
+  'user.password_reset_sent': 'Password Reset gesendet',
+  'user.bulk_password_reset': 'Bulk Password Reset',
+  'subscription.updated': 'Subscription bearbeitet',
+  'subscription.cancelled': 'Subscription gekündigt',
+  'subscription.refunded': 'Subscription erstattet',
+  'subscription.extended': 'Subscription verlängert',
+  'sessions.revoked': 'Sessions beendet',
+  'webhook.refund_processed': 'Refund (Webhook)',
+  'webhook.cancellation_processed': 'Kündigung (Webhook)',
+};
+
+function getActionLabel(action: string): string {
+  return ACTION_LABELS[action] ?? action;
+}
+
+function getActionColor(action: string): string {
+  if (action.includes('deactivated') || action.includes('refund')) return 'text-destructive';
+  if (action.includes('cancell')) return 'text-orange-500';
+  if (action.includes('created') || action.includes('extended')) return 'text-green-600';
+  return 'text-muted-foreground';
+}
+
+function formatActivityDetails(action: string, details: Record<string, unknown>): string {
+  if (action === 'subscription.updated') {
+    const parts: string[] = [];
+    if (details.validUntil) parts.push(`Gültig bis: ${new Date(details.validUntil as string).toLocaleDateString('de-DE')}`);
+    if (details.status) parts.push(`Status: ${details.status}`);
+    return parts.join(' | ') || '';
+  }
+  if (action === 'user.role_changed') {
+    return `Neue Rolle: ${details.newRole}`;
+  }
+  if (action === 'user.updated' && details.changes) {
+    const changes = details.changes as Record<string, unknown>;
+    return Object.keys(changes)
+      .filter((k) => k !== 'updatedAt')
+      .join(', ');
+  }
+  if (action === 'webhook.refund_processed') {
+    return `Order: ${details.orderId ?? '-'}`;
+  }
+  if (action === 'webhook.cancellation_processed') {
+    const until = details.accessUntil
+      ? new Date(details.accessUntil as string).toLocaleDateString('de-DE')
+      : '-';
+    return `Zugriff bis: ${until}`;
+  }
+  return '';
+}
 
 interface PasswordResetHistoryEntry {
   id: string;
@@ -133,6 +196,18 @@ export function UserEditModal({
       }
     }
   }, [user]);
+
+  // Load activity log with TanStack Query
+  const { data: activityLog = [], isLoading: activityLoading } = useQuery<ActivityLogEntry[]>({
+    queryKey: ['adminActivityLog', user?.id],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/users/${user!.id}/activity`);
+      const data = await res.json();
+      return data.success ? (data.activity as ActivityLogEntry[]) : [];
+    },
+    enabled: open && !!user?.id,
+    staleTime: 30 * 1000,
+  });
 
   // Load password reset history with TanStack Query
   const { data: passwordResetHistory = [], isLoading: historyLoading } = useQuery<PasswordResetHistoryEntry[]>({
@@ -348,10 +423,11 @@ export function UserEditModal({
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="profile">Profil</TabsTrigger>
             <TabsTrigger value="subscription">Subscription</TabsTrigger>
             <TabsTrigger value="actions">Aktionen</TabsTrigger>
+            <TabsTrigger value="activity">Aktivität</TabsTrigger>
           </TabsList>
 
           {/* Tab 1: Profile */}
@@ -620,6 +696,62 @@ export function UserEditModal({
                 Vorgang. Der Benutzer kann sich danach nicht mehr einloggen.
               </AlertDescription>
             </Alert>
+          </TabsContent>
+
+          {/* Tab 4: Activity Log */}
+          <TabsContent value="activity" className="space-y-4 mt-4">
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-muted-foreground" />
+              <h4 className="font-medium text-sm">Änderungsprotokoll</h4>
+            </div>
+
+            {activityLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+            ) : activityLog.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-2">
+                Noch keine Änderungen protokolliert.
+              </p>
+            ) : (
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {activityLog.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="flex items-start gap-3 p-2 rounded-md bg-muted/50 text-sm"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-muted-foreground text-xs">
+                          {new Date(entry.createdAt).toLocaleDateString('de-DE', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                        <Badge variant="outline" className={`text-xs ${getActionColor(entry.action)}`}>
+                          {getActionLabel(entry.action)}
+                        </Badge>
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {entry.performedBy ? (
+                          <span>von {entry.performedBy.name}</span>
+                        ) : (
+                          <span>System / Webhook</span>
+                        )}
+                      </div>
+                      {entry.details && Object.keys(entry.details).length > 0 && (
+                        <div className="mt-1 text-xs text-muted-foreground/70">
+                          {formatActivityDetails(entry.action, entry.details)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
 

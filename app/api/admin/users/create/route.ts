@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isCurrentUserAdmin } from '@/lib/auth-utils';
+import { isCurrentUserAdmin, getUser } from '@/lib/auth-utils';
 import { db } from '@/lib/db';
 import { user, account, subscription } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { sendWelcomeEmail } from '@/lib/email';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
+import { logAdminActivity } from '@/lib/admin/activity-logger';
 
 /**
  * POST /api/admin/users/create
@@ -107,6 +108,14 @@ export async function POST(request: NextRequest) {
       checkoutId: `admin_created_${Date.now()}`,
       planType: 'manual',
       planName: 'Admin Created Access',
+    });
+
+    // Log admin activity
+    const adminUser = await getUser();
+    await logAdminActivity(newUser.id, 'user.created', adminUser?.id ?? null, {
+      email: email.toLowerCase().trim(),
+      name: name.trim(),
+      subscriptionEndDate,
     });
 
     // Send welcome email with credentials
