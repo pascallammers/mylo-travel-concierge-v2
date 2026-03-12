@@ -83,6 +83,7 @@ export async function createAuthUrl(): Promise<string> {
   };
 
   try {
+    console.error('[AwardWallet] Calling create-auth-url API...');
     const response = await fetch(
       `${AWARDWALLET_BASE_URL}/create-auth-url`,
       withAwardWalletProxy({
@@ -95,6 +96,8 @@ export async function createAuthUrl(): Promise<string> {
       }),
     );
 
+    console.error('[AwardWallet] API response status:', response.status);
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error('[AwardWallet] Failed to create auth URL:', response.status, errorText);
@@ -102,6 +105,7 @@ export async function createAuthUrl(): Promise<string> {
     }
 
     const data = await response.json();
+    console.error('[AwardWallet] API response data keys:', Object.keys(data));
 
     if (!data.url || typeof data.url !== 'string') {
       console.error('[AwardWallet] API returned 200 but missing url field:', JSON.stringify(data));
@@ -111,8 +115,11 @@ export async function createAuthUrl(): Promise<string> {
     console.error('[AwardWallet] Auth URL created successfully');
     return data.url;
   } catch (error) {
-    if (error instanceof ChatSDKError) throw error;
-    console.error('[AwardWallet] createAuthUrl error:', error);
+    if (error instanceof ChatSDKError) {
+      console.error('[AwardWallet] createAuthUrl ChatSDKError:', error.message, error.cause);
+      throw error;
+    }
+    console.error('[AwardWallet] createAuthUrl unexpected error:', error);
     throw new ChatSDKError('bad_request:api', 'Failed to generate authorization URL');
   }
 }
