@@ -23,10 +23,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[AwardWallet] OAuth initiated for user:', session.user.id);
+    console.error('[AwardWallet] OAuth initiated for user:', session.user.id);
 
     const authUrl = await createAuthUrl();
 
+    if (!authUrl) {
+      console.error('[AwardWallet] createAuthUrl returned falsy value:', authUrl);
+      return NextResponse.json(
+        {
+          code: 'bad_request:api',
+          message: 'Failed to generate authorization URL',
+        },
+        { status: 500 },
+      );
+    }
+
+    console.error('[AwardWallet] OAuth URL generated successfully for user:', session.user.id);
     return NextResponse.json({ authUrl });
   } catch (error) {
     console.error('[AwardWallet] Auth initiate error:', error);

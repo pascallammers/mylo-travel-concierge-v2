@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
     const userId = session.user.id;
 
-    console.log('[AwardWallet] Disconnect requested for user:', userId);
+    console.error('[AwardWallet] Disconnect requested for user:', userId);
 
     const deleted = await deleteConnection(userId);
 
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[AwardWallet] Disconnected successfully for user:', userId);
+    console.error('[AwardWallet] Disconnected successfully for user:', userId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

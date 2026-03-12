@@ -43,7 +43,7 @@ export async function createConnection(
       })
       .returning();
 
-    console.log('[AwardWallet] Connection created for user:', userId);
+    console.error('[AwardWallet] Connection created for user:', userId);
     return connection;
   } catch (error: unknown) {
     if (error instanceof Error && error.message.includes('unique constraint')) {
@@ -124,7 +124,7 @@ export async function deleteConnection(userId: string): Promise<boolean> {
 
     const deleted = result.length > 0;
     if (deleted) {
-      console.log('[AwardWallet] Connection deleted for user:', userId);
+      console.error('[AwardWallet] Connection deleted for user:', userId);
     }
     return deleted;
   } catch {
@@ -188,7 +188,7 @@ export async function syncLoyaltyAccounts(
       })
       .where(eq(awardwalletConnections.id, connectionId));
 
-    console.log(`[AwardWallet] Synced ${accounts.length} accounts for connection:`, connectionId);
+    console.error(`[AwardWallet] Synced ${accounts.length} accounts for connection:`, connectionId);
     return accounts.length;
   } catch (error: unknown) {
     const invalidBalances = accounts.filter((acc) => !Number.isFinite(acc.balance));

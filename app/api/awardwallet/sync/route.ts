@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     // Set rate limit
     await redis.set(rateLimitKey, Date.now(), { ex: RATE_LIMIT_SECONDS });
 
-    console.log('[AwardWallet] Manual sync started for user:', userId);
+    console.error('[AwardWallet] Manual sync started for user:', userId);
 
     // Fetch latest data from AwardWallet
     const accounts = await getConnectedUser(connection.awUserId);
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     const accountCount = await syncLoyaltyAccounts(connection.id, accounts);
 
     const syncedAt = new Date().toISOString();
-    console.log('[AwardWallet] Manual sync completed:', accountCount, 'accounts');
+    console.error('[AwardWallet] Manual sync completed:', accountCount, 'accounts');
 
     return NextResponse.json({
       success: true,

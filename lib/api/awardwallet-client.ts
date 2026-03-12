@@ -102,9 +102,13 @@ export async function createAuthUrl(): Promise<string> {
     }
 
     const data = await response.json();
-    console.log('[AwardWallet] Auth URL created successfully');
 
-    // API returns { url: "..." }
+    if (!data.url || typeof data.url !== 'string') {
+      console.error('[AwardWallet] API returned 200 but missing url field:', JSON.stringify(data));
+      throw new ChatSDKError('bad_request:api', 'AwardWallet API returned no authorization URL');
+    }
+
+    console.error('[AwardWallet] Auth URL created successfully');
     return data.url;
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
@@ -122,7 +126,7 @@ export async function createAuthUrl(): Promise<string> {
 export async function getConnectionInfo(code: string): Promise<AWConnectionInfo> {
   const apiKey = serverEnv.AWARDWALLET_API_KEY;
 
-  console.log('[AwardWallet] Exchanging code for connection info');
+  console.error('[AwardWallet] Exchanging code for connection info');
 
   try {
     const response = await fetch(
@@ -142,7 +146,7 @@ export async function getConnectionInfo(code: string): Promise<AWConnectionInfo>
     }
 
     const data = await response.json();
-    console.log('[AwardWallet] Connection info retrieved, userId:', data.userId);
+    console.error('[AwardWallet] Connection info retrieved, userId:', data.userId);
 
     return {
       userId: String(data.userId),
@@ -163,7 +167,7 @@ export async function getConnectionInfo(code: string): Promise<AWConnectionInfo>
 export async function getConnectedUser(awUserId: string): Promise<AWLoyaltyAccount[]> {
   const apiKey = serverEnv.AWARDWALLET_API_KEY;
 
-  console.log('[AwardWallet] Fetching accounts for user:', awUserId);
+  console.error('[AwardWallet] Fetching accounts for user:', awUserId);
 
   try {
     // Get connected user details with all their accounts
@@ -187,7 +191,7 @@ export async function getConnectedUser(awUserId: string): Promise<AWLoyaltyAccou
     // API returns accounts array directly in the response
     const accounts: AWRawAccount[] = data.accounts || [];
 
-    console.log(`[AwardWallet] Retrieved ${accounts.length} accounts`);
+    console.error(`[AwardWallet] Retrieved ${accounts.length} accounts`);
 
     return accounts.map(formatAccount);
   } catch (error) {

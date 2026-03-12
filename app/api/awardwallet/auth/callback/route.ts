@@ -48,23 +48,23 @@ export async function GET(request: NextRequest) {
     // Check if user already has a connection
     const existingConnection = await getConnection(userId);
     if (existingConnection) {
-      console.log('[AwardWallet] User already has connection, redirecting to success');
+      console.error('[AwardWallet] User already has connection, redirecting to success');
       return NextResponse.redirect(successRedirect);
     }
 
     // Exchange code for AwardWallet userId
-    console.log('[AwardWallet] Exchanging code for user:', userId);
+    console.error('[AwardWallet] Exchanging code for user:', userId);
     const connectionInfo = await getConnectionInfo(code);
 
     // Create connection in database
     const connection = await createConnection(userId, connectionInfo.userId);
-    console.log('[AwardWallet] Connection created:', connection.id);
+    console.error('[AwardWallet] Connection created:', connection.id);
 
     // Perform initial sync of loyalty accounts
     try {
       const accounts = await getConnectedUser(connectionInfo.userId);
       await syncLoyaltyAccounts(connection.id, accounts);
-      console.log('[AwardWallet] Initial sync completed:', accounts.length, 'accounts');
+      console.error('[AwardWallet] Initial sync completed:', accounts.length, 'accounts');
     } catch (syncError) {
       console.error('[AwardWallet] Initial sync failed (non-fatal):', syncError);
     }
