@@ -1,10 +1,10 @@
 import { thrivecartConfig } from './config';
-import type { ThriveCartApiCustomer, ThriveCartApiResponse } from './types';
+import type { ThriveCartApiCustomer, ThriveCartApiResponse, ThriveCartTransactionsResponse } from './types';
 
 const RATE_LIMIT_DELAY_MS = 1100; // ~55 requests/minute (safe margin under 60/min limit)
 
 /**
- * Make an authenticated request to the ThriveCart API.
+ * Make an authenticated POST request to the ThriveCart API.
  */
 async function thriveCartRequest<T>(
   endpoint: string,
@@ -31,6 +31,42 @@ async function thriveCartRequest<T>(
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error(`[ThriveCart API] ${endpoint} error:`, message);
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Make an authenticated GET request to the ThriveCart API.
+ */
+async function thriveCartGetRequest<T>(
+  endpoint: string,
+  params?: Record<string, string>
+): Promise<ThriveCartApiResponse<T>> {
+  try {
+    const url = new URL(`${thrivecartConfig.apiBaseUrl}/${endpoint}`);
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
+    }
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${thrivecartConfig.apiKey}`,
+        'X-TC-Mode': 'live',
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[ThriveCart API] GET ${endpoint} failed:`, response.status, errorText);
+      return { success: false, error: `HTTP ${response.status}: ${errorText}` };
+    }
+
+    const data = await response.json();
+    return { success: true, data: data as T };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`[ThriveCart API] GET ${endpoint} error:`, message);
     return { success: false, error: message };
   }
 }
@@ -63,6 +99,24 @@ export async function getProductCustomers(
   return thriveCartRequest<ThriveCartApiCustomer[]>('products/customers', {
     product_id: Number(productId),
     page,
+  });
+}
+
+/**
+ * Search transactions from ThriveCart API with pagination.
+ * @param page - Page number (1-based)
+ * @param perPage - Results per page (max 100)
+ * @param transactionType - Filter: 'any', 'charge', 'rebill', 'refund', 'cancel'
+ */
+export async function searchTransactions(
+  page = 1,
+  perPage = 100,
+  transactionType = 'any'
+): Promise<ThriveCartApiResponse<ThriveCartTransactionsResponse>> {
+  return thriveCartGetRequest<ThriveCartTransactionsResponse>('transactions', {
+    page: String(page),
+    perPage: String(perPage),
+    transactionType,
   });
 }
 

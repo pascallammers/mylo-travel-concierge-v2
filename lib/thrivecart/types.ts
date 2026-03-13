@@ -114,6 +114,37 @@ export interface ThriveCartApiResponse<T> {
   error?: string;
 }
 
+// --- Transactions Search API Types ---
+
+export interface ThriveCartApiTransaction {
+  event_id: string;
+  base_product: string;
+  date: string;
+  time: string;
+  timestamp: number;
+  transaction_type: 'charge' | 'rebill' | 'refund' | 'cancel';
+  item_type: string; // 'product', 'bump', 'upsell', 'downsell'
+  item_id: number;
+  amount: number; // in cents
+  order_id: string;
+  invoice_id: string;
+  currency: string;
+  processor: string;
+  customer: {
+    name: string;
+    email: string;
+  };
+  reference?: string;
+}
+
+export interface ThriveCartTransactionsResponse {
+  transactions: ThriveCartApiTransaction[];
+  meta: {
+    total: number;
+    results: number;
+  };
+}
+
 // --- Internal Processing Types ---
 
 export type WebhookProcessingResult = {

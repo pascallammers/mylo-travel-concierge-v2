@@ -676,3 +676,55 @@ export const failedSearchLogs = pgTable('failed_search_logs', {
 });
 
 export type FailedSearchLog = InferSelectModel<typeof failedSearchLogs>;
+
+// ============================================
+// ThriveCart Transactions (for KPI Dashboard)
+// ============================================
+
+/**
+ * Transaction types from ThriveCart API.
+ */
+export const thriveCartTransactionType = ['charge', 'rebill', 'refund', 'cancel'] as const;
+export type ThriveCartTransactionType = (typeof thriveCartTransactionType)[number];
+
+/**
+ * ThriveCart transactions table.
+ * Stores all historical transactions fetched from ThriveCart API
+ * for KPI calculations (MRR, churn, LTV, etc.).
+ */
+export const thriveCartTransaction = pgTable('thrivecart_transaction', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => generateId()),
+  eventId: text('event_id').notNull().unique(),
+  baseProduct: text('base_product'),
+  transactionDate: timestamp('transaction_date').notNull(),
+  transactionType: text('transaction_type').$type<ThriveCartTransactionType>().notNull(),
+  itemType: text('item_type'), // 'product', 'bump', 'upsell', 'downsell'
+  itemId: text('item_id'),
+  amount: integer('amount').notNull(), // in cents
+  currency: text('currency').notNull().default('EUR'),
+  orderId: text('order_id'),
+  invoiceId: text('invoice_id'),
+  processor: text('processor'),
+  customerName: text('customer_name'),
+  customerEmail: text('customer_email').notNull(),
+  reference: text('reference'),
+  rawData: json('raw_data'),
+  importedAt: timestamp('imported_at').notNull().defaultNow(),
+});
+
+export type ThriveCartTransaction = InferSelectModel<typeof thriveCartTransaction>;
+
+/**
+ * ThriveCart import state table.
+ * Tracks the last successful import cursor for incremental syncs.
+ */
+export const thriveCartImportState = pgTable('thrivecart_import_state', {
+  id: text('id').primaryKey().default('singleton'),
+  lastImportAt: timestamp('last_import_at').notNull().defaultNow(),
+  lastEventId: text('last_event_id'),
+  totalImported: integer('total_imported').notNull().default(0),
+  status: text('status').notNull().default('idle'), // 'idle' | 'running' | 'failed'
+  lastError: text('last_error'),
+});

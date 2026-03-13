@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, BarChart3, ArrowLeft, FileText, AlertCircle, Webhook } from 'lucide-react';
+import { LayoutDashboard, Users, BarChart3, ArrowLeft, FileText, AlertCircle, Webhook, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const navItems = [
@@ -16,6 +16,11 @@ const navItems = [
     title: 'Users',
     href: '/admin/users',
     icon: Users,
+  },
+  {
+    title: 'Business KPIs',
+    href: '/admin/kpi',
+    icon: TrendingUp,
   },
   {
     title: 'Analytics',
