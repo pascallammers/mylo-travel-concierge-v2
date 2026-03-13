@@ -5,7 +5,7 @@ import {
   subscription,
   user,
 } from '@/lib/db/schema';
-import { eq, gte, lte, and, sql, count, desc, ne } from 'drizzle-orm';
+import { eq, and, count, ne } from 'drizzle-orm';
 
 export interface KPIData {
   revenue: RevenueKPIs;
@@ -84,6 +84,13 @@ function monthEnd(monthsAgo: number): Date {
 }
 
 /**
+ * Check if a transaction represents a paying customer (not a free trial).
+ */
+function isPaidTransaction(amount: number): boolean {
+  return amount > 0;
+}
+
+/**
  * Compute all KPIs from stored transaction and subscription data.
  */
 export async function computeKPIs(): Promise<KPIData> {
@@ -104,7 +111,6 @@ export async function computeKPIs(): Promise<KPIData> {
     })
     .from(thriveCartTransaction);
 
-  // Total revenue all-time (charges + rebills - refunds)
   let totalRevenueAllTime = 0;
   let revenueThisMonth = 0;
   let revenueLastMonth = 0;
@@ -114,58 +120,48 @@ export async function computeKPIs(): Promise<KPIData> {
   let refundAmountThisMonth = 0;
   let totalPaymentsAllTime = 0;
 
-  // Track unique customers and their first purchase + total payments
-  const customerFirstPurchase = new Map<string, Date>();
-  const customerPaymentCount = new Map<string, number>();
-  const customerTotalPaid = new Map<string, number>();
   const newCustomersThisMonth = new Set<string>();
   const newCustomersLastMonth = new Set<string>();
   const cancelsThisMonth = new Set<string>();
   const cancelsLastMonth = new Set<string>();
 
-  // Monthly aggregation for charts (last 12 months)
-  const monthlyMap = new Map<string, { revenue: number; newSubs: number; cancels: number }>();
+  // Monthly aggregation for charts
+  const monthlyMap = new Map<string, { revenue: number; newPaidSubs: number; cancels: number }>();
 
   for (const txn of allTransactions) {
     const email = txn.customerEmail.toLowerCase();
     const date = txn.transactionDate;
-    const amount = txn.amount; // in cents
+    const amount = txn.amount;
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
     if (!monthlyMap.has(monthKey)) {
-      monthlyMap.set(monthKey, { revenue: 0, newSubs: 0, cancels: 0 });
+      monthlyMap.set(monthKey, { revenue: 0, newPaidSubs: 0, cancels: 0 });
     }
     const monthData = monthlyMap.get(monthKey)!;
 
     if (txn.transactionType === 'charge' || txn.transactionType === 'rebill') {
-      totalRevenueAllTime += amount;
-      totalPaymentsAllTime++;
-      monthData.revenue += amount;
-
-      // Track customer metrics
-      const currentCount = customerPaymentCount.get(email) || 0;
-      customerPaymentCount.set(email, currentCount + 1);
-      customerTotalPaid.set(email, (customerTotalPaid.get(email) || 0) + amount);
-
-      if (!customerFirstPurchase.has(email) || date < customerFirstPurchase.get(email)!) {
-        customerFirstPurchase.set(email, date);
+      if (isPaidTransaction(amount)) {
+        totalRevenueAllTime += amount;
+        totalPaymentsAllTime++;
+        monthData.revenue += amount;
       }
 
-      if (txn.transactionType === 'charge') {
-        // First purchase = new subscriber
+      if (txn.transactionType === 'charge' && isPaidTransaction(amount)) {
+        monthData.newPaidSubs++;
         if (date >= thisMonthStart) {
           newCustomersThisMonth.add(email);
-          monthData.newSubs++;
         } else if (date >= lastMonthStart && date <= lastMonthEnd) {
           newCustomersLastMonth.add(email);
         }
       }
 
-      if (date >= thisMonthStart) {
-        revenueThisMonth += amount;
-        if (txn.transactionType === 'rebill') rebillsThisMonth++;
-      } else if (date >= lastMonthStart && date <= lastMonthEnd) {
-        revenueLastMonth += amount;
+      if (isPaidTransaction(amount)) {
+        if (date >= thisMonthStart) {
+          revenueThisMonth += amount;
+          if (txn.transactionType === 'rebill') rebillsThisMonth++;
+        } else if (date >= lastMonthStart && date <= lastMonthEnd) {
+          revenueLastMonth += amount;
+        }
       }
     } else if (txn.transactionType === 'refund') {
       totalRevenueAllTime -= amount;
@@ -175,9 +171,9 @@ export async function computeKPIs(): Promise<KPIData> {
         refundAmountThisMonth += amount;
       }
     } else if (txn.transactionType === 'cancel') {
+      monthData.cancels++;
       if (date >= thisMonthStart) {
         cancelsThisMonth.add(email);
-        monthData.cancels++;
       } else if (date >= lastMonthStart && date <= lastMonthEnd) {
         cancelsLastMonth.add(email);
       }
@@ -231,13 +227,13 @@ export async function computeKPIs(): Promise<KPIData> {
   const avgSubMonths = countedSubs > 0 ? Math.round((totalMonths / countedSubs) * 10) / 10 : 0;
 
   // --- Calculate KPIs ---
-  const mrr = totalActiveSubscribers > 0 && revenueThisMonth > 0
-    ? revenueThisMonth
-    : revenueLastMonth; // fallback if month just started
-
-  const arpu = totalActiveSubscribers > 0
-    ? Math.round(mrr / totalActiveSubscribers)
+  // MRR: Use last full month revenue as baseline (dynamic ARPU x active subs)
+  const arpu = totalActiveSubscribers > 0 && revenueLastMonth > 0
+    ? Math.round(revenueLastMonth / totalActiveSubscribers)
     : 0;
+  const mrr = totalActiveSubscribers > 0 && arpu > 0
+    ? arpu * totalActiveSubscribers
+    : revenueLastMonth;
 
   const ltv = arpu > 0 && avgSubMonths > 0
     ? Math.round(arpu * avgSubMonths)
@@ -247,7 +243,7 @@ export async function computeKPIs(): Promise<KPIData> {
     ? Math.round(((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 1000) / 10
     : 0;
 
-  // Churn: cancellations this month / active subscribers at start of month
+  // Churn: cancellations / active subscribers at start of month (from subscription table)
   const activeAtMonthStart = totalActiveSubscribers + cancelsThisMonth.size;
   const churnRateThisMonth = activeAtMonthStart > 0
     ? Math.round((cancelsThisMonth.size / activeAtMonthStart) * 1000) / 10
@@ -264,25 +260,41 @@ export async function computeKPIs(): Promise<KPIData> {
     : 100;
 
   // --- Growth charts: last 12 months ---
+  // Build cumulative subscriber count for churn rate calculation
+  const sortedMonthKeys = Array.from(monthlyMap.keys()).sort();
+  const cumulativeSubscribers = new Map<string, number>();
+  let runningTotal = 0;
+  for (const key of sortedMonthKeys) {
+    const data = monthlyMap.get(key)!;
+    runningTotal += data.newPaidSubs - data.cancels;
+    cumulativeSubscribers.set(key, Math.max(0, runningTotal));
+  }
+
   const monthlyRevenue: Array<{ month: string; revenue: number; subscribers: number }> = [];
   const monthlyChurn: Array<{ month: string; churnRate: number; churned: number }> = [];
 
   for (let i = 11; i >= 0; i--) {
     const ms = monthStart(i);
     const key = `${ms.getFullYear()}-${String(ms.getMonth() + 1).padStart(2, '0')}`;
-    const data = monthlyMap.get(key) || { revenue: 0, newSubs: 0, cancels: 0 };
+    const data = monthlyMap.get(key) || { revenue: 0, newPaidSubs: 0, cancels: 0 };
 
     monthlyRevenue.push({
       month: key,
-      revenue: Math.round(data.revenue / 100), // convert cents to euros
-      subscribers: data.newSubs,
+      revenue: Math.round(data.revenue / 100),
+      subscribers: data.newPaidSubs,
     });
 
-    // Rough churn estimation per month
-    const estimated = data.newSubs > 0 ? Math.round((data.cancels / (data.newSubs + data.cancels || 1)) * 100) : 0;
+    // Churn rate: cancellations / estimated active subscribers at start of month
+    const prevMs = monthStart(i + 1);
+    const prevKey = `${prevMs.getFullYear()}-${String(prevMs.getMonth() + 1).padStart(2, '0')}`;
+    const subscribersAtStart = cumulativeSubscribers.get(prevKey) || 0;
+    const churnRate = subscribersAtStart > 0
+      ? Math.round((data.cancels / subscribersAtStart) * 1000) / 10
+      : 0;
+
     monthlyChurn.push({
       month: key,
-      churnRate: estimated,
+      churnRate,
       churned: data.cancels,
     });
   }
@@ -297,7 +309,7 @@ export async function computeKPIs(): Promise<KPIData> {
 
   return {
     revenue: {
-      mrr: Math.round(mrr / 100), // cents -> euros
+      mrr: Math.round(mrr / 100),
       totalRevenueAllTime: Math.round(totalRevenueAllTime / 100),
       revenueThisMonth: Math.round(revenueThisMonth / 100),
       revenueLastMonth: Math.round(revenueLastMonth / 100),
