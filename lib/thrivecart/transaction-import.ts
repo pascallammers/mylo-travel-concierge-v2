@@ -2,10 +2,12 @@ import { db } from '@/lib/db';
 import { thriveCartTransaction, thriveCartImportState } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { searchTransactions, rateLimitDelay } from './client';
+import { thrivecartConfig } from './config';
 import type { ThriveCartApiTransaction } from './types';
 import { generateId } from 'ai';
 
 const PER_PAGE = 100;
+const MYLO_PRODUCT_ID = thrivecartConfig.productId; // "5"
 
 interface ImportResult {
   totalFetched: number;
@@ -80,8 +82,12 @@ export async function runFullTransactionImport(): Promise<ImportResult> {
         break;
       }
 
-      // Insert batch, skip duplicates
-      for (const txn of transactions) {
+      // Filter to MYLO product only, then insert (skip duplicates)
+      const myloTransactions = transactions.filter(
+        (txn) => String(txn.base_product) === MYLO_PRODUCT_ID
+      );
+
+      for (const txn of myloTransactions) {
         try {
           const row = mapTransaction(txn);
           await db
@@ -98,6 +104,7 @@ export async function runFullTransactionImport(): Promise<ImportResult> {
           }
         }
       }
+      result.totalSkipped += transactions.length - myloTransactions.length;
 
       console.log(
         `[TC Import] Page ${page}: ${transactions.length} fetched, total so far: ${result.totalFetched}/${meta.total}`
@@ -166,8 +173,14 @@ export async function runIncrementalSync(): Promise<ImportResult> {
 
       if (transactions.length === 0) break;
 
+      // Filter to MYLO product only
+      const myloTransactions = transactions.filter(
+        (txn) => String(txn.base_product) === MYLO_PRODUCT_ID
+      );
+      result.totalSkipped += transactions.length - myloTransactions.length;
+
       let newInPage = 0;
-      for (const txn of transactions) {
+      for (const txn of myloTransactions) {
         try {
           const row = mapTransaction(txn);
           const inserted = await db
@@ -191,7 +204,7 @@ export async function runIncrementalSync(): Promise<ImportResult> {
         }
       }
 
-      // If no new transactions in this page, older pages won't have new ones either
+      // If no new MYLO transactions in this page, older pages won't have new ones either
       if (newInPage === 0) break;
     }
 
