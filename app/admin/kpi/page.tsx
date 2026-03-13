@@ -7,6 +7,7 @@ import { KPIChurnChart } from '@/components/admin/kpi-churn-chart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   DollarSign,
   Users,
@@ -22,12 +23,22 @@ import {
   BarChart3,
 } from 'lucide-react';
 
+type DateRange = 'this_month' | 'last_month' | 'this_year' | 'last_year' | 'all_time';
+
+const DATE_RANGE_LABELS: Record<DateRange, string> = {
+  this_month: 'Dieser Monat',
+  last_month: 'Letzter Monat',
+  this_year: 'Dieses Jahr',
+  last_year: 'Letztes Jahr',
+  all_time: 'Gesamt',
+};
+
 interface KPIData {
+  dateRange: DateRange;
   revenue: {
     mrr: number;
-    totalRevenueAllTime: number;
-    revenueThisMonth: number;
-    revenueLastMonth: number;
+    totalRevenue: number;
+    previousPeriodRevenue: number;
     revenueGrowthPercent: number;
     arpu: number;
     ltv: number;
@@ -36,21 +47,21 @@ interface KPIData {
   subscriptions: {
     totalActiveSubscribers: number;
     totalCancelledSubscribers: number;
-    newSubscribersThisMonth: number;
-    newSubscribersLastMonth: number;
+    newSubscribers: number;
+    previousPeriodNewSubscribers: number;
     averageSubscriptionMonths: number;
   };
   churn: {
-    churnRateThisMonth: number;
-    churnRateLastMonth: number;
-    churnedThisMonth: number;
-    churnedLastMonth: number;
+    churnRate: number;
+    previousPeriodChurnRate: number;
+    churned: number;
+    previousPeriodChurned: number;
   };
   payments: {
-    totalPaymentsAllTime: number;
-    successfulRebillsThisMonth: number;
-    failedPaymentsThisMonth: number;
-    refundsThisMonth: number;
+    totalPayments: number;
+    successfulRebills: number;
+    failedPayments: number;
+    refunds: number;
     refundAmount: number;
     paymentSuccessRate: number;
   };
@@ -78,12 +89,13 @@ export default function KPIDashboard() {
   const [importing, setImporting] = useState(false);
   const [importStatus, setImportStatus] = useState<ImportStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange>('this_month');
 
-  const fetchKPIs = useCallback(async () => {
+  const fetchKPIs = useCallback(async (range: DateRange) => {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch('/api/admin/kpi');
+      const res = await fetch(`/api/admin/kpi?range=${range}`);
       if (!res.ok) throw new Error('Fehler beim Laden der KPIs');
       const json = await res.json();
       setData(json);
@@ -109,9 +121,9 @@ export default function KPIDashboard() {
   }, []);
 
   useEffect(() => {
-    fetchKPIs();
+    fetchKPIs(dateRange);
     fetchImportStatus();
-  }, [fetchKPIs, fetchImportStatus]);
+  }, [dateRange, fetchKPIs, fetchImportStatus]);
 
   // Poll import status while importing
   useEffect(() => {
@@ -120,11 +132,11 @@ export default function KPIDashboard() {
       const status = await fetchImportStatus();
       if (status === 'idle' || status === 'failed') {
         setImporting(false);
-        await fetchKPIs();
+        await fetchKPIs(dateRange);
       }
     }, 3000);
     return () => clearInterval(interval);
-  }, [importing, fetchImportStatus, fetchKPIs]);
+  }, [importing, fetchImportStatus, fetchKPIs, dateRange]);
 
   const handleImport = async () => {
     if (importing) return;
@@ -140,12 +152,15 @@ export default function KPIDashboard() {
       if (!res.ok) {
         throw new Error((result.error as string) || 'Import konnte nicht gestartet werden.');
       }
-      // Import runs in background via QStash - polling takes over from here
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Import fehlgeschlagen';
       setImportStatus((prev) => prev ? { ...prev, status: 'failed', lastError: msg } : null);
       setImporting(false);
     }
+  };
+
+  const handleDateRangeChange = (value: string) => {
+    setDateRange(value as DateRange);
   };
 
   const formatCurrency = (amount: number) => {
@@ -167,13 +182,19 @@ export default function KPIDashboard() {
     });
   };
 
+  const previousPeriodLabel = dateRange === 'this_month' ? 'Letzter Monat'
+    : dateRange === 'last_month' ? 'Vormonat'
+    : dateRange === 'this_year' ? 'Letztes Jahr'
+    : dateRange === 'last_year' ? 'Vorjahr'
+    : '';
+
   if (error) {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-center">
           <h2 className="text-lg font-semibold">Fehler beim Laden der KPIs</h2>
           <p className="text-sm text-muted-foreground">{error}</p>
-          <Button onClick={fetchKPIs} variant="outline" className="mt-4">
+          <Button onClick={() => fetchKPIs(dateRange)} variant="outline" className="mt-4">
             Erneut versuchen
           </Button>
         </div>
@@ -195,7 +216,7 @@ export default function KPIDashboard() {
           <div className="mt-3 h-1 w-24 rounded-full bg-gradient-to-r from-primary via-accent to-transparent" />
         </div>
         <div className="flex gap-2">
-          <Button onClick={fetchKPIs} variant="outline" size="sm" disabled={loading}>
+          <Button onClick={() => fetchKPIs(dateRange)} variant="outline" size="sm" disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Aktualisieren
           </Button>
@@ -205,6 +226,17 @@ export default function KPIDashboard() {
           </Button>
         </div>
       </div>
+
+      {/* Date Range Switcher */}
+      <Tabs value={dateRange} onValueChange={handleDateRangeChange}>
+        <TabsList>
+          {(Object.keys(DATE_RANGE_LABELS) as DateRange[]).map((key) => (
+            <TabsTrigger key={key} value={key} disabled={loading}>
+              {DATE_RANGE_LABELS[key]}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       {/* Import status banner */}
       {(importStatus?.status === 'running' || importing) && (
@@ -278,9 +310,9 @@ export default function KPIDashboard() {
                 delay={0}
               />
               <StatsCard
-                title="Umsatz gesamt"
-                value={formatCurrency(data.revenue.totalRevenueAllTime)}
-                description="All-time Revenue"
+                title="Umsatz"
+                value={formatCurrency(data.revenue.totalRevenue)}
+                description={previousPeriodLabel ? `${previousPeriodLabel}: ${formatCurrency(data.revenue.previousPeriodRevenue)}` : DATE_RANGE_LABELS[dateRange]}
                 icon={BarChart3}
                 iconClassName="text-blue-500"
                 delay={100}
@@ -330,16 +362,16 @@ export default function KPIDashboard() {
               />
               <StatsCard
                 title="Neue Abonnenten"
-                value={data.subscriptions.newSubscribersThisMonth}
-                description={`Letzter Monat: ${data.subscriptions.newSubscribersLastMonth}`}
+                value={data.subscriptions.newSubscribers}
+                description={previousPeriodLabel ? `${previousPeriodLabel}: ${data.subscriptions.previousPeriodNewSubscribers}` : DATE_RANGE_LABELS[dateRange]}
                 icon={TrendingUp}
                 iconClassName="text-blue-500"
                 delay={100}
               />
               <StatsCard
                 title="Gekuendigte Abos"
-                value={data.subscriptions.totalCancelledSubscribers}
-                description="Gesamt gekuendigt"
+                value={data.churn.churned}
+                description={previousPeriodLabel ? `${previousPeriodLabel}: ${data.churn.previousPeriodChurned}` : DATE_RANGE_LABELS[dateRange]}
                 icon={UserMinus}
                 iconClassName="text-orange-500"
                 delay={200}
@@ -373,23 +405,23 @@ export default function KPIDashboard() {
             <>
               <StatsCard
                 title="Churn-Rate"
-                value={`${data.churn.churnRateThisMonth}%`}
-                description={`Letzter Monat: ${data.churn.churnRateLastMonth}%`}
+                value={`${data.churn.churnRate}%`}
+                description={previousPeriodLabel ? `${previousPeriodLabel}: ${data.churn.previousPeriodChurnRate}%` : DATE_RANGE_LABELS[dateRange]}
                 icon={TrendingDown}
-                iconClassName={data.churn.churnRateThisMonth > 5 ? 'text-red-500' : 'text-orange-500'}
+                iconClassName={data.churn.churnRate > 5 ? 'text-red-500' : 'text-orange-500'}
                 delay={0}
               />
               <StatsCard
                 title="Zahlungserfolg"
                 value={`${data.payments.paymentSuccessRate}%`}
-                description={`${data.payments.successfulRebillsThisMonth} Rebills diesen Monat`}
+                description={`${data.payments.successfulRebills} Rebills`}
                 icon={CreditCard}
                 iconClassName="text-emerald-500"
                 delay={100}
               />
               <StatsCard
                 title="Refunds"
-                value={data.payments.refundsThisMonth}
+                value={data.payments.refunds}
                 description={data.payments.refundAmount > 0 ? `${formatCurrency(data.payments.refundAmount)} erstattet` : 'Keine Erstattungen'}
                 icon={Repeat}
                 iconClassName="text-amber-500"
@@ -397,10 +429,10 @@ export default function KPIDashboard() {
               />
               <StatsCard
                 title="Fehlgeschlagen"
-                value={data.payments.failedPaymentsThisMonth}
+                value={data.payments.failedPayments}
                 description="Zahlungen fehlgeschlagen"
                 icon={AlertTriangle}
-                iconClassName={data.payments.failedPaymentsThisMonth > 0 ? 'text-red-500' : 'text-muted-foreground'}
+                iconClassName={data.payments.failedPayments > 0 ? 'text-red-500' : 'text-muted-foreground'}
                 delay={300}
               />
             </>
@@ -417,7 +449,7 @@ export default function KPIDashboard() {
       )}
 
       {/* Revenue comparison */}
-      {!loading && data && (
+      {!loading && data && dateRange !== 'all_time' && (
         <div className="grid gap-4 md:grid-cols-2">
           <Card>
             <CardHeader>
@@ -426,12 +458,12 @@ export default function KPIDashboard() {
             <CardContent>
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Dieser Monat</span>
-                  <span className="font-semibold">{formatCurrency(data.revenue.revenueThisMonth)}</span>
+                  <span className="text-muted-foreground">{DATE_RANGE_LABELS[dateRange]}</span>
+                  <span className="font-semibold">{formatCurrency(data.revenue.totalRevenue)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Letzter Monat</span>
-                  <span className="font-medium">{formatCurrency(data.revenue.revenueLastMonth)}</span>
+                  <span className="text-muted-foreground">{previousPeriodLabel}</span>
+                  <span className="font-medium">{formatCurrency(data.revenue.previousPeriodRevenue)}</span>
                 </div>
                 <div className="flex justify-between border-t pt-2">
                   <span className="text-muted-foreground">Wachstum</span>
@@ -449,17 +481,17 @@ export default function KPIDashboard() {
             <CardContent>
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Zahlungen gesamt</span>
-                  <span className="font-semibold">{data.payments.totalPaymentsAllTime.toLocaleString('de-DE')}</span>
+                  <span className="text-muted-foreground">Zahlungen</span>
+                  <span className="font-semibold">{data.payments.totalPayments.toLocaleString('de-DE')}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Rebills diesen Monat</span>
-                  <span className="font-medium">{data.payments.successfulRebillsThisMonth}</span>
+                  <span className="text-muted-foreground">Rebills</span>
+                  <span className="font-medium">{data.payments.successfulRebills}</span>
                 </div>
                 <div className="flex justify-between border-t pt-2">
-                  <span className="text-muted-foreground">Kuendigungen diesen Monat</span>
-                  <span className={`font-semibold ${data.churn.churnedThisMonth > 0 ? 'text-orange-600' : 'text-muted-foreground'}`}>
-                    {data.churn.churnedThisMonth}
+                  <span className="text-muted-foreground">Kuendigungen</span>
+                  <span className={`font-semibold ${data.churn.churned > 0 ? 'text-orange-600' : 'text-muted-foreground'}`}>
+                    {data.churn.churned}
                   </span>
                 </div>
               </div>

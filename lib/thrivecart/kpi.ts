@@ -7,7 +7,11 @@ import {
 } from '@/lib/db/schema';
 import { eq, and, count, ne } from 'drizzle-orm';
 
+export const DATE_RANGES = ['this_month', 'last_month', 'this_year', 'last_year', 'all_time'] as const;
+export type DateRange = (typeof DATE_RANGES)[number];
+
 export interface KPIData {
+  dateRange: DateRange;
   revenue: RevenueKPIs;
   subscriptions: SubscriptionKPIs;
   churn: ChurnKPIs;
@@ -18,9 +22,8 @@ export interface KPIData {
 
 interface RevenueKPIs {
   mrr: number;
-  totalRevenueAllTime: number;
-  revenueThisMonth: number;
-  revenueLastMonth: number;
+  totalRevenue: number;
+  previousPeriodRevenue: number;
   revenueGrowthPercent: number;
   arpu: number;
   ltv: number;
@@ -30,23 +33,23 @@ interface RevenueKPIs {
 interface SubscriptionKPIs {
   totalActiveSubscribers: number;
   totalCancelledSubscribers: number;
-  newSubscribersThisMonth: number;
-  newSubscribersLastMonth: number;
+  newSubscribers: number;
+  previousPeriodNewSubscribers: number;
   averageSubscriptionMonths: number;
 }
 
 interface ChurnKPIs {
-  churnRateThisMonth: number;
-  churnRateLastMonth: number;
-  churnedThisMonth: number;
-  churnedLastMonth: number;
+  churnRate: number;
+  previousPeriodChurnRate: number;
+  churned: number;
+  previousPeriodChurned: number;
 }
 
 interface PaymentKPIs {
-  totalPaymentsAllTime: number;
-  successfulRebillsThisMonth: number;
-  failedPaymentsThisMonth: number;
-  refundsThisMonth: number;
+  totalPayments: number;
+  successfulRebills: number;
+  failedPayments: number;
+  refunds: number;
   refundAmount: number;
   paymentSuccessRate: number;
 }
@@ -62,6 +65,13 @@ interface ImportState {
   status: string;
 }
 
+interface PeriodBounds {
+  start: Date;
+  end: Date;
+  previousStart: Date;
+  previousEnd: Date;
+}
+
 /**
  * Get the start of a month, N months ago from today.
  */
@@ -74,13 +84,49 @@ function monthStart(monthsAgo: number): Date {
 }
 
 /**
- * Get the end of a month, N months ago from today.
+ * Compute period boundaries for a given date range selection.
  */
-function monthEnd(monthsAgo: number): Date {
-  const d = monthStart(monthsAgo);
-  d.setMonth(d.getMonth() + 1);
-  d.setMilliseconds(-1);
-  return d;
+function getPeriodBounds(dateRange: DateRange): PeriodBounds {
+  const now = new Date();
+
+  switch (dateRange) {
+    case 'this_month': {
+      const start = monthStart(0);
+      const previousStart = monthStart(1);
+      const previousEnd = new Date(start);
+      previousEnd.setMilliseconds(-1);
+      return { start, end: now, previousStart, previousEnd };
+    }
+    case 'last_month': {
+      const start = monthStart(1);
+      const end = new Date(monthStart(0));
+      end.setMilliseconds(-1);
+      const previousStart = monthStart(2);
+      const previousEnd = new Date(start);
+      previousEnd.setMilliseconds(-1);
+      return { start, end, previousStart, previousEnd };
+    }
+    case 'this_year': {
+      const start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+      const previousStart = new Date(now.getFullYear() - 1, 0, 1, 0, 0, 0, 0);
+      const previousEnd = new Date(start);
+      previousEnd.setMilliseconds(-1);
+      return { start, end: now, previousStart, previousEnd };
+    }
+    case 'last_year': {
+      const start = new Date(now.getFullYear() - 1, 0, 1, 0, 0, 0, 0);
+      const end = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+      end.setMilliseconds(-1);
+      const previousStart = new Date(now.getFullYear() - 2, 0, 1, 0, 0, 0, 0);
+      const previousEnd = new Date(start);
+      previousEnd.setMilliseconds(-1);
+      return { start, end, previousStart, previousEnd };
+    }
+    case 'all_time': {
+      const start = new Date(2020, 0, 1);
+      return { start, end: now, previousStart: start, previousEnd: start };
+    }
+  }
 }
 
 /**
@@ -91,15 +137,23 @@ function isPaidTransaction(amount: number): boolean {
 }
 
 /**
- * Compute all KPIs from stored transaction and subscription data.
+ * Check if a date falls within a period (inclusive).
  */
-export async function computeKPIs(): Promise<KPIData> {
-  const now = new Date();
-  const thisMonthStart = monthStart(0);
-  const lastMonthStart = monthStart(1);
-  const lastMonthEnd = monthEnd(1);
+function isInPeriod(date: Date, start: Date, end: Date): boolean {
+  return date >= start && date <= end;
+}
 
-  // --- Revenue from transactions ---
+/**
+ * Compute all KPIs from stored transaction and subscription data.
+ * @param dateRange - The time period to compute KPIs for.
+ */
+export async function computeKPIs(dateRange: DateRange = 'this_month'): Promise<KPIData> {
+  const now = new Date();
+  const bounds = getPeriodBounds(dateRange);
+  const lastFullMonthStart = monthStart(1);
+  const lastFullMonthEnd = new Date(monthStart(0));
+  lastFullMonthEnd.setMilliseconds(-1);
+
   const allTransactions = await db
     .select({
       transactionType: thriveCartTransaction.transactionType,
@@ -111,21 +165,22 @@ export async function computeKPIs(): Promise<KPIData> {
     })
     .from(thriveCartTransaction);
 
-  let totalRevenueAllTime = 0;
-  let revenueThisMonth = 0;
-  let revenueLastMonth = 0;
-  let rebillsThisMonth = 0;
-  let failedThisMonth = 0;
-  let refundsThisMonth = 0;
-  let refundAmountThisMonth = 0;
-  let totalPaymentsAllTime = 0;
+  // Period-scoped accumulators
+  let periodRevenue = 0;
+  let previousPeriodRevenue = 0;
+  let periodRebills = 0;
+  let periodFailed = 0;
+  let periodRefunds = 0;
+  let periodRefundAmount = 0;
+  let periodPayments = 0;
+  let lastMonthRevenue = 0;
 
-  const newCustomersThisMonth = new Set<string>();
-  const newCustomersLastMonth = new Set<string>();
-  const cancelsThisMonth = new Set<string>();
-  const cancelsLastMonth = new Set<string>();
+  const periodNewCustomers = new Set<string>();
+  const previousPeriodNewCustomers = new Set<string>();
+  const periodCancels = new Set<string>();
+  const previousPeriodCancels = new Set<string>();
 
-  // Monthly aggregation for charts
+  // Monthly aggregation for charts (always last 12 months, independent of dateRange)
   const monthlyMap = new Map<string, { revenue: number; newPaidSubs: number; cancels: number }>();
 
   for (const txn of allTransactions) {
@@ -140,51 +195,57 @@ export async function computeKPIs(): Promise<KPIData> {
     const monthData = monthlyMap.get(monthKey)!;
 
     if (txn.transactionType === 'charge' || txn.transactionType === 'rebill') {
-      if (isPaidTransaction(amount)) {
-        totalRevenueAllTime += amount;
-        totalPaymentsAllTime++;
-        monthData.revenue += amount;
-      }
+      if (!isPaidTransaction(amount)) continue;
 
-      if (txn.transactionType === 'charge' && isPaidTransaction(amount)) {
+      monthData.revenue += amount;
+
+      if (txn.transactionType === 'charge') {
         monthData.newPaidSubs++;
-        if (date >= thisMonthStart) {
-          newCustomersThisMonth.add(email);
-        } else if (date >= lastMonthStart && date <= lastMonthEnd) {
-          newCustomersLastMonth.add(email);
+        if (isInPeriod(date, bounds.start, bounds.end)) {
+          periodNewCustomers.add(email);
+        }
+        if (isInPeriod(date, bounds.previousStart, bounds.previousEnd)) {
+          previousPeriodNewCustomers.add(email);
         }
       }
 
-      if (isPaidTransaction(amount)) {
-        if (date >= thisMonthStart) {
-          revenueThisMonth += amount;
-          if (txn.transactionType === 'rebill') rebillsThisMonth++;
-        } else if (date >= lastMonthStart && date <= lastMonthEnd) {
-          revenueLastMonth += amount;
-        }
+      if (isInPeriod(date, bounds.start, bounds.end)) {
+        periodRevenue += amount;
+        periodPayments++;
+        if (txn.transactionType === 'rebill') periodRebills++;
+      }
+      if (isInPeriod(date, bounds.previousStart, bounds.previousEnd)) {
+        previousPeriodRevenue += amount;
+      }
+      if (isInPeriod(date, lastFullMonthStart, lastFullMonthEnd)) {
+        lastMonthRevenue += amount;
       }
     } else if (txn.transactionType === 'refund') {
-      totalRevenueAllTime -= amount;
       monthData.revenue -= amount;
-      if (date >= thisMonthStart) {
-        refundsThisMonth++;
-        refundAmountThisMonth += amount;
+      if (isInPeriod(date, bounds.start, bounds.end)) {
+        periodRefunds++;
+        periodRefundAmount += amount;
+        periodRevenue -= amount;
+      }
+      if (isInPeriod(date, bounds.previousStart, bounds.previousEnd)) {
+        previousPeriodRevenue -= amount;
       }
     } else if (txn.transactionType === 'cancel') {
       monthData.cancels++;
-      if (date >= thisMonthStart) {
-        cancelsThisMonth.add(email);
-      } else if (date >= lastMonthStart && date <= lastMonthEnd) {
-        cancelsLastMonth.add(email);
+      if (isInPeriod(date, bounds.start, bounds.end)) {
+        periodCancels.add(email);
+      }
+      if (isInPeriod(date, bounds.previousStart, bounds.previousEnd)) {
+        previousPeriodCancels.add(email);
       }
     } else if (txn.transactionType === 'failed') {
-      if (date >= thisMonthStart) {
-        failedThisMonth++;
+      if (isInPeriod(date, bounds.start, bounds.end)) {
+        periodFailed++;
       }
     }
   }
 
-  // --- Subscription-based metrics from DB ---
+  // --- Subscription-based metrics (always current state) ---
   const activeSubsResult = await db
     .select({ count: count() })
     .from(subscription)
@@ -203,13 +264,11 @@ export async function computeKPIs(): Promise<KPIData> {
     .where(eq(subscription.status, 'cancelled'));
   const totalCancelledSubscribers = cancelledSubsResult[0]?.count || 0;
 
-  // Average subscription duration
   const subsWithDuration = await db
     .select({
       startedAt: subscription.startedAt,
       canceledAt: subscription.canceledAt,
       currentPeriodEnd: subscription.currentPeriodEnd,
-      status: subscription.status,
     })
     .from(subscription);
 
@@ -227,40 +286,39 @@ export async function computeKPIs(): Promise<KPIData> {
   const avgSubMonths = countedSubs > 0 ? Math.round((totalMonths / countedSubs) * 10) / 10 : 0;
 
   // --- Calculate KPIs ---
-  // MRR: Use last full month revenue as baseline (dynamic ARPU x active subs)
-  const arpu = totalActiveSubscribers > 0 && revenueLastMonth > 0
-    ? Math.round(revenueLastMonth / totalActiveSubscribers)
+  // MRR always based on last full month (current state metric)
+  const arpu = totalActiveSubscribers > 0 && lastMonthRevenue > 0
+    ? Math.round(lastMonthRevenue / totalActiveSubscribers)
     : 0;
   const mrr = totalActiveSubscribers > 0 && arpu > 0
     ? arpu * totalActiveSubscribers
-    : revenueLastMonth;
+    : lastMonthRevenue;
 
   const ltv = arpu > 0 && avgSubMonths > 0
     ? Math.round(arpu * avgSubMonths)
     : 0;
 
-  const revenueGrowthPercent = revenueLastMonth > 0
-    ? Math.round(((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 1000) / 10
+  const revenueGrowthPercent = previousPeriodRevenue > 0 && dateRange !== 'all_time'
+    ? Math.round(((periodRevenue - previousPeriodRevenue) / previousPeriodRevenue) * 1000) / 10
     : 0;
 
-  // Churn: cancellations / active subscribers at start of month (from subscription table)
-  const activeAtMonthStart = totalActiveSubscribers + cancelsThisMonth.size;
-  const churnRateThisMonth = activeAtMonthStart > 0
-    ? Math.round((cancelsThisMonth.size / activeAtMonthStart) * 1000) / 10
+  // Churn: cancellations / active subscribers at start of period
+  const activeAtPeriodStart = totalActiveSubscribers + periodCancels.size;
+  const churnRate = activeAtPeriodStart > 0
+    ? Math.round((periodCancels.size / activeAtPeriodStart) * 1000) / 10
     : 0;
 
-  const activeAtLastMonthStart = totalActiveSubscribers + cancelsThisMonth.size + cancelsLastMonth.size;
-  const churnRateLastMonth = activeAtLastMonthStart > 0
-    ? Math.round((cancelsLastMonth.size / activeAtLastMonthStart) * 1000) / 10
+  const activeAtPreviousPeriodStart = activeAtPeriodStart + previousPeriodCancels.size;
+  const previousPeriodChurnRate = activeAtPreviousPeriodStart > 0 && dateRange !== 'all_time'
+    ? Math.round((previousPeriodCancels.size / activeAtPreviousPeriodStart) * 1000) / 10
     : 0;
 
-  const totalRebillsAndChargesThisMonth = rebillsThisMonth + newCustomersThisMonth.size;
-  const paymentSuccessRate = (totalRebillsAndChargesThisMonth + failedThisMonth) > 0
-    ? Math.round((totalRebillsAndChargesThisMonth / (totalRebillsAndChargesThisMonth + failedThisMonth)) * 1000) / 10
+  const totalSuccessful = periodRebills + periodNewCustomers.size;
+  const paymentSuccessRate = (totalSuccessful + periodFailed) > 0
+    ? Math.round((totalSuccessful / (totalSuccessful + periodFailed)) * 1000) / 10
     : 100;
 
-  // --- Growth charts: last 12 months ---
-  // Build cumulative subscriber count for churn rate calculation
+  // --- Growth charts: last 12 months (always shown) ---
   const sortedMonthKeys = Array.from(monthlyMap.keys()).sort();
   const cumulativeSubscribers = new Map<string, number>();
   let runningTotal = 0;
@@ -284,17 +342,16 @@ export async function computeKPIs(): Promise<KPIData> {
       subscribers: data.newPaidSubs,
     });
 
-    // Churn rate: cancellations / estimated active subscribers at start of month
     const prevMs = monthStart(i + 1);
     const prevKey = `${prevMs.getFullYear()}-${String(prevMs.getMonth() + 1).padStart(2, '0')}`;
     const subscribersAtStart = cumulativeSubscribers.get(prevKey) || 0;
-    const churnRate = subscribersAtStart > 0
+    const monthChurnRate = subscribersAtStart > 0
       ? Math.round((data.cancels / subscribersAtStart) * 1000) / 10
       : 0;
 
     monthlyChurn.push({
       month: key,
-      churnRate,
+      churnRate: monthChurnRate,
       churned: data.cancels,
     });
   }
@@ -304,15 +361,14 @@ export async function computeKPIs(): Promise<KPIData> {
     .select()
     .from(thriveCartImportState)
     .where(eq(thriveCartImportState.id, 'singleton'));
-
   const importRow = importStateRows[0];
 
   return {
+    dateRange,
     revenue: {
       mrr: Math.round(mrr / 100),
-      totalRevenueAllTime: Math.round(totalRevenueAllTime / 100),
-      revenueThisMonth: Math.round(revenueThisMonth / 100),
-      revenueLastMonth: Math.round(revenueLastMonth / 100),
+      totalRevenue: Math.round(periodRevenue / 100),
+      previousPeriodRevenue: Math.round(previousPeriodRevenue / 100),
       revenueGrowthPercent,
       arpu: Math.round(arpu / 100),
       ltv: Math.round(ltv / 100),
@@ -321,22 +377,22 @@ export async function computeKPIs(): Promise<KPIData> {
     subscriptions: {
       totalActiveSubscribers,
       totalCancelledSubscribers,
-      newSubscribersThisMonth: newCustomersThisMonth.size,
-      newSubscribersLastMonth: newCustomersLastMonth.size,
+      newSubscribers: periodNewCustomers.size,
+      previousPeriodNewSubscribers: previousPeriodNewCustomers.size,
       averageSubscriptionMonths: avgSubMonths,
     },
     churn: {
-      churnRateThisMonth,
-      churnRateLastMonth,
-      churnedThisMonth: cancelsThisMonth.size,
-      churnedLastMonth: cancelsLastMonth.size,
+      churnRate,
+      previousPeriodChurnRate,
+      churned: periodCancels.size,
+      previousPeriodChurned: previousPeriodCancels.size,
     },
     payments: {
-      totalPaymentsAllTime,
-      successfulRebillsThisMonth: rebillsThisMonth,
-      failedPaymentsThisMonth: failedThisMonth,
-      refundsThisMonth,
-      refundAmount: Math.round(refundAmountThisMonth / 100),
+      totalPayments: periodPayments,
+      successfulRebills: periodRebills,
+      failedPayments: periodFailed,
+      refunds: periodRefunds,
+      refundAmount: Math.round(periodRefundAmount / 100),
       paymentSuccessRate,
     },
     growth: {
