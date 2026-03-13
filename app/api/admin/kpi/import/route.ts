@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isCurrentUserAdmin } from '@/lib/auth-utils';
+import { isKpiAuthorized } from '@/lib/auth-utils';
 import { runFullTransactionImport } from '@/lib/thrivecart/transaction-import';
 import { db } from '@/lib/db';
 import { thriveCartImportState } from '@/lib/db/schema';
@@ -11,8 +11,8 @@ import { eq } from 'drizzle-orm';
  */
 export async function GET(request: NextRequest) {
   try {
-    const isAdmin = await isCurrentUserAdmin();
-    if (!isAdmin) {
+    const authorized = await isKpiAuthorized();
+    if (!authorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
@@ -41,8 +41,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const isAdmin = await isCurrentUserAdmin();
-    if (!isAdmin) {
+    const authorized = await isKpiAuthorized();
+    if (!authorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 

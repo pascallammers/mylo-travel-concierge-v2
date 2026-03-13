@@ -105,3 +105,22 @@ export const isCurrentUserAdmin = async (): Promise<boolean> => {
   }
   return isAdmin(currentUser.id);
 };
+
+/** E-mail addresses allowed to access the Business KPI dashboard. */
+const KPI_AUTHORIZED_EMAILS = [
+  'tayler.schweigert@lovelifepassport.com',
+  'pascal.lammers@stay-digital.de',
+] as const;
+
+/**
+ * Check if the current user is authorized to access Business KPIs.
+ * Only specific email addresses are allowed, even among admins.
+ * @returns True if the user may access KPI data
+ */
+export const isKpiAuthorized = async (): Promise<boolean> => {
+  const currentUser = await getUser();
+  if (!currentUser?.email) return false;
+  return KPI_AUTHORIZED_EMAILS.includes(
+    currentUser.email.toLowerCase() as (typeof KPI_AUTHORIZED_EMAILS)[number],
+  );
+};

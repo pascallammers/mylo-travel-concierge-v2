@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isCurrentUserAdmin } from '@/lib/auth-utils';
+import { isKpiAuthorized } from '@/lib/auth-utils';
 import { computeKPIs } from '@/lib/thrivecart/kpi';
 
 /**
  * GET /api/admin/kpi
  * Returns business KPIs computed from ThriveCart transaction data.
- * Requires admin role.
+ * Restricted to authorized email addresses only.
  */
 export async function GET(request: NextRequest) {
   try {
-    const isAdmin = await isCurrentUserAdmin();
-    if (!isAdmin) {
+    const authorized = await isKpiAuthorized();
+    if (!authorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 

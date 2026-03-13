@@ -44,11 +44,19 @@ const navItems = [
   },
 ];
 
+interface AdminNavProps {
+  showKpi?: boolean;
+}
+
 /**
  * Admin navigation sidebar
  */
-export function AdminNav() {
+export function AdminNav({ showKpi = false }: AdminNavProps) {
   const pathname = usePathname();
+
+  const visibleItems = showKpi
+    ? navItems
+    : navItems.filter((item) => item.href !== '/admin/kpi');
 
   return (
     <div className="flex h-full w-64 flex-col border-r bg-muted/10 px-4 py-6">
@@ -57,7 +65,7 @@ export function AdminNav() {
       </div>
 
       <nav className="flex-1 space-y-1">
-        {navItems.map((item) => {
+        {visibleItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
 
