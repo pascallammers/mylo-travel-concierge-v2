@@ -684,7 +684,7 @@ export type FailedSearchLog = InferSelectModel<typeof failedSearchLogs>;
 /**
  * Transaction types from ThriveCart API.
  */
-export const thriveCartTransactionType = ['charge', 'rebill', 'refund', 'cancel'] as const;
+export const thriveCartTransactionType = ['charge', 'rebill', 'refund', 'cancel', 'failed'] as const;
 export type ThriveCartTransactionType = (typeof thriveCartTransactionType)[number];
 
 /**

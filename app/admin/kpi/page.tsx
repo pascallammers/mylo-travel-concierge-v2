@@ -65,10 +65,18 @@ interface KPIData {
   };
 }
 
+interface ImportStatus {
+  status: string;
+  lastImportAt: string | null;
+  totalImported: number;
+  lastError: string | null;
+}
+
 export default function KPIDashboard() {
   const [data, setData] = useState<KPIData | null>(null);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
+  const [importStatus, setImportStatus] = useState<ImportStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchKPIs = useCallback(async () => {
@@ -86,23 +94,57 @@ export default function KPIDashboard() {
     }
   }, []);
 
+  const fetchImportStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/kpi/import');
+      if (res.ok) {
+        const status = await res.json();
+        setImportStatus(status);
+        return status.status;
+      }
+    } catch {
+      // Silently ignore polling errors
+    }
+    return null;
+  }, []);
+
   useEffect(() => {
     fetchKPIs();
-  }, [fetchKPIs]);
+    fetchImportStatus();
+  }, [fetchKPIs, fetchImportStatus]);
+
+  // Poll import status while importing
+  useEffect(() => {
+    if (!importing) return;
+    const interval = setInterval(async () => {
+      const status = await fetchImportStatus();
+      if (status === 'idle' || status === 'failed') {
+        setImporting(false);
+        await fetchKPIs();
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [importing, fetchImportStatus, fetchKPIs]);
 
   const handleImport = async () => {
     if (importing) return;
     setImporting(true);
+    setImportStatus({ status: 'running', lastImportAt: null, totalImported: 0, lastError: 'Starte Import...' });
+
     try {
       const res = await fetch('/api/admin/kpi/import', { method: 'POST' });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Import fehlgeschlagen');
-      alert(
-        `Import abgeschlossen: ${result.totalFetched} geladen, ${result.totalInserted} neu, ${result.totalSkipped} uebersprungen`
-      );
+      setImportStatus({
+        status: 'idle',
+        lastImportAt: new Date().toISOString(),
+        totalImported: result.totalInserted,
+        lastError: result.errors?.length > 0 ? result.errors.join('; ') : null,
+      });
       await fetchKPIs();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Import fehlgeschlagen');
+      const msg = err instanceof Error ? err.message : 'Import fehlgeschlagen';
+      setImportStatus((prev) => prev ? { ...prev, status: 'failed', lastError: msg } : null);
     } finally {
       setImporting(false);
     }
@@ -167,7 +209,40 @@ export default function KPIDashboard() {
       </div>
 
       {/* Import status banner */}
-      {data && (
+      {(importStatus?.status === 'running' || importing) && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <RefreshCw className="h-4 w-4 shrink-0 animate-spin text-blue-600 dark:text-blue-400" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                Import laeuft...
+              </p>
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5 truncate">
+                {importStatus?.lastError || 'Verbinde mit ThriveCart API...'}
+                {importStatus?.totalImported != null && importStatus.totalImported > 0 && (
+                  <> — {importStatus.totalImported} neue Transaktionen</>
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      {importStatus?.status === 'failed' && (
+        <div className="rounded-lg border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/30 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                Import fehlgeschlagen
+              </p>
+              <p className="text-xs text-red-600 dark:text-red-400 mt-0.5 truncate">
+                {importStatus.lastError || 'Unbekannter Fehler'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      {data && !importing && importStatus?.status !== 'running' && importStatus?.status !== 'failed' && (
         <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-muted/30 px-4 py-2.5 text-xs text-muted-foreground">
           <Clock className="h-3.5 w-3.5 shrink-0" />
           <span>

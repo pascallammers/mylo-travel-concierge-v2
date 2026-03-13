@@ -7,12 +7,16 @@ import type { ThriveCartApiTransaction } from './types';
 import { generateId } from 'ai';
 
 const PER_PAGE = 100;
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 3000;
 const MYLO_PRODUCT_ID = thrivecartConfig.productId; // "5"
 
 interface ImportResult {
   totalFetched: number;
   totalInserted: number;
   totalSkipped: number;
+  totalPages: number;
+  currentPage: number;
   errors: string[];
 }
 
@@ -25,7 +29,7 @@ function mapTransaction(txn: ThriveCartApiTransaction) {
     eventId: String(txn.event_id),
     baseProduct: txn.base_product ? String(txn.base_product) : null,
     transactionDate: new Date(txn.time || txn.date),
-    transactionType: txn.transaction_type as 'charge' | 'rebill' | 'refund' | 'cancel',
+    transactionType: txn.transaction_type as 'charge' | 'rebill' | 'refund' | 'cancel' | 'failed',
     itemType: txn.item_type || null,
     itemId: txn.item_id ? String(txn.item_id) : null,
     amount: txn.amount,
@@ -51,13 +55,15 @@ export async function runFullTransactionImport(): Promise<ImportResult> {
     totalFetched: 0,
     totalInserted: 0,
     totalSkipped: 0,
+    totalPages: 0,
+    currentPage: 0,
     errors: [],
   };
 
   // Update import state to running
   await db
     .update(thriveCartImportState)
-    .set({ status: 'running', lastImportAt: new Date() })
+    .set({ status: 'running', lastImportAt: new Date(), lastError: null })
     .where(eq(thriveCartImportState.id, 'singleton'));
 
   try {
@@ -65,16 +71,28 @@ export async function runFullTransactionImport(): Promise<ImportResult> {
     let hasMore = true;
 
     while (hasMore) {
+      result.currentPage = page;
       console.log(`[TC Import] Fetching page ${page}...`);
-      const response = await searchTransactions(page, PER_PAGE);
+
+      // Retry logic for transient API failures
+      let response = await searchTransactions(page, PER_PAGE);
+      let retries = 0;
+      while (!response.success && retries < MAX_RETRIES) {
+        retries++;
+        console.warn(`[TC Import] Page ${page} failed, retry ${retries}/${MAX_RETRIES}...`);
+        await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * retries));
+        response = await searchTransactions(page, PER_PAGE);
+      }
       await rateLimitDelay();
 
       if (!response.success || !response.data) {
-        result.errors.push(`Page ${page}: ${response.error || 'Unknown error'}`);
+        result.errors.push(`Page ${page}: ${response.error || 'Unknown error'} (after ${retries} retries)`);
         break;
       }
 
       const { transactions, meta } = response.data;
+      const totalPages = Math.ceil(meta.total / PER_PAGE);
+      result.totalPages = totalPages;
       result.totalFetched += transactions.length;
 
       if (transactions.length === 0) {
@@ -90,11 +108,17 @@ export async function runFullTransactionImport(): Promise<ImportResult> {
       for (const txn of myloTransactions) {
         try {
           const row = mapTransaction(txn);
-          await db
+          const inserted = await db
             .insert(thriveCartTransaction)
             .values(row)
-            .onConflictDoNothing({ target: thriveCartTransaction.eventId });
-          result.totalInserted++;
+            .onConflictDoNothing({ target: thriveCartTransaction.eventId })
+            .returning({ id: thriveCartTransaction.id });
+
+          if (inserted.length > 0) {
+            result.totalInserted++;
+          } else {
+            result.totalSkipped++;
+          }
         } catch (error) {
           const msg = error instanceof Error ? error.message : 'Unknown';
           if (msg.includes('duplicate') || msg.includes('unique')) {
@@ -106,17 +130,25 @@ export async function runFullTransactionImport(): Promise<ImportResult> {
       }
       result.totalSkipped += transactions.length - myloTransactions.length;
 
+      // Update progress in DB so frontend can poll it
+      await db
+        .update(thriveCartImportState)
+        .set({
+          status: 'running',
+          totalImported: result.totalInserted,
+          lastError: `Seite ${page}/${totalPages} (${result.totalFetched}/${meta.total} Transaktionen)`,
+        })
+        .where(eq(thriveCartImportState.id, 'singleton'));
+
       console.log(
-        `[TC Import] Page ${page}: ${transactions.length} fetched, total so far: ${result.totalFetched}/${meta.total}`
+        `[TC Import] Page ${page}/${totalPages}: ${transactions.length} fetched, total so far: ${result.totalFetched}/${meta.total}`
       );
 
-      // Check if we have more pages
-      const totalPages = Math.ceil(meta.total / PER_PAGE);
       hasMore = page < totalPages;
       page++;
     }
 
-    // Update import state
+    // Update import state to idle
     await db
       .update(thriveCartImportState)
       .set({
@@ -151,6 +183,8 @@ export async function runIncrementalSync(): Promise<ImportResult> {
     totalFetched: 0,
     totalInserted: 0,
     totalSkipped: 0,
+    totalPages: 0,
+    currentPage: 0,
     errors: [],
   };
 

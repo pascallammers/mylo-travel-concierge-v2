@@ -181,6 +181,10 @@ export async function computeKPIs(): Promise<KPIData> {
       } else if (date >= lastMonthStart && date <= lastMonthEnd) {
         cancelsLastMonth.add(email);
       }
+    } else if (txn.transactionType === 'failed') {
+      if (date >= thisMonthStart) {
+        failedThisMonth++;
+      }
     }
   }
 

@@ -122,7 +122,7 @@ export interface ThriveCartApiTransaction {
   date: string;
   time: string;
   timestamp: number;
-  transaction_type: 'charge' | 'rebill' | 'refund' | 'cancel';
+  transaction_type: 'charge' | 'rebill' | 'refund' | 'cancel' | 'failed';
   item_type: string; // 'product', 'bump', 'upsell', 'downsell'
   item_id: number;
   amount: number; // in cents

@@ -20,14 +20,22 @@ async function thriveCartRequest<T>(
       body: body ? JSON.stringify(body) : undefined,
     });
 
+    const responseText = await response.text();
+
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[ThriveCart API] ${endpoint} failed:`, response.status, errorText);
-      return { success: false, error: `HTTP ${response.status}: ${errorText}` };
+      console.error(`[ThriveCart API] ${endpoint} failed:`, response.status, responseText);
+      return { success: false, error: `HTTP ${response.status}: ${responseText}` };
     }
 
-    const data = await response.json();
-    return { success: true, data: data as T };
+    let data: T;
+    try {
+      data = JSON.parse(responseText) as T;
+    } catch {
+      console.error(`[ThriveCart API] ${endpoint} invalid JSON response:`, responseText.slice(0, 200));
+      return { success: false, error: `Invalid JSON response from ThriveCart API` };
+    }
+
+    return { success: true, data };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error(`[ThriveCart API] ${endpoint} error:`, message);
@@ -56,14 +64,22 @@ async function thriveCartGetRequest<T>(
       },
     });
 
+    const responseText = await response.text();
+
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[ThriveCart API] GET ${endpoint} failed:`, response.status, errorText);
-      return { success: false, error: `HTTP ${response.status}: ${errorText}` };
+      console.error(`[ThriveCart API] GET ${endpoint} failed:`, response.status, responseText);
+      return { success: false, error: `HTTP ${response.status}: ${responseText}` };
     }
 
-    const data = await response.json();
-    return { success: true, data: data as T };
+    let data: T;
+    try {
+      data = JSON.parse(responseText) as T;
+    } catch {
+      console.error(`[ThriveCart API] GET ${endpoint} invalid JSON response:`, responseText.slice(0, 200));
+      return { success: false, error: `Invalid JSON response from ThriveCart API` };
+    }
+
+    return { success: true, data };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error(`[ThriveCart API] GET ${endpoint} error:`, message);
