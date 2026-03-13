@@ -9,6 +9,7 @@ import { serverEnv } from '@/env/server';
 /**
  * GET /api/admin/kpi/import
  * Returns the current import status for polling during active imports.
+ * Uses $primary to bypass the Upstash Redis read cache.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    const rows = await db
+    const rows = await db.$primary
       .select()
       .from(thriveCartImportState)
       .where(eq(thriveCartImportState.id, 'singleton'));
@@ -47,8 +48,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    // Check if import is already running
-    const rows = await db
+    // Check if import is already running (bypass cache)
+    const rows = await db.$primary
       .select()
       .from(thriveCartImportState)
       .where(eq(thriveCartImportState.id, 'singleton'));
