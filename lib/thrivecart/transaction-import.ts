@@ -100,32 +100,25 @@ export async function runFullTransactionImport(): Promise<ImportResult> {
         break;
       }
 
-      // Filter to MYLO product only, then insert (skip duplicates)
+      // Filter to MYLO product only, then batch-insert (skip duplicates)
       const myloTransactions = transactions.filter(
         (txn) => String(txn.base_product) === MYLO_PRODUCT_ID
       );
 
-      for (const txn of myloTransactions) {
+      if (myloTransactions.length > 0) {
         try {
-          const row = mapTransaction(txn);
+          const rows = myloTransactions.map(mapTransaction);
           const inserted = await db
             .insert(thriveCartTransaction)
-            .values(row)
+            .values(rows)
             .onConflictDoNothing({ target: thriveCartTransaction.eventId })
             .returning({ id: thriveCartTransaction.id });
 
-          if (inserted.length > 0) {
-            result.totalInserted++;
-          } else {
-            result.totalSkipped++;
-          }
+          result.totalInserted += inserted.length;
+          result.totalSkipped += myloTransactions.length - inserted.length;
         } catch (error) {
           const msg = error instanceof Error ? error.message : 'Unknown';
-          if (msg.includes('duplicate') || msg.includes('unique')) {
-            result.totalSkipped++;
-          } else {
-            result.errors.push(`Event ${txn.event_id}: ${msg}`);
-          }
+          result.errors.push(`Page ${page} batch insert: ${msg}`);
         }
       }
       result.totalSkipped += transactions.length - myloTransactions.length;
@@ -214,27 +207,21 @@ export async function runIncrementalSync(): Promise<ImportResult> {
       result.totalSkipped += transactions.length - myloTransactions.length;
 
       let newInPage = 0;
-      for (const txn of myloTransactions) {
+      if (myloTransactions.length > 0) {
         try {
-          const row = mapTransaction(txn);
+          const rows = myloTransactions.map(mapTransaction);
           const inserted = await db
             .insert(thriveCartTransaction)
-            .values(row)
+            .values(rows)
             .onConflictDoNothing({ target: thriveCartTransaction.eventId })
             .returning({ id: thriveCartTransaction.id });
 
-          if (inserted.length > 0) {
-            result.totalInserted++;
-            newInPage++;
-          } else {
-            result.totalSkipped++;
-          }
+          newInPage = inserted.length;
+          result.totalInserted += inserted.length;
+          result.totalSkipped += myloTransactions.length - inserted.length;
         } catch (error) {
           const msg = error instanceof Error ? error.message : 'Unknown';
-          result.totalSkipped++;
-          if (!msg.includes('duplicate') && !msg.includes('unique')) {
-            result.errors.push(`Event ${txn.event_id}: ${msg}`);
-          }
+          result.errors.push(`Page ${page} batch insert: ${msg}`);
         }
       }
 
