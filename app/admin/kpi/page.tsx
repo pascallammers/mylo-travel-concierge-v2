@@ -133,19 +133,17 @@ export default function KPIDashboard() {
 
     try {
       const res = await fetch('/api/admin/kpi/import', { method: 'POST' });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || 'Import fehlgeschlagen');
-      setImportStatus({
-        status: 'idle',
-        lastImportAt: new Date().toISOString(),
-        totalImported: result.totalInserted,
-        lastError: result.errors?.length > 0 ? result.errors.join('; ') : null,
-      });
-      await fetchKPIs();
+      let result: Record<string, unknown> = {};
+      const text = await res.text();
+      try { result = JSON.parse(text); } catch { /* non-JSON response */ }
+
+      if (!res.ok) {
+        throw new Error((result.error as string) || 'Import konnte nicht gestartet werden.');
+      }
+      // Import runs in background via QStash - polling takes over from here
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Import fehlgeschlagen';
       setImportStatus((prev) => prev ? { ...prev, status: 'failed', lastError: msg } : null);
-    } finally {
       setImporting(false);
     }
   };
