@@ -1,10 +1,11 @@
 /**
- * LLM-based airport code extraction using xAI/Grok
- * Handles natural language queries with contextual disambiguation
+ * LLM-based airport code extraction using xAI Grok 4.1 Fast (non-reasoning)
+ * Only used as last-resort fallback for ambiguous queries that can't be
+ * resolved by the airport database or Duffel suggestions.
  */
 
-import { generateText, Output, NoOutputGeneratedError } from 'ai';
-import { languageModel } from '../../ai/providers';
+import { generateObject, NoObjectGeneratedError } from 'ai';
+import { getAirportResolverModel } from '../../ai/providers';
 import { z } from 'zod';
 
 // Zod schema for structured output
@@ -105,25 +106,19 @@ export async function extractAirportCodes(query: string): Promise<AirportExtract
   try {
     console.log('[LLM Airport] Extracting codes from:', query);
 
-    // @ts-ignore - TypeScript has issues with deep zod schema inference in AI SDK
-    const outputConfig = Output.object({
+    const result = await generateObject({
+      model: getAirportResolverModel(),
       schema: AirportExtractionSchema,
-    });
-
-    // @ts-ignore
-    const result: any = await generateText({
-      model: languageModel,
       prompt: buildAirportExtractionPrompt(query),
-      experimental_output: outputConfig,
     });
 
-    const extracted = result.experimental_output as AirportExtractionResult;
+    const extracted = result.object;
 
     console.log('[LLM Airport] Extraction successful:', extracted);
     return extracted;
   } catch (error) {
-    if (NoOutputGeneratedError.isInstance(error)) {
-      console.error('[LLM Airport] Extraction failed - no output generated:', error);
+    if (NoObjectGeneratedError.isInstance(error)) {
+      console.error('[LLM Airport] Extraction failed - no object generated:', error);
       return {
         error: 'extraction_failed',
       };

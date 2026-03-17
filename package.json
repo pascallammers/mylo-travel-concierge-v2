@@ -82,6 +82,7 @@
     "@vercel/speed-insights": "^1.2.0",
     "agentation": "^1.1.0",
     "ai": "5.0.51",
+    "airport-data-js": "^3.0.2",
     "axios": "^1.12.2",
     "bcryptjs": "^3.0.3",
     "better-auth": "https://pkg.pr.new/better-auth/better-auth@8e825ad",

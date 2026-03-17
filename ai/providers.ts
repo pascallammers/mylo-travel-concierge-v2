@@ -48,10 +48,25 @@ const MODELS = {
 const activeConfig = USE_XAI ? MODELS.xai : MODELS.openai;
 const activeClient = USE_XAI ? xaiClient : openaiClient;
 
-// Export active language model
+// Export active language model (main chat)
 export const languageModel = activeClient(activeConfig.name);
 export const DEFAULT_MODEL = activeConfig.name;
 export const MODEL_CAPABILITIES = activeConfig.capabilities;
+
+// Dedicated fast model for airport resolution (no reasoning overhead)
+// Lazy-initialized to avoid failures when XAI_API_KEY is not set
+let _airportResolverModel: ReturnType<typeof xaiClient> | undefined;
+export function getAirportResolverModel(): ReturnType<typeof xaiClient> {
+  if (!_airportResolverModel) {
+    if (USE_XAI && process.env.XAI_API_KEY) {
+      _airportResolverModel = xaiClient('grok-4-1-fast-non-reasoning');
+    } else {
+      // Fallback to the active chat model if xAI is not configured
+      _airportResolverModel = languageModel as ReturnType<typeof xaiClient>;
+    }
+  }
+  return _airportResolverModel;
+}
 
 // Helper functions
 export function hasVisionSupport(): boolean {

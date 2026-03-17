@@ -241,9 +241,9 @@ Examples of queries that should trigger this tool:
       return flightI18n.clarification[locale](clarifyType, clarifyMessage);
     }
 
-    // Extract codes or fall back to sync resolver
-    const origin = resolution.origin?.code || resolveIATACode(params.origin);
-    const destination = resolution.destination?.code || resolveIATACode(params.destination);
+    // Extract codes or fall back to async database resolver
+    const origin = resolution.origin?.code || await resolveIATACode(params.origin);
+    const destination = resolution.destination?.code || await resolveIATACode(params.destination);
 
     if (!origin || !destination) {
       throw new Error(

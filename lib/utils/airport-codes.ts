@@ -1,9 +1,11 @@
 /**
  * Airport IATA code mapping and resolution utilities
- * Automatically converts city names to their primary airport IATA codes
+ * Uses airport-data-js (18,700+ airports) as primary resolver,
+ * with LLM (grok-4.1-fast) as last-resort fallback for ambiguous queries.
  */
 
 import { extractAirportCodes, type AirportExtractionResult } from './llm-airport-resolver';
+import { lookupAirportByName, getAirportDetails } from './airport-database';
 import { airportExtractionCache, airportCorrectionCache, createAirportKey } from '../performance-cache';
 import { validateIATACode } from '../api/duffel-client';
 
@@ -104,6 +106,64 @@ export const AIRPORT_CODES: Record<string, string> = {
   belfast: 'BFS',
   dublin: 'DUB',
   cork: 'ORK',
+
+  // France (detailed)
+  bordeaux: 'BOD',
+  lyon: 'LYS',
+  marseille: 'MRS',
+  nizza: 'NCE',
+  nice: 'NCE',
+  toulouse: 'TLS',
+  nantes: 'NTE',
+  strasbourg: 'SXB',
+  straßburg: 'SXB',
+  montpellier: 'MPL',
+
+  // Spain (detailed)
+  malaga: 'AGP',
+  málaga: 'AGP',
+  sevilla: 'SVQ',
+  seville: 'SVQ',
+  valencia: 'VLC',
+  palma: 'PMI',
+  'palma de mallorca': 'PMI',
+  mallorca: 'PMI',
+  ibiza: 'IBZ',
+  teneriffa: 'TFS',
+  tenerife: 'TFS',
+  'gran canaria': 'LPA',
+  'las palmas': 'LPA',
+  alicante: 'ALC',
+  bilbao: 'BIO',
+
+  // Italy (detailed)
+  florenz: 'FLR',
+  florence: 'FLR',
+  neapel: 'NAP',
+  naples: 'NAP',
+  bologna: 'BLQ',
+  turin: 'TRN',
+  pisa: 'PSA',
+  catania: 'CTA',
+  palermo: 'PMO',
+  sardinien: 'CAG',
+  sardinia: 'CAG',
+  cagliari: 'CAG',
+  olbia: 'OLB',
+
+  // Greece (detailed)
+  thessaloniki: 'SKG',
+  kreta: 'HER',
+  crete: 'HER',
+  heraklion: 'HER',
+  korfu: 'CFU',
+  corfu: 'CFU',
+  santorini: 'JTR',
+  mykonos: 'JMK',
+  rhodos: 'RHO',
+  rhodes: 'RHO',
+  kos: 'KGS',
+  zakynthos: 'ZTH',
 
   // Europe - Major Cities
   paris: 'CDG',
@@ -278,11 +338,13 @@ export const AIRPORT_CODES: Record<string, string> = {
 };
 
 /**
- * Resolves a city name or IATA code to a valid IATA airport code
- * @param location - City name (e.g., "Frankfurt", "New York") or IATA code (e.g., "FRA", "JFK")
- * @returns IATA code (3 letters uppercase)
+ * Resolves a city name or IATA code to a valid IATA airport code.
+ * Uses airport-data-js (18,700+ airports) with static map as fast path.
+ *
+ * @param location - City name or IATA code
+ * @returns IATA code (3 letters uppercase) or empty string
  */
-export function resolveIATACode(location: string): string {
+export async function resolveIATACode(location: string): Promise<string> {
   if (!location || typeof location !== 'string') {
     console.warn('[IATA] Invalid location provided:', location);
     return '';
@@ -298,14 +360,14 @@ export function resolveIATACode(location: string): string {
   // Normalize: lowercase, trim, remove special characters
   const normalized = trimmed.toLowerCase().replace(/[^\w\s]/g, '').trim();
 
-  // Try to find exact match in mapping
+  // Quick path: static map (instant, handles German names + multi-airport cities)
   const exactMatch = AIRPORT_CODES[normalized];
   if (exactMatch) {
-    console.log(`[IATA] Resolved "${location}" → ${exactMatch}`);
+    console.log(`[IATA] Resolved "${location}" → ${exactMatch} (static)`);
     return exactMatch;
   }
 
-  // Try to find partial match (e.g., "new york city" matches "new york")
+  // Partial match in static map
   const partialMatch = Object.keys(AIRPORT_CODES).find((key) =>
     normalized.includes(key) || key.includes(normalized)
   );
@@ -322,10 +384,19 @@ export function resolveIATACode(location: string): string {
     return extractedCode[1];
   }
 
-  // Fallback: Take first 3 letters and uppercase (might work for some cases)
-  const fallback = trimmed.toUpperCase().replace(/[^A-Z]/g, '').substring(0, 3);
-  console.warn(`[IATA] Could not resolve "${location}", using fallback: ${fallback}`);
-  return fallback;
+  // Airport database lookup (18,700+ airports)
+  try {
+    const dbResult = await lookupAirportByName(location);
+    if (dbResult) {
+      console.log(`[IATA] Resolved "${location}" → ${dbResult.iataCode} (database: ${dbResult.name})`);
+      return dbResult.iataCode;
+    }
+  } catch (err) {
+    console.warn('[IATA] Database lookup failed:', err);
+  }
+
+  console.warn(`[IATA] Could not resolve "${location}" to a known airport code`);
+  return '';
 }
 
 /**
@@ -344,8 +415,18 @@ export function isValidIATACode(code: string): boolean {
  */
 export function getCityNameForIATA(iataCode: string): string {
   const normalized = iataCode.toUpperCase();
+  // Quick sync lookup in static map first
   const entry = Object.entries(AIRPORT_CODES).find(([, code]) => code === normalized);
   return entry ? entry[0] : iataCode;
+}
+
+/**
+ * Gets the airport name for a given IATA code from the database (async)
+ */
+export async function getAirportNameForIATA(iataCode: string): Promise<string> {
+  const details = await getAirportDetails(iataCode);
+  if (details?.airport) return details.airport;
+  return getCityNameForIATA(iataCode);
 }
 
 /**
@@ -506,6 +587,82 @@ function tryStaticMapping(query: string): AirportResolutionResult | null {
 }
 
 /**
+ * Try airport-data-js database lookup for city names (18,700+ airports)
+ */
+async function tryDatabaseLookup(query: string): Promise<AirportResolutionResult | null> {
+  // Parse "city1 nach city2" or "city1 to city2" pattern
+  const normalized = query.toLowerCase().trim();
+  const patterns = [
+    /^(.+?)\s+(?:to|nach|→)\s+(.+?)$/i,
+    /^from\s+(.+?)\s+to\s+(.+?)$/i,
+  ];
+
+  let originStr: string | null = null;
+  let destStr: string | null = null;
+
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    if (match && match[1] && match[2]) {
+      originStr = match[1].trim();
+      destStr = match[2].trim();
+      break;
+    }
+  }
+
+  if (!originStr || !destStr) return null;
+
+  try {
+    const [originLookup, destLookup] = await Promise.all([
+      lookupAirportByName(originStr),
+      lookupAirportByName(destStr),
+    ]);
+
+    if (originLookup && destLookup) {
+      return {
+        origin: {
+          code: originLookup.iataCode,
+          name: originLookup.name,
+          city: originStr,
+          country: originLookup.countryCode,
+          confidence: 'high',
+        },
+        destination: {
+          code: destLookup.iataCode,
+          name: destLookup.name,
+          city: destStr,
+          country: destLookup.countryCode,
+          confidence: 'high',
+        },
+      };
+    }
+
+    // Partial match: one resolved, one didn't
+    if (originLookup || destLookup) {
+      return {
+        origin: originLookup ? {
+          code: originLookup.iataCode,
+          name: originLookup.name,
+          city: originStr,
+          country: originLookup.countryCode,
+          confidence: 'high',
+        } : null,
+        destination: destLookup ? {
+          code: destLookup.iataCode,
+          name: destLookup.name,
+          city: destStr,
+          country: destLookup.countryCode,
+          confidence: 'high',
+        } : null,
+      };
+    }
+  } catch (err) {
+    console.warn('[Airport Resolution] Database lookup failed:', err);
+  }
+
+  return null;
+}
+
+/**
  * Convert LLM extraction result to AirportResolutionResult
  */
 function convertLLMResult(llmResult: AirportExtractionResult): AirportResolutionResult {
@@ -549,7 +706,7 @@ function convertLLMResult(llmResult: AirportExtractionResult): AirportResolution
 /**
  * LLM timeout constant (2 seconds for airport resolution)
  */
-const LLM_TIMEOUT_MS = 2000;
+const LLM_TIMEOUT_MS = 8000;
 
 /**
  * Extract airport codes with timeout wrapper
@@ -679,7 +836,7 @@ export async function resolveAirportCodesWithLLM(query: string): Promise<Airport
     return correctedResult;
   }
 
-  // Tier 3: Try static mapping for simple city names
+  // Tier 3: Try static mapping for simple city names (instant, sync)
   const staticResult = tryStaticMapping(query);
   if (staticResult && staticResult.origin?.confidence === 'high' && staticResult.destination?.confidence === 'high') {
     console.log('[Airport Resolution] Static mapping match:', staticResult);
@@ -687,7 +844,15 @@ export async function resolveAirportCodesWithLLM(query: string): Promise<Airport
     return staticResult;
   }
 
-  // Tier 4: LLM extraction for complex/ambiguous queries
+  // Tier 4: Airport database lookup (18,700+ airports via airport-data-js)
+  const dbResult = await tryDatabaseLookup(query);
+  if (dbResult && dbResult.origin?.confidence === 'high' && dbResult.destination?.confidence === 'high') {
+    console.log('[Airport Resolution] Database match:', dbResult);
+    airportExtractionCache.set(cacheKey, resultToCacheEntry(dbResult));
+    return dbResult;
+  }
+
+  // Tier 5: LLM extraction for complex/ambiguous queries (grok-4.1-fast, last resort)
   console.log('[Airport Resolution] Using LLM extraction for:', query);
 
   let llmResult: AirportExtractionResult;
