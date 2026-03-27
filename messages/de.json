@@ -218,7 +218,8 @@
     "older": "Älter"
   },
   "sidebar": {
-    "newChat": "Neuer Chat"
+    "newChat": "Neuer Chat",
+    "deals": "Flight Deals"
   },
   "userProfile": {
     "settings": "Einstellungen",
@@ -230,5 +231,48 @@
     "hideEmail": "E-Mail verbergen",
     "showEmail": "E-Mail anzeigen",
     "signInToSave": "Melden Sie sich an, um Ihren Fortschritt zu speichern"
+  },
+  "deals": {
+    "title": "Flight Deals",
+    "subtitle": "Guenstige Fluege ab deinem Flughafen",
+    "filters": {
+      "origin": "Abflughafen",
+      "destination": "Ziel",
+      "anywhere": "Ueberall",
+      "anytime": "Jederzeit",
+      "month": "Monat",
+      "cabinClass": "Klasse",
+      "economy": "Economy",
+      "premiumEconomy": "Premium Economy",
+      "business": "Business",
+      "first": "First",
+      "stops": "Stopps",
+      "anyStops": "Beliebig",
+      "nonstop": "Direktflug",
+      "maxOne": "Max. 1 Stopp",
+      "apply": "Anwenden",
+      "reset": "Zuruecksetzen"
+    },
+    "card": {
+      "from": "ab",
+      "savings": "Ersparnis",
+      "avgPrice": "Durchschnittspreis",
+      "stops_zero": "Direktflug",
+      "stops_one": "1 Stopp",
+      "stops_other": "{count} Stopps",
+      "roundtrip": "Hin- und Rueckflug",
+      "oneway": "Nur Hinflug",
+      "book": "Buchen",
+      "searchInMylo": "In MYLO suchen",
+      "dealScore": "Deal Score",
+      "exceptional": "Aussergewoehnlich",
+      "veryGood": "Sehr gut",
+      "good": "Gut"
+    },
+    "empty": {
+      "title": "Keine Deals gefunden",
+      "description": "Aktuell keine Deals fuer deine Filter. Probiere andere Filter oder schau spaeter nochmal vorbei."
+    },
+    "ad": "Anzeige"
   }
 }

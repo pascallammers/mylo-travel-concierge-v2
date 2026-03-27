@@ -218,7 +218,8 @@
     "older": "Older"
   },
   "sidebar": {
-    "newChat": "New Chat"
+    "newChat": "New Chat",
+    "deals": "Flight Deals"
   },
   "userProfile": {
     "settings": "Settings",
@@ -230,5 +231,48 @@
     "hideEmail": "Hide email",
     "showEmail": "Show email",
     "signInToSave": "Sign in to save your progress"
+  },
+  "deals": {
+    "title": "Flight Deals",
+    "subtitle": "Cheap flights from your airport",
+    "filters": {
+      "origin": "Departure airport",
+      "destination": "Destination",
+      "anywhere": "Anywhere",
+      "anytime": "Anytime",
+      "month": "Month",
+      "cabinClass": "Class",
+      "economy": "Economy",
+      "premiumEconomy": "Premium Economy",
+      "business": "Business",
+      "first": "First",
+      "stops": "Stops",
+      "anyStops": "Any",
+      "nonstop": "Nonstop",
+      "maxOne": "Max 1 stop",
+      "apply": "Apply",
+      "reset": "Reset"
+    },
+    "card": {
+      "from": "from",
+      "savings": "Savings",
+      "avgPrice": "Average price",
+      "stops_zero": "Nonstop",
+      "stops_one": "1 stop",
+      "stops_other": "{count} stops",
+      "roundtrip": "Round trip",
+      "oneway": "One way",
+      "book": "Book",
+      "searchInMylo": "Search in MYLO",
+      "dealScore": "Deal Score",
+      "exceptional": "Exceptional",
+      "veryGood": "Very good",
+      "good": "Good"
+    },
+    "empty": {
+      "title": "No deals found",
+      "description": "No deals matching your filters right now. Try different filters or check back later."
+    },
+    "ad": "Ad"
   }
 }
