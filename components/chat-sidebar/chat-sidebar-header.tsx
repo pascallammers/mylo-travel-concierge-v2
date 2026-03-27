@@ -6,7 +6,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Plus } from 'lucide-react';
+import { Plane, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
@@ -52,6 +52,19 @@ export function ChatSidebarHeader({ onNewChat }: ChatSidebarHeaderProps) {
             <Link href="/new" onClick={handleNewChatClick}>
               <Plus className="size-4" />
               <span>{t('newChat')}</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            asChild
+            size="lg"
+            className="w-full justify-start gap-2"
+            tooltip={t('deals')}
+          >
+            <Link href="/deals">
+              <Plane className="size-4" />
+              <span>{t('deals')}</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
