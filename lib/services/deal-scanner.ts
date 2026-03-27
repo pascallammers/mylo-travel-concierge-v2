@@ -86,7 +86,7 @@ async function processSpecificRoute(
   if (!response.success || !response.data[destination]) return;
 
   const tickets = response.data[destination];
-  const priceEntries: Array<{ origin: string; destination: string; price: number; currency: string; cabinClass: string; source: string }> = [];
+  const priceEntries: Array<{ origin: string; destination: string; price: number; currency: string; cabinClass: 'economy' | 'premium_economy' | 'business' | 'first'; source: string }> = [];
 
   for (const [transferKey, ticket] of Object.entries(tickets)) {
     priceEntries.push({
@@ -124,8 +124,8 @@ async function processSpecificRoute(
         dealScore,
         airline: ticket.airline,
         stops: ticket.transfers,
-        cabinClass: 'economy',
-        tripType: ticket.return_at ? 'roundtrip' : 'oneway',
+        cabinClass: 'economy' as const,
+        tripType: ticket.return_at ? 'roundtrip' as const : 'oneway' as const,
         affiliateLink: generateAffiliateLink({
           origin,
           destination,
@@ -164,7 +164,7 @@ async function processOpenRoute(
       destination: price.destination,
       price: price.value,
       currency: 'EUR',
-      cabinClass: price.trip_class === 0 ? 'economy' : 'business',
+      cabinClass: (price.trip_class === 0 ? 'economy' : 'business') as 'economy' | 'business',
       source: 'travelpayouts',
     }]);
     result.priceHistoryEntries++;
@@ -194,8 +194,8 @@ async function processOpenRoute(
         priceChangePercent: stats ? ((stats.mean - price.value) / stats.mean) * 100 : null,
         dealScore,
         stops: price.number_of_changes,
-        cabinClass: price.trip_class === 0 ? 'economy' : 'business',
-        tripType: price.return_date ? 'roundtrip' : 'oneway',
+        cabinClass: (price.trip_class === 0 ? 'economy' : 'business') as 'economy' | 'business',
+        tripType: (price.return_date ? 'roundtrip' : 'oneway') as 'roundtrip' | 'oneway',
         affiliateLink: generateAffiliateLink({
           origin: price.origin,
           destination: price.destination,

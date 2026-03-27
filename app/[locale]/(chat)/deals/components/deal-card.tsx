@@ -26,12 +26,13 @@ export function DealCard({ deal, showScore = false, locale }: DealCardProps) {
     maximumFractionDigits: 0,
   });
 
+  const stops = deal.stops ?? 0;
   const stopsLabel =
-    deal.stops === 0
+    stops === 0
       ? t('card.stops_zero')
-      : deal.stops === 1
+      : stops === 1
         ? t('card.stops_one')
-        : t('card.stops_other', { count: deal.stops });
+        : t('card.stops_other', { count: stops });
 
   return (
     <div className="group rounded-xl border bg-card p-4 transition-shadow hover:shadow-md">

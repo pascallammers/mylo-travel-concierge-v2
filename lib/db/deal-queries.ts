@@ -27,7 +27,7 @@ export async function getActiveDeals(params: {
     conditions.push(eq(flightDeals.origin, params.origin));
   }
   if (params.cabinClass) {
-    conditions.push(eq(flightDeals.cabinClass, params.cabinClass));
+    conditions.push(eq(flightDeals.cabinClass, params.cabinClass as 'economy' | 'premium_economy' | 'business' | 'first'));
   }
   if (params.minScore) {
     conditions.push(gte(flightDeals.dealScore, params.minScore));
@@ -80,7 +80,7 @@ export async function insertPriceHistory(entries: Array<typeof priceHistory.$inf
 export async function getPriceHistoryForRoute(
   origin: string,
   destination: string,
-  cabinClass: string = 'economy',
+  cabinClass: 'economy' | 'premium_economy' | 'business' | 'first' = 'economy',
 ): Promise<number[]> {
   const rows = await db
     .select({ price: priceHistory.price })
