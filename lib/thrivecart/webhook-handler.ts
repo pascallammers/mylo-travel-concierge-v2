@@ -416,7 +416,7 @@ async function createSubscription(
     id: subId,
     userId,
     status: 'active',
-    amount: Math.round(opts.amount / 100), // ThriveCart sends in hundreds
+    amount: opts.amount, // ThriveCart sends amount in cents, store as-is
     currency: opts.currency || 'EUR',
     recurringInterval: 'month',
     currentPeriodStart: now,
@@ -454,7 +454,7 @@ async function recordPayment(
     createdAt: now,
     updatedAt: now,
     userId,
-    totalAmount: Math.round(opts.amount / 100) * 100, // normalize to cents
+    totalAmount: opts.amount, // ThriveCart sends amount in cents, store as-is
     currency: opts.currency || 'EUR',
     status: 'succeeded',
     thrivecardPaymentId: opts.orderId || null,
