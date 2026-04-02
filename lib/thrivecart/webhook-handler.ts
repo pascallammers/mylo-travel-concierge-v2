@@ -24,6 +24,7 @@ import {
 import type { ThriveCartWebhookPayload, WebhookProcessingResult } from './types';
 import { generateId } from 'ai';
 import { logAdminActivity } from '@/lib/admin/activity-logger';
+import { thrivecartConfig } from './config';
 
 /**
  * Process a ThriveCart webhook event.
@@ -115,8 +116,19 @@ async function handleOrderSuccess(
   const orderId = String(order_id);
   const customerId = String(customer_id);
 
-  // Find MYLO product purchase
-  const myloPurchase = purchases?.find((p) => p.product_id === 5) || purchases?.[0];
+  // Only process MYLO product purchases (product_id from config, default 5)
+  const myloProductId = Number(thrivecartConfig.productId);
+  const myloPurchase = purchases?.find((p) => p.product_id === myloProductId);
+  const isMyloBaseProduct = payload.base_product === myloProductId;
+
+  if (!myloPurchase && !isMyloBaseProduct) {
+    console.log(`[ThriveCart] Order ${orderId} is not a MYLO product (base_product: ${payload.base_product}, expected: ${myloProductId}), skipping user creation. Products: ${JSON.stringify(purchases?.map(p => ({ id: p.product_id, name: p.product_name })))}`);
+    return {
+      success: true,
+      action: 'skipped_non_mylo_product',
+    };
+  }
+
   const amount = myloPurchase?.amount || order?.total || 0;
 
   // Check if user already exists
@@ -228,7 +240,8 @@ async function handleSubscriptionPayment(
     await reactivateUser(foundUser.id);
   }
 
-  const myloPurchase = payload.purchases?.find((p) => p.product_id === 5) || payload.purchases?.[0];
+  const myloProductId = Number(thrivecartConfig.productId);
+  const myloPurchase = payload.purchases?.find((p) => p.product_id === myloProductId);
   const eventId = payload.event_id ? String(payload.event_id) : crypto.randomBytes(8).toString('hex');
   await recordPayment(foundUser.id, {
     orderId: eventId,
@@ -293,7 +306,8 @@ async function handleRefund(
   });
 
   // Record the refund payment with negative amount
-  const myloPurchase = payload.purchases?.find((p) => p.product_id === 5) || payload.purchases?.[0];
+  const myloProductIdRefund = Number(thrivecartConfig.productId);
+  const myloPurchase = payload.purchases?.find((p) => p.product_id === myloProductIdRefund);
   const eventId = payload.event_id ? String(payload.event_id) : crypto.randomBytes(8).toString('hex');
   await recordPayment(foundUser.id, {
     orderId: eventId,

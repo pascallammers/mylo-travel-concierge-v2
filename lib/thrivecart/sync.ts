@@ -9,6 +9,7 @@ import {
 } from '@/app/api/webhooks/subscription/_lib/helpers';
 import type { SyncResult, SyncDiscrepancy } from './types';
 import { generateId } from 'ai';
+import { thrivecartConfig } from './config';
 
 /**
  * Run a full sync of all ThriveCart subscriptions.
@@ -79,7 +80,7 @@ export async function runFullSync(): Promise<SyncResult> {
 
         const tcCustomer = tcResult.data;
         const tcPurchase = tcCustomer.purchases?.find(
-          (p) => p.product_id === 5 && p.subscription
+          (p) => p.product_id === Number(thrivecartConfig.productId) && p.subscription
         );
 
         if (!tcPurchase?.subscription) {
