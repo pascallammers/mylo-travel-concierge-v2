@@ -6,6 +6,7 @@ import {
   reactivateUser,
   markSubscriptionCancelled,
   suspendUser,
+  archiveExpiredSubscription,
 } from '@/app/api/webhooks/subscription/_lib/helpers';
 import type { SyncResult, SyncDiscrepancy } from './types';
 import { generateId } from 'ai';
@@ -35,7 +36,7 @@ export async function runFullSync(): Promise<SyncResult> {
   };
 
   try {
-    // Fetch all users that have a ThriveCart subscription
+    // Fetch only active users with subscriptions (skip already-deactivated to stay within timeout)
     const usersWithSubs = await db
       .select({
         userId: user.id,
@@ -50,7 +51,11 @@ export async function runFullSync(): Promise<SyncResult> {
       })
       .from(user)
       .innerJoin(subscription, eq(subscription.userId, user.id))
-      .where(isNotNull(subscription.thrivecardCustomerId))
+      .where(and(
+        eq(user.isActive, true),
+        eq(subscription.status, 'active'),
+        ne(user.role, 'admin'),
+      ))
       .orderBy(desc(subscription.currentPeriodEnd));
 
     // Deduplicate by userId (keep most recent subscription)
@@ -147,9 +152,22 @@ export async function runFullSync(): Promise<SyncResult> {
         result.totalErrors++;
       }
 
-      // Log progress every 50 users
+      // Log progress and update sync log every 50 users (preserves partial results on timeout)
       if (result.totalChecked % 50 === 0) {
         console.log(`[ThriveCart Sync] Progress: ${result.totalChecked}/${uniqueUsers.length}`);
+        await db
+          .update(thrivecartSyncLog)
+          .set({
+            totalChecked: result.totalChecked,
+            totalCorrected: result.totalCorrected,
+            totalErrors: result.totalErrors,
+            details: {
+              discrepancies: result.discrepancies.slice(-20),
+              errors: result.errors.slice(-10),
+              progress: `${result.totalChecked}/${uniqueUsers.length}`,
+            },
+          })
+          .where(eq(thrivecartSyncLog.id, syncId));
       }
     }
 
@@ -226,6 +244,7 @@ export async function deactivateExpiredUsers(): Promise<number> {
   const expired = latestPerUser.filter((row) => row.currentPeriodEnd <= now);
 
   let deactivated = 0;
+  let archived = 0;
   for (const row of expired) {
     try {
       await suspendUser(row.userId);
@@ -235,13 +254,15 @@ export async function deactivateExpiredUsers(): Promise<number> {
           .set({ status: 'expired', modifiedAt: now })
           .where(eq(subscription.id, row.subId));
       }
+      // Archive the expired subscription
+      const wasArchived = await archiveExpiredSubscription(row.subId, 'expired');
+      if (wasArchived) archived++;
       deactivated++;
-      console.log(`[Expired Check] Deactivated user ${row.userId}`);
     } catch (error) {
       console.error(`[Expired Check] Failed to deactivate user ${row.userId}:`, error);
     }
   }
 
-  console.log(`[Expired Check] ${deactivated} users deactivated out of ${expired.length} expired`);
+  console.log(`[Expired Check] ${deactivated} users deactivated, ${archived} subscriptions archived out of ${expired.length} expired`);
   return deactivated;
 }

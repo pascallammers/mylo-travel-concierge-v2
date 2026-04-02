@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
-import { user, subscription, session } from '@/lib/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { user, subscription, session, archiveSubscription } from '@/lib/db/schema';
+import { eq, desc, and, lt } from 'drizzle-orm';
 import type { BaseWebhookRequest, WebhookResponse } from './types';
 
 // Webhook secret from environment
@@ -38,19 +38,30 @@ export async function findUserByEmail(email: string) {
 }
 
 /**
- * Find user's active subscription
+ * Find user's subscription, preferring active ones.
  * @param userId - User's ID
- * @returns Most recent subscription or null
+ * @returns Active subscription if exists, otherwise most recent by period end
  */
 export async function findUserSubscription(userId: string) {
-  const [foundSubscription] = await db
+  // Prefer active subscription
+  const [activeSub] = await db
+    .select()
+    .from(subscription)
+    .where(and(eq(subscription.userId, userId), eq(subscription.status, 'active')))
+    .orderBy(desc(subscription.currentPeriodEnd))
+    .limit(1);
+
+  if (activeSub) return activeSub;
+
+  // Fallback to most recent regardless of status
+  const [anySub] = await db
     .select()
     .from(subscription)
     .where(eq(subscription.userId, userId))
     .orderBy(desc(subscription.currentPeriodEnd))
     .limit(1);
 
-  return foundSubscription || null;
+  return anySub || null;
 }
 
 /**
@@ -232,6 +243,52 @@ export async function revokeUserAccessImmediately(
  */
 export function getGracePeriodDays(): number {
   return GRACE_PERIOD_DAYS;
+}
+
+/**
+ * Archive a subscription: copy to archive_subscription table, then mark original as canceled.
+ * Only archives if currentPeriodEnd is in the past (safety guard against race conditions).
+ * @param subscriptionId - Subscription ID to archive
+ * @param reason - Archive reason ('cancelled', 'refunded', 'expired', 'cleanup')
+ * @returns true if archived, false if skipped (period still active)
+ */
+export async function archiveExpiredSubscription(
+  subscriptionId: string,
+  reason: 'cancelled' | 'refunded' | 'expired' | 'cleanup' = 'expired'
+): Promise<boolean> {
+  const sub = await db.query.subscription.findFirst({
+    where: eq(subscription.id, subscriptionId),
+  });
+
+  if (!sub) return false;
+
+  // Safety: only archive if period has ended (prevents race with active webhooks)
+  // Exception: refunds bypass this check (immediate revocation)
+  if (reason !== 'refunded' && sub.currentPeriodEnd > new Date()) {
+    console.log(`[Archive] Skipped ${subscriptionId}: period end ${sub.currentPeriodEnd.toISOString()} is in the future`);
+    return false;
+  }
+
+  // Copy to archive table
+  await db.insert(archiveSubscription).values({
+    ...sub,
+    archivedAt: new Date(),
+    archiveReason: reason,
+  }).onConflictDoNothing({ target: archiveSubscription.id });
+
+  // Mark original as canceled if not already
+  if (sub.status === 'active' || sub.status === 'past_due') {
+    await db
+      .update(subscription)
+      .set({
+        status: 'canceled',
+        canceledAt: sub.canceledAt || new Date(),
+        modifiedAt: new Date(),
+      })
+      .where(eq(subscription.id, subscriptionId));
+  }
+
+  return true;
 }
 
 /**
