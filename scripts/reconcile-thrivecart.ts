@@ -13,7 +13,8 @@
  *   npx tsx scripts/reconcile-thrivecart.ts --start-from user@email.com # Resume from email
  */
 
-import 'dotenv/config';
+import { config } from 'dotenv';
+config({ path: '.env.local' });
 import { neon } from '@neondatabase/serverless';
 
 const DATABASE_URL = process.env.DATABASE_URL!;
