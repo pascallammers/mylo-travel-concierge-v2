@@ -5,7 +5,7 @@ import {
   subscription,
   user,
 } from '@/lib/db/schema';
-import { eq, and, count, ne } from 'drizzle-orm';
+import { eq, and, count, ne, desc } from 'drizzle-orm';
 
 export const DATE_RANGES = ['this_month', 'last_month', 'this_year', 'last_year', 'all_time'] as const;
 export type DateRange = (typeof DATE_RANGES)[number];
@@ -63,6 +63,9 @@ interface ImportState {
   lastImportAt: string | null;
   totalImported: number;
   status: string;
+  lastTransactionAt: string | null;
+  dataFreshness: 'fresh' | 'stale' | 'critical' | 'unknown';
+  hoursStale: number | null;
 }
 
 interface PeriodBounds {
@@ -356,12 +359,24 @@ export async function computeKPIs(dateRange: DateRange = 'this_month'): Promise<
     });
   }
 
-  // --- Import state ---
+  // --- Import state + data freshness ---
   const importStateRows = await db
     .select()
     .from(thriveCartImportState)
     .where(eq(thriveCartImportState.id, 'singleton'));
   const importRow = importStateRows[0];
+
+  // Check when the most recent transaction was recorded (from webhook or import)
+  const [latestTransaction] = await db
+    .select({ importedAt: thriveCartTransaction.importedAt })
+    .from(thriveCartTransaction)
+    .orderBy(desc(thriveCartTransaction.importedAt))
+    .limit(1);
+  const lastTransactionAt = latestTransaction?.importedAt || importRow?.lastImportAt;
+  const hoursStale = lastTransactionAt
+    ? Math.round((now.getTime() - lastTransactionAt.getTime()) / (1000 * 60 * 60))
+    : null;
+  const dataFreshness = hoursStale === null ? 'unknown' : hoursStale <= 24 ? 'fresh' : hoursStale <= 72 ? 'stale' : 'critical';
 
   return {
     dateRange,
@@ -403,6 +418,9 @@ export async function computeKPIs(dateRange: DateRange = 'this_month'): Promise<
       lastImportAt: importRow?.lastImportAt?.toISOString() || null,
       totalImported: importRow?.totalImported || 0,
       status: importRow?.status || 'unknown',
+      lastTransactionAt: lastTransactionAt?.toISOString() || null,
+      dataFreshness,
+      hoursStale,
     },
   };
 }

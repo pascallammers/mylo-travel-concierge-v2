@@ -5,6 +5,7 @@ import {
   subscription,
   payment,
   thrivecartWebhookLog,
+  thriveCartTransaction,
 } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import crypto from 'crypto';
@@ -142,6 +143,7 @@ async function handleOrderSuccess(
       // Extend existing subscription
       await extendSubscriptionPeriod(existingSub.id);
       if (!existingUser.isActive) await reactivateUser(existingUser.id);
+      await recordTransaction(payload, 'charge', amount);
       return {
         success: true,
         action: 'existing_user_subscription_extended',
@@ -157,6 +159,7 @@ async function handleOrderSuccess(
       subscriptionId: myloPurchase?.subscription?.id,
     });
     if (!existingUser.isActive) await reactivateUser(existingUser.id);
+    await recordTransaction(payload, 'charge', amount);
 
     return {
       success: true,
@@ -206,6 +209,9 @@ async function handleOrderSuccess(
     productName: myloPurchase?.product_name,
   });
 
+  // Record transaction for KPI tracking
+  await recordTransaction(payload, 'charge', amount);
+
   // Send welcome email
   try {
     await sendWelcomeEmail(email, password, firstName, 'de');
@@ -252,6 +258,9 @@ async function handleSubscriptionPayment(
     productName: myloPurchase?.product_name,
   });
 
+  // Record transaction for KPI tracking
+  await recordTransaction(payload, 'rebill', myloPurchase?.amount || payload.order?.total || 0);
+
   return {
     success: true,
     action: 'subscription_extended',
@@ -277,6 +286,9 @@ async function handleSubscriptionCancelled(
     orderId: String(payload.order_id || ''),
     accessUntil: sub.currentPeriodEnd?.toISOString() ?? null,
   });
+
+  // Record transaction for KPI tracking
+  await recordTransaction(payload, 'cancel', 0);
 
   return {
     success: true,
@@ -318,6 +330,9 @@ async function handleRefund(
     productName: myloPurchase?.product_name,
   });
 
+  // Record transaction for KPI tracking
+  await recordTransaction(payload, 'refund', myloPurchase?.amount || payload.order?.total || 0);
+
   return {
     success: true,
     action: 'subscription_refunded_access_revoked',
@@ -353,6 +368,9 @@ async function handleRebillFailed(
   } catch (e) {
     console.error('[ThriveCart] Failed to send admin alert:', e);
   }
+
+  // Record transaction for KPI tracking
+  await recordTransaction(payload, 'failed', 0);
 
   return {
     success: true,
@@ -416,7 +434,7 @@ async function createSubscription(
     id: subId,
     userId,
     status: 'active',
-    amount: Math.round(opts.amount / 100), // ThriveCart sends in hundreds
+    amount: opts.amount, // ThriveCart sends amount in cents, store as-is
     currency: opts.currency || 'EUR',
     recurringInterval: 'month',
     currentPeriodStart: now,
@@ -454,7 +472,7 @@ async function recordPayment(
     createdAt: now,
     updatedAt: now,
     userId,
-    totalAmount: Math.round(opts.amount / 100) * 100, // normalize to cents
+    totalAmount: opts.amount, // ThriveCart sends amount in cents, store as-is
     currency: opts.currency || 'EUR',
     status: 'succeeded',
     thrivecardPaymentId: opts.orderId || null,
@@ -468,4 +486,44 @@ async function recordPayment(
       processedAt: now.toISOString(),
     }),
   });
+}
+
+/**
+ * Record a webhook event as a transaction in thrivecart_transaction for KPI tracking.
+ * Uses onConflictDoNothing on eventId for idempotency.
+ */
+async function recordTransaction(
+  payload: ThriveCartWebhookPayload,
+  transactionType: 'charge' | 'rebill' | 'refund' | 'cancel' | 'failed',
+  amount: number
+): Promise<void> {
+  const eventId = payload.event_id ? String(payload.event_id) : null;
+  if (!eventId) return;
+
+  try {
+    await db
+      .insert(thriveCartTransaction)
+      .values({
+        id: generateId(),
+        eventId,
+        baseProduct: payload.base_product ? String(payload.base_product) : null,
+        transactionDate: new Date(),
+        transactionType,
+        itemType: 'product',
+        itemId: String(payload.base_product || ''),
+        amount,
+        currency: payload.currency?.toUpperCase() || 'EUR',
+        orderId: payload.order_id ? String(payload.order_id) : null,
+        invoiceId: payload.invoice_id || null,
+        processor: payload.order?.processor || null,
+        customerName: payload.customer?.name || null,
+        customerEmail: payload.customer?.email?.toLowerCase() || 'unknown',
+        reference: null,
+        rawData: payload as unknown as Record<string, unknown>,
+        importedAt: new Date(),
+      })
+      .onConflictDoNothing({ target: thriveCartTransaction.eventId });
+  } catch (error) {
+    console.error('[ThriveCart] Failed to record transaction:', error);
+  }
 }
