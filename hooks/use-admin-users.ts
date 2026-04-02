@@ -106,7 +106,7 @@ interface UseAdminUsersOptions {
 }
 
 const DEFAULT_FILTERS: UserFilters = {
-  status: 'all',
+  status: 'active',
   role: 'all',
   expiresIn: 'all',
 };

@@ -77,27 +77,11 @@ export async function GET(request: NextRequest) {
       conditions.push(or(ilike(user.email, `%${search}%`), ilike(user.name, `%${search}%`)));
     }
 
-    // Status filter (active/inactive) - filters by subscription status, not user.isActive
-    // Active: user has a subscription with currentPeriodEnd > now
-    // Inactive: user has no subscription OR subscription has expired
+    // Status filter - uses is_active flag (set by reconciliation and sync cron)
     if (statusFilter === 'active') {
-      const now = new Date();
-      conditions.push(
-        sql`"user".id IN (
-          SELECT DISTINCT sub."userId" FROM subscription sub
-          WHERE sub."currentPeriodEnd" > ${now.toISOString()}::timestamp
-          AND sub."userId" IS NOT NULL
-        )`
-      );
+      conditions.push(eq(user.isActive, true));
     } else if (statusFilter === 'inactive') {
-      const now = new Date();
-      conditions.push(
-        sql`"user".id NOT IN (
-          SELECT DISTINCT sub."userId" FROM subscription sub
-          WHERE sub."currentPeriodEnd" > ${now.toISOString()}::timestamp
-          AND sub."userId" IS NOT NULL
-        )`
-      );
+      conditions.push(eq(user.isActive, false));
     }
 
     // Role filter
