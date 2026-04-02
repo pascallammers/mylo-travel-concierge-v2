@@ -1,0 +1,46 @@
+CREATE TABLE IF NOT EXISTS "archive_subscription" (
+  "id" text PRIMARY KEY NOT NULL,
+  "createdAt" timestamp NOT NULL,
+  "modifiedAt" timestamp,
+  "amount" integer NOT NULL,
+  "currency" text NOT NULL,
+  "recurringInterval" text NOT NULL,
+  "status" text NOT NULL,
+  "currentPeriodStart" timestamp NOT NULL,
+  "currentPeriodEnd" timestamp NOT NULL,
+  "cancelAtPeriodEnd" boolean NOT NULL DEFAULT false,
+  "canceledAt" timestamp,
+  "startedAt" timestamp NOT NULL,
+  "endsAt" timestamp,
+  "endedAt" timestamp,
+  "customerId" text NOT NULL,
+  "productId" text NOT NULL,
+  "discountId" text,
+  "checkoutId" text NOT NULL,
+  "customerCancellationReason" text,
+  "customerCancellationComment" text,
+  "metadata" text,
+  "customFieldData" text,
+  "userId" text REFERENCES "user"("id"),
+  "thrivecard_customer_id" text,
+  "thrivecard_subscription_id" text,
+  "plan_type" text,
+  "plan_name" text,
+  "grace_period_end" timestamp,
+  "access_level" text DEFAULT 'basic',
+  "features" json DEFAULT '{}',
+  "auto_renew" boolean DEFAULT true,
+  "is_trial" boolean DEFAULT false,
+  "trial_end_date" timestamp,
+  "last_payment_date" timestamp,
+  "next_payment_date" timestamp,
+  "payment_method" text,
+  "last_synced_at" timestamp,
+  -- Archive-specific fields
+  "archived_at" timestamp NOT NULL DEFAULT now(),
+  "archive_reason" text NOT NULL DEFAULT 'cleanup'
+);
+
+CREATE INDEX IF NOT EXISTS "idx_archive_subscription_user_id" ON "archive_subscription" ("userId");
+CREATE INDEX IF NOT EXISTS "idx_archive_subscription_archived_at" ON "archive_subscription" ("archived_at");
+CREATE INDEX IF NOT EXISTS "idx_archive_subscription_reason" ON "archive_subscription" ("archive_reason");

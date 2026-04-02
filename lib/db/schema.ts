@@ -153,6 +153,53 @@ export const subscription = pgTable('subscription', {
   lastSyncedAt: timestamp('last_synced_at'),
 });
 
+/**
+ * Archive table for cancelled/expired subscriptions.
+ * Mirrors the subscription table with additional archive metadata.
+ */
+export const archiveSubscription = pgTable('archive_subscription', {
+  id: text('id').primaryKey(),
+  createdAt: timestamp('createdAt').notNull(),
+  modifiedAt: timestamp('modifiedAt'),
+  amount: integer('amount').notNull(),
+  currency: text('currency').notNull(),
+  recurringInterval: text('recurringInterval').notNull(),
+  status: text('status').notNull(),
+  currentPeriodStart: timestamp('currentPeriodStart').notNull(),
+  currentPeriodEnd: timestamp('currentPeriodEnd').notNull(),
+  cancelAtPeriodEnd: boolean('cancelAtPeriodEnd').notNull().default(false),
+  canceledAt: timestamp('canceledAt'),
+  startedAt: timestamp('startedAt').notNull(),
+  endsAt: timestamp('endsAt'),
+  endedAt: timestamp('endedAt'),
+  customerId: text('customerId').notNull(),
+  productId: text('productId').notNull(),
+  discountId: text('discountId'),
+  checkoutId: text('checkoutId').notNull(),
+  customerCancellationReason: text('customerCancellationReason'),
+  customerCancellationComment: text('customerCancellationComment'),
+  metadata: text('metadata'),
+  customFieldData: text('customFieldData'),
+  userId: text('userId').references(() => user.id),
+  thrivecardCustomerId: text('thrivecard_customer_id'),
+  thrivecardSubscriptionId: text('thrivecard_subscription_id'),
+  planType: text('plan_type'),
+  planName: text('plan_name'),
+  gracePeriodEnd: timestamp('grace_period_end'),
+  accessLevel: text('access_level').default('basic'),
+  features: json('features').default({}),
+  autoRenew: boolean('auto_renew').default(true),
+  isTrial: boolean('is_trial').default(false),
+  trialEndDate: timestamp('trial_end_date'),
+  lastPaymentDate: timestamp('last_payment_date'),
+  nextPaymentDate: timestamp('next_payment_date'),
+  paymentMethod: text('payment_method'),
+  lastSyncedAt: timestamp('last_synced_at'),
+  // Archive-specific fields
+  archivedAt: timestamp('archived_at').notNull().defaultNow(),
+  archiveReason: text('archive_reason').notNull().default('cleanup'),
+});
+
 // Extreme search usage tracking table
 export const extremeSearchUsage = pgTable('extreme_search_usage', {
   id: text('id')
@@ -553,6 +600,7 @@ export type Chat = InferSelectModel<typeof chat>;
 export type Message = InferSelectModel<typeof message>;
 export type Stream = InferSelectModel<typeof stream>;
 export type Subscription = InferSelectModel<typeof subscription>;
+export type ArchiveSubscription = InferSelectModel<typeof archiveSubscription>;
 export type Payment = InferSelectModel<typeof payment>;
 export type ExtremeSearchUsage = InferSelectModel<typeof extremeSearchUsage>;
 export type MessageUsage = InferSelectModel<typeof messageUsage>;
