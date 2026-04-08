@@ -1,4 +1,4 @@
-import { db } from '@/lib/db';
+import { dbUncached as db } from '@/lib/db';
 import { thriveCartTransaction, thriveCartImportState } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { searchTransactions, rateLimitDelay } from './client';

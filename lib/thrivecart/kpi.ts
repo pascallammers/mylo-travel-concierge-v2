@@ -1,4 +1,4 @@
-import { db } from '@/lib/db';
+import { dbUncached as db } from '@/lib/db';
 import {
   thriveCartTransaction,
   thriveCartImportState,

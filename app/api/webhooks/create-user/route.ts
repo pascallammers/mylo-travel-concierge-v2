@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { dbUncached as db } from '@/lib/db';
 import { user, account, subscription, payment } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { sendWelcomeEmail } from '@/lib/email';

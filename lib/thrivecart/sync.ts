@@ -1,4 +1,4 @@
-import { db } from '@/lib/db';
+import { dbUncached as db } from '@/lib/db';
 import { user, subscription, thrivecartSyncLog, thrivecartWebhookLog } from '@/lib/db/schema';
 import { eq, isNotNull, desc, and, ne, gt } from 'drizzle-orm';
 import { getCustomerByEmail, rateLimitDelay } from './client';
