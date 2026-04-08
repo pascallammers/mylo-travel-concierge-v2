@@ -1,4 +1,4 @@
-import { db } from '@/lib/db';
+import { dbUncached as db } from '@/lib/db';
 import {
   user,
   account,
@@ -140,10 +140,25 @@ async function handleOrderSuccess(
     const existingSub = await findUserSubscription(existingUser.id);
 
     if (existingSub) {
+      const previousStatus = existingSub.status;
+      const wasInactive = !existingUser.isActive;
+
       // Extend existing subscription
       await extendSubscriptionPeriod(existingSub.id);
-      if (!existingUser.isActive) await reactivateUser(existingUser.id);
+      if (wasInactive) await reactivateUser(existingUser.id);
       await recordTransaction(payload, 'charge', amount);
+
+      // Log reactivation if user was previously inactive or subscription was cancelled
+      if (wasInactive || previousStatus === 'canceled') {
+        await logAdminActivity(existingUser.id, 'webhook.reactivation_processed', null, {
+          email,
+          orderId,
+          previousStatus,
+          wasInactive,
+          newPeriodEnd: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString(),
+        });
+      }
+
       return {
         success: true,
         action: 'existing_user_subscription_extended',

@@ -40,3 +40,10 @@ const dbread2 = drizzle(sqlread2, {
 });
 
 export const db = withReplicas(maindb, [dbread1, dbread2]);
+
+/**
+ * Cache-free DB instance for webhooks, cron jobs, and other write-critical paths.
+ * Bypasses the Upstash cache to ensure reads always return fresh data from the DB.
+ * Use this instead of `db` when stale reads could cause incorrect writes.
+ */
+export const dbUncached = drizzle(neon(serverEnv.DATABASE_URL), { schema });

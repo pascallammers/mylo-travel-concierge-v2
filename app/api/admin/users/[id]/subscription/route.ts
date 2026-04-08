@@ -67,6 +67,14 @@ export async function PATCH(
         );
       }
       updates.status = body.status;
+
+      // When reactivating, clear all cancellation flags
+      if (body.status === 'active') {
+        updates.cancelAtPeriodEnd = false;
+        updates.canceledAt = null;
+        updates.endedAt = null;
+      }
+
       console.log(`📊 Updating subscription status for user ${userId} to ${body.status}`);
     }
 

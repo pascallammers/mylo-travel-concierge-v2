@@ -1,4 +1,4 @@
-import { db } from '@/lib/db';
+import { dbUncached as db } from '@/lib/db';
 import { user, subscription, session, archiveSubscription } from '@/lib/db/schema';
 import { eq, desc, and, lt } from 'drizzle-orm';
 import type { BaseWebhookRequest, WebhookResponse } from './types';
