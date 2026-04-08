@@ -458,6 +458,7 @@ export const adminActivityAction = [
   'sessions.revoked',
   'webhook.refund_processed',
   'webhook.cancellation_processed',
+  'webhook.reactivation_processed',
 ] as const;
 export type AdminActivityAction = (typeof adminActivityAction)[number];
 
