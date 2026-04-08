@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
-import { user, subscription, thrivecartSyncLog } from '@/lib/db/schema';
-import { eq, isNotNull, desc, and, ne } from 'drizzle-orm';
+import { user, subscription, thrivecartSyncLog, thrivecartWebhookLog } from '@/lib/db/schema';
+import { eq, isNotNull, desc, and, ne, gt } from 'drizzle-orm';
 import { getCustomerByEmail, rateLimitDelay } from './client';
 import {
   reactivateUser,
@@ -11,6 +11,30 @@ import {
 import type { SyncResult, SyncDiscrepancy } from './types';
 import { generateId } from 'ai';
 import { thrivecartConfig } from './config';
+
+/**
+ * Check if a user has a recent successful order.success webhook event.
+ * Used to prevent the sync from overriding fresh webhook-driven state changes.
+ */
+async function hasRecentWebhookEvent(email: string, hoursAgo = 24): Promise<boolean> {
+  const cutoff = new Date();
+  cutoff.setHours(cutoff.getHours() - hoursAgo);
+
+  const [recent] = await db
+    .select({ id: thrivecartWebhookLog.id })
+    .from(thrivecartWebhookLog)
+    .where(
+      and(
+        eq(thrivecartWebhookLog.customerEmail, email.toLowerCase()),
+        eq(thrivecartWebhookLog.eventType, 'order.success'),
+        eq(thrivecartWebhookLog.result, 'success'),
+        gt(thrivecartWebhookLog.processedAt, cutoff)
+      )
+    )
+    .limit(1);
+
+  return !!recent;
+}
 
 /**
  * Run a full sync of all ThriveCart subscriptions.
@@ -91,17 +115,23 @@ export async function runFullSync(): Promise<SyncResult> {
         if (!tcPurchase?.subscription) {
           // No active subscription found in ThriveCart
           if (dbUser.subStatus === 'active' && !dbUser.cancelAtPeriodEnd) {
-            // DB says active but ThriveCart has no subscription — mark as cancelled
-            await markSubscriptionCancelled(dbUser.subId);
-            result.discrepancies.push({
-              userId: dbUser.userId,
-              email: dbUser.email,
-              field: 'subscription_status',
-              dbValue: 'active',
-              thriveCartValue: 'no_subscription',
-              corrected: true,
-            });
-            result.totalCorrected++;
+            // Check if a recent webhook event exists — webhook is more authoritative than API
+            const hasRecent = await hasRecentWebhookEvent(dbUser.email);
+            if (hasRecent) {
+              console.log(`[ThriveCart Sync] Skipping ${dbUser.email}: recent webhook event found, webhook is authoritative`);
+            } else {
+              // DB says active but ThriveCart has no subscription — mark as cancelled
+              await markSubscriptionCancelled(dbUser.subId);
+              result.discrepancies.push({
+                userId: dbUser.userId,
+                email: dbUser.email,
+                field: 'subscription_status',
+                dbValue: 'active',
+                thriveCartValue: 'no_subscription',
+                corrected: true,
+              });
+              result.totalCorrected++;
+            }
           }
           continue;
         }
@@ -110,16 +140,22 @@ export async function runFullSync(): Promise<SyncResult> {
 
         // Compare subscription status
         if (tcSub.status === 'cancelled' && dbUser.subStatus === 'active' && !dbUser.cancelAtPeriodEnd) {
-          await markSubscriptionCancelled(dbUser.subId);
-          result.discrepancies.push({
-            userId: dbUser.userId,
-            email: dbUser.email,
-            field: 'cancel_status',
-            dbValue: 'active',
-            thriveCartValue: 'cancelled',
-            corrected: true,
-          });
-          result.totalCorrected++;
+          // Check if a recent webhook event exists — webhook is more authoritative than API
+          const hasRecent = await hasRecentWebhookEvent(dbUser.email);
+          if (hasRecent) {
+            console.log(`[ThriveCart Sync] Skipping cancel for ${dbUser.email}: recent webhook event found, webhook is authoritative`);
+          } else {
+            await markSubscriptionCancelled(dbUser.subId);
+            result.discrepancies.push({
+              userId: dbUser.userId,
+              email: dbUser.email,
+              field: 'cancel_status',
+              dbValue: 'active',
+              thriveCartValue: 'cancelled',
+              corrected: true,
+            });
+            result.totalCorrected++;
+          }
         }
 
         if (tcSub.status === 'active' && dbUser.subStatus !== 'active') {
