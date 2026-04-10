@@ -1,8 +1,15 @@
 import 'server-only';
 
 import { generateId } from 'ai';
-import { getCheapTickets, getLatestPrices, generateAffiliateLink } from '@/lib/api/travelpayouts-client';
+import { searchSeatsAero } from '@/lib/api/seats-aero-client';
+import {
+  generateAffiliateLink,
+  getCheapTickets,
+  getLatestPrices,
+  type TravelpayoutsCheapTicket,
+} from '@/lib/api/travelpayouts-client';
 import { computePriceStats, calculateDealScore } from './deal-score';
+import { scanPointsDealsForRoute, shouldScanSeatsAero } from './deal-scanner-points';
 import {
   getActiveRoutes,
   getPriceHistoryForRoute,
@@ -13,6 +20,17 @@ import {
 
 const MIN_DEAL_SCORE = 60;
 const DEAL_EXPIRY_HOURS = 72;
+
+type CabinClass = 'economy' | 'premium_economy' | 'business' | 'first';
+
+interface PriceHistoryEntry {
+  origin: string;
+  destination: string;
+  price: number;
+  currency: string;
+  cabinClass: CabinClass;
+  source: string;
+}
 
 export interface ScanResult {
   routesScanned: number;
@@ -40,12 +58,35 @@ export async function runDealScan(): Promise<ScanResult> {
     errors: [],
   };
 
+  const now = new Date();
   const routes = await getActiveRoutes();
+  const shouldScanPointsDeals = Boolean(process.env.SEATSAERO_API_KEY) && shouldScanSeatsAero(now);
   console.log(`[DealScanner] Scanning ${routes.length} routes`);
 
   for (const route of routes) {
     try {
       await processRoute(route.origin, route.destination, result);
+
+      if (shouldScanPointsDeals && route.destination) {
+        const pointsResult = await scanPointsDealsForRoute(
+          {
+            origin: route.origin,
+            destination: route.destination,
+          },
+          {
+            now,
+            searchSeatsAero,
+            upsertDeal,
+            insertPriceHistory,
+            generateId,
+          },
+        );
+
+        result.dealsFound += pointsResult.dealsFound;
+        result.priceHistoryEntries += pointsResult.priceHistoryEntries;
+        result.errors.push(...pointsResult.errors);
+      }
+
       result.routesScanned++;
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
@@ -85,65 +126,85 @@ async function processSpecificRoute(
 
   if (!response.success || !response.data[destination]) return;
 
-  const tickets = response.data[destination];
-  const priceEntries: Array<{ origin: string; destination: string; price: number; currency: string; cabinClass: 'economy' | 'premium_economy' | 'business' | 'first'; source: string }> = [];
-
-  for (const [transferKey, ticket] of Object.entries(tickets)) {
-    priceEntries.push({
-      origin,
-      destination,
-      price: ticket.price,
-      currency: 'EUR',
-      cabinClass: 'economy',
-      source: 'travelpayouts',
-    });
-
-    const historicalPrices = await getPriceHistoryForRoute(origin, destination);
-    const stats = computePriceStats(historicalPrices);
-
-    let dealScore = 70;
-    if (stats && stats.count >= 5) {
-      dealScore = calculateDealScore(ticket.price, stats);
-    }
-
-    if (dealScore >= MIN_DEAL_SCORE) {
-      const expiresAt = new Date();
-      expiresAt.setHours(expiresAt.getHours() + DEAL_EXPIRY_HOURS);
-
-      await upsertDeal({
-        id: generateId(),
-        origin,
-        destination,
-        departureDate: new Date(ticket.departure_at),
-        returnDate: ticket.return_at ? new Date(ticket.return_at) : null,
-        price: ticket.price,
-        currency: 'EUR',
-        averagePrice: stats?.mean || null,
-        priceDifference: stats ? stats.mean - ticket.price : null,
-        priceChangePercent: stats ? ((stats.mean - ticket.price) / stats.mean) * 100 : null,
-        dealScore,
-        airline: ticket.airline,
-        stops: ticket.transfers,
-        cabinClass: 'economy' as const,
-        tripType: ticket.return_at ? 'roundtrip' as const : 'oneway' as const,
-        affiliateLink: generateAffiliateLink({
-          origin,
-          destination,
-          departDate: ticket.departure_at.split('T')[0],
-          returnDate: ticket.return_at?.split('T')[0],
-        }),
-        source: 'travelpayouts',
-        expiresAt,
-      });
-
-      result.dealsFound++;
-    }
-  }
+  const tickets: TravelpayoutsCheapTicket[] = Object.values(response.data[destination] ?? {});
+  const priceEntries: PriceHistoryEntry[] = tickets.map((ticket) => ({
+    origin,
+    destination,
+    price: ticket.price,
+    currency: 'EUR',
+    cabinClass: 'economy',
+    source: 'travelpayouts',
+  }));
 
   if (priceEntries.length > 0) {
     await insertPriceHistory(priceEntries);
     result.priceHistoryEntries += priceEntries.length;
   }
+
+  const historicalPrices = await getPriceHistoryForRoute(origin, destination, 'economy', 'travelpayouts');
+  const stats = computePriceStats(historicalPrices);
+
+  for (const ticket of tickets) {
+    let dealScore = 70;
+    if (stats && stats.count >= 5) {
+      dealScore = calculateDealScore(ticket.price, stats);
+    }
+
+    if (dealScore < MIN_DEAL_SCORE) {
+      continue;
+    }
+
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + DEAL_EXPIRY_HOURS);
+
+    await upsertDeal({
+      id: generateId(),
+      origin,
+      destination,
+      departureDate: new Date(ticket.departure_at),
+      returnDate: ticket.return_at ? new Date(ticket.return_at) : null,
+      price: ticket.price,
+      currency: 'EUR',
+      averagePrice: stats?.mean || null,
+      priceDifference: stats ? stats.mean - ticket.price : null,
+      priceChangePercent: stats ? ((stats.mean - ticket.price) / stats.mean) * 100 : null,
+      dealScore,
+      airline: ticket.airline,
+      stops: ticket.transfers,
+      cabinClass: 'economy',
+      tripType: ticket.return_at ? 'roundtrip' : 'oneway',
+      affiliateLink: generateAffiliateLink({
+        origin,
+        destination,
+        departDate: ticket.departure_at.split('T')[0],
+        returnDate: ticket.return_at?.split('T')[0],
+      }),
+      source: 'travelpayouts',
+      expiresAt,
+    });
+
+    result.dealsFound++;
+  }
+}
+
+function buildStatsCacheKey(origin: string, destination: string, cabinClass: CabinClass): string {
+  return `${origin}:${destination}:${cabinClass}`;
+}
+
+async function getRouteStats(
+  cache: Map<string, ReturnType<typeof computePriceStats>>,
+  origin: string,
+  destination: string,
+  cabinClass: CabinClass,
+): Promise<ReturnType<typeof computePriceStats>> {
+  const cacheKey = buildStatsCacheKey(origin, destination, cabinClass);
+
+  if (!cache.has(cacheKey)) {
+    const historicalPrices = await getPriceHistoryForRoute(origin, destination, cabinClass, 'travelpayouts');
+    cache.set(cacheKey, computePriceStats(historicalPrices));
+  }
+
+  return cache.get(cacheKey) ?? null;
 }
 
 async function processOpenRoute(
@@ -158,55 +219,63 @@ async function processOpenRoute(
 
   if (!response.success) return;
 
-  for (const price of response.data) {
-    await insertPriceHistory([{
-      origin: price.origin,
-      destination: price.destination,
-      price: price.value,
-      currency: 'EUR',
-      cabinClass: (price.trip_class === 0 ? 'economy' : 'business') as 'economy' | 'business',
-      source: 'travelpayouts',
-    }]);
-    result.priceHistoryEntries++;
+  const priceEntries: PriceHistoryEntry[] = response.data.map((price) => ({
+    origin: price.origin,
+    destination: price.destination,
+    price: price.value,
+    currency: 'EUR',
+    cabinClass: price.trip_class === 0 ? 'economy' : 'business',
+    source: 'travelpayouts',
+  }));
 
-    const historicalPrices = await getPriceHistoryForRoute(price.origin, price.destination);
-    const stats = computePriceStats(historicalPrices);
+  if (priceEntries.length > 0) {
+    await insertPriceHistory(priceEntries);
+    result.priceHistoryEntries += priceEntries.length;
+  }
+
+  const statsCache = new Map<string, ReturnType<typeof computePriceStats>>();
+
+  for (const price of response.data) {
+    const cabinClass = (price.trip_class === 0 ? 'economy' : 'business') as 'economy' | 'business';
+    const stats = await getRouteStats(statsCache, price.origin, price.destination, cabinClass);
 
     let dealScore = 70;
     if (stats && stats.count >= 5) {
       dealScore = calculateDealScore(price.value, stats);
     }
 
-    if (dealScore >= MIN_DEAL_SCORE) {
-      const expiresAt = new Date();
-      expiresAt.setHours(expiresAt.getHours() + DEAL_EXPIRY_HOURS);
+    if (dealScore < MIN_DEAL_SCORE) {
+      continue;
+    }
 
-      await upsertDeal({
-        id: generateId(),
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + DEAL_EXPIRY_HOURS);
+
+    await upsertDeal({
+      id: generateId(),
+      origin: price.origin,
+      destination: price.destination,
+      departureDate: new Date(price.depart_date),
+      returnDate: price.return_date ? new Date(price.return_date) : null,
+      price: price.value,
+      currency: 'EUR',
+      averagePrice: stats?.mean || null,
+      priceDifference: stats ? stats.mean - price.value : null,
+      priceChangePercent: stats ? ((stats.mean - price.value) / stats.mean) * 100 : null,
+      dealScore,
+      stops: price.number_of_changes,
+      cabinClass,
+      tripType: price.return_date ? 'roundtrip' : 'oneway',
+      affiliateLink: generateAffiliateLink({
         origin: price.origin,
         destination: price.destination,
-        departureDate: new Date(price.depart_date),
-        returnDate: price.return_date ? new Date(price.return_date) : null,
-        price: price.value,
-        currency: 'EUR',
-        averagePrice: stats?.mean || null,
-        priceDifference: stats ? stats.mean - price.value : null,
-        priceChangePercent: stats ? ((stats.mean - price.value) / stats.mean) * 100 : null,
-        dealScore,
-        stops: price.number_of_changes,
-        cabinClass: (price.trip_class === 0 ? 'economy' : 'business') as 'economy' | 'business',
-        tripType: (price.return_date ? 'roundtrip' : 'oneway') as 'roundtrip' | 'oneway',
-        affiliateLink: generateAffiliateLink({
-          origin: price.origin,
-          destination: price.destination,
-          departDate: price.depart_date,
-          returnDate: price.return_date || undefined,
-        }),
-        source: 'travelpayouts',
-        expiresAt,
-      });
+        departDate: price.depart_date,
+        returnDate: price.return_date || undefined,
+      }),
+      source: 'travelpayouts',
+      expiresAt,
+    });
 
-      result.dealsFound++;
-    }
+    result.dealsFound++;
   }
 }

@@ -47,7 +47,7 @@ export async function upsertDeal(deal: typeof flightDeals.$inferInsert): Promise
     .insert(flightDeals)
     .values(deal)
     .onConflictDoUpdate({
-      target: [flightDeals.origin, flightDeals.destination, flightDeals.departureDate, flightDeals.cabinClass],
+      target: [flightDeals.origin, flightDeals.destination, flightDeals.departureDate, flightDeals.cabinClass, flightDeals.source],
       set: {
         price: deal.price,
         averagePrice: deal.averagePrice,
@@ -57,6 +57,7 @@ export async function upsertDeal(deal: typeof flightDeals.$inferInsert): Promise
         airline: deal.airline,
         stops: deal.stops,
         affiliateLink: deal.affiliateLink,
+        source: deal.source,
         expiresAt: deal.expiresAt,
         updatedAt: new Date(),
       },
@@ -81,17 +82,25 @@ export async function getPriceHistoryForRoute(
   origin: string,
   destination: string,
   cabinClass: 'economy' | 'premium_economy' | 'business' | 'first' = 'economy',
+  source?: string,
 ): Promise<number[]> {
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+  const conditions = [
+    eq(priceHistory.origin, origin),
+    eq(priceHistory.destination, destination),
+    eq(priceHistory.cabinClass, cabinClass),
+    gte(priceHistory.scannedAt, ninetyDaysAgo),
+  ];
+
+  if (source) {
+    conditions.push(eq(priceHistory.source, source));
+  }
+
   const rows = await db
     .select({ price: priceHistory.price })
     .from(priceHistory)
-    .where(
-      and(
-        eq(priceHistory.origin, origin),
-        eq(priceHistory.destination, destination),
-        eq(priceHistory.cabinClass, cabinClass),
-      ),
-    )
+    .where(and(...conditions))
     .orderBy(desc(priceHistory.scannedAt));
 
   return rows.map((r) => r.price);
@@ -167,4 +176,33 @@ export async function upsertUserDealPreferences(
       ...prefs,
     });
   }
+}
+
+export interface DealDigestRecipient {
+  userId: string;
+  email: string;
+  name: string;
+  preferences: UserDealPreferences;
+}
+
+export async function getDealDigestRecipients(
+  frequency: 'daily' | 'weekly',
+): Promise<DealDigestRecipient[]> {
+  const rows = await db
+    .select({
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      preferences: userDealPreferences,
+    })
+    .from(userDealPreferences)
+    .innerJoin(user, eq(user.id, userDealPreferences.userId))
+    .where(eq(userDealPreferences.emailDigest, frequency));
+
+  return rows.map((row) => ({
+    userId: row.userId,
+    email: row.email,
+    name: row.name,
+    preferences: row.preferences,
+  }));
 }

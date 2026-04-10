@@ -1,0 +1,2 @@
+DROP INDEX "flight_deals_route_date_cabin_uniq";--> statement-breakpoint
+CREATE UNIQUE INDEX "flight_deals_route_date_cabin_source_uniq" ON "flight_deals" USING btree ("origin","destination","departure_date","cabin_class","source");

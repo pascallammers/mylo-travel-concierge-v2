@@ -5,7 +5,14 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-expect-error -- airport-data-js ships no type declarations
-import { searchByName, getAirportByIata, getAutocompleteSuggestions, validateIataCode as validateIataCodeLib } from 'airport-data-js';
+import airportData from 'airport-data-js';
+
+const {
+  searchByName,
+  getAirportByIata,
+  getAutocompleteSuggestions,
+  validateIataCode: validateIataCodeLib,
+} = airportData;
 
 interface AirportRecord {
   iata: string;

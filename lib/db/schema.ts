@@ -758,7 +758,7 @@ export const flightDeals = pgTable('flight_deals', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => [
-  uniqueIndex('flight_deals_route_date_cabin_uniq').on(table.origin, table.destination, table.departureDate, table.cabinClass),
+  uniqueIndex('flight_deals_route_date_cabin_source_uniq').on(table.origin, table.destination, table.departureDate, table.cabinClass, table.source),
   index('flight_deals_origin_expires_idx').on(table.origin, table.expiresAt),
   index('flight_deals_score_idx').on(table.dealScore),
 ]);
