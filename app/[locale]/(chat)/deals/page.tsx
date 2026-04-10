@@ -10,6 +10,7 @@ import {
   type DealBucket,
   type DealsPageFilters,
 } from '@/lib/deals';
+import { getAirportDetails } from '@/lib/utils/airport-database';
 import { DealCard } from './components/deal-card';
 import { DealFilters } from './components/deal-filters';
 import { DealPreferencesPanel } from './components/deal-preferences-panel';
@@ -48,6 +49,10 @@ export default async function DealsPage({
     const user = await getUser();
     const userPreferences = user ? await getUserDealPreferences(user.id) : null;
     const preferenceSnapshot = createDealPreferenceSnapshot(userPreferences);
+    const [originAirportOptions, preferredDestinationOptions] = await Promise.all([
+      hydrateSelectedAirports(preferenceSnapshot.originAirports),
+      hydrateSelectedAirports(preferenceSnapshot.preferredDestinations),
+    ]);
     const deals = await getActiveDeals({
       origin: filters.origin,
       minScore: 60,
@@ -76,8 +81,8 @@ export default async function DealsPage({
         <div className="mb-8">
           <DealPreferencesPanel
             locale={locale}
-            initialOriginAirports={preferenceSnapshot.originAirports}
-            initialPreferredDestinations={preferenceSnapshot.preferredDestinations}
+            initialOriginAirports={originAirportOptions}
+            initialPreferredDestinations={preferredDestinationOptions}
             initialCabinClass={preferenceSnapshot.cabinClass}
             initialMaxPrice={preferenceSnapshot.maxPrice}
             initialEmailDigest={preferenceSnapshot.emailDigest}
@@ -178,4 +183,26 @@ function isDealBucket(value: string | undefined): value is DealBucket | 'all' {
 
 function isSortOption(value: string | undefined): value is DealsPageFilters['sort'] {
   return value === 'score' || value === 'price' || value === 'savings';
+}
+
+/**
+ * Hydrate persisted airport codes with readable airport labels for the preferences UI.
+ *
+ * @param airportCodes - Stored IATA codes from the user preferences.
+ * @returns Airport labels and metadata for the multi-select trigger and chips.
+ */
+async function hydrateSelectedAirports(airportCodes: string[]) {
+  const airportEntries = await Promise.all(
+    airportCodes.map(async (airportCode) => {
+      const airport = await getAirportDetails(airportCode);
+
+      return {
+        iataCode: airportCode,
+        name: airport?.airport ?? airportCode,
+        countryCode: airport?.country_code ?? '',
+      };
+    }),
+  );
+
+  return airportEntries;
 }

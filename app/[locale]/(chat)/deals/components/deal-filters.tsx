@@ -16,13 +16,13 @@ import type { DealBucket } from '@/lib/deals';
 
 const DACH_AIRPORTS = [
   { code: 'FRA', label: 'Frankfurt (FRA)' },
-  { code: 'MUC', label: 'Muenchen (MUC)' },
+  { code: 'MUC', label: 'München (MUC)' },
   { code: 'BER', label: 'Berlin (BER)' },
-  { code: 'DUS', label: 'Duesseldorf (DUS)' },
+  { code: 'DUS', label: 'Düsseldorf (DUS)' },
   { code: 'HAM', label: 'Hamburg (HAM)' },
   { code: 'VIE', label: 'Wien (VIE)' },
-  { code: 'ZRH', label: 'Zuerich (ZRH)' },
-  { code: 'CGN', label: 'Koeln (CGN)' },
+  { code: 'ZRH', label: 'Zürich (ZRH)' },
+  { code: 'CGN', label: 'Köln (CGN)' },
   { code: 'STR', label: 'Stuttgart (STR)' },
 ];
 

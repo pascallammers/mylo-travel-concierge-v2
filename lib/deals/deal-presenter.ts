@@ -19,6 +19,7 @@ export interface PresentableDeal {
   airline: string | null;
   source: string;
   flightDurationMinutes: number | null;
+  preferredOriginMatch?: boolean;
 }
 
 export interface DealBucketOptions {
@@ -141,6 +142,12 @@ export function sortPresentedDeals(
   sort: DealSortOption,
 ): PresentableDeal[] {
   return [...deals].sort((left, right) => {
+    const preferredOriginDelta =
+      Number(right.preferredOriginMatch === true) - Number(left.preferredOriginMatch === true);
+    if (preferredOriginDelta !== 0) {
+      return preferredOriginDelta;
+    }
+
     if (sort === 'price') {
       return left.price - right.price;
     }
@@ -167,26 +174,26 @@ export function sortPresentedDeals(
 
 function buildCashDealWhy(deal: PresentableDeal): string {
   if (deal.priceChangePercent !== null && deal.priceChangePercent > 0) {
-    return `${Math.round(deal.priceChangePercent)}% guenstiger als ueblich.`;
+    return `${Math.round(deal.priceChangePercent)}% günstiger als üblich.`;
   }
 
   if (deal.averagePrice !== null && deal.averagePrice > deal.price) {
     return 'Deutlich unter dem Durchschnittspreis dieser Route.';
   }
 
-  return 'Aktuell ein auffaellig starker Preis fuer diese Route.';
+  return 'Aktuell ein auffällig starker Preis für diese Route.';
 }
 
 function buildAudienceText(bucket: DealBucket): string {
   if (bucket === 'weekend_escape') {
-    return 'Ideal fuer ein langes Wochenende.';
+    return 'Ideal für ein langes Wochenende.';
   }
 
   if (bucket === 'points') {
-    return 'Fuer Meilensammler mit flexiblem Reisedatum.';
+    return 'Für Meilensammler mit flexiblem Reisedatum.';
   }
 
-  return 'Perfekt fuer Fernreise-Entdecker.';
+  return 'Perfekt für Fernreise-Entdecker.';
 }
 
 function getTripDurationDays(

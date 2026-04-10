@@ -1,5 +1,9 @@
 import 'server-only';
 import { serverEnv } from '@/env/server';
+import {
+  buildTravelpayoutsAffiliateLink,
+  type TravelpayoutsAffiliateLinkParams,
+} from './travelpayouts-affiliate-link';
 
 const BASE_URL = 'https://api.travelpayouts.com';
 
@@ -174,23 +178,10 @@ export async function getLatestPrices(params: {
 /**
  * Generate Aviasales affiliate deep link for a flight.
  */
-export function generateAffiliateLink(params: {
-  origin: string;
-  destination: string;
-  departDate: string;
-  returnDate?: string;
-  adults?: number;
-}): string {
-  const base = 'https://www.aviasales.com/search';
-  const parts = [
-    params.origin,
-    params.departDate.replace(/-/g, '').slice(2),
-    params.destination,
-  ];
-  if (params.returnDate) {
-    parts.push(params.returnDate.replace(/-/g, '').slice(2));
-  }
-  parts.push(`${params.adults || 1}`);
-
-  return `${base}/${parts.join('')}`;
+export function generateAffiliateLink(
+  params: TravelpayoutsAffiliateLinkParams,
+): string {
+  // Travelpayouts no longer accepts the legacy /search/FRA260417PMI2604201 format reliably.
+  // The searches/new bootstrap URL redirects into a working flight search experience.
+  return buildTravelpayoutsAffiliateLink(params);
 }

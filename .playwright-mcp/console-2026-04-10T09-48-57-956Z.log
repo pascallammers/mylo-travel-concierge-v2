@@ -1,0 +1,4 @@
+[     977ms] [WARNING] Warning: fragment with name PriceDetails already exists.
+graphql-tag enforces all fragment names across your application to be unique; read more about
+this in the docs: http://dev.apollodata.com/core/fragments.html#unique-names @ https://tpembd.com/wl_web/index-BD74O7Yd.js:14088
+[   10986ms] [LOG] Download the Apollo DevTools for a better development experience: %s https://chrome.google.com/webstore/detail/apollo-client-developer-t/jdkknkkbebbapilgoeccciglkfbmbnfm @ https://tpembd.com/content?currency=usd&trs=498123&shmarker=126017&destination=MOW&target_host=search.jetradar.com&locale=EN&limit=6&powered_by=false&primary=%23259DDE&promo_id=4044&campaign_id=100:1

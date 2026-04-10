@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { getUser } from '@/lib/auth-utils';
 import { upsertUserDealPreferences } from '@/lib/db/deal-queries';
-import { parseAirportCodeList } from '@/lib/deals';
+import { resolveAirportCodeList } from '@/lib/deals';
 
 const saveDealPreferencesSchema = z.object({
   locale: z.string().min(2).max(8),
@@ -39,10 +39,14 @@ export async function saveDealPreferencesAction(input: SaveDealPreferencesInput)
 
   const parsed = saveDealPreferencesSchema.parse(input);
   const maxPrice = parsed.maxPrice.trim() === '' ? null : Number(parsed.maxPrice);
+  const [originAirports, preferredDestinations] = await Promise.all([
+    resolveAirportCodeList(parsed.originAirports),
+    resolveAirportCodeList(parsed.preferredDestinations),
+  ]);
 
   await upsertUserDealPreferences(user.id, {
-    originAirports: parseAirportCodeList(parsed.originAirports),
-    preferredDestinations: parseAirportCodeList(parsed.preferredDestinations),
+    originAirports,
+    preferredDestinations,
     cabinClass: parsed.cabinClass === 'any' ? null : parsed.cabinClass,
     maxPrice: Number.isFinite(maxPrice) ? maxPrice : null,
     emailDigest: parsed.emailDigest,

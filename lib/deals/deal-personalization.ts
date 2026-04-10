@@ -1,5 +1,6 @@
 import type { FlightDeal, UserDealPreferences } from '@/lib/db/schema';
 import type { PresentableDeal } from './deal-presenter';
+import { lookupAirportByName } from '@/lib/utils/airport-database';
 
 export interface DealPreferenceSnapshot {
   originAirports: string[];
@@ -91,7 +92,7 @@ export function scoreDealForPreferences(
 
   if (preferences.cabinClass && deal.cabinClass === preferences.cabinClass) {
     score += 8;
-    reasons.push(`passt zu deiner ${formatCabinClassLabel(preferences.cabinClass)}-Praeferenz`);
+    reasons.push(`passt zu deiner ${formatCabinClassLabel(preferences.cabinClass)}-Präferenz`);
   }
 
   if (preferences.maxPrice !== null && isCashDeal(deal.currency)) {
@@ -105,7 +106,7 @@ export function scoreDealForPreferences(
 
   if (isPointsDeal(deal.source) && preferences.cabinClass && isPremiumCabin(preferences.cabinClass)) {
     score += 4;
-    reasons.push('starker Punkte-Deal fuer Premium-Cabin-Fokus');
+    reasons.push('starker Punkte-Deal für Premium-Cabin-Fokus');
   }
 
   return {
@@ -155,6 +156,32 @@ export function selectTopPersonalizedDeals<T extends PersonalizableDeal>(
  */
 export function parseAirportCodeList(value: string): string[] {
   return normalizeAirportCodes(value.split(','));
+}
+
+/**
+ * Resolve a comma-separated list of airport codes, airport names, or city names.
+ *
+ * @param value - Raw text input from the preferences form.
+ * @returns Unique list of normalized IATA codes.
+ */
+export async function resolveAirportCodeList(value: string): Promise<string[]> {
+  const segments = value
+    .split(',')
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+  const resolvedCodes = await Promise.all(
+    segments.map(async (segment) => {
+      if (/^[a-z]{3}$/i.test(segment)) {
+        return segment.toUpperCase();
+      }
+
+      const resolvedAirport = await lookupAirportByName(segment);
+      return resolvedAirport?.iataCode ?? null;
+    }),
+  );
+
+  return normalizeAirportCodes(resolvedCodes.filter((code): code is string => code !== null));
 }
 
 function normalizeAirportCodes(values: string[]): string[] {

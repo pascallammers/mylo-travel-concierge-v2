@@ -4,6 +4,7 @@ import {
   getAirportDetails,
   isValidIATACodeInDB,
   lookupAirportByName,
+  searchAirports,
 } from './airport-database';
 
 describe('lookupAirportByName', () => {
@@ -38,5 +39,25 @@ describe('getAirportDetails', () => {
     assert.ok(airport);
     assert.strictEqual(airport?.iata, 'JFK');
     assert.match(airport?.airport ?? '', /Kennedy|JFK/i);
+  });
+});
+
+describe('searchAirports', () => {
+  it('liefert Vorschlaege fuer Staedte und IATA-Codes', async () => {
+    const results = await searchAirports('Düsseldorf');
+
+    assert.ok(results.length > 0);
+    assert.strictEqual(results[0]?.iataCode, 'DUS');
+    assert.match(results[0]?.name ?? '', /Düsseldorf|Duesseldorf|Dusseldorf/i);
+  });
+
+  it('findet deutsche Teiltreffer auch mit Umlauten und ASCII-Varianten', async () => {
+    const umlautResults = await searchAirports('Düssel');
+    const asciiResults = await searchAirports('Dussel');
+    const expandedResults = await searchAirports('Duessel');
+
+    assert.ok(umlautResults.some((result) => result.iataCode === 'DUS'));
+    assert.ok(asciiResults.some((result) => result.iataCode === 'DUS'));
+    assert.ok(expandedResults.some((result) => result.iataCode === 'DUS'));
   });
 });

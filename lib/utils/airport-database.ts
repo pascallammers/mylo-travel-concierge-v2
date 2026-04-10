@@ -4,7 +4,7 @@
  */
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-expect-error -- airport-data-js ships no type declarations
+// @ts-ignore -- airport-data-js ships no stable type declarations
 import airportData from 'airport-data-js';
 
 const {
@@ -116,6 +116,63 @@ function normalize(input: string): string {
 }
 
 /**
+ * Remove Unicode diacritics for accent-insensitive comparisons.
+ */
+function stripDiacritics(input: string): string {
+  return input.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+/**
+ * Build search variants so German umlauts and ASCII spellings resolve to the same airport.
+ */
+function buildSearchVariants(input: string): string[] {
+  const normalized = normalize(input);
+
+  if (!normalized) {
+    return [];
+  }
+
+  const transliteratedGerman = normalize(
+    normalized
+      .replace(/ä/g, 'ae')
+      .replace(/ö/g, 'oe')
+      .replace(/ü/g, 'ue')
+      .replace(/ß/g, 'ss'),
+  );
+  const stripped = normalize(stripDiacritics(normalized));
+
+  return Array.from(
+    new Set([normalized, transliteratedGerman, stripped].filter((value) => value.length > 0)),
+  );
+}
+
+/**
+ * Resolve exact and partial alias hits for localized city names.
+ */
+function findAliasMatches(queryVariants: string[]): string[] {
+  const aliasCodes = new Set<string>();
+
+  for (const [alias, code] of Object.entries(CITY_ALIASES)) {
+    const aliasVariants = buildSearchVariants(alias);
+
+    if (
+      queryVariants.some((queryVariant) =>
+        aliasVariants.some(
+          (aliasVariant) =>
+            aliasVariant === queryVariant ||
+            aliasVariant.startsWith(queryVariant) ||
+            (queryVariant.length >= 3 && aliasVariant.includes(queryVariant)),
+        ),
+      )
+    ) {
+      aliasCodes.add(code);
+    }
+  }
+
+  return Array.from(aliasCodes);
+}
+
+/**
  * Airport type priority for ranking (lower = better)
  */
 const TYPE_PRIORITY: Record<string, number> = {
@@ -153,6 +210,12 @@ export interface AirportLookupResult {
   countryCode: string;
   type: string;
   source: 'alias' | 'database' | 'autocomplete';
+}
+
+export interface AirportSearchResult {
+  iataCode: string;
+  name: string;
+  countryCode: string;
 }
 
 /**
@@ -255,6 +318,85 @@ export async function lookupAirportByName(
   }
 
   return null;
+}
+
+/**
+ * Search airports by city, airport name, or IATA code for UI autocomplete.
+ *
+ * @param query - Free-text city, airport name, or IATA code.
+ * @param limit - Maximum number of suggestions to return.
+ * @returns Ranked airport suggestions for selection UIs.
+ */
+export async function searchAirports(
+  query: string,
+  limit = 8,
+): Promise<AirportSearchResult[]> {
+  const searchVariants = buildSearchVariants(query);
+  const normalized = searchVariants[0];
+
+  if (!normalized) {
+    return [];
+  }
+
+  const resultsByCode = new Map<string, AirportSearchResult>();
+
+  const addAirport = (airport: AirportRecord | null | undefined) => {
+    if (!airport?.iata) {
+      return;
+    }
+
+    if (airport.scheduled_service !== 'TRUE') {
+      return;
+    }
+
+    if (!resultsByCode.has(airport.iata)) {
+      resultsByCode.set(airport.iata, {
+        iataCode: airport.iata,
+        name: airport.airport,
+        countryCode: airport.country_code,
+      });
+    }
+  };
+
+  const addAirports = (airports: AirportRecord[] | null | undefined) => {
+    airports?.forEach((airport) => addAirport(airport));
+  };
+
+  if (/^[a-z]{3}$/.test(normalized)) {
+    const exactAirport = await getAirportDetails(normalized.toUpperCase());
+    addAirport(exactAirport);
+  }
+
+  for (const aliasCode of findAliasMatches(searchVariants)) {
+    const aliasAirport = await getAirportDetails(aliasCode);
+    addAirport(aliasAirport);
+  }
+
+  for (const searchVariant of searchVariants) {
+    try {
+      const nameMatches = (await searchByName(searchVariant)) as AirportRecord[];
+      addAirports(
+        [...nameMatches]
+          .sort((left, right) => scoreAirport(left, searchVariant) - scoreAirport(right, searchVariant))
+          .slice(0, limit * 2),
+      );
+    } catch (error) {
+      console.warn('[AirportDB] searchAirports searchByName failed:', error);
+    }
+
+    try {
+      const autocompleteMatches = (await getAutocompleteSuggestions(searchVariant)) as AirportRecord[];
+      addAirports(
+        [...autocompleteMatches]
+          .sort((left, right) => scoreAirport(left, searchVariant) - scoreAirport(right, searchVariant))
+          .slice(0, limit * 2),
+      );
+    } catch (error) {
+      console.warn('[AirportDB] searchAirports autocomplete failed:', error);
+    }
+  }
+
+  return Array.from(resultsByCode.values()).slice(0, limit);
 }
 
 /**

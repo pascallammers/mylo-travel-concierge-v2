@@ -1,0 +1,112 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e6]:
+        - link [ref=e7] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e8]:
+            - img [ref=e9]
+            - img [ref=e13]
+        - navigation [ref=e26]:
+          - list [ref=e27]:
+            - listitem [ref=e28] [cursor=pointer]:
+              - link "Flights" [ref=e29]:
+                - /url: /
+                - img [ref=e31]
+                - generic [ref=e33]: Flights
+            - listitem [ref=e34] [cursor=pointer]:
+              - link "Hotels" [ref=e35]:
+                - /url: /hotels?source=tab_change
+                - img [ref=e37]
+                - generic [ref=e39]: Hotels
+        - generic [ref=e40]:
+          - link "Support" [ref=e42] [cursor=pointer]:
+            - /url: /faq?opened_from=header
+            - img [ref=e43]
+            - generic [ref=e45]: Support
+          - button "Country, Language, Currency" [ref=e48] [cursor=pointer]:
+            - img [ref=e49]
+            - generic [ref=e51]: usd · EN
+          - generic [ref=e53] [cursor=pointer]:
+            - checkbox
+      - generic [ref=e56]:
+        - heading "Search cheap flight tickets" [level=1] [ref=e61]
+        - generic [ref=e62]:
+          - navigation [ref=e66]:
+            - list [ref=e67]:
+              - listitem [ref=e68] [cursor=pointer]:
+                - link "Flights" [ref=e69]:
+                  - /url: /
+                  - img [ref=e71]
+                  - generic [ref=e73]: Flights
+              - listitem [ref=e74] [cursor=pointer]:
+                - link "Hotels" [ref=e75]:
+                  - /url: /hotels?source=tab_change
+                  - img [ref=e77]
+                  - generic [ref=e79]: Hotels
+          - generic [ref=e82]:
+            - generic [ref=e83]:
+              - generic [ref=e84]:
+                - combobox [ref=e85]:
+                  - generic [ref=e87]:
+                    - textbox "From" [ref=e88] [cursor=pointer]: Bremen
+                    - generic [ref=e89]: BRE
+                - combobox [ref=e90]:
+                  - textbox "To" [active] [ref=e93] [cursor=pointer]
+              - generic [ref=e94]:
+                - generic [ref=e96]:
+                  - button "Departure" [ref=e97] [cursor=pointer]:
+                    - generic [ref=e99]: Departure
+                    - img [ref=e100]
+                  - button "Return" [ref=e103] [cursor=pointer]:
+                    - generic [ref=e105]: Return
+                - button "passengers Economy" [ref=e108] [cursor=pointer]:
+                  - generic "passengers" [ref=e109]: 1 passenger
+                  - generic [ref=e110]: Economy
+            - button "Search flights" [ref=e112] [cursor=pointer]:
+              - generic [ref=e113]: Search flights
+            - contentinfo [ref=e114]:
+              - generic [ref=e115]:
+                - button "Create multi‑city route" [ref=e116] [cursor=pointer]:
+                  - img [ref=e117]
+                  - generic [ref=e119]: Create multi‑city route
+                - generic [ref=e120] [cursor=pointer]:
+                  - checkbox "Open Booking.com in new tab" [checked]
+                  - img [ref=e123]
+                  - generic [ref=e125]: Open Booking.com in new tab
+    - generic [ref=e152]:
+      - img [ref=e153]
+      - paragraph [ref=e155]: We don’t sell tickets – we just help find the cheapest ones. Totally free.
+      - button "How it works" [ref=e156] [cursor=pointer]:
+        - generic [ref=e157]: How it works
+    - generic [ref=e159]:
+      - separator [ref=e160]
+      - generic [ref=e161]:
+        - generic [ref=e163]:
+          - img [ref=e165]
+          - generic [ref=e170]:
+            - generic [ref=e171]: Aviasales
+            - generic [ref=e172]: © 2007–2026
+        - generic [ref=e173]:
+          - link "About Aviasales" [ref=e174] [cursor=pointer]:
+            - /url: /about
+          - link "Newsroom" [ref=e175] [cursor=pointer]:
+            - /url: https://newsroom.aviasales.com/
+        - button "Give our mobile app a try We’ll notify you if the ticket price drops" [ref=e177] [cursor=pointer]:
+          - generic [ref=e178]:
+            - generic [ref=e179]: Give our mobile app a try
+            - generic [ref=e180]: We’ll notify you if the ticket price drops
+        - generic [ref=e183]: Giant Travel Unicorn Two Limited, a Hong Kong corporation (BRN No. 76803739) with a legal seat at Suite 31/F, Tower Two, Times Square, 1 Matheson Street, Causeway Bay, Hong Kong
+        - link "Legal documents" [ref=e186] [cursor=pointer]:
+          - /url: /privacy
+  - generic [ref=e188]:
+    - generic [ref=e189]:
+      - text: We collect, process, and share some of your personal information. Visit our
+      - link "Privacy Policy" [ref=e190] [cursor=pointer]:
+        - /url: /privacy
+      - text: and
+      - link "Cookie Policy" [ref=e191] [cursor=pointer]:
+        - /url: /cookie
+      - text: to learn more about your user rights and how to opt out of data sharing
+    - button "Ok" [ref=e192] [cursor=pointer]:
+      - generic [ref=e193]: Ok

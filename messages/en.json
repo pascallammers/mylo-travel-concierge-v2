@@ -322,9 +322,9 @@
       "title": "Your deal preferences",
       "description": "Save home airports, wishlist destinations, budget, and digest frequency. MYLO uses this to personalize the feed and surface relevant deals proactively.",
       "originAirports": "Home airports",
-      "originAirportsPlaceholder": "e.g. FRA, MUC",
+      "originAirportsPlaceholder": "Search airport or city",
       "preferredDestinations": "Wishlist destinations",
-      "preferredDestinationsPlaceholder": "e.g. JFK, BKK, LIS",
+      "preferredDestinationsPlaceholder": "Search destination or city",
       "cabinClass": "Preferred cabin",
       "cabinClassOptions": {
         "any": "No preference",
@@ -336,6 +336,7 @@
       "maxPrice": "Cash-deal budget",
       "maxPricePlaceholder": "e.g. 450",
       "emailDigest": "Deal digest",
+      "emailDigestHelp": "Choose whether MYLO should send matching flight deals to your inbox on a regular cadence.",
       "emailDigestOptions": {
         "none": "No digest",
         "daily": "Daily",
@@ -346,7 +347,11 @@
         "daily": "Daily digest active",
         "weekly": "Weekly digest active"
       },
-      "helper": "Please enter airport and destination codes as IATA codes. The cash budget only affects EUR deals.",
+      "airportSearchPlaceholder": "Search by airport, city, or IATA code",
+      "airportSearchEmpty": "No matching airport found.",
+      "airportSearchLoading": "Searching airports...",
+      "removeSelection": "remove",
+      "helper": "Home airports and destinations can now be searched directly. The cash budget only affects EUR deals.",
       "save": "Save preferences",
       "saving": "Saving...",
       "saved": "Deal preferences saved",

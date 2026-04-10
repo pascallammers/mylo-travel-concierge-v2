@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { serverEnv } from '@/env/server';
+import { buildTravelpayoutsAffiliateLink } from '@/lib/api/travelpayouts-affiliate-link';
 import type { FlightDeal } from '@/lib/db/schema';
 import { getPriceHistoryForRoute } from '@/lib/db/deal-queries';
 import { getAirportDetails } from '@/lib/utils/airport-database';
@@ -69,10 +71,11 @@ export async function buildDealsPageData(
       airline: deal.airline,
       source: deal.source,
       flightDurationMinutes: deal.flightDuration ?? null,
-      affiliateLink: deal.affiliateLink,
+      affiliateLink: getDealAffiliateLink(deal),
       stops: deal.stops,
       tripType: deal.tripType,
       updatedAt: deal.updatedAt,
+      preferredOriginMatch: preferenceSnapshot.originAirports.includes(deal.origin.toUpperCase()),
       routeDistanceKm: routeDistanceByKey.get(routeKey) ?? null,
       priceHistoryStats: routeStatsByKey.get(routeKeyWithSource) ?? null,
     };
@@ -202,4 +205,33 @@ function calculateDistanceKm(
 
 function toRadians(value: number): number {
   return (value * Math.PI) / 180;
+}
+
+function getDealAffiliateLink(deal: FlightDeal): string | null {
+  if (deal.source !== 'travelpayouts') {
+    return deal.affiliateLink;
+  }
+
+  return buildTravelpayoutsAffiliateLink({
+    origin: deal.origin,
+    destination: deal.destination,
+    departDate: deal.departureDate.toISOString().slice(0, 10),
+    returnDate: deal.returnDate?.toISOString().slice(0, 10),
+    tripClass: mapCabinClassToTripClass(deal.cabinClass),
+    marker: serverEnv.TRAVELPAYOUTS_MARKER,
+  });
+}
+
+function mapCabinClassToTripClass(
+  cabinClass: FlightDeal['cabinClass'],
+): 0 | 1 | 2 {
+  if (cabinClass === 'business') {
+    return 1;
+  }
+
+  if (cabinClass === 'first') {
+    return 2;
+  }
+
+  return 0;
 }

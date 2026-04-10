@@ -23,6 +23,7 @@ export {
   createDealPreferenceSnapshot,
   hasActiveDealPreferences,
   parseAirportCodeList,
+  resolveAirportCodeList,
   scoreDealForPreferences,
   selectTopPersonalizedDeals,
   type DealPreferenceSnapshot,

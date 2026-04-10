@@ -5,6 +5,7 @@ import {
   createDealPreferenceSnapshot,
   hasActiveDealPreferences,
   parseAirportCodeList,
+  resolveAirportCodeList,
   scoreDealForPreferences,
   selectTopPersonalizedDeals,
 } from './deal-personalization';
@@ -107,5 +108,13 @@ describe('selectTopPersonalizedDeals', () => {
 describe('parseAirportCodeList', () => {
   it('parst kommaseparierte IATA-Codes robust', () => {
     assert.deepStrictEqual(parseAirportCodeList('fra, muc, xx, jfk, FRA'), ['FRA', 'MUC', 'JFK']);
+  });
+});
+
+describe('resolveAirportCodeList', () => {
+  it('loest Staedte und IATA-Codes in speicherbare Flughafenlisten auf', async () => {
+    const resolved = await resolveAirportCodeList('Düsseldorf, Palma de Mallorca, dus, ungültig');
+
+    assert.deepStrictEqual(resolved, ['DUS', 'PMI']);
   });
 });

@@ -15,11 +15,18 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { saveDealPreferencesAction } from '../actions';
+import { AirportMultiSelect } from './airport-multi-select';
+
+interface SelectedAirport {
+  iataCode: string;
+  name: string;
+  countryCode: string;
+}
 
 interface DealPreferencesPanelProps {
   locale: string;
-  initialOriginAirports: string[];
-  initialPreferredDestinations: string[];
+  initialOriginAirports: SelectedAirport[];
+  initialPreferredDestinations: SelectedAirport[];
   initialCabinClass: 'economy' | 'premium_economy' | 'business' | 'first' | null;
   initialMaxPrice: number | null;
   initialEmailDigest: 'none' | 'weekly' | 'daily';
@@ -41,8 +48,10 @@ export function DealPreferencesPanel({
 }: DealPreferencesPanelProps) {
   const t = useTranslations('deals.preferences');
   const [isPending, startTransition] = useTransition();
-  const [originAirports, setOriginAirports] = useState(initialOriginAirports.join(', '));
-  const [preferredDestinations, setPreferredDestinations] = useState(initialPreferredDestinations.join(', '));
+  const [originAirports, setOriginAirports] = useState(initialOriginAirports.map((airport) => airport.iataCode).join(', '));
+  const [preferredDestinations, setPreferredDestinations] = useState(
+    initialPreferredDestinations.map((airport) => airport.iataCode).join(', '),
+  );
   const [cabinClass, setCabinClass] = useState<'any' | 'economy' | 'premium_economy' | 'business' | 'first'>(
     initialCabinClass ?? 'any',
   );
@@ -85,28 +94,34 @@ export function DealPreferencesPanel({
         </div>
       </div>
 
-      <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <div className="space-y-2 xl:col-span-2">
-          <Label htmlFor="deal-origin-airports">{t('originAirports')}</Label>
-          <Input
-            id="deal-origin-airports"
-            value={originAirports}
-            onChange={(event) => setOriginAirports(event.target.value)}
+      <div className="mt-5 grid gap-4 lg:grid-cols-12">
+        <div className="lg:col-span-5">
+          <AirportMultiSelect
+            label={t('originAirports')}
             placeholder={t('originAirportsPlaceholder')}
+            searchPlaceholder={t('airportSearchPlaceholder')}
+            emptyText={t('airportSearchEmpty')}
+            loadingText={t('airportSearchLoading')}
+            removeLabel={t('removeSelection')}
+            initialSelectedAirports={initialOriginAirports}
+            onChange={setOriginAirports}
           />
         </div>
 
-        <div className="space-y-2 xl:col-span-2">
-          <Label htmlFor="deal-preferred-destinations">{t('preferredDestinations')}</Label>
-          <Input
-            id="deal-preferred-destinations"
-            value={preferredDestinations}
-            onChange={(event) => setPreferredDestinations(event.target.value)}
+        <div className="lg:col-span-5">
+          <AirportMultiSelect
+            label={t('preferredDestinations')}
             placeholder={t('preferredDestinationsPlaceholder')}
+            searchPlaceholder={t('airportSearchPlaceholder')}
+            emptyText={t('airportSearchEmpty')}
+            loadingText={t('airportSearchLoading')}
+            removeLabel={t('removeSelection')}
+            initialSelectedAirports={initialPreferredDestinations}
+            onChange={setPreferredDestinations}
           />
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-2 lg:col-span-2">
           <Label>{t('cabinClass')}</Label>
           <Select value={cabinClass} onValueChange={(value) => setCabinClass(value as typeof cabinClass)}>
             <SelectTrigger>
@@ -122,7 +137,7 @@ export function DealPreferencesPanel({
           </Select>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-2 sm:max-w-xs lg:col-span-3 lg:max-w-none">
           <Label htmlFor="deal-max-price">{t('maxPrice')}</Label>
           <Input
             id="deal-max-price"
@@ -133,7 +148,7 @@ export function DealPreferencesPanel({
           />
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-2 lg:col-span-5">
           <Label>{t('emailDigest')}</Label>
           <Select value={emailDigest} onValueChange={(value) => setEmailDigest(value as typeof emailDigest)}>
             <SelectTrigger>
@@ -145,6 +160,7 @@ export function DealPreferencesPanel({
               <SelectItem value="weekly">{t('emailDigestOptions.weekly')}</SelectItem>
             </SelectContent>
           </Select>
+          <p className="text-xs text-muted-foreground">{t('emailDigestHelp')}</p>
         </div>
       </div>
 

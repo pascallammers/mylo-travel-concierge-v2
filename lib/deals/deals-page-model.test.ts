@@ -26,6 +26,7 @@ function createDeal(overrides: Partial<DealsPageModelDeal> = {}): DealsPageModel
     stops: 0,
     tripType: 'roundtrip',
     updatedAt: new Date('2026-04-09T10:00:00.000Z'),
+    preferredOriginMatch: false,
     routeDistanceKm: 1250,
     priceHistoryStats: { min: 200, max: 620, count: 12 },
     ...overrides,
@@ -123,5 +124,34 @@ describe('buildDealsPageModel', () => {
     });
 
     assert.strictEqual(model.staleHours, 31);
+  });
+
+  it('sortiert bevorzugte Heimatflughaefen vor anderen Abflughäfen', () => {
+    const model = buildDealsPageModel({
+      deals: [
+        createDeal({
+          id: 'deal-fra',
+          origin: 'FRA',
+          dealScore: 98,
+          preferredOriginMatch: false,
+        }),
+        createDeal({
+          id: 'deal-dus',
+          origin: 'DUS',
+          dealScore: 88,
+          preferredOriginMatch: true,
+        }),
+      ],
+      filters: {
+        bucket: 'all',
+        sort: 'score',
+      },
+      now: new Date('2026-04-09T12:00:00.000Z'),
+    });
+
+    assert.deepStrictEqual(
+      model.visibleBuckets.weekend_escape.map((deal) => deal.id),
+      ['deal-dus', 'deal-fra'],
+    );
   });
 });

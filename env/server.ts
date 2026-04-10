@@ -53,6 +53,7 @@ export const serverEnv = createEnv({
     // Travelpayouts (Flight Deals)
     // ============================================
     TRAVELPAYOUTS_API_TOKEN: z.string().min(1).optional(),
+    TRAVELPAYOUTS_MARKER: z.string().min(1).optional(),
     CRON_SECRET: z.string().min(1),
     BLOB_READ_WRITE_TOKEN: z.string().min(1),
     SMITHERY_API_KEY: z.string().min(1),

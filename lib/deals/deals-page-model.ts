@@ -16,6 +16,7 @@ export interface DealsPageModelDeal extends PresentableDeal {
   stops: number | null;
   tripType: 'roundtrip' | 'oneway';
   updatedAt: Date;
+  preferredOriginMatch: boolean;
   routeDistanceKm?: number | null;
   priceHistoryStats?: PriceHistoryStats | null;
 }

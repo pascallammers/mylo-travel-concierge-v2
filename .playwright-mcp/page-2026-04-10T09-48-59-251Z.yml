@@ -1,0 +1,61 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]: Flight tickets
+    - heading "Your journey begins here" [level=1] [ref=e7]
+  - banner [ref=e8]:
+    - generic [ref=e12]:
+      - generic [ref=e14]:
+        - button "EN" [ref=e15] [cursor=pointer]
+        - button "USD" [ref=e16] [cursor=pointer]
+      - generic [ref=e18]:
+        - generic [ref=e19]:
+          - generic [ref=e20]:
+            - textbox "Departure from" [ref=e21]: Frankfurt, Germany
+            - generic [ref=e22]: FRA
+          - button [ref=e23] [cursor=pointer]:
+            - img [ref=e24]
+          - generic [ref=e26]:
+            - textbox "Arrival in" [ref=e27]: Palma Mallorca, Spain
+            - generic [ref=e28]: PMI
+        - generic [ref=e29]:
+          - generic [ref=e30] [cursor=pointer]:
+            - textbox "Depart" [ref=e31]: Fri, Apr 17
+            - button [ref=e33]:
+              - img [ref=e34]
+          - generic [ref=e37] [cursor=pointer]:
+            - textbox "Return" [ref=e38]: Mon, Apr 20
+            - button [ref=e40]:
+              - img [ref=e41]
+        - generic [ref=e44] [cursor=pointer]:
+          - textbox [ref=e45]: 1 passenger
+          - generic [ref=e46]: economy
+          - img [ref=e48]
+        - link "Search flights" [ref=e50] [cursor=pointer]:
+          - /url: https://search.jetradar.com?flightSearch=FRA1704PMI20041
+      - generic [ref=e51]:
+        - button "Create multi-city route" [ref=e52] [cursor=pointer]:
+          - img [ref=e53]
+          - generic [ref=e56]: Create multi-city route
+        - generic [ref=e57] [cursor=pointer]:
+          - img [ref=e58]
+          - generic [ref=e61]: Show hotels
+  - main [ref=e62]:
+    - generic [ref=e66]:
+      - generic [ref=e67]: Searching at providers
+      - generic [ref=e70]: Loading filters
+  - contentinfo [ref=e153]:
+    - generic [ref=e154]:
+      - generic [ref=e155]: Travelpayouts © 2008−2026
+      - generic [ref=e156]:
+        - link "Terms of Service" [ref=e157] [cursor=pointer]:
+          - /url: "#"
+        - link "Privacy Policy" [ref=e158] [cursor=pointer]:
+          - /url: "#"
+        - link "Cookie Policy" [ref=e159] [cursor=pointer]:
+          - /url: "#"
+  - generic [ref=e160]:
+    - generic [ref=e162]: To provide a better experience we use cookies to store your search history and selected filters. By clicking or navigating the site, you agree to allow our collection of information through cookies.
+    - generic [ref=e163]:
+      - button "Accept" [ref=e164] [cursor=pointer]
+      - link "Cookies Policy" [ref=e165] [cursor=pointer]:
+        - /url: "#"

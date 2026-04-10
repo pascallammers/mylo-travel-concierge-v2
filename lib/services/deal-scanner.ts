@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { generateId } from 'ai';
+import { serverEnv } from '@/env/server';
 import { searchSeatsAero } from '@/lib/api/seats-aero-client';
 import {
   generateAffiliateLink,
@@ -178,6 +179,8 @@ async function processSpecificRoute(
         destination,
         departDate: ticket.departure_at.split('T')[0],
         returnDate: ticket.return_at?.split('T')[0],
+        marker: serverEnv.TRAVELPAYOUTS_MARKER,
+        tripClass: 0,
       }),
       source: 'travelpayouts',
       expiresAt,
@@ -271,6 +274,8 @@ async function processOpenRoute(
         destination: price.destination,
         departDate: price.depart_date,
         returnDate: price.return_date || undefined,
+        marker: serverEnv.TRAVELPAYOUTS_MARKER,
+        tripClass: cabinClass === 'business' ? 1 : 0,
       }),
       source: 'travelpayouts',
       expiresAt,
