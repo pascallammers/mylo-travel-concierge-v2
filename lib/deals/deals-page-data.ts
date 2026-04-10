@@ -1,12 +1,16 @@
 import 'server-only';
 
 import { serverEnv } from '@/env/server';
-import { buildTravelpayoutsAffiliateLink } from '@/lib/api/travelpayouts-affiliate-link';
+import {
+  buildTravelpayoutsAffiliateLink,
+  resolveTravelpayoutsLocalization,
+} from '@/lib/api/travelpayouts-affiliate-link';
 import type { FlightDeal } from '@/lib/db/schema';
 import { getPriceHistoryForRoute } from '@/lib/db/deal-queries';
 import { getAirportDetails } from '@/lib/utils/airport-database';
 import { computePriceStats } from '@/lib/services/deal-score-core';
 import {
+  matchesPreferredOrigin,
   scoreDealForPreferences,
   type DealPreferenceSnapshot,
 } from './deal-personalization';
@@ -23,6 +27,8 @@ import {
  * @param deals - Raw deals loaded from the database.
  * @param filters - Active UI filters from the URL.
  * @param now - Current timestamp used for stale calculation.
+ * @param preferences - Normalized user preferences for personalization.
+ * @param locale - Active locale used for affiliate redirects.
  * @returns Presentation-ready page model with grouping and filters applied.
  */
 export async function buildDealsPageData(
@@ -30,9 +36,11 @@ export async function buildDealsPageData(
   filters: DealsPageFilters,
   now: Date = new Date(),
   preferences?: DealPreferenceSnapshot | null,
+  locale = 'en',
 ): Promise<DealsPageModel> {
   const routeStatsByKey = await getRouteStatsByKey(deals);
   const routeDistanceByKey = await getRouteDistanceByKey(deals);
+  const affiliateLocalization = resolveTravelpayoutsLocalization(locale);
   const modelDeals: DealsPageModelDeal[] = deals.map((deal) => {
     const routeKey = getRouteKey(deal.origin, deal.destination, deal.cabinClass);
     const routeKeyWithSource = getRouteKey(deal.origin, deal.destination, deal.cabinClass, deal.source);
@@ -71,11 +79,11 @@ export async function buildDealsPageData(
       airline: deal.airline,
       source: deal.source,
       flightDurationMinutes: deal.flightDuration ?? null,
-      affiliateLink: getDealAffiliateLink(deal),
+      affiliateLink: getDealAffiliateLink(deal, affiliateLocalization),
       stops: deal.stops,
       tripType: deal.tripType,
       updatedAt: deal.updatedAt,
-      preferredOriginMatch: preferenceSnapshot.originAirports.includes(deal.origin.toUpperCase()),
+      preferredOriginMatch: matchesPreferredOrigin(deal.origin, preferences),
       routeDistanceKm: routeDistanceByKey.get(routeKey) ?? null,
       priceHistoryStats: routeStatsByKey.get(routeKeyWithSource) ?? null,
     };
@@ -207,7 +215,10 @@ function toRadians(value: number): number {
   return (value * Math.PI) / 180;
 }
 
-function getDealAffiliateLink(deal: FlightDeal): string | null {
+function getDealAffiliateLink(
+  deal: FlightDeal,
+  localization: ReturnType<typeof resolveTravelpayoutsLocalization>,
+): string | null {
   if (deal.source !== 'travelpayouts') {
     return deal.affiliateLink;
   }
@@ -219,6 +230,8 @@ function getDealAffiliateLink(deal: FlightDeal): string | null {
     returnDate: deal.returnDate?.toISOString().slice(0, 10),
     tripClass: mapCabinClassToTripClass(deal.cabinClass),
     marker: serverEnv.TRAVELPAYOUTS_MARKER,
+    locale: localization.locale,
+    currency: localization.currency,
   });
 }
 

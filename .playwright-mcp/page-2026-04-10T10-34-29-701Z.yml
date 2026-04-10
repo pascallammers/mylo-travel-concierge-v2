@@ -1,0 +1,23 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - link [ref=e6] [cursor=pointer]:
+      - /url: /
+      - generic [ref=e7]:
+        - img [ref=e8]
+        - img [ref=e12]
+    - generic [ref=e23]:
+      - link "Flights" [ref=e25] [cursor=pointer]:
+        - /url: /
+      - link "Hotels" [ref=e27] [cursor=pointer]:
+        - /url: /hotels
+      - link "For business" [ref=e29] [cursor=pointer]:
+        - /url: https://b2b.aviasales.ru/
+      - link "Blog" [ref=e31] [cursor=pointer]:
+        - /url: /blog
+  - generic [ref=e34]:
+    - generic [ref=e35]: "404"
+    - generic [ref=e36]:
+      - text: This page doesn't exist, unlike the bountiful supply of cheap tickets we've got in store. Head to the
+      - link "homepage" [ref=e37] [cursor=pointer]:
+        - /url: /
+      - text: to start searching.

@@ -61,6 +61,24 @@ export function hasActiveDealPreferences(
 }
 
 /**
+ * Check whether a deal origin matches one of the saved home airports.
+ *
+ * @param origin - Deal origin airport code.
+ * @param preferences - Normalized preference snapshot.
+ * @returns True when the origin is one of the preferred home airports.
+ */
+export function matchesPreferredOrigin(
+  origin: string,
+  preferences: DealPreferenceSnapshot | null | undefined,
+): boolean {
+  if (!preferences || preferences.originAirports.length === 0) {
+    return false;
+  }
+
+  return preferences.originAirports.includes(origin.trim().toUpperCase());
+}
+
+/**
  * Score a deal against the user's saved preferences.
  *
  * @param deal - Deal candidate to personalize.

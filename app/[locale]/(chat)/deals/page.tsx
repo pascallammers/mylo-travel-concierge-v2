@@ -58,7 +58,7 @@ export default async function DealsPage({
       minScore: 60,
       limit: 120,
     });
-    const model = await buildDealsPageData(deals, filters, new Date(), preferenceSnapshot);
+    const model = await buildDealsPageData(deals, filters, new Date(), preferenceSnapshot, locale);
     const visibleSections = model.activeBucket === 'all'
       ? (['weekend_escape', 'long_haul', 'points'] as DealBucket[])
       : [model.activeBucket];

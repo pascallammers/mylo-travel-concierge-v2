@@ -42,6 +42,7 @@ export default async function NewPage({ params, searchParams }: NewPageProps) {
           { bucket: 'all', sort: 'score' },
           new Date(),
           preferences,
+          locale,
         );
 
         if (model.hasPersonalization && model.featuredDeal) {

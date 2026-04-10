@@ -4,6 +4,7 @@ import type { UserDealPreferences } from '@/lib/db/schema';
 import {
   createDealPreferenceSnapshot,
   hasActiveDealPreferences,
+  matchesPreferredOrigin,
   parseAirportCodeList,
   resolveAirportCodeList,
   scoreDealForPreferences,
@@ -64,6 +65,16 @@ describe('hasActiveDealPreferences', () => {
       ),
       false,
     );
+  });
+});
+
+describe('matchesPreferredOrigin', () => {
+  it('liefert nur bei passendem Heimatflughafen true', () => {
+    const preferences = createDealPreferenceSnapshot(basePreferences);
+
+    assert.strictEqual(matchesPreferredOrigin('fra', preferences), true);
+    assert.strictEqual(matchesPreferredOrigin('dus', preferences), false);
+    assert.strictEqual(matchesPreferredOrigin('fra', null), false);
   });
 });
 
