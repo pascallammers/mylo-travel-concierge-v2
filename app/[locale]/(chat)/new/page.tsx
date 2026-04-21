@@ -3,6 +3,7 @@ import { buildNewChatRedirectUrl } from '@/lib/chat/new-chat-handoff';
 import { buildProactiveDealPrompt } from '@/lib/chat/proactive-deal-prompt';
 import { getUser } from '@/lib/auth-utils';
 import { getActiveDeals, getUserDealPreferences } from '@/lib/db/deal-queries';
+import { isFlightDealsAuthorizedEmail } from '@/lib/deals/flight-deals-access';
 import {
   buildDealsPageData,
   createDealPreferenceSnapshot,
@@ -29,7 +30,7 @@ export default async function NewPage({ params, searchParams }: NewPageProps) {
   if (!hasExplicitQuery) {
     const user = await getUser();
 
-    if (user) {
+    if (user && isFlightDealsAuthorizedEmail(user.email)) {
       const preferences = createDealPreferenceSnapshot(await getUserDealPreferences(user.id));
 
       if (hasActiveDealPreferences(preferences)) {

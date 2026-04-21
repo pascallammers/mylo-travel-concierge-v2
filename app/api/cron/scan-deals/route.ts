@@ -1,32 +1,31 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { serverEnv } from '@/env/server';
+import { handleDealScanCronRequest } from '@/lib/services/deal-scan-cron-handler';
 import { runDealScan } from '@/lib/services/deal-scanner';
 
-export async function POST(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  const expectedToken = `Bearer ${serverEnv.CRON_SECRET}`;
+/**
+ * Handle Vercel Cron invocations.
+ *
+ * @param request - Vercel Cron request with the CRON_SECRET authorization header.
+ * @returns JSON scan summary.
+ */
+export async function GET(request: Request): Promise<Response> {
+  return handleDealScanCronRequest(request, {
+    cronSecret: serverEnv.CRON_SECRET,
+    runDealScan,
+  });
+}
 
-  if (authHeader !== expectedToken) {
-    console.error('[DealScan Cron] Unauthorized request');
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  console.log('[DealScan Cron] Starting scheduled scan...');
-
-  try {
-    const result = await runDealScan();
-
-    return NextResponse.json({
-      success: true,
-      ...result,
-    });
-  } catch (error) {
-    console.error('[DealScan Cron] Scan failed:', error);
-    return NextResponse.json(
-      { error: 'Scan failed', details: error instanceof Error ? error.message : 'Unknown' },
-      { status: 500 },
-    );
-  }
+/**
+ * Handle manual cron invocations for local debugging and admin tooling.
+ *
+ * @param request - Manual request with the CRON_SECRET authorization header.
+ * @returns JSON scan summary.
+ */
+export async function POST(request: Request): Promise<Response> {
+  return handleDealScanCronRequest(request, {
+    cronSecret: serverEnv.CRON_SECRET,
+    runDealScan,
+  });
 }
 
 export const maxDuration = 300;

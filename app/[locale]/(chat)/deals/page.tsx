@@ -4,6 +4,7 @@ import { Plane, RefreshCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getUser } from '@/lib/auth-utils';
 import { getActiveDeals, getUserDealPreferences } from '@/lib/db/deal-queries';
+import { isFlightDealsAuthorizedEmail } from '@/lib/deals/flight-deals-access';
 import {
   buildDealsPageData,
   createDealPreferenceSnapshot,
@@ -47,6 +48,23 @@ export default async function DealsPage({
 
   try {
     const user = await getUser();
+    if (!isFlightDealsAuthorizedEmail(user?.email)) {
+      return (
+        <div className="mx-auto max-w-4xl px-4 py-8">
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-16 text-center">
+            <Plane className="mb-4 size-10 text-muted-foreground" />
+            <h2 className="text-lg font-semibold">{t('restricted.title')}</h2>
+            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+              {t('restricted.description')}
+            </p>
+            <Button asChild className="mt-6">
+              <a href={`/${locale}`}>{t('restricted.cta')}</a>
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     const userPreferences = user ? await getUserDealPreferences(user.id) : null;
     const preferenceSnapshot = createDealPreferenceSnapshot(userPreferences);
     const [originAirportOptions, preferredDestinationOptions] = await Promise.all([

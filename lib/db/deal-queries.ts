@@ -2,6 +2,7 @@ import 'server-only';
 
 import { and, desc, eq, gte, lte } from 'drizzle-orm';
 import { db } from './index';
+import { isFlightDealsAuthorizedEmail } from '@/lib/deals/flight-deals-access';
 import {
   flightDeals,
   priceHistory,
@@ -199,10 +200,12 @@ export async function getDealDigestRecipients(
     .innerJoin(user, eq(user.id, userDealPreferences.userId))
     .where(eq(userDealPreferences.emailDigest, frequency));
 
-  return rows.map((row) => ({
-    userId: row.userId,
-    email: row.email,
-    name: row.name,
-    preferences: row.preferences,
-  }));
+  return rows
+    .filter((row) => isFlightDealsAuthorizedEmail(row.email))
+    .map((row) => ({
+      userId: row.userId,
+      email: row.email,
+      name: row.name,
+      preferences: row.preferences,
+    }));
 }

@@ -361,6 +361,11 @@
       "title": "Keine Deals gefunden",
       "description": "Aktuell keine Deals für deine Filter. Probiere andere Filter oder schau später nochmal vorbei."
     },
+    "restricted": {
+      "title": "Flugdeals sind noch im privaten Test",
+      "description": "Diese Ansicht ist aktuell nur für ausgewählte Tester freigeschaltet.",
+      "cta": "Zurück zu MYLO"
+    },
     "error": {
       "title": "Deals konnten nicht geladen werden",
       "description": "Bitte versuche es später erneut.",

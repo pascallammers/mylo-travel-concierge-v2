@@ -361,6 +361,11 @@
       "title": "No deals found",
       "description": "No deals matching your filters right now. Try different filters or check back later."
     },
+    "restricted": {
+      "title": "Flight deals are in private testing",
+      "description": "This view is currently available only to selected testers.",
+      "cta": "Back to MYLO"
+    },
     "error": {
       "title": "Unable to load deals",
       "description": "Please try again later.",
