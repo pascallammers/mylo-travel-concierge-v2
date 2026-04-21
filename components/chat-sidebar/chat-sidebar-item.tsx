@@ -252,7 +252,7 @@ export function ChatSidebarItem({
         asChild
         isActive={isActive}
         tooltip={displayTitle}
-        className="pr-16"
+        className="pr-14"
       >
         <Link href={`/search/${chat.id}`} onClick={handleSelect}>
           {isPublic ? (
@@ -270,14 +270,18 @@ export function ChatSidebarItem({
               )}
             />
           )}
-          <span className="truncate">{displayTitle}</span>
+          <span className="min-w-0 flex-1 truncate">{displayTitle}</span>
+          <span
+            className={cn(
+              'shrink-0 text-[10px] text-muted-foreground/80 whitespace-nowrap tabular-nums',
+              'transition-opacity md:group-hover/menu-item:opacity-0 md:group-focus-within/menu-item:opacity-0',
+              'group-data-[collapsible=icon]:hidden',
+            )}
+          >
+            {formatCompactTime(new Date(chat.createdAt), tTimeAgo)}
+          </span>
         </Link>
       </SidebarMenuButton>
-
-      {/* Timestamp badge */}
-      <span className="absolute right-12 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground whitespace-nowrap pointer-events-none group-data-[collapsible=icon]:hidden">
-        {formatCompactTime(new Date(chat.createdAt), tTimeAgo)}
-      </span>
 
       {/* Edit action */}
       <SidebarMenuAction
