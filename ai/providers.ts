@@ -1,30 +1,30 @@
-import { createOpenAI } from '@ai-sdk/openai';
 import { createXai } from '@ai-sdk/xai';
-
-// ============================================
-// PROVIDER SWITCH - Single Boolean Control
-// ============================================
-// Set USE_XAI=true in environment to use xAI Grok 4 Fast
-// Set USE_XAI=false (or omit) to use OpenAI GPT-5
-// ============================================
-
-const USE_XAI = process.env.USE_XAI === 'true';
-
-// Provider clients
-const openaiClient = createOpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 const xaiClient = createXai({
   apiKey: process.env.XAI_API_KEY,
   baseURL: 'https://api.x.ai/v1',
 });
 
-// Model configurations
+export type AIModelDefinition = {
+  value: string;
+  label: string;
+  description: string;
+  category: string;
+  vision: boolean;
+  reasoning: boolean;
+  pdf: boolean;
+  maxOutputTokens: number;
+  fast?: boolean;
+  isNew?: boolean;
+  pro?: boolean;
+  experimental?: boolean;
+  requiresAuth?: boolean;
+};
+
 const MODELS = {
-  openai: {
-    name: 'gpt-5',
-    displayName: 'GPT-5',
+  xai: {
+    name: 'grok-4-fast-reasoning',
+    displayName: 'Grok 4 Fast',
     capabilities: {
       vision: true,
       reasoning: true,
@@ -32,43 +32,30 @@ const MODELS = {
       maxOutputTokens: 16000,
     },
   },
-  xai: {
-    name: 'grok-4-fast-reasoning',
-    displayName: 'Grok 4 Fast',
-    capabilities: {
-      vision: false,
-      reasoning: true,
-      pdf: false,
-      maxOutputTokens: 16000,
-    },
-  },
 } as const;
 
-// Active configuration based on USE_XAI flag
-const activeConfig = USE_XAI ? MODELS.xai : MODELS.openai;
-const activeClient = USE_XAI ? xaiClient : openaiClient;
+const activeConfig = MODELS.xai;
 
-// Export active language model (main chat)
-export const languageModel = activeClient(activeConfig.name);
+export const languageModel = xaiClient(activeConfig.name);
 export const DEFAULT_MODEL = activeConfig.name;
 export const MODEL_CAPABILITIES = activeConfig.capabilities;
 
-// Dedicated fast model for airport resolution (no reasoning overhead)
-// Lazy-initialized to avoid failures when XAI_API_KEY is not set
 let _airportResolverModel: ReturnType<typeof xaiClient> | undefined;
+
+/**
+ * Returns the lightweight xAI model used for airport normalization.
+ *
+ * @returns The lazily initialized airport resolver model.
+ */
 export function getAirportResolverModel(): ReturnType<typeof xaiClient> {
   if (!_airportResolverModel) {
-    if (USE_XAI && process.env.XAI_API_KEY) {
-      _airportResolverModel = xaiClient('grok-4-1-fast-non-reasoning');
-    } else {
-      // Fallback to the active chat model if xAI is not configured
-      _airportResolverModel = languageModel as ReturnType<typeof xaiClient>;
-    }
+    _airportResolverModel = process.env.XAI_API_KEY
+      ? xaiClient('grok-4-1-fast-non-reasoning')
+      : (languageModel as ReturnType<typeof xaiClient>);
   }
   return _airportResolverModel;
 }
 
-// Helper functions
 export function hasVisionSupport(): boolean {
   return MODEL_CAPABILITIES.vision;
 }
@@ -89,11 +76,11 @@ export function getModelParameters() {
   return {};
 }
 
-export function requiresAuthentication(modelValue?: string): boolean {
+export function requiresAuthentication(_modelValue?: string): boolean {
   return false;
 }
 
-export function requiresProSubscription(modelValue?: string): boolean {
+export function requiresProSubscription(_modelValue?: string): boolean {
   return false;
 }
 
@@ -101,8 +88,13 @@ export function getAcceptedFileTypes(): string {
   return 'image/*,.pdf';
 }
 
-// Legacy exports for backward compatibility
-export function getModelConfig(modelValue?: string) {
+/**
+ * Returns the active model metadata for legacy consumers.
+ *
+ * @param _modelValue - Unused legacy argument.
+ * @returns The active xAI model configuration.
+ */
+export function getModelConfig(_modelValue?: string) {
   return {
     value: activeConfig.name,
     label: activeConfig.displayName,
@@ -113,18 +105,31 @@ export function getModelConfig(modelValue?: string) {
   };
 }
 
-export function shouldBypassRateLimits(modelValue?: string, user?: any): boolean {
+export function shouldBypassRateLimits(_modelValue?: string, _user?: unknown): boolean {
   return false;
 }
 
-// Export languageModel as scira for backward compatibility
 export const scira = {
-  languageModel: (model?: string) => languageModel,
+  languageModel: (_model?: string) => languageModel,
 };
 
-// Empty models array for backward compatibility
-export const models: any[] = [];
+export const models: AIModelDefinition[] = [
+  {
+    value: activeConfig.name,
+    label: activeConfig.displayName,
+    description: 'Standardmodell fuer Chat, Search und Sprachfunktionen.',
+    category: 'Free',
+    vision: MODEL_CAPABILITIES.vision,
+    reasoning: MODEL_CAPABILITIES.reasoning,
+    pdf: MODEL_CAPABILITIES.pdf,
+    maxOutputTokens: MODEL_CAPABILITIES.maxOutputTokens,
+    fast: true,
+    isNew: true,
+    pro: false,
+    experimental: false,
+    requiresAuth: false,
+  },
+];
 
-// Log active provider on startup
-console.log(`[AI Provider] Using ${USE_XAI ? 'xAI Grok 4 Fast' : 'OpenAI GPT-5'}`);
+console.log('[AI Provider] Using xAI Grok 4 Fast');
 console.log(`[AI Provider] Model: ${activeConfig.name}`);

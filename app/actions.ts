@@ -8,6 +8,7 @@ import { UIMessage, generateText, Output, NoOutputGeneratedError } from 'ai';
 import type { ModelMessage } from 'ai';
 import { z } from 'zod';
 import { getUser } from '@/lib/auth-utils';
+import { generateXaiSpeech } from '@/lib/xai/voice';
 import { scira, languageModel } from '@/ai/providers';
 import {
   getChatsByUserId,
@@ -30,8 +31,6 @@ import {
 import { getDiscountConfig } from '@/lib/discount';
 import { get } from '@vercel/edge-config';
 import { groq } from '@ai-sdk/groq';
-import { experimental_generateSpeech as generateVoice } from 'ai';
-import { elevenlabs } from '@ai-sdk/elevenlabs';
 import { usageCountCache, createMessageCountKey, createExtremeCountKey } from '@/lib/performance-cache';
 import { getComprehensiveUserData } from '@/lib/user-data-server';
 import {
@@ -261,14 +260,8 @@ Guidelines (MANDATORY):
 }
 
 export async function generateSpeech(text: string) {
-  const result = await generateVoice({
-    model: elevenlabs.speech('eleven_v3'),
-    text,
-    voice: 'TX3LPaxmHKxFdv7VOQHJ',
-  });
-
   return {
-    audio: `data:audio/mp3;base64,${result.audio.base64}`,
+    audio: await generateXaiSpeech({ text }),
   };
 }
 

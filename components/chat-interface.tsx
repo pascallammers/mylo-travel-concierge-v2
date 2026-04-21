@@ -68,7 +68,7 @@ const ChatInterface = memo(
     const [q] = useQueryState('q', parseAsString.withDefault(''));
     const [input, setInput] = useState<string>('');
 
-    // Fixed GPT-5 model - no user selection
+    // Fixed xAI model - no user selection
     const selectedModel = DEFAULT_MODEL;
     const setSelectedModel = (_model: string) => {}; // Dummy setter for compatibility
     
@@ -202,7 +202,7 @@ const ChatInterface = memo(
       }
     }, [proStatusLoading, user, isUserPro, router]);
 
-    // Model is fixed to GPT-5 - no auto-switching needed
+    // Model is fixed to xAI - no auto-switching needed
 
 
 

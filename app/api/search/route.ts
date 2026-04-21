@@ -145,7 +145,7 @@ export async function POST(req: Request) {
   const requestStartTime = Date.now();
   const {
     messages,
-    model, // Ignored - using GPT-5 as default
+    model, // Ignored - using the fixed xAI default model
     group,
     timezone,
     id,
@@ -164,7 +164,7 @@ export async function POST(req: Request) {
   console.log('Messages: ', messages);
   console.log('--------------------------------');
 
-  console.log('Running with model: GPT-5 (fixed)');
+  console.log('Running with model: xAI default (fixed)');
   console.log('Group: ', group);
   console.log('Timezone: ', timezone);
 
@@ -185,7 +185,7 @@ export async function POST(req: Request) {
   console.log('Custom Instructions Enabled:', isCustomInstructionsEnabled);
   console.log('--------------------------------');
 
-  // No authentication required for GPT-5 (as per plan)
+  // No authentication is required for the default xAI chat flow.
 
   // For authenticated users, do critical checks in parallel
   let criticalChecksPromise: Promise<{
@@ -268,7 +268,7 @@ export async function POST(req: Request) {
       return new ChatSDKError('bad_request:database', 'Failed to initialize chat').toResponse();
     }
 
-    // GPT-5 is always available - no Pro subscription check needed
+    // The default xAI chat model is always available - no Pro subscription check needed
 
     if (!isProUser) {
       const criticalChecksStartTime = Date.now();
@@ -339,7 +339,7 @@ export async function POST(req: Request) {
       });
     }
   } else {
-    // GPT-5 does not require authentication - anyone can use it
+    // The default xAI chat flow does not require authentication - anyone can use it
 
     criticalChecksPromise = Promise.resolve({
       canProceed: true,

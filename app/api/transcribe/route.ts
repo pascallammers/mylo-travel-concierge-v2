@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { after } from 'next/server';
-
-import { elevenlabs } from '@ai-sdk/elevenlabs';
-import { experimental_transcribe as transcribe } from 'ai';
+import { transcribeAudioWithFallback } from '@/lib/xai/voice';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,19 +11,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No audio file found in form data.' }, { status: 400 });
     }
 
-    const result = await transcribe({
-      model: elevenlabs.transcription('scribe_v1'),
-      audio: await audio.arrayBuffer(),
+    const text = await transcribeAudioWithFallback({
+      audio,
+      filename: audio instanceof File ? audio.name : 'recording.webm',
+      mediaType: audio.type || 'audio/webm',
     });
 
-    // Non-blocking: log transcription result
     after(() => {
-      console.log(`[Transcribe] Completed: ${result.text.length} chars`);
+      console.log(`[Transcribe] Completed: ${text.length} chars`);
     });
 
-    return NextResponse.json({ text: result.text });
+    return NextResponse.json({ text });
   } catch (error) {
     console.error('Error processing transcription request:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Transcription failed' }, { status: 500 });
   }
 }

@@ -11,7 +11,7 @@ import {
   requiresProSubscription,
   shouldBypassRateLimits,
 } from '@/ai/providers';
-import { X, Check, ChevronsUpDown, Wand2, CheckIcon, Zap, Sparkles, FileText, Upload } from 'lucide-react';
+import { X, Check, ChevronsUpDown, Wand2, CheckIcon, Zap, Sparkles, FileText, Upload, Mic } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription } from '@/components/ui/dialog';
 import { cn, SearchGroup, SearchGroupId, getSearchGroups, SearchProvider } from '@/lib/utils';
 
@@ -32,7 +32,6 @@ import {
   ConnectIcon,
   DocumentAttachmentIcon,
 } from '@hugeicons/core-free-icons';
-import { AudioLinesIcon } from '@/components/ui/audio-lines';
 import { GripIcon } from '@/components/ui/grip';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -46,6 +45,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { CONNECTOR_CONFIGS, CONNECTOR_ICONS, type ConnectorProvider } from '@/lib/connectors';
 import { useQuery } from '@tanstack/react-query';
 import { listUserConnectorsAction } from '@/app/actions';
+import { convertRecordedAudioToWav, createRecordedAudioBlob } from '@/lib/xai/voice-client';
+import { createAudioLevelBarScales, normalizeAudioLevel, smoothAudioLevel } from '@/lib/xai/audio-level-visuals';
 
 // Pro Badge Component
 const ProBadge = ({ className = '' }: { className?: string }) => (
@@ -1890,7 +1891,10 @@ const FormComponent: React.FC<FormComponentProps> = ({
   const postSubmitFileInputRef = useRef<HTMLInputElement>(null);
 
   const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [recordingLevel, setRecordingLevel] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaChunksRef = useRef<Blob[]>([]);
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [isTypewriting, setIsTypewriting] = useState(false);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
@@ -1901,8 +1905,12 @@ const FormComponent: React.FC<FormComponentProps> = ({
 
   // Combined state for animations to avoid restart issues
   const isEnhancementActive = isEnhancing || isTypewriting;
-  const audioLinesRef = useRef<any>(null);
   const gripIconRef = useRef<any>(null);
+  const recordingAudioContextRef = useRef<AudioContext | null>(null);
+  const recordingSourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const recordingAnalyserRef = useRef<AnalyserNode | null>(null);
+  const recordingAnimationFrameRef = useRef<number | null>(null);
+  const recordingLevelDataRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
 
   const location = useLocation();
   const isMobile = useIsMobile();
@@ -1913,16 +1921,51 @@ const FormComponent: React.FC<FormComponentProps> = ({
   );
 
   const isProcessing = useMemo(() => status === 'submitted' || status === 'streaming', [status]);
+  const voiceRecordingBlockReason = useMemo(() => {
+    if (isEnhancing) return 'Prompt enhancement is still running.';
+    if (isTypewriting) return 'Prompt text is still being written.';
+    if (isTranscribing) return 'Voice transcription is still processing.';
+    if (isProcessing) return 'Please wait for the current MYLO response to finish.';
+    if (uploadQueue.length > 0) return 'Wait until the current file upload finishes.';
+
+    return null;
+  }, [isEnhancing, isTypewriting, isTranscribing, isProcessing, uploadQueue.length]);
 
   const hasInteracted = useMemo(() => messages.length > 0, [messages.length]);
 
+  const cleanupRecordingVisualizer = useCallback(() => {
+    if (recordingAnimationFrameRef.current !== null && typeof window !== 'undefined') {
+      window.cancelAnimationFrame(recordingAnimationFrameRef.current);
+      recordingAnimationFrameRef.current = null;
+    }
+
+    if (recordingSourceNodeRef.current) {
+      recordingSourceNodeRef.current.disconnect();
+      recordingSourceNodeRef.current = null;
+    }
+
+    recordingAnalyserRef.current = null;
+    recordingLevelDataRef.current = null;
+
+    if (recordingAudioContextRef.current) {
+      void recordingAudioContextRef.current.close().catch(() => undefined);
+      recordingAudioContextRef.current = null;
+    }
+
+    setRecordingLevel(0);
+  }, []);
+
   const cleanupMediaRecorder = useCallback(() => {
+    cleanupRecordingVisualizer();
+
     if (mediaRecorderRef.current?.stream) {
       mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
     }
+    mediaChunksRef.current = [];
     mediaRecorderRef.current = null;
     setIsRecording(false);
-  }, []);
+    setIsTranscribing(false);
+  }, [cleanupRecordingVisualizer]);
 
   useEffect(() => {
     isMounted.current = true;
@@ -2022,17 +2065,6 @@ const FormComponent: React.FC<FormComponentProps> = ({
   }, [discountConfig, location.isIndia]);
 
   const pricing = calculatePricing();
-
-  // Control audio lines animation
-  useEffect(() => {
-    if (audioLinesRef.current) {
-      if (isRecording) {
-        audioLinesRef.current.startAnimation();
-      } else {
-        audioLinesRef.current.stopAnimation();
-      }
-    }
-  }, [isRecording]);
 
   // Control grip icon animation using combined state to avoid restarts
   useEffect(() => {
@@ -2186,18 +2218,31 @@ const FormComponent: React.FC<FormComponentProps> = ({
   ]);
 
   const handleRecord = useCallback(async () => {
+    console.log('[Voice STT] handleRecord called', {
+      isRecording,
+      status,
+      isProcessing,
+      isTranscribing,
+      uploadQueueLength: uploadQueue.length,
+    });
+
     if (isRecording && mediaRecorderRef.current) {
+      console.log('[Voice STT] stopping active recording');
+      setIsRecording(false);
+      setIsTranscribing(true);
+      cleanupRecordingVisualizer();
       mediaRecorderRef.current.stop();
-      cleanupMediaRecorder();
     } else {
       try {
         // Environment and feature checks
         if (typeof window === 'undefined') {
+          console.error('[Voice STT] window is undefined');
           toast.error('Voice recording is only available in the browser.');
           return;
         }
 
         if (!navigator.mediaDevices?.getUserMedia) {
+          console.error('[Voice STT] getUserMedia is not available');
           toast.error('Voice recording is not supported in this browser.');
           return;
         }
@@ -2208,6 +2253,7 @@ const FormComponent: React.FC<FormComponentProps> = ({
           if (permApi?.query) {
             const status = await permApi.query({ name: 'microphone' as any });
             if (status?.state === 'denied') {
+              console.error('[Voice STT] microphone permission denied by Permissions API');
               toast.error('Microphone access is denied. Enable it in your browser settings.');
               return;
             }
@@ -2217,6 +2263,44 @@ const FormComponent: React.FC<FormComponentProps> = ({
         }
 
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        console.log('[Voice STT] microphone stream acquired');
+
+        const AudioContextConstructor =
+          window.AudioContext ??
+          (window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+
+        if (AudioContextConstructor) {
+          const visualizerContext = new AudioContextConstructor();
+          const visualizerSourceNode = visualizerContext.createMediaStreamSource(stream);
+          const analyserNode = visualizerContext.createAnalyser();
+
+          analyserNode.fftSize = 128;
+          analyserNode.smoothingTimeConstant = 0.82;
+          void visualizerContext.resume().catch(() => undefined);
+
+          visualizerSourceNode.connect(analyserNode);
+
+          recordingAudioContextRef.current = visualizerContext;
+          recordingSourceNodeRef.current = visualizerSourceNode;
+          recordingAnalyserRef.current = analyserNode;
+          recordingLevelDataRef.current = new Uint8Array(new ArrayBuffer(analyserNode.fftSize));
+
+          const updateRecordingLevel = () => {
+            const currentAnalyser = recordingAnalyserRef.current;
+            const currentData = recordingLevelDataRef.current;
+
+            if (!currentAnalyser || !currentData) {
+              return;
+            }
+
+            currentAnalyser.getByteTimeDomainData(currentData);
+            const nextLevel = normalizeAudioLevel(currentData);
+            setRecordingLevel((currentLevel) => smoothAudioLevel(currentLevel, nextLevel));
+            recordingAnimationFrameRef.current = window.requestAnimationFrame(updateRecordingLevel);
+          };
+
+          recordingAnimationFrameRef.current = window.requestAnimationFrame(updateRecordingLevel);
+        }
 
         // Pick a supported MIME type to maximize cross-browser compatibility (e.g., Safari)
         const candidateMimeTypes = [
@@ -2241,43 +2325,11 @@ const FormComponent: React.FC<FormComponentProps> = ({
           recorder = new MediaRecorder(stream);
         }
         mediaRecorderRef.current = recorder;
+        mediaChunksRef.current = [];
 
-        recorder.addEventListener('dataavailable', async (event) => {
+        recorder.addEventListener('dataavailable', (event) => {
           if (event.data.size > 0) {
-            const audioBlob = event.data;
-
-            try {
-              const formData = new FormData();
-              const extension = (() => {
-                const type = (audioBlob?.type || '').toLowerCase();
-                if (type.includes('mp4')) return 'mp4';
-                if (type.includes('ogg')) return 'ogg';
-                if (type.includes('mpeg')) return 'mp3';
-                return 'webm';
-              })();
-              formData.append('audio', audioBlob, `recording.${extension}`);
-              const response = await fetch('/api/transcribe', {
-                method: 'POST',
-                body: formData,
-              });
-
-              if (!response.ok) {
-                throw new Error(`Transcription failed: ${response.statusText}`);
-              }
-
-              const data = await response.json();
-
-              if (data.text) {
-                setInput(data.text);
-              } else {
-                console.error('Transcription response did not contain text:', data);
-              }
-            } catch (error) {
-              console.error('Error during transcription request:', error);
-              toast.error('Failed to transcribe audio. Please try again.');
-            } finally {
-              cleanupMediaRecorder();
-            }
+            mediaChunksRef.current.push(event.data);
           }
         });
 
@@ -2287,19 +2339,67 @@ const FormComponent: React.FC<FormComponentProps> = ({
           cleanupMediaRecorder();
         });
 
-        recorder.addEventListener('stop', () => {
-          stream.getTracks().forEach((track) => track.stop());
+        recorder.addEventListener('stop', async () => {
+          const audioBlob = createRecordedAudioBlob(mediaChunksRef.current, recorder.mimeType);
+
+          if (!audioBlob) {
+            setIsTranscribing(false);
+            toast.error('No audio was captured. Please try again.');
+            cleanupMediaRecorder();
+            return;
+          }
+
+          try {
+            setIsTranscribing(true);
+            const formData = new FormData();
+            const wavAudioBlob = await convertRecordedAudioToWav(audioBlob);
+            formData.append('audio', wavAudioBlob, 'recording.wav');
+            const response = await fetch('/api/transcribe', {
+              method: 'POST',
+              body: formData,
+            });
+
+            if (!response.ok) {
+              throw new Error(`Transcription failed: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+
+            if (data.text) {
+              setInput(data.text);
+            } else {
+              console.error('Transcription response did not contain text:', data);
+            }
+          } catch (error) {
+            console.error('Error during transcription request:', error);
+            toast.error('Failed to transcribe audio. Please try again.');
+          } finally {
+            stream.getTracks().forEach((track) => track.stop());
+            setIsTranscribing(false);
+            cleanupMediaRecorder();
+          }
         });
 
         recorder.start();
         setIsRecording(true);
+        console.log('[Voice STT] recorder started');
       } catch (error) {
         console.error('Error accessing microphone:', error);
         toast.error('Could not access microphone. Please allow mic permission.');
         setIsRecording(false);
+        setIsTranscribing(false);
       }
     }
-  }, [isRecording, cleanupMediaRecorder, setInput]);
+  }, [
+    isRecording,
+    status,
+    isProcessing,
+    isTranscribing,
+    uploadQueue.length,
+    cleanupRecordingVisualizer,
+    cleanupMediaRecorder,
+    setInput,
+  ]);
 
   const handleInput = useCallback(
     (event: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -2941,34 +3041,80 @@ const FormComponent: React.FC<FormComponentProps> = ({
                 (isEnhancing || isTypewriting) && '!bg-muted',
               )}
             >
-              {isRecording ? (
-                <Textarea
-                  ref={inputRef}
-                  placeholder=""
-                  value="◉ Recording..."
-                  disabled={true}
-                  className={cn(
-                    'w-full rounded-xl rounded-b-none md:text-base!',
-                    'text-base leading-relaxed',
-                    '!bg-muted',
-                    'border-0!',
-                    '!text-muted-foreground',
-                    'focus:ring-0! focus-visible:ring-0!',
-                    'px-4! py-4!',
-                    'touch-manipulation',
-                    'whatsize',
-                    'text-center',
-                    'cursor-not-allowed',
-                    '!shadow-none',
-                  )}
-                  style={{
-                    WebkitUserSelect: 'text',
-                    WebkitTouchCallout: 'none',
-                    minHeight: undefined,
-                    resize: 'none',
-                  }}
-                  rows={1}
-                />
+              {isRecording || isTranscribing ? (
+                <div className="relative">
+                  <Textarea
+                    ref={inputRef}
+                    placeholder=""
+                    value=""
+                    disabled={true}
+                    className={cn(
+                      'w-full rounded-xl rounded-b-none md:text-base!',
+                      'text-base leading-relaxed',
+                      '!bg-muted',
+                      'border-0!',
+                      'focus:ring-0! focus-visible:ring-0!',
+                      'px-4! py-4!',
+                      'touch-manipulation',
+                      'whatsize',
+                      'cursor-not-allowed',
+                      '!shadow-none',
+                      'text-transparent',
+                    )}
+                    style={{
+                      WebkitUserSelect: 'text',
+                      WebkitTouchCallout: 'none',
+                      minHeight: undefined,
+                      resize: 'none',
+                    }}
+                    rows={1}
+                  />
+                  <div className="pointer-events-none absolute inset-x-4 top-1/2 flex -translate-y-1/2 items-center justify-center gap-3 text-muted-foreground">
+                    {isTranscribing ? (
+                      <>
+                        <div className="h-4 w-4 rounded-full border-2 border-primary/25 border-t-primary animate-spin" />
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className="text-base text-foreground">Verarbeite Aufnahme...</span>
+                          <span className="text-xs text-muted-foreground">Dein Text erscheint gleich im Eingabefeld.</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex h-4 items-end gap-1 text-primary/65">
+                          {createAudioLevelBarScales(recordingLevel).map((scale, index) => (
+                            <motion.span
+                              key={`recording-bar-${index}`}
+                              className="block h-4 w-[3px] rounded-full bg-current"
+                              style={{ transformOrigin: 'center bottom' }}
+                              animate={{
+                                scaleY: scale,
+                                opacity: 0.45 + recordingLevel * 0.4,
+                              }}
+                              transition={{
+                                duration: 0.18,
+                                ease: 'easeOut',
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <motion.span
+                          className="flex flex-col text-base"
+                          animate={{
+                            opacity: [0.75, 1, 0.75],
+                          }}
+                          transition={{
+                            duration: 2.4,
+                            repeat: Infinity,
+                            ease: 'easeInOut',
+                          }}
+                        >
+                          <span>Aufnahme aktiv</span>
+                          <span className="text-xs text-muted-foreground">Mikrofon nochmal tippen zum Beenden</span>
+                        </motion.span>
+                      </>
+                    )}
+                  </div>
+                </div>
               ) : (
                 <Textarea
                   ref={inputRef}
@@ -3048,10 +3194,10 @@ const FormComponent: React.FC<FormComponentProps> = ({
                   'p-2 gap-2 shadow-none',
                   'transition-all duration-200',
                   (isEnhancing || isTypewriting) && 'pointer-events-none',
-                  isRecording && '!bg-muted text-muted-foreground',
+                  (isRecording || isTranscribing) && '!bg-muted text-muted-foreground',
                 )}
               >
-                {/* Model and search mode controls removed - using fixed GPT-5 and 'web' mode */}
+                {/* Model and search mode controls removed - using the fixed xAI default mode */}
 
                 <div className={cn('flex items-center flex-shrink-0 gap-1 ml-auto')}>
                   {hasVisionSupport() && (
@@ -3089,6 +3235,105 @@ const FormComponent: React.FC<FormComponentProps> = ({
                       </TooltipContent>
                     </Tooltip>
                   )}
+
+                  <AnimatePresence>
+                    {isRecording && (
+                      <motion.div
+                        initial={{ opacity: 0, x: 6 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 6 }}
+                        transition={{ duration: 0.18 }}
+                        className="hidden sm:flex h-8 items-center rounded-full bg-destructive/10 px-3 text-xs font-medium text-destructive"
+                      >
+                        Nochmal tippen zum Stoppen
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <Tooltip delayDuration={300}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className={cn(
+                          'group rounded-full transition-colors duration-200 !size-8 border-0 !shadow-none hover:!bg-primary/30 hover:!border-0',
+                          isRecording && '!bg-destructive text-destructive-foreground hover:!bg-destructive/90',
+                          isTranscribing && 'bg-primary/10 text-primary cursor-wait',
+                          voiceRecordingBlockReason && !isRecording && 'opacity-50',
+                        )}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          console.log('[Voice STT] mic button clicked', {
+                            blockReason: voiceRecordingBlockReason,
+                            isRecording,
+                            status,
+                            isProcessing,
+                            isTranscribing,
+                            uploadQueueLength: uploadQueue.length,
+                          });
+
+                          if (voiceRecordingBlockReason && !isRecording) {
+                            toast.error(voiceRecordingBlockReason);
+                            return;
+                          }
+
+                          void handleRecord();
+                        }}
+                        aria-disabled={voiceRecordingBlockReason && !isRecording ? 'true' : 'false'}
+                        disabled={isTranscribing}
+                        title={
+                          isRecording
+                            ? 'Aufnahme beenden'
+                            : isTranscribing
+                              ? 'Aufnahme wird verarbeitet'
+                              : voiceRecordingBlockReason ?? 'Sprache in Text umwandeln'
+                        }
+                      >
+                        <span className="block">
+                          {isTranscribing ? (
+                            <span className="block h-4 w-4 rounded-full border-2 border-current/25 border-t-current animate-spin" />
+                          ) : isRecording ? (
+                            <motion.span
+                              className="flex items-center justify-center"
+                              animate={{
+                                scale: [1, 1.04, 1],
+                                opacity: [0.82, 1, 0.82],
+                              }}
+                              transition={{
+                                duration: 1.8,
+                                repeat: Infinity,
+                                ease: 'easeInOut',
+                              }}
+                            >
+                              <StopIcon size={14} />
+                            </motion.span>
+                          ) : (
+                            <Mic className="h-4 w-4" />
+                          )}
+                        </span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="bottom"
+                      sideOffset={6}
+                      className="border-0 backdrop-blur-xs py-2 px-3 !shadow-none"
+                    >
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-medium text-[11px]">
+                          {isTranscribing ? 'Verarbeite Aufnahme' : isRecording ? 'Aufnahme aktiv' : 'Mikrofon'}
+                        </span>
+                        <span className="text-[10px] text-accent leading-tight">
+                          {isTranscribing
+                            ? 'Transkription wird erstellt'
+                            : isRecording
+                              ? 'Erneut tippen zum Stoppen'
+                              : 'Sprache in Text umwandeln'}
+                        </span>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
 
                   {/* Show enhance button when there's input */}
                   {(input.length > 0 || isEnhancing || isTypewriting) && (
@@ -3178,7 +3423,6 @@ const FormComponent: React.FC<FormComponentProps> = ({
                       </TooltipContent>
                     </Tooltip>
                   ) : (
-                    /* Show Send Button - Voice Recording removed for MVP */
                     <Tooltip delayDuration={300}>
                       <TooltipTrigger asChild>
                         <Button

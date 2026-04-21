@@ -4,17 +4,14 @@ import { z } from 'zod';
 
 export const serverEnv = createEnv({
   server: {
-    // ============================================
-    // AI Provider Switch
-    // ============================================
     USE_XAI: z
       .string()
       .optional()
-      .default('false')
+      .default('true')
       .transform((val) => val === 'true'),
     
     XAI_API_KEY: z.string().min(1),
-    OPENAI_API_KEY: z.string().min(1),
+    OPENAI_API_KEY: z.string().optional(),
     ANTHROPIC_API_KEY: z.string().min(1),
     GROQ_API_KEY: z.string().min(1),
     GOOGLE_GENERATIVE_AI_API_KEY: z.string().min(1),
@@ -30,7 +27,7 @@ export const serverEnv = createEnv({
     REDIS_URL: z.string().min(1),
     UPSTASH_REDIS_REST_URL: z.string().min(1),
     UPSTASH_REDIS_REST_TOKEN: z.string().min(1),
-    ELEVENLABS_API_KEY: z.string().min(1),
+    ELEVENLABS_API_KEY: z.string().optional(),
     TAVILY_API_KEY: z.string().min(1),
     EXA_API_KEY: z.string().min(1),
     EXA_SEARCH_TYPE: z
