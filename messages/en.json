@@ -218,7 +218,8 @@
     "older": "Older"
   },
   "sidebar": {
-    "newChat": "New Chat"
+    "newChat": "New Chat",
+    "deals": "Flight Deals"
   },
   "userProfile": {
     "settings": "Settings",
@@ -230,5 +231,146 @@
     "hideEmail": "Hide email",
     "showEmail": "Show email",
     "signInToSave": "Sign in to save your progress"
+  },
+  "deals": {
+    "title": "Flight Deals",
+    "subtitle": "Discover curated flight deals from your airport and hand them straight to MYLO.",
+    "staleNotice": "Last updated {hours}h ago",
+    "filters": {
+      "origin": "Departure airport",
+      "allDeals": "All deals",
+      "destination": "Destination",
+      "anywhere": "Anywhere",
+      "anytime": "Anytime",
+      "month": "Month",
+      "cabinClass": "Class",
+      "economy": "Economy",
+      "premiumEconomy": "Premium Economy",
+      "business": "Business",
+      "first": "First",
+      "stops": "Stops",
+      "anyStops": "Any",
+      "nonstop": "Nonstop",
+      "maxOne": "Max 1 stop",
+      "tripType": "Trip type",
+      "allTripTypes": "All trip types",
+      "roundtrip": "Round trip",
+      "oneway": "One way",
+      "sort": "Sort",
+      "sortScore": "By score",
+      "sortPrice": "By price",
+      "sortSavings": "By savings",
+      "buckets": {
+        "weekend_escape": "Weekend",
+        "long_haul": "Long-haul",
+        "points": "Points"
+      },
+      "apply": "Apply",
+      "reset": "Reset"
+    },
+    "bucketsMeta": {
+      "weekend_escape": {
+        "title": "Weekend Escape",
+        "description": "Short trips with standout value for quick getaways.",
+        "empty": "No weekend deals right now. Check back later."
+      },
+      "long_haul": {
+        "title": "Long-Haul Deal",
+        "description": "Longer routes with standout cash pricing for bigger trips.",
+        "empty": "No long-haul deals right now. Check back later."
+      },
+      "points": {
+        "title": "Points Sweet Spot",
+        "description": "Award options that stand out for miles and points collectors.",
+        "empty": "No points deals right now. Check back later."
+      }
+    },
+    "card": {
+      "from": "from",
+      "savings": "Savings",
+      "avgPrice": "Average price",
+      "stops_zero": "Nonstop",
+      "stops_one": "1 stop",
+      "stops_other": "{count} stops",
+      "roundtrip": "Round trip",
+      "oneway": "One way",
+      "book": "Book",
+      "checkWithMylo": "Check with MYLO",
+      "why": "Why it stands out",
+      "forWhom": "Best for",
+      "pointsUnit": "points",
+      "priceHistory": "Price history",
+      "personalized": "Matches you:",
+      "moreDetails": "More details",
+      "lessDetails": "Less details",
+      "recommendationBook": "Book recommended ({percent}%)",
+      "recommendationWatch": "Keep watching ({percent}%)",
+      "dealScore": "AI Deal Score",
+      "exceptional": "Exceptional",
+      "veryGood": "Very good",
+      "good": "Good"
+    },
+    "featured": {
+      "eyebrow": "Personalized pick",
+      "title": "{destination} stands out for you right now",
+      "description": "MYLO ranked this deal to the top based on your saved preferences.",
+      "cta": "Discuss with MYLO",
+      "points": "points"
+    },
+    "preferences": {
+      "eyebrow": "Phase 2 active",
+      "title": "Your deal preferences",
+      "description": "Save home airports, wishlist destinations, budget, and digest frequency. MYLO uses this to personalize the feed and surface relevant deals proactively.",
+      "originAirports": "Home airports",
+      "originAirportsPlaceholder": "Search airport or city",
+      "preferredDestinations": "Wishlist destinations",
+      "preferredDestinationsPlaceholder": "Search destination or city",
+      "cabinClass": "Preferred cabin",
+      "cabinClassOptions": {
+        "any": "No preference",
+        "economy": "Economy",
+        "premium_economy": "Premium Economy",
+        "business": "Business",
+        "first": "First"
+      },
+      "maxPrice": "Cash-deal budget",
+      "maxPricePlaceholder": "e.g. 450",
+      "emailDigest": "Deal digest",
+      "emailDigestHelp": "Choose whether MYLO should send matching flight deals to your inbox on a regular cadence.",
+      "emailDigestOptions": {
+        "none": "No digest",
+        "daily": "Daily",
+        "weekly": "Weekly"
+      },
+      "digestStatus": {
+        "none": "No digest active",
+        "daily": "Daily digest active",
+        "weekly": "Weekly digest active"
+      },
+      "airportSearchPlaceholder": "Search by airport, city, or IATA code",
+      "airportSearchEmpty": "No matching airport found.",
+      "airportSearchLoading": "Searching airports...",
+      "removeSelection": "remove",
+      "helper": "Home airports and destinations can now be searched directly. The cash budget only affects EUR deals.",
+      "save": "Save preferences",
+      "saving": "Saving...",
+      "saved": "Deal preferences saved",
+      "saveError": "Could not save preferences"
+    },
+    "empty": {
+      "title": "No deals found",
+      "description": "No deals matching your filters right now. Try different filters or check back later."
+    },
+    "restricted": {
+      "title": "Flight deals are in private testing",
+      "description": "This view is currently available only to selected testers.",
+      "cta": "Back to MYLO"
+    },
+    "error": {
+      "title": "Unable to load deals",
+      "description": "Please try again later.",
+      "retry": "Reload"
+    },
+    "ad": "Ad"
   }
 }

@@ -46,6 +46,11 @@ export const serverEnv = createEnv({
     AMADEUS_API_SECRET: z.string().min(1),
     // Duffel API (Flight Search) - optional for backwards compatibility
     DUFFEL_API_KEY: z.string().min(1).optional(),
+    // ============================================
+    // Travelpayouts (Flight Deals)
+    // ============================================
+    TRAVELPAYOUTS_API_TOKEN: z.string().min(1).optional(),
+    TRAVELPAYOUTS_MARKER: z.string().min(1).optional(),
     CRON_SECRET: z.string().min(1),
     BLOB_READ_WRITE_TOKEN: z.string().min(1),
     SMITHERY_API_KEY: z.string().min(1),

@@ -1,0 +1,402 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e6]:
+        - link [ref=e7] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e8]:
+            - img [ref=e9]
+            - img [ref=e13]
+        - navigation [ref=e26]:
+          - list [ref=e27]:
+            - listitem [ref=e28] [cursor=pointer]:
+              - link "Авиабилеты" [ref=e29]:
+                - /url: /
+                - img [ref=e31]
+                - generic [ref=e33]: Авиабилеты
+            - listitem [ref=e34] [cursor=pointer]:
+              - link "Отели" [ref=e35]:
+                - /url: /hotels?source=tab_change
+                - img [ref=e37]
+                - generic [ref=e39]: Отели
+            - listitem [ref=e40] [cursor=pointer]:
+              - link "Впечатления" [ref=e41]:
+                - /url: /guides?source=tab
+                - img [ref=e43]
+                - generic [ref=e45]: Впечатления
+            - listitem [ref=e46] [cursor=pointer]:
+              - link "Избранное" [ref=e47]:
+                - /url: /favorites?source=tab
+                - img [ref=e49]
+                - generic [ref=e51]: Избранное
+          - list [ref=e52]:
+            - listitem [ref=e53] [cursor=pointer]:
+              - link "Командировки" [ref=e54]:
+                - /url: https://b2b.aviasales.ru/?utm_source=b2c&utm_medium=button
+                - generic [ref=e55]: Командировки
+                - img [ref=e56]
+        - generic [ref=e58]:
+          - button "Профиль" [ref=e62] [cursor=pointer]:
+            - img [ref=e64]
+            - generic [ref=e66]: Профиль
+          - link "Журнал" [ref=e67] [cursor=pointer]:
+            - /url: https://www.aviasales.ru/psgr?utm_source=aviasales.ru&utm_medium=morda&utm_campaign=blog&utm_content=psgr
+            - img [ref=e68]
+            - generic [ref=e70]: Журнал
+          - link "Поддержка" [ref=e72] [cursor=pointer]:
+            - /url: /faq?opened_from=header
+            - img [ref=e73]
+            - generic [ref=e75]: Поддержка
+          - button "Страна, Язык, Валюта" [ref=e78] [cursor=pointer]:
+            - img [ref=e79]
+            - generic [ref=e81]: rub
+      - generic [ref=e82]:
+        - heading "Тут покупают дешёвые авиабилеты" [level=1] [ref=e87]
+        - generic [ref=e88]:
+          - navigation [ref=e92]:
+            - list [ref=e93]:
+              - listitem [ref=e94] [cursor=pointer]:
+                - link "Авиабилеты" [ref=e95]:
+                  - /url: /
+                  - img [ref=e97]
+                  - generic [ref=e99]: Авиабилеты
+              - listitem [ref=e100] [cursor=pointer]:
+                - link "Отели" [ref=e101]:
+                  - /url: /hotels?source=tab_change
+                  - img [ref=e103]
+                  - generic [ref=e105]: Отели
+              - listitem [ref=e106] [cursor=pointer]:
+                - link "Впечатления" [ref=e107]:
+                  - /url: /guides?source=tab
+                  - img [ref=e109]
+                  - generic [ref=e112]: Впечатления
+              - listitem [ref=e113] [cursor=pointer]:
+                - link "Избранное" [ref=e114]:
+                  - /url: /favorites?source=tab
+                  - img [ref=e116]
+                  - generic [ref=e118]: Избранное
+            - list [ref=e119]:
+              - listitem [ref=e120] [cursor=pointer]:
+                - link "Командировки" [ref=e121]:
+                  - /url: https://b2b.aviasales.ru/?utm_source=b2c&utm_medium=button
+                  - img [ref=e123]
+                  - generic [ref=e126]: Командировки
+                  - img [ref=e127]
+          - generic [ref=e131]:
+            - generic [ref=e132]:
+              - generic [ref=e133]:
+                - combobox [ref=e134]:
+                  - generic [ref=e136]:
+                    - textbox "Откуда" [ref=e137] [cursor=pointer]: Бремен
+                    - generic [ref=e138]: BRE
+                - combobox [ref=e139]:
+                  - textbox "Куда" [active] [ref=e142] [cursor=pointer]
+              - generic [ref=e143]:
+                - generic [ref=e145]:
+                  - button "Когда" [ref=e146] [cursor=pointer]:
+                    - generic [ref=e148]: Когда
+                    - img [ref=e149]
+                  - button "Обратно" [ref=e152] [cursor=pointer]:
+                    - generic [ref=e154]: Обратно
+                - button "passengers Эконом" [ref=e157] [cursor=pointer]:
+                  - generic "passengers" [ref=e158]: 1 пассажир
+                  - generic [ref=e159]: Эконом
+            - button "Найти билеты" [ref=e161] [cursor=pointer]:
+              - generic [ref=e162]: Найти билеты
+            - contentinfo [ref=e163]:
+              - generic [ref=e164]:
+                - button "Составить сложный маршрут" [ref=e165] [cursor=pointer]:
+                  - img [ref=e166]
+                  - generic [ref=e168]: Составить сложный маршрут
+                - generic [ref=e169] [cursor=pointer]:
+                  - checkbox "Открыть Островок! в новой вкладке" [checked]
+                  - img [ref=e172]
+                  - generic [ref=e174]: Открыть Островок! в новой вкладке
+    - generic [ref=e201]:
+      - img [ref=e202]
+      - paragraph [ref=e204]: Помогаем сравнить билеты и купить самый дешёвый
+      - button "Узнать больше" [ref=e205] [cursor=pointer]:
+        - generic [ref=e206]: Узнать больше
+    - generic [ref=e208]:
+      - generic [ref=e210]:
+        - text: Популярные направления
+        - generic [ref=e211]:
+          - generic [ref=e212] [cursor=pointer]:
+            - generic [ref=e213]:
+              - link "Коломбо" [ref=e214]:
+                - /url: /cities/kolombo-cmb
+              - link "Шри‑Ланка" [ref=e215]:
+                - /url: /countries/shri-lanka
+            - img [ref=e216]
+          - generic [ref=e218] [cursor=pointer]:
+            - generic [ref=e219]:
+              - link "Мале" [ref=e220]:
+                - /url: /cities/male-mle
+              - link "Мальдивы" [ref=e221]:
+                - /url: /countries/maldivy
+            - img [ref=e222]
+          - generic [ref=e224] [cursor=pointer]:
+            - generic [ref=e225]:
+              - link "Ташкент" [ref=e226]:
+                - /url: /cities/tashkent-tas
+              - link "Узбекистан" [ref=e227]:
+                - /url: /countries/uzbekistan
+            - img [ref=e228]
+          - generic [ref=e230] [cursor=pointer]:
+            - generic [ref=e231]:
+              - link "Бангкок" [ref=e232]:
+                - /url: /cities/bangkok-bkk
+              - link "Таиланд" [ref=e233]:
+                - /url: /countries/tailand
+            - img [ref=e234]
+          - generic [ref=e236] [cursor=pointer]:
+            - generic [ref=e237]:
+              - link "Белград" [ref=e238]:
+                - /url: /cities/belgrad-beg
+              - link "Сербия" [ref=e239]:
+                - /url: /countries/serbiya
+            - img [ref=e240]
+          - generic [ref=e242] [cursor=pointer]:
+            - generic [ref=e243]:
+              - link "Дубай" [ref=e244]:
+                - /url: /cities/dubai-dxb
+              - link "ОАЭ" [ref=e245]:
+                - /url: /countries/oae
+            - img [ref=e246]
+          - generic [ref=e248] [cursor=pointer]:
+            - generic [ref=e249]:
+              - link "Стамбул" [ref=e250]:
+                - /url: /cities/stambul-ist
+              - link "Турция" [ref=e251]:
+                - /url: /countries/turtsiya
+            - img [ref=e252]
+          - generic [ref=e254] [cursor=pointer]:
+            - generic [ref=e255]:
+              - link "Манила" [ref=e256]:
+                - /url: /cities/manila-mnl
+              - link "Филиппины" [ref=e257]:
+                - /url: /countries/filippiny
+            - img [ref=e258]
+          - generic [ref=e260] [cursor=pointer]:
+            - generic [ref=e261]:
+              - link "Подгорица" [ref=e262]:
+                - /url: /cities/podgoritsa-tgd
+              - link "Черногория" [ref=e263]:
+                - /url: /countries/chernogoriya
+            - img [ref=e264]
+          - generic [ref=e266] [cursor=pointer]:
+            - generic [ref=e267]:
+              - link "Маврикий" [ref=e268]:
+                - /url: /cities/plaisans-mru
+              - link "Маврикий" [ref=e269]:
+                - /url: /countries/mavrikii
+            - img [ref=e270]
+          - generic [ref=e272] [cursor=pointer]:
+            - generic [ref=e273]:
+              - link "Токио" [ref=e274]:
+                - /url: /cities/tokio-tyo
+              - link "Япония" [ref=e275]:
+                - /url: /countries/yaponiya
+            - img [ref=e276]
+      - generic [ref=e278]:
+        - generic [ref=e279]:
+          - generic [ref=e281]: Авиасейлс для бизнеса
+          - generic [ref=e282]:
+            - generic [ref=e283]: "Бесплатный сервис, где есть всё для командировок: от билетов до виз"
+            - link "Покажите" [ref=e284] [cursor=pointer]:
+              - /url: https://b2b.aviasales.ru/?utm_source=b2c&utm_medium=footer
+              - generic [ref=e285]: Покажите
+        - generic [ref=e287]:
+          - link "Авиакомпании" [ref=e288] [cursor=pointer]:
+            - /url: /airlines
+          - generic [ref=e289]:
+            - link "Победа" [ref=e290] [cursor=pointer]:
+              - /url: /airlines/victory
+            - link "Россия" [ref=e291] [cursor=pointer]:
+              - /url: /airlines/rossiya-airlines
+            - link "Азимут" [ref=e292] [cursor=pointer]:
+              - /url: /airlines/aerocon
+            - link "Ямал" [ref=e293] [cursor=pointer]:
+              - /url: /airlines/yamal-air
+            - link "Red Sea Airlines" [ref=e294] [cursor=pointer]:
+              - /url: /airlines/red-sea-airlines
+            - button "Ещё 5 авиакомпаний" [ref=e295] [cursor=pointer]
+        - generic [ref=e296]:
+          - text: Направления
+          - generic [ref=e297]:
+            - link "Москва — Сочи" [ref=e298] [cursor=pointer]:
+              - /url: /routes/mow/aer
+            - link "Москва — Калининград" [ref=e299] [cursor=pointer]:
+              - /url: /routes/mow/kgd
+            - link "Москва — Красноярск" [ref=e300] [cursor=pointer]:
+              - /url: /routes/mow/kja
+            - link "Москва — Махачкала" [ref=e301] [cursor=pointer]:
+              - /url: /routes/mow/mcx
+            - link "Москва — Санкт-Петербург" [ref=e302] [cursor=pointer]:
+              - /url: /routes/mow/led
+            - link "Москва — Екатеринбург" [ref=e303] [cursor=pointer]:
+              - /url: /routes/mow/svx
+        - generic [ref=e304]:
+          - link "Города" [ref=e305] [cursor=pointer]:
+            - /url: /cities
+          - generic [ref=e306]:
+            - link "Москва" [ref=e307] [cursor=pointer]:
+              - /url: /cities/moskva-mow
+            - link "Новосибирск" [ref=e308] [cursor=pointer]:
+              - /url: /cities/novosibirsk-ovb
+            - link "Санкт-Петербург" [ref=e309] [cursor=pointer]:
+              - /url: /cities/sankt-peterburg-led
+            - link "Тюмень" [ref=e310] [cursor=pointer]:
+              - /url: /cities/tumen-tjm
+            - link "Калининград" [ref=e311] [cursor=pointer]:
+              - /url: /cities/kaliningrad-kgd
+            - button "Ещё 5 городов" [ref=e312] [cursor=pointer]
+        - generic [ref=e313]:
+          - link "Аэропорты" [ref=e314] [cursor=pointer]:
+            - /url: /airports
+          - generic [ref=e315]:
+            - link "Шереметьево" [ref=e316] [cursor=pointer]:
+              - /url: /airports/sheremetevo
+            - link "Внуково" [ref=e317] [cursor=pointer]:
+              - /url: /airports/vnukovo
+            - link "Казань" [ref=e318] [cursor=pointer]:
+              - /url: /airports/kazan
+            - link "Домодедово" [ref=e319] [cursor=pointer]:
+              - /url: /airports/domodedovo
+            - link "Уфа" [ref=e320] [cursor=pointer]:
+              - /url: /airports/ufa
+            - button "Ещё 5 аэропортов" [ref=e321] [cursor=pointer]
+        - generic [ref=e322]:
+          - link "Авиасейлс в мире" [ref=e323] [cursor=pointer]:
+            - /url: /countries
+          - generic [ref=e324]:
+            - link "Беларусь" [ref=e325] [cursor=pointer]:
+              - /url: https://www.aviasales.by
+            - link "Казахстан" [ref=e326] [cursor=pointer]:
+              - /url: https://www.aviasales.kz
+            - link "Таджикистан" [ref=e327] [cursor=pointer]:
+              - /url: https://www.aviasales.tj
+            - link "Узбекистан" [ref=e328] [cursor=pointer]:
+              - /url: https://www.aviasales.uz
+            - link "Кыргызстан" [ref=e329] [cursor=pointer]:
+              - /url: https://www.aviasales.kg
+            - button "Ещё 2 страны" [ref=e330] [cursor=pointer]
+        - generic [ref=e331]:
+          - link "Помощь и советы" [ref=e332] [cursor=pointer]:
+            - /url: /faq?opened_from=footer-services
+          - generic [ref=e333]:
+            - link "Не пришёл билет" [ref=e334] [cursor=pointer]:
+              - /url: /faq/instructions/ne-prishel-bilet?opened_from=footer-services
+            - link "Возврат или обмен билета" [ref=e335] [cursor=pointer]:
+              - /url: /faq/instructions/vozvrat-ili-obmen-bileta?opened_from=footer-services
+            - link "Про багаж" [ref=e336] [cursor=pointer]:
+              - /url: /faq/instructions/pro-bagazh?opened_from=footer-services
+            - link "Изменение паспортных данных" [ref=e337] [cursor=pointer]:
+              - /url: /faq/instructions/izmenenie-pasportnyh-dannyh?opened_from=footer-services
+            - link "Перелёты с детьми" [ref=e338] [cursor=pointer]:
+              - /url: /faq/instructions/perelety-s-detmi?opened_from=footer-services
+            - button "Ещё 6 вопросов" [ref=e339] [cursor=pointer]
+      - separator [ref=e340]
+      - generic [ref=e341]:
+        - generic [ref=e342]:
+          - generic [ref=e343]:
+            - img [ref=e345]
+            - generic [ref=e350]:
+              - generic [ref=e351]: Авиасейлс
+              - generic [ref=e352]: © 2007–2026
+          - generic [ref=e353]:
+            - link [ref=e354] [cursor=pointer]:
+              - /url: https://vk.com/aviasales
+              - img [ref=e355]
+            - link [ref=e357] [cursor=pointer]:
+              - /url: https://t.me/aviasales
+              - img [ref=e358]
+            - link [ref=e360] [cursor=pointer]:
+              - /url: https://twitter.com/aviasales
+              - img [ref=e361]
+            - link [ref=e363] [cursor=pointer]:
+              - /url: https://www.tiktok.com/@aviasales
+              - img [ref=e364]
+            - link [ref=e366] [cursor=pointer]:
+              - /url: https://dzen.ru/aviasales
+              - img [ref=e367]
+            - link [ref=e369] [cursor=pointer]:
+              - /url: https://www.youtube.com/aviasales
+              - img [ref=e370]
+            - link [ref=e372] [cursor=pointer]:
+              - /url: https://ok.ru/aviasales
+              - img [ref=e373]
+        - generic [ref=e375]:
+          - link "Об Авиасейлс" [ref=e376] [cursor=pointer]:
+            - /url: /about
+          - link "Вакансии" [ref=e377] [cursor=pointer]:
+            - /url: https://www.aviasales.ru/about/vacancies
+          - link "Поддержка" [ref=e378] [cursor=pointer]:
+            - /url: https://www.aviasales.ru/faq?opened_from=footer
+          - link "Реклама" [ref=e379] [cursor=pointer]:
+            - /url: https://ad.aviasales.ru/
+          - link "Пресс‑центр" [ref=e380] [cursor=pointer]:
+            - /url: https://newsroom.aviasales.com/
+        - generic [ref=e381]:
+          - link "Отели А ещё хостелы и квартиры" [ref=e382] [cursor=pointer]:
+            - /url: /hotels
+            - img [ref=e384]
+            - generic [ref=e386]:
+              - generic [ref=e387]: Отели
+              - generic [ref=e388]: А ещё хостелы и квартиры
+          - link "Экскурсии В городах по всему миру" [ref=e389] [cursor=pointer]:
+            - /url: https://www.aviasales.ru/ekskursii?&source_target=footer
+            - img [ref=e391]
+            - generic [ref=e394]:
+              - generic [ref=e395]: Экскурсии
+              - generic [ref=e396]: В городах по всему миру
+          - link "Travelpayouts Партнёрская программа" [ref=e397] [cursor=pointer]:
+            - /url: https://www.travelpayouts.com/ru/offers/aviasales-partnerskaya-programma/
+            - img [ref=e399]
+            - generic [ref=e402]:
+              - generic [ref=e403]: Travelpayouts
+              - generic [ref=e404]: Партнёрская программа
+          - link "Журнал от Авиасейлс 1000+ статей о путешествиях" [ref=e405] [cursor=pointer]:
+            - /url: https://www.aviasales.ru/psgr?utm_source=aviasales.ru&utm_medium=footer&utm_campaign=blog&utm_content=psgr
+            - img [ref=e407]
+            - generic [ref=e410]:
+              - generic [ref=e411]: Журнал от Авиасейлс
+              - generic [ref=e412]: 1000+ статей о путешествиях
+          - link "Телеграм‑бот низких цен Ловит дешёвые билеты" [ref=e413] [cursor=pointer]:
+            - /url: https://t.me/AviasalesCheapTicketsBot?start=MTQzMTQzfGZvb3Rlcl9hcw==
+            - img [ref=e415]
+            - generic [ref=e417]:
+              - generic [ref=e418]: Телеграм‑бот низких цен
+              - generic [ref=e419]: Ловит дешёвые билеты
+        - generic [ref=e420]:
+          - button "В приложении тоже удобно Если цена на билет упадёт, сразу пришлём уведомление" [ref=e421] [cursor=pointer]:
+            - generic [ref=e422]:
+              - generic [ref=e423]: В приложении тоже удобно
+              - generic [ref=e424]: Если цена на билет упадёт, сразу пришлём уведомление
+          - generic [ref=e426]:
+            - generic [ref=e427]:
+              - generic [ref=e429]: Рассылка с выгодными билетами
+              - img [ref=e432]
+            - generic [ref=e437]:
+              - textbox "На какую почту отправлять" [ref=e441]
+              - generic:
+                - button [disabled]:
+                  - img
+            - generic [ref=e442]:
+              - link "Соглашаюсь получать рекламу" [ref=e443] [cursor=pointer]:
+                - /url: /advertising-consent
+              - text: ", нескучные письма, подборки билетов и другие полезности"
+        - link "Юридические документы" [ref=e446] [cursor=pointer]:
+          - /url: https://www.aviasales.ru/my/settings?open_source=footer#privacy
+  - generic [ref=e448]:
+    - generic [ref=e449]:
+      - text: Мы используем
+      - link "куки" [ref=e450] [cursor=pointer]:
+        - /url: /privacy
+      - text: и
+      - link "рекомендательные технологии" [ref=e451] [cursor=pointer]:
+        - /url: https://static.aviasales.com/legal-docs/RU-RU-Aviasales-Recommendation-System-Rules.html
+      - text: — без них Авиасейлс просто не сможет нормально работать
+    - button "Да без проблем" [ref=e452] [cursor=pointer]:
+      - generic [ref=e453]: Да без проблем
+  - status [ref=e454]

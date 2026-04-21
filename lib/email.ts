@@ -427,3 +427,91 @@ export async function sendFailedPaymentAdminAlert(
     return null;
   }
 }
+
+export interface DealDigestEmailDeal {
+  origin: string;
+  destination: string;
+  destinationName: string | null;
+  price: number;
+  currency: string;
+  dealScore: number;
+  personalizedScore: number;
+  personalizationReasons: string[];
+}
+
+/**
+ * Send a personalized deal digest email.
+ *
+ * @param email - Recipient email address.
+ * @param name - Recipient name for the greeting.
+ * @param deals - Personalized deal shortlist.
+ * @param frequency - Digest cadence shown in the subject line.
+ * @returns Resend API response.
+ */
+export async function sendDealDigestEmail(
+  email: string,
+  name: string,
+  deals: DealDigestEmailDeal[],
+  frequency: 'daily' | 'weekly',
+) {
+  const appUrl =
+    process.env.NODE_ENV === 'production'
+      ? 'https://chat.never-economy-again.com'
+      : process.env.NEXT_PUBLIC_APP_URL || 'https://chat.never-economy-again.com';
+  const subject =
+    frequency === 'daily'
+      ? 'MYLO Flight Deals: Deine taeglichen Empfehlungen'
+      : 'MYLO Flight Deals: Deine Wochenhighlights';
+  const dealsMarkup = deals
+    .map((deal) => {
+      const priceLabel =
+        deal.currency === 'PTS'
+          ? `${Math.round(deal.price).toLocaleString('de-DE')} Punkte`
+          : `${Math.round(deal.price).toLocaleString('de-DE')} ${deal.currency}`;
+
+      return `
+        <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:12px;">
+          <div style="font-size:12px;font-weight:700;color:#2563eb;text-transform:uppercase;letter-spacing:0.04em;">
+            ${deal.personalizedScore}% Match
+          </div>
+          <h3 style="margin:8px 0 6px;font-size:18px;color:#111827;">
+            ${deal.origin} → ${deal.destinationName || deal.destination}
+          </h3>
+          <p style="margin:0 0 8px;font-size:24px;font-weight:700;color:#111827;">${priceLabel}</p>
+          <p style="margin:0 0 8px;font-size:14px;color:#4b5563;">AI Deal Score: ${deal.dealScore}%</p>
+          <p style="margin:0;font-size:14px;color:#4b5563;">${deal.personalizationReasons.join(' · ')}</p>
+        </div>
+      `;
+    })
+    .join('');
+
+  return resend.emails.send({
+    from: FROM_EMAIL,
+    to: email,
+    subject,
+    html: `
+      <!DOCTYPE html>
+      <html lang="de">
+        <body style="margin:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#111827;">
+          <div style="max-width:640px;margin:0 auto;padding:24px;">
+            <div style="background:linear-gradient(135deg,#0f172a 0%,#1d4ed8 100%);color:white;padding:28px;border-radius:20px 20px 0 0;">
+              <div style="font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;opacity:0.8;">MYLO Flight Deals</div>
+              <h1 style="margin:10px 0 0;font-size:28px;line-height:1.2;">Hallo ${name || 'MYLO-Nutzer'}, hier sind deine besten Deals.</h1>
+            </div>
+            <div style="background:white;padding:24px;border-radius:0 0 20px 20px;border:1px solid #e5e7eb;border-top:none;">
+              <p style="margin-top:0;font-size:15px;color:#4b5563;">
+                Wir haben deine gespeicherten Praeferenzen genommen und die spannendsten aktuellen Flight Deals fuer dich herausgesucht.
+              </p>
+              ${dealsMarkup}
+              <div style="margin-top:24px;">
+                <a href="${appUrl}/deals" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:12px 18px;border-radius:999px;font-weight:600;">
+                  Deals in MYLO oeffnen
+                </a>
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `,
+  });
+}

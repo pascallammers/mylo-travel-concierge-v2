@@ -8,6 +8,7 @@ import { user } from './db/schema';
 import { eq } from 'drizzle-orm';
 import { clearUserDataCache } from './user-data-server';
 import { invalidateUserCaches } from './performance-cache';
+import { isFlightDealsAuthorizedEmail } from './deals/flight-deals-access';
 
 config({
   path: '.env.local',
@@ -124,3 +125,14 @@ export const isKpiAuthorized = async (): Promise<boolean> => {
     currentUser.email.toLowerCase() as (typeof KPI_AUTHORIZED_EMAILS)[number],
   );
 };
+
+/**
+ * Check if the current user may access Flight Deals.
+ * @returns True when the signed-in user is on the private rollout allowlist.
+ */
+export const isFlightDealsAuthorized = async (): Promise<boolean> => {
+  const currentUser = await getUser();
+  return isFlightDealsAuthorizedEmail(currentUser?.email);
+};
+
+export { isFlightDealsAuthorizedEmail };

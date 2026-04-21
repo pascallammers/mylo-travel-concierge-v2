@@ -1,0 +1,1225 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e6]:
+        - link [ref=e7] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e8]:
+            - img [ref=e9]
+            - img [ref=e13]
+        - navigation [ref=e26]:
+          - list [ref=e27]:
+            - listitem [ref=e28] [cursor=pointer]:
+              - link "Авиабилеты" [ref=e29]:
+                - /url: /
+                - img [ref=e31]
+                - generic [ref=e33]: Авиабилеты
+            - listitem [ref=e34] [cursor=pointer]:
+              - link "Отели" [ref=e35]:
+                - /url: /hotels?source=promo_hotels_tooltip
+                - img [ref=e37]
+                - generic [ref=e39]: Отели
+              - generic:
+                - generic:
+                  - generic [ref=e40]:
+                    - generic [ref=e42]: Отели без наценок и со скидками тут
+                    - button [ref=e43]:
+                      - img [ref=e44]
+                  - generic:
+                    - img
+            - listitem [ref=e46] [cursor=pointer]:
+              - link "Впечатления" [ref=e47]:
+                - /url: /guides?source=tab
+                - img [ref=e49]
+                - generic [ref=e51]: Впечатления
+            - listitem [ref=e52] [cursor=pointer]:
+              - link "Избранное" [ref=e53]:
+                - /url: /favorites?source=tab
+                - img [ref=e55]
+                - generic [ref=e57]: Избранное
+          - list [ref=e58]:
+            - listitem [ref=e59] [cursor=pointer]:
+              - link "Командировки" [ref=e60]:
+                - /url: https://b2b.aviasales.ru/?utm_source=b2c&utm_medium=button
+                - generic [ref=e61]: Командировки
+                - img [ref=e62]
+        - generic [ref=e64]:
+          - button "Профиль" [ref=e68] [cursor=pointer]:
+            - img [ref=e70]
+            - generic [ref=e72]: Профиль
+          - link "Журнал" [ref=e73] [cursor=pointer]:
+            - /url: https://www.aviasales.ru/psgr?utm_source=aviasales.ru&utm_medium=morda&utm_campaign=blog&utm_content=psgr
+            - img [ref=e74]
+            - generic [ref=e76]: Журнал
+          - link "Поддержка" [ref=e78] [cursor=pointer]:
+            - /url: /faq?opened_from=header
+            - img [ref=e79]
+            - generic [ref=e81]: Поддержка
+          - button "Страна, Язык, Валюта" [ref=e84] [cursor=pointer]:
+            - img [ref=e85]
+            - generic [ref=e87]: rub
+      - generic [ref=e88]:
+        - heading "Тут покупают дешёвые авиабилеты" [level=1] [ref=e93]
+        - generic [ref=e94]:
+          - navigation [ref=e98]:
+            - list [ref=e99]:
+              - listitem [ref=e100] [cursor=pointer]:
+                - link "Авиабилеты" [ref=e101]:
+                  - /url: /
+                  - img [ref=e103]
+                  - generic [ref=e105]: Авиабилеты
+              - listitem [ref=e106] [cursor=pointer]:
+                - link "Отели" [ref=e107]:
+                  - /url: /hotels?source=promo_hotels_tooltip
+                  - img [ref=e109]
+                  - generic [ref=e111]: Отели
+                - generic:
+                  - generic:
+                    - generic [ref=e112]:
+                      - generic [ref=e114]: Отели без наценок и со скидками тут
+                      - button [ref=e115]:
+                        - img [ref=e116]
+                    - generic:
+                      - img
+              - listitem [ref=e118] [cursor=pointer]:
+                - link "Впечатления" [ref=e119]:
+                  - /url: /guides?source=tab
+                  - img [ref=e121]
+                  - generic [ref=e124]: Впечатления
+              - listitem [ref=e125] [cursor=pointer]:
+                - link "Избранное" [ref=e126]:
+                  - /url: /favorites?source=tab
+                  - img [ref=e128]
+                  - generic [ref=e130]: Избранное
+            - list [ref=e131]:
+              - listitem [ref=e132] [cursor=pointer]:
+                - link "Командировки" [ref=e133]:
+                  - /url: https://b2b.aviasales.ru/?utm_source=b2c&utm_medium=button
+                  - img [ref=e135]
+                  - generic [ref=e138]: Командировки
+                  - img [ref=e139]
+          - generic [ref=e143]:
+            - generic [ref=e144]:
+              - generic [ref=e145]:
+                - combobox [ref=e146]:
+                  - generic [ref=e148]:
+                    - textbox "Откуда" [ref=e149] [cursor=pointer]: Бремен
+                    - generic [ref=e150]: BRE
+                - combobox [ref=e151]:
+                  - textbox "Куда" [active] [ref=e154] [cursor=pointer]
+              - generic [ref=e155]:
+                - generic [ref=e157]:
+                  - button "Когда" [ref=e158] [cursor=pointer]:
+                    - generic [ref=e160]: Когда
+                    - img [ref=e161]
+                  - button "Обратно" [ref=e164] [cursor=pointer]:
+                    - generic [ref=e166]: Обратно
+                - button "passengers Эконом" [ref=e169] [cursor=pointer]:
+                  - generic "passengers" [ref=e170]: 1 пассажир
+                  - generic [ref=e171]: Эконом
+            - button "Найти билеты" [ref=e173] [cursor=pointer]:
+              - generic [ref=e174]: Найти билеты
+            - contentinfo [ref=e175]:
+              - generic [ref=e176]:
+                - button "Составить сложный маршрут" [ref=e177] [cursor=pointer]:
+                  - img [ref=e178]
+                  - generic [ref=e180]: Составить сложный маршрут
+                - generic [ref=e181] [cursor=pointer]:
+                  - checkbox "Открыть Островок! в новой вкладке" [checked]
+                  - img [ref=e184]
+                  - generic [ref=e186]: Открыть Островок! в новой вкладке
+    - generic [ref=e188]:
+      - generic [ref=e191]:
+        - generic [ref=e196] [cursor=pointer]:
+          - generic [ref=e197]:
+            - img "Баку" [ref=e199]
+            - generic [ref=e200]:
+              - generic [ref=e201]:
+                - img [ref=e202]
+                - generic [ref=e204]: Баку от 11 035 ₽
+              - img [ref=e205]
+              - img [ref=e207]
+              - img [ref=e209]
+              - img [ref=e211]
+          - generic [ref=e213]:
+            - heading "Дворец Ширваншахов" [level=3] [ref=e214]
+            - paragraph [ref=e215]: Архитектурная гордость страны и бывшая резиденция правителей Ширвана — исторической области Закавказья. Дворцовый комплекс строился долго и постоянно обрастал новыми зданиями и двориками, будто кто‑то ввёл читкод motherlode из игры Sims. Во время экскурсии вы узнаете, как раньше принимали крупных шишек.
+          - button "Показать" [ref=e216]:
+            - generic [ref=e217]: Показать
+        - generic [ref=e219]:
+          - heading "Чем заняться этой весной" [level=3] [ref=e220]
+          - generic [ref=e221]:
+            - navigation [ref=e222]:
+              - button "Назад" [disabled] [ref=e223]:
+                - img [ref=e224]
+                - generic [ref=e227]: Назад
+              - button "Вперёд" [ref=e228] [cursor=pointer]:
+                - img [ref=e229]
+                - generic [ref=e232]: Вперёд
+            - list [ref=e233]:
+              - listitem [ref=e234]:
+                - button "Увидеть Паттайю с высоты Паттайя" [ref=e235]:
+                  - figure "Увидеть Паттайю с высоты Паттайя" [ref=e236]:
+                    - img "Увидеть Паттайю с высоты, Паттайя" [ref=e239] [cursor=pointer]
+                    - generic "Увидеть Паттайю с высоты, Паттайя" [ref=e240]:
+                      - generic [ref=e241]: Увидеть Паттайю с высоты
+                      - generic [ref=e242]: Паттайя
+              - listitem [ref=e243]:
+                - button "Закупиться на плавучем рынке Бангкок" [ref=e244]:
+                  - figure "Закупиться на плавучем рынке Бангкок" [ref=e245]:
+                    - img "Закупиться на плавучем рынке, Бангкок" [ref=e248] [cursor=pointer]
+                    - generic "Закупиться на плавучем рынке, Бангкок" [ref=e249]:
+                      - generic [ref=e250]: Закупиться на плавучем рынке
+                      - generic [ref=e251]: Бангкок
+              - listitem [ref=e252]:
+                - button "Побывать в сафари-парке Владивосток" [ref=e253]:
+                  - figure "Побывать в сафари-парке Владивосток" [ref=e254]:
+                    - img "Побывать в сафари-парке, Владивосток" [ref=e257] [cursor=pointer]
+                    - generic "Побывать в сафари-парке, Владивосток" [ref=e258]:
+                      - generic [ref=e259]: Побывать в сафари-парке
+                      - generic [ref=e260]: Владивосток
+              - listitem [ref=e261]:
+                - button "Посёрфить Петропавловск-Камчатский" [ref=e262]:
+                  - figure "Посёрфить Петропавловск-Камчатский" [ref=e263]:
+                    - img "Посёрфить, Петропавловск-Камчатский" [ref=e266] [cursor=pointer]
+                    - generic "Посёрфить, Петропавловск-Камчатский" [ref=e267]:
+                      - generic [ref=e268]: Посёрфить
+                      - generic [ref=e269]: Петропавловск-Камчатский
+              - listitem [ref=e270]:
+                - button "Побродить по ночной Ленинке Москва от 14 774 ₽" [ref=e271]:
+                  - figure "Побродить по ночной Ленинке Москва от 14 774 ₽" [ref=e272]:
+                    - img "Побродить по ночной Ленинке, Москва" [ref=e275] [cursor=pointer]
+                    - generic "Побродить по ночной Ленинке, Москва" [ref=e276]:
+                      - generic [ref=e277]: Побродить по ночной Ленинке
+                      - generic [ref=e278]: Москва
+                      - generic [ref=e279]:
+                        - img [ref=e280]
+                        - generic [ref=e282]: от 14 774 ₽
+              - listitem [ref=e283]:
+                - button "Исследовать каньоны Батуми от 23 271 ₽" [ref=e284]:
+                  - figure "Исследовать каньоны Батуми от 23 271 ₽" [ref=e285]:
+                    - img "Исследовать каньоны, Батуми" [ref=e288] [cursor=pointer]
+                    - generic "Исследовать каньоны, Батуми" [ref=e289]:
+                      - generic [ref=e290]: Исследовать каньоны
+                      - generic [ref=e291]: Батуми
+                      - generic [ref=e292]:
+                        - img [ref=e293]
+                        - generic [ref=e295]: от 23 271 ₽
+              - listitem [ref=e296]:
+                - button "Заглянуть в рыцарские замки Калининград" [ref=e297]:
+                  - figure "Заглянуть в рыцарские замки Калининград" [ref=e298]:
+                    - img "Заглянуть в рыцарские замки, Калининград" [ref=e301] [cursor=pointer]
+                    - generic "Заглянуть в рыцарские замки, Калининград" [ref=e302]:
+                      - generic [ref=e303]: Заглянуть в рыцарские замки
+                      - generic [ref=e304]: Калининград
+              - listitem [ref=e305]:
+                - button "Полетать на параплане Минеральные Воды от 15 871 ₽" [ref=e306]:
+                  - figure "Полетать на параплане Минеральные Воды от 15 871 ₽" [ref=e307]:
+                    - img "Полетать на параплане, Минеральные Воды" [ref=e310] [cursor=pointer]
+                    - generic "Полетать на параплане, Минеральные Воды" [ref=e311]:
+                      - generic [ref=e312]: Полетать на параплане
+                      - generic [ref=e313]: Минеральные Воды
+                      - generic [ref=e314]:
+                        - img [ref=e315]
+                        - generic [ref=e317]: от 15 871 ₽
+              - listitem [ref=e318]:
+                - button "Полазить по горам Алматы от 19 266 ₽" [ref=e319]:
+                  - figure "Полазить по горам Алматы от 19 266 ₽" [ref=e320]:
+                    - img "Полазить по горам, Алматы" [ref=e323] [cursor=pointer]
+                    - generic "Полазить по горам, Алматы" [ref=e324]:
+                      - generic [ref=e325]: Полазить по горам
+                      - generic [ref=e326]: Алматы
+                      - generic [ref=e327]:
+                        - img [ref=e328]
+                        - generic [ref=e330]: от 19 266 ₽
+              - listitem [ref=e331]:
+                - button "Перенестись в Средневековье Минск от 48 937 ₽" [ref=e332]:
+                  - figure "Перенестись в Средневековье Минск от 48 937 ₽" [ref=e333]:
+                    - img "Перенестись в Средневековье, Минск" [ref=e336] [cursor=pointer]
+                    - generic "Перенестись в Средневековье, Минск" [ref=e337]:
+                      - generic [ref=e338]: Перенестись в Средневековье
+                      - generic [ref=e339]: Минск
+                      - generic [ref=e340]:
+                        - img [ref=e341]
+                        - generic [ref=e343]: от 48 937 ₽
+              - listitem [ref=e344]:
+                - button "Отправиться на конную прогулку Махачкала" [ref=e345]:
+                  - figure "Отправиться на конную прогулку Махачкала" [ref=e346]:
+                    - img "Отправиться на конную прогулку, Махачкала" [ref=e349] [cursor=pointer]
+                    - generic "Отправиться на конную прогулку, Махачкала" [ref=e350]:
+                      - generic [ref=e351]: Отправиться на конную прогулку
+                      - generic [ref=e352]: Махачкала
+              - listitem [ref=e353]:
+                - button "Пройти по лабиринтам Конда Ереван" [ref=e354]:
+                  - figure "Пройти по лабиринтам Конда Ереван" [ref=e355]:
+                    - img "Пройти по лабиринтам Конда, Ереван" [ref=e358] [cursor=pointer]
+                    - generic "Пройти по лабиринтам Конда, Ереван" [ref=e359]:
+                      - generic [ref=e360]: Пройти по лабиринтам Конда
+                      - generic [ref=e361]: Ереван
+              - listitem [ref=e362]:
+                - button "Исследовать горы на лошади Минеральные Воды от 15 871 ₽" [ref=e363]:
+                  - figure "Исследовать горы на лошади Минеральные Воды от 15 871 ₽" [ref=e364]:
+                    - img "Исследовать горы на лошади, Минеральные Воды" [ref=e367] [cursor=pointer]
+                    - generic "Исследовать горы на лошади, Минеральные Воды" [ref=e368]:
+                      - generic [ref=e369]: Исследовать горы на лошади
+                      - generic [ref=e370]: Минеральные Воды
+                      - generic [ref=e371]:
+                        - img [ref=e372]
+                        - generic [ref=e374]: от 15 871 ₽
+              - listitem [ref=e375]:
+                - button "Узнать о фитнесе до революции Минеральные Воды от 15 871 ₽" [ref=e376]:
+                  - figure "Узнать о фитнесе до революции Минеральные Воды от 15 871 ₽" [ref=e377]:
+                    - img "Узнать о фитнесе до революции, Минеральные Воды" [ref=e380] [cursor=pointer]
+                    - generic "Узнать о фитнесе до революции, Минеральные Воды" [ref=e381]:
+                      - generic [ref=e382]: Узнать о фитнесе до революции
+                      - generic [ref=e383]: Минеральные Воды
+                      - generic [ref=e384]:
+                        - img [ref=e385]
+                        - generic [ref=e387]: от 15 871 ₽
+              - listitem [ref=e388]:
+                - button "Забраться на Великую стену Пекин" [ref=e389]:
+                  - figure "Забраться на Великую стену Пекин" [ref=e390]:
+                    - img "Забраться на Великую стену, Пекин" [ref=e393] [cursor=pointer]
+                    - generic "Забраться на Великую стену, Пекин" [ref=e394]:
+                      - generic [ref=e395]: Забраться на Великую стену
+                      - generic [ref=e396]: Пекин
+              - listitem [ref=e397]:
+                - button "Изучить уральский конструктивизм Екатеринбург от 25 620 ₽" [ref=e398]:
+                  - figure "Изучить уральский конструктивизм Екатеринбург от 25 620 ₽" [ref=e399]:
+                    - img "Изучить уральский конструктивизм, Екатеринбург" [ref=e402] [cursor=pointer]
+                    - generic "Изучить уральский конструктивизм, Екатеринбург" [ref=e403]:
+                      - generic [ref=e404]: Изучить уральский конструктивизм
+                      - generic [ref=e405]: Екатеринбург
+                      - generic [ref=e406]:
+                        - img [ref=e407]
+                        - generic [ref=e409]: от 25 620 ₽
+              - listitem [ref=e410]:
+                - button "Уехать в Горную Аджарию Батуми от 23 271 ₽" [ref=e411]:
+                  - figure "Уехать в Горную Аджарию Батуми от 23 271 ₽" [ref=e412]:
+                    - img "Уехать в Горную Аджарию, Батуми" [ref=e415] [cursor=pointer]
+                    - generic "Уехать в Горную Аджарию, Батуми" [ref=e416]:
+                      - generic [ref=e417]: Уехать в Горную Аджарию
+                      - generic [ref=e418]: Батуми
+                      - generic [ref=e419]:
+                        - img [ref=e420]
+                        - generic [ref=e422]: от 23 271 ₽
+              - listitem [ref=e423]:
+                - button "Проплыть по Босфору на яхте Стамбул от 4 579 ₽" [ref=e424]:
+                  - figure "Проплыть по Босфору на яхте Стамбул от 4 579 ₽" [ref=e425]:
+                    - img "Проплыть по Босфору на яхте, Стамбул" [ref=e428] [cursor=pointer]
+                    - generic "Проплыть по Босфору на яхте, Стамбул" [ref=e429]:
+                      - generic [ref=e430]: Проплыть по Босфору на яхте
+                      - generic [ref=e431]: Стамбул
+                      - generic [ref=e432]:
+                        - img [ref=e433]
+                        - generic [ref=e435]: от 4 579 ₽
+              - listitem [ref=e436]:
+                - button "Уехать в горы на квадроциклах Анталья от 6 692 ₽" [ref=e437]:
+                  - figure "Уехать в горы на квадроциклах Анталья от 6 692 ₽" [ref=e438]:
+                    - img "Уехать в горы на квадроциклах, Анталья" [ref=e441] [cursor=pointer]
+                    - generic "Уехать в горы на квадроциклах, Анталья" [ref=e442]:
+                      - generic [ref=e443]: Уехать в горы на квадроциклах
+                      - generic [ref=e444]: Анталья
+                      - generic [ref=e445]:
+                        - img [ref=e446]
+                        - generic [ref=e448]: от 6 692 ₽
+              - listitem [ref=e449]:
+                - button "Сгонять на гастроэкскурсию Москва от 14 774 ₽" [ref=e450]:
+                  - figure "Сгонять на гастроэкскурсию Москва от 14 774 ₽" [ref=e451]:
+                    - img "Сгонять на гастроэкскурсию, Москва" [ref=e454] [cursor=pointer]
+                    - generic "Сгонять на гастроэкскурсию, Москва" [ref=e455]:
+                      - generic [ref=e456]: Сгонять на гастроэкскурсию
+                      - generic [ref=e457]: Москва
+                      - generic [ref=e458]:
+                        - img [ref=e459]
+                        - generic [ref=e461]: от 14 774 ₽
+              - listitem [ref=e462]:
+                - button "Познакомиться с дельфинами Сочи от 18 668 ₽" [ref=e463]:
+                  - figure "Познакомиться с дельфинами Сочи от 18 668 ₽" [ref=e464]:
+                    - img "Познакомиться с дельфинами, Сочи" [ref=e467] [cursor=pointer]
+                    - generic "Познакомиться с дельфинами, Сочи" [ref=e468]:
+                      - generic [ref=e469]: Познакомиться с дельфинами
+                      - generic [ref=e470]: Сочи
+                      - generic [ref=e471]:
+                        - img [ref=e472]
+                        - generic [ref=e474]: от 18 668 ₽
+              - listitem [ref=e475]:
+                - button "Пройти по подземному Стамбулу Стамбул от 4 579 ₽" [ref=e476]:
+                  - figure "Пройти по подземному Стамбулу Стамбул от 4 579 ₽" [ref=e477]:
+                    - img "Пройти по подземному Стамбулу, Стамбул" [ref=e480] [cursor=pointer]
+                    - generic "Пройти по подземному Стамбулу, Стамбул" [ref=e481]:
+                      - generic [ref=e482]: Пройти по подземному Стамбулу
+                      - generic [ref=e483]: Стамбул
+                      - generic [ref=e484]:
+                        - img [ref=e485]
+                        - generic [ref=e487]: от 4 579 ₽
+              - listitem [ref=e488]:
+                - button "Сгонять в Габалу Баку от 11 035 ₽" [ref=e489]:
+                  - figure "Сгонять в Габалу Баку от 11 035 ₽" [ref=e490]:
+                    - img "Сгонять в Габалу, Баку" [ref=e493] [cursor=pointer]
+                    - generic "Сгонять в Габалу, Баку" [ref=e494]:
+                      - generic [ref=e495]: Сгонять в Габалу
+                      - generic [ref=e496]: Баку
+                      - generic [ref=e497]:
+                        - img [ref=e498]
+                        - generic [ref=e500]: от 11 035 ₽
+              - listitem [ref=e501]:
+                - button "Пройти по местам Лермонтова Минеральные Воды от 15 871 ₽" [ref=e502]:
+                  - figure "Пройти по местам Лермонтова Минеральные Воды от 15 871 ₽" [ref=e503]:
+                    - img "Пройти по местам Лермонтова, Минеральные Воды" [ref=e506] [cursor=pointer]
+                    - generic "Пройти по местам Лермонтова, Минеральные Воды" [ref=e507]:
+                      - generic [ref=e508]: Пройти по местам Лермонтова
+                      - generic [ref=e509]: Минеральные Воды
+                      - generic [ref=e510]:
+                        - img [ref=e511]
+                        - generic [ref=e513]: от 15 871 ₽
+              - listitem [ref=e514]:
+                - button "Побродить по восточному базару Шарм‑эш-Шейх" [ref=e515]:
+                  - figure "Побродить по восточному базару Шарм‑эш-Шейх" [ref=e516]:
+                    - img "Побродить по восточному базару, Шарм-эш-Шейх" [ref=e519] [cursor=pointer]
+                    - generic "Побродить по восточному базару, Шарм-эш-Шейх" [ref=e520]:
+                      - generic [ref=e521]: Побродить по восточному базару
+                      - generic [ref=e522]: Шарм‑эш-Шейх
+              - listitem [ref=e523]:
+                - button "Увидеть Хибины Мурманск" [ref=e524]:
+                  - figure "Увидеть Хибины Мурманск" [ref=e525]:
+                    - img "Увидеть Хибины, Мурманск" [ref=e528] [cursor=pointer]
+                    - generic "Увидеть Хибины, Мурманск" [ref=e529]:
+                      - generic [ref=e530]: Увидеть Хибины
+                      - generic [ref=e531]: Мурманск
+              - listitem [ref=e532]:
+                - button "Погостить у молокан Ереван" [ref=e533]:
+                  - figure "Погостить у молокан Ереван" [ref=e534]:
+                    - img "Погостить у молокан, Ереван" [ref=e537] [cursor=pointer]
+                    - generic "Погостить у молокан, Ереван" [ref=e538]:
+                      - generic [ref=e539]: Погостить у молокан
+                      - generic [ref=e540]: Ереван
+              - listitem [ref=e541]:
+                - button "Полюбоваться Фудзиямой Токио" [ref=e542]:
+                  - figure "Полюбоваться Фудзиямой Токио" [ref=e543]:
+                    - img "Полюбоваться Фудзиямой, Токио" [ref=e546] [cursor=pointer]
+                    - generic "Полюбоваться Фудзиямой, Токио" [ref=e547]:
+                      - generic [ref=e548]: Полюбоваться Фудзиямой
+                      - generic [ref=e549]: Токио
+              - listitem [ref=e550]:
+                - button "Исследовать метро с гидом Москва от 14 774 ₽" [ref=e551]:
+                  - figure "Исследовать метро с гидом Москва от 14 774 ₽" [ref=e552]:
+                    - img "Исследовать метро с гидом, Москва" [ref=e555] [cursor=pointer]
+                    - generic "Исследовать метро с гидом, Москва" [ref=e556]:
+                      - generic [ref=e557]: Исследовать метро с гидом
+                      - generic [ref=e558]: Москва
+                      - generic [ref=e559]:
+                        - img [ref=e560]
+                        - generic [ref=e562]: от 14 774 ₽
+              - listitem [ref=e563]:
+                - button "Подлететь к кратеру вулкана Петропавловск-Камчатский" [ref=e564]:
+                  - figure "Подлететь к кратеру вулкана Петропавловск-Камчатский" [ref=e565]:
+                    - img "Подлететь к кратеру вулкана, Петропавловск-Камчатский" [ref=e568] [cursor=pointer]
+                    - generic "Подлететь к кратеру вулкана, Петропавловск-Камчатский" [ref=e569]:
+                      - generic [ref=e570]: Подлететь к кратеру вулкана
+                      - generic [ref=e571]: Петропавловск-Камчатский
+              - listitem [ref=e572]:
+                - button "Уплыть к острову Джеймса Бонда Пхукет от 38 451 ₽" [ref=e573]:
+                  - figure "Уплыть к острову Джеймса Бонда Пхукет от 38 451 ₽" [ref=e574]:
+                    - img "Уплыть к острову Джеймса Бонда, Пхукет" [ref=e577] [cursor=pointer]
+                    - generic "Уплыть к острову Джеймса Бонда, Пхукет" [ref=e578]:
+                      - generic [ref=e579]: Уплыть к острову Джеймса Бонда
+                      - generic [ref=e580]: Пхукет
+                      - generic [ref=e581]:
+                        - img [ref=e582]
+                        - generic [ref=e584]: от 38 451 ₽
+              - listitem [ref=e585]:
+                - button "Увидеть грязевые вулканы Баку от 11 035 ₽" [ref=e586]:
+                  - figure "Увидеть грязевые вулканы Баку от 11 035 ₽" [ref=e587]:
+                    - img "Увидеть грязевые вулканы, Баку" [ref=e590] [cursor=pointer]
+                    - generic "Увидеть грязевые вулканы, Баку" [ref=e591]:
+                      - generic [ref=e592]: Увидеть грязевые вулканы
+                      - generic [ref=e593]: Баку
+                      - generic [ref=e594]:
+                        - img [ref=e595]
+                        - generic [ref=e597]: от 11 035 ₽
+              - listitem [ref=e598]:
+                - button "Пройти следами самураев Токио" [ref=e599]:
+                  - figure "Пройти следами самураев Токио" [ref=e600]:
+                    - img "Пройти следами самураев, Токио" [ref=e603] [cursor=pointer]
+                    - generic "Пройти следами самураев, Токио" [ref=e604]:
+                      - generic [ref=e605]: Пройти следами самураев
+                      - generic [ref=e606]: Токио
+              - listitem [ref=e607]:
+                - button "Прокатиться на родельбане Баку от 11 035 ₽" [ref=e608]:
+                  - figure "Прокатиться на родельбане Баку от 11 035 ₽" [ref=e609]:
+                    - img "Прокатиться на родельбане, Баку" [ref=e612] [cursor=pointer]
+                    - generic "Прокатиться на родельбане, Баку" [ref=e613]:
+                      - generic [ref=e614]: Прокатиться на родельбане
+                      - generic [ref=e615]: Баку
+                      - generic [ref=e616]:
+                        - img [ref=e617]
+                        - generic [ref=e619]: от 11 035 ₽
+              - listitem [ref=e620]:
+                - button "Заглянуть в Дом Наркомфина Москва от 14 774 ₽" [ref=e621]:
+                  - figure "Заглянуть в Дом Наркомфина Москва от 14 774 ₽" [ref=e622]:
+                    - img "Заглянуть в Дом Наркомфина, Москва" [ref=e625] [cursor=pointer]
+                    - generic "Заглянуть в Дом Наркомфина, Москва" [ref=e626]:
+                      - generic [ref=e627]: Заглянуть в Дом Наркомфина
+                      - generic [ref=e628]: Москва
+                      - generic [ref=e629]:
+                        - img [ref=e630]
+                        - generic [ref=e632]: от 14 774 ₽
+              - listitem [ref=e633]:
+                - button "Отыскать древние постройки Сочи от 18 668 ₽" [ref=e634]:
+                  - figure "Отыскать древние постройки Сочи от 18 668 ₽" [ref=e635]:
+                    - img "Отыскать древние постройки, Сочи" [ref=e638] [cursor=pointer]
+                    - generic "Отыскать древние постройки, Сочи" [ref=e639]:
+                      - generic [ref=e640]: Отыскать древние постройки
+                      - generic [ref=e641]: Сочи
+                      - generic [ref=e642]:
+                        - img [ref=e643]
+                        - generic [ref=e645]: от 18 668 ₽
+              - listitem [ref=e646]:
+                - button "Сгонять на морскую рыбалку Сочи от 18 668 ₽" [ref=e647]:
+                  - figure "Сгонять на морскую рыбалку Сочи от 18 668 ₽" [ref=e648]:
+                    - img "Сгонять на морскую рыбалку, Сочи" [ref=e651] [cursor=pointer]
+                    - generic "Сгонять на морскую рыбалку, Сочи" [ref=e652]:
+                      - generic [ref=e653]: Сгонять на морскую рыбалку
+                      - generic [ref=e654]: Сочи
+                      - generic [ref=e655]:
+                        - img [ref=e656]
+                        - generic [ref=e658]: от 18 668 ₽
+              - listitem [ref=e659]:
+                - button "Нырнуть с маской Пхукет от 38 451 ₽" [ref=e660]:
+                  - figure "Нырнуть с маской Пхукет от 38 451 ₽" [ref=e661]:
+                    - img "Нырнуть с маской, Пхукет" [ref=e664] [cursor=pointer]
+                    - generic "Нырнуть с маской, Пхукет" [ref=e665]:
+                      - generic [ref=e666]: Нырнуть с маской
+                      - generic [ref=e667]: Пхукет
+                      - generic [ref=e668]:
+                        - img [ref=e669]
+                        - generic [ref=e671]: от 38 451 ₽
+              - listitem [ref=e672]:
+                - button "Поохотиться на призраков Минск от 48 937 ₽" [ref=e673]:
+                  - figure "Поохотиться на призраков Минск от 48 937 ₽" [ref=e674]:
+                    - img "Поохотиться на призраков, Минск" [ref=e677] [cursor=pointer]
+                    - generic "Поохотиться на призраков, Минск" [ref=e678]:
+                      - generic [ref=e679]: Поохотиться на призраков
+                      - generic [ref=e680]: Минск
+                      - generic [ref=e681]:
+                        - img [ref=e682]
+                        - generic [ref=e684]: от 48 937 ₽
+              - listitem [ref=e685]:
+                - button "Оценить уличное искусство Екатеринбург от 25 620 ₽" [ref=e686]:
+                  - figure "Оценить уличное искусство Екатеринбург от 25 620 ₽" [ref=e687]:
+                    - img "Оценить уличное искусство, Екатеринбург" [ref=e690] [cursor=pointer]
+                    - generic "Оценить уличное искусство, Екатеринбург" [ref=e691]:
+                      - generic [ref=e692]: Оценить уличное искусство
+                      - generic [ref=e693]: Екатеринбург
+                      - generic [ref=e694]:
+                        - img [ref=e695]
+                        - generic [ref=e697]: от 25 620 ₽
+              - listitem [ref=e698]:
+                - button "Полетать на вертолёте Горно‑Алтайск" [ref=e699]:
+                  - figure "Полетать на вертолёте Горно‑Алтайск" [ref=e700]:
+                    - img "Полетать на вертолёте, Горно-Алтайск" [ref=e703] [cursor=pointer]
+                    - generic "Полетать на вертолёте, Горно-Алтайск" [ref=e704]:
+                      - generic [ref=e705]: Полетать на вертолёте
+                      - generic [ref=e706]: Горно‑Алтайск
+              - listitem [ref=e707]:
+                - button "Побывать в Ватикане Рим от 6 897 ₽" [ref=e708]:
+                  - figure "Побывать в Ватикане Рим от 6 897 ₽" [ref=e709]:
+                    - img "Побывать в Ватикане, Рим" [ref=e712] [cursor=pointer]
+                    - generic "Побывать в Ватикане, Рим" [ref=e713]:
+                      - generic [ref=e714]: Побывать в Ватикане
+                      - generic [ref=e715]: Рим
+                      - generic [ref=e716]:
+                        - img [ref=e717]
+                        - generic [ref=e719]: от 6 897 ₽
+              - listitem [ref=e720]:
+                - button "Изучить остров-град Свияжск Казань от 20 684 ₽" [ref=e721]:
+                  - figure "Изучить остров-град Свияжск Казань от 20 684 ₽" [ref=e722]:
+                    - img "Изучить остров-град Свияжск, Казань" [ref=e725] [cursor=pointer]
+                    - generic "Изучить остров-град Свияжск, Казань" [ref=e726]:
+                      - generic [ref=e727]: Изучить остров-град Свияжск
+                      - generic [ref=e728]: Казань
+                      - generic [ref=e729]:
+                        - img [ref=e730]
+                        - generic [ref=e732]: от 20 684 ₽
+              - listitem [ref=e733]:
+                - button "Узнать секреты Дуомо Милан от 7 073 ₽" [ref=e734]:
+                  - figure "Узнать секреты Дуомо Милан от 7 073 ₽" [ref=e735]:
+                    - img "Узнать секреты Дуомо, Милан" [ref=e738] [cursor=pointer]
+                    - generic "Узнать секреты Дуомо, Милан" [ref=e739]:
+                      - generic [ref=e740]: Узнать секреты Дуомо
+                      - generic [ref=e741]: Милан
+                      - generic [ref=e742]:
+                        - img [ref=e743]
+                        - generic [ref=e745]: от 7 073 ₽
+              - listitem [ref=e746]:
+                - button "Заглянуть в особняки Санкт-Петербург от 15 645 ₽" [ref=e747]:
+                  - figure "Заглянуть в особняки Санкт-Петербург от 15 645 ₽" [ref=e748]:
+                    - img "Заглянуть в особняки, Санкт-Петербург" [ref=e751] [cursor=pointer]
+                    - generic "Заглянуть в особняки, Санкт-Петербург" [ref=e752]:
+                      - generic [ref=e753]: Заглянуть в особняки
+                      - generic [ref=e754]: Санкт-Петербург
+                      - generic [ref=e755]:
+                        - img [ref=e756]
+                        - generic [ref=e758]: от 15 645 ₽
+              - listitem [ref=e759]:
+                - button "Пройтись по злачной Сретенке Москва от 14 774 ₽" [ref=e760]:
+                  - figure "Пройтись по злачной Сретенке Москва от 14 774 ₽" [ref=e761]:
+                    - img "Пройтись по злачной Сретенке, Москва" [ref=e764] [cursor=pointer]
+                    - generic "Пройтись по злачной Сретенке, Москва" [ref=e765]:
+                      - generic [ref=e766]: Пройтись по злачной Сретенке
+                      - generic [ref=e767]: Москва
+                      - generic [ref=e768]:
+                        - img [ref=e769]
+                        - generic [ref=e771]: от 14 774 ₽
+              - listitem [ref=e772]:
+                - button "Увидеть город глазами поэтов Санкт-Петербург от 15 645 ₽" [ref=e773]:
+                  - figure "Увидеть город глазами поэтов Санкт-Петербург от 15 645 ₽" [ref=e774]:
+                    - img "Увидеть город глазами поэтов, Санкт-Петербург" [ref=e777] [cursor=pointer]
+                    - generic "Увидеть город глазами поэтов, Санкт-Петербург" [ref=e778]:
+                      - generic [ref=e779]: Увидеть город глазами поэтов
+                      - generic [ref=e780]: Санкт-Петербург
+                      - generic [ref=e781]:
+                        - img [ref=e782]
+                        - generic [ref=e784]: от 15 645 ₽
+              - listitem [ref=e785]:
+                - button "Увидеть неформальное Алматы от 19 266 ₽" [ref=e786]:
+                  - figure "Увидеть неформальное Алматы от 19 266 ₽" [ref=e787]:
+                    - img "Увидеть неформальное, Алматы" [ref=e790] [cursor=pointer]
+                    - generic "Увидеть неформальное, Алматы" [ref=e791]:
+                      - generic [ref=e792]: Увидеть неформальное
+                      - generic [ref=e793]: Алматы
+                      - generic [ref=e794]:
+                        - img [ref=e795]
+                        - generic [ref=e797]: от 19 266 ₽
+              - listitem [ref=e798]:
+                - button "Исследовать берег на джипе Владивосток" [ref=e799]:
+                  - figure "Исследовать берег на джипе Владивосток" [ref=e800]:
+                    - img "Исследовать берег на джипе, Владивосток" [ref=e803] [cursor=pointer]
+                    - generic "Исследовать берег на джипе, Владивосток" [ref=e804]:
+                      - generic [ref=e805]: Исследовать берег на джипе
+                      - generic [ref=e806]: Владивосток
+              - listitem [ref=e807]:
+                - button "Поучаствовать в чайной церемонии Шанхай" [ref=e808]:
+                  - figure "Поучаствовать в чайной церемонии Шанхай" [ref=e809]:
+                    - img "Поучаствовать в чайной церемонии, Шанхай" [ref=e812] [cursor=pointer]
+                    - generic "Поучаствовать в чайной церемонии, Шанхай" [ref=e813]:
+                      - generic [ref=e814]: Поучаствовать в чайной церемонии
+                      - generic [ref=e815]: Шанхай
+          - button "Показать всё" [ref=e817] [cursor=pointer]:
+            - generic [ref=e818]: Показать всё
+        - generic [ref=e819]:
+          - generic [ref=e820]:
+            - generic [ref=e822]:
+              - heading "Cлетать развеяться" [level=3] [ref=e823]
+              - generic [ref=e824]: Гуща событий с кофе Jardin
+            - generic [ref=e825]:
+              - navigation:
+                - button "Вперёд" [ref=e826] [cursor=pointer]:
+                  - img [ref=e827]
+                  - generic [ref=e830]: Вперёд
+              - list [ref=e831]:
+                - listitem [ref=e832] [cursor=pointer]:
+                  - button "Moby Белград от 15 732 ₽" [ref=e833]:
+                    - figure "Moby Белград от 15 732 ₽" [ref=e834]:
+                      - generic [ref=e835]:
+                        - img "Moby, Белград" [ref=e837]
+                        - strong [ref=e838]:
+                          - generic [ref=e840]: 21 июл
+                      - generic "Moby, Белград" [ref=e841]:
+                        - generic [ref=e842]: Moby
+                        - generic [ref=e843]: Белград
+                        - generic [ref=e844]:
+                          - img [ref=e845]
+                          - generic [ref=e847]: от 15 732 ₽
+                - listitem [ref=e848] [cursor=pointer]:
+                  - button "Джон Ледженд Самарканд от 22 713 ₽" [ref=e849]:
+                    - figure "Джон Ледженд Самарканд от 22 713 ₽" [ref=e850]:
+                      - generic [ref=e851]:
+                        - img "Джон Ледженд, Самарканд" [ref=e853]
+                        - strong [ref=e854]:
+                          - generic [ref=e856]: 8 июн
+                      - generic "Джон Ледженд, Самарканд" [ref=e857]:
+                        - generic [ref=e858]: Джон Ледженд
+                        - generic [ref=e859]: Самарканд
+                        - generic [ref=e860]:
+                          - img [ref=e861]
+                          - generic [ref=e863]: от 22 713 ₽
+                - listitem [ref=e864] [cursor=pointer]:
+                  - button "Belbet Fest Минск от 48 937 ₽" [ref=e865]:
+                    - figure "Belbet Fest Минск от 48 937 ₽" [ref=e866]:
+                      - generic [ref=e867]:
+                        - img "Belbet Fest, Минск" [ref=e869]
+                        - strong [ref=e870]:
+                          - generic [ref=e872]: 13 июн
+                      - generic "Belbet Fest, Минск" [ref=e873]:
+                        - generic [ref=e874]: Belbet Fest
+                        - generic [ref=e875]: Минск
+                        - generic [ref=e876]:
+                          - img [ref=e877]
+                          - generic [ref=e879]: от 48 937 ₽
+                - listitem [ref=e880] [cursor=pointer]:
+                  - button "Лара Фабиан Ереван" [ref=e881]:
+                    - figure "Лара Фабиан Ереван" [ref=e882]:
+                      - generic [ref=e883]:
+                        - img "Лара Фабиан, Ереван" [ref=e885]
+                        - strong [ref=e886]:
+                          - generic [ref=e888]: 8 июн
+                      - generic "Лара Фабиан, Ереван" [ref=e889]:
+                        - generic [ref=e890]: Лара Фабиан
+                        - generic [ref=e891]: Ереван
+                - listitem [ref=e892] [cursor=pointer]:
+                  - button "Фестиваль Outline Москва от 14 774 ₽" [ref=e893]:
+                    - figure "Фестиваль Outline Москва от 14 774 ₽" [ref=e894]:
+                      - generic [ref=e895]:
+                        - img "Фестиваль Outline, Москва" [ref=e897]
+                        - strong [ref=e898]:
+                          - generic [ref=e900]: 21–27 июл
+                      - generic "Фестиваль Outline, Москва" [ref=e901]:
+                        - generic [ref=e902]: Фестиваль Outline
+                        - generic [ref=e903]: Москва
+                        - generic [ref=e904]:
+                          - img [ref=e905]
+                          - generic [ref=e907]: от 14 774 ₽
+                - listitem [ref=e908] [cursor=pointer]:
+                  - button "Кинофестиваль «Послание к человеку» Санкт-Петербург от 15 645 ₽" [ref=e909]:
+                    - figure "Кинофестиваль «Послание к человеку» Санкт-Петербург от 15 645 ₽" [ref=e910]:
+                      - generic [ref=e911]:
+                        - img "Кинофестиваль «Послание к человеку», Санкт-Петербург" [ref=e913]
+                        - strong [ref=e914]:
+                          - generic [ref=e916]: 16–24 окт
+                      - generic "Кинофестиваль «Послание к человеку», Санкт-Петербург" [ref=e917]:
+                        - generic [ref=e918]: Кинофестиваль «Послание к человеку»
+                        - generic [ref=e919]: Санкт-Петербург
+                        - generic [ref=e920]:
+                          - img [ref=e921]
+                          - generic [ref=e923]: от 15 645 ₽
+                - listitem [ref=e924] [cursor=pointer]:
+                  - button "Dream Fest Баку от 11 035 ₽" [ref=e925]:
+                    - figure "Dream Fest Баку от 11 035 ₽" [ref=e926]:
+                      - generic [ref=e927]:
+                        - img "Dream Fest, Баку" [ref=e929]
+                        - strong [ref=e930]:
+                          - generic [ref=e932]: 23–26 июл
+                      - generic "Dream Fest, Баку" [ref=e933]:
+                        - generic [ref=e934]: Dream Fest
+                        - generic [ref=e935]: Баку
+                        - generic [ref=e936]:
+                          - img [ref=e937]
+                          - generic [ref=e939]: от 11 035 ₽
+                - listitem [ref=e940] [cursor=pointer]:
+                  - button "Фестиваль Park Live Алматы от 19 266 ₽" [ref=e941]:
+                    - figure "Фестиваль Park Live Алматы от 19 266 ₽" [ref=e942]:
+                      - generic [ref=e943]:
+                        - img "Фестиваль Park Live, Алматы" [ref=e945]
+                        - strong [ref=e946]:
+                          - generic [ref=e948]: 21–23 авг
+                      - generic "Фестиваль Park Live, Алматы" [ref=e949]:
+                        - generic [ref=e950]: Фестиваль Park Live
+                        - generic [ref=e951]: Алматы
+                        - generic [ref=e952]:
+                          - img [ref=e953]
+                          - generic [ref=e955]: от 19 266 ₽
+                - listitem [ref=e956] [cursor=pointer]:
+                  - button "Фестиваль Piano City Milano Милан от 7 073 ₽" [ref=e957]:
+                    - figure "Фестиваль Piano City Milano Милан от 7 073 ₽" [ref=e958]:
+                      - generic [ref=e959]:
+                        - img "Фестиваль Piano City Milano, Милан" [ref=e961]
+                        - strong [ref=e962]:
+                          - generic [ref=e964]: 15–17 мая
+                      - generic "Фестиваль Piano City Milano, Милан" [ref=e965]:
+                        - generic [ref=e966]: Фестиваль Piano City Milano
+                        - generic [ref=e967]: Милан
+                        - generic [ref=e968]:
+                          - img [ref=e969]
+                          - generic [ref=e971]: от 7 073 ₽
+                - listitem [ref=e972] [cursor=pointer]:
+                  - button "Фестиваль Day Zero Bali Денпасар (Бали)" [ref=e973]:
+                    - figure "Фестиваль Day Zero Bali Денпасар (Бали)" [ref=e974]:
+                      - generic [ref=e975]:
+                        - img "Фестиваль Day Zero Bali, Денпасар (Бали)" [ref=e977]
+                        - strong [ref=e978]:
+                          - generic [ref=e980]: 17 апр
+                      - generic "Фестиваль Day Zero Bali, Денпасар (Бали)" [ref=e981]:
+                        - generic [ref=e982]: Фестиваль Day Zero Bali
+                        - generic [ref=e983]: Денпасар (Бали)
+                - listitem [ref=e984] [cursor=pointer]:
+                  - button "Moscow Jazz Festival Москва от 14 774 ₽" [ref=e985]:
+                    - figure "Moscow Jazz Festival Москва от 14 774 ₽" [ref=e986]:
+                      - generic [ref=e987]:
+                        - img "Moscow Jazz Festival, Москва" [ref=e989]
+                        - strong [ref=e990]:
+                          - generic [ref=e992]: 8–14 июн
+                      - generic "Moscow Jazz Festival, Москва" [ref=e993]:
+                        - generic [ref=e994]: Moscow Jazz Festival
+                        - generic [ref=e995]: Москва
+                        - generic [ref=e996]:
+                          - img [ref=e997]
+                          - generic [ref=e999]: от 14 774 ₽
+                - listitem [ref=e1000] [cursor=pointer]:
+                  - button "Фестиваль Rock in Rio Лиссабон от 8 654 ₽" [ref=e1001]:
+                    - figure "Фестиваль Rock in Rio Лиссабон от 8 654 ₽" [ref=e1002]:
+                      - generic [ref=e1003]:
+                        - img "Фестиваль Rock in Rio, Лиссабон" [ref=e1005]
+                        - strong [ref=e1006]:
+                          - generic [ref=e1008]: 20–28 июн
+                      - generic "Фестиваль Rock in Rio, Лиссабон" [ref=e1009]:
+                        - generic [ref=e1010]: Фестиваль Rock in Rio
+                        - generic [ref=e1011]: Лиссабон
+                        - generic [ref=e1012]:
+                          - img [ref=e1013]
+                          - generic [ref=e1015]: от 8 654 ₽
+            - button "Окунуться" [ref=e1017] [cursor=pointer]:
+              - generic [ref=e1018]: Окунуться
+          - generic [ref=e1019]: Реклама, ООО «ОРИМИ ТРЭЙД», 2W5zFG3LVey
+        - generic [ref=e1021]:
+          - img [ref=e1022]
+          - generic [ref=e1047]:
+            - generic [ref=e1048]: Куда улететь на выходные
+            - generic [ref=e1049]: "Билеты для тех, кто не хочет на дачу: удобный вылет и короткие пересадки"
+            - button "Выбрать город" [ref=e1050] [cursor=pointer]:
+              - generic [ref=e1051]: Выбрать город
+            - link "Бремен - Брюссель 43 841 ₽ Бремен — Брюссель 11 апр, сб — 12 апр, вс" [ref=e1055] [cursor=pointer]:
+              - /url: /search/BRE1104BRU12041?t=LH17758986001775913000000240BREMUCBRU17760222001776033000000180BRUFRABRE_1224409083280f993e4d57af3edaa0ca_43748&search_date=03042026&expected_price_uuid=019d5331-5858-8030-a24b-e9573ecb156c&static_fare_key=TY%7CP1%7CH1%7CL1_1_0%7CCH0%7CR0%7CTBC1&expected_price_source=share&expected_price_currency=rub&expected_price=43841&request_source=explore-weekends_offers
+              - img "Бремен - Брюссель" [ref=e1057]
+              - generic [ref=e1058]:
+                - generic [ref=e1059]: 43 841 ₽
+                - generic [ref=e1060]:
+                  - generic [ref=e1061]:
+                    - generic [ref=e1062]: Бремен
+                    - text: —
+                  - generic [ref=e1063]: Брюссель
+                - generic [ref=e1064]: 11 апр, сб — 12 апр, вс
+        - generic [ref=e1068]:
+          - heading "Переключить сезон" [level=3] [ref=e1069]
+          - generic [ref=e1070]:
+            - navigation [ref=e1071]:
+              - button "Назад" [disabled] [ref=e1072]:
+                - img [ref=e1073]
+                - generic [ref=e1076]: Назад
+              - button "Вперёд" [ref=e1077] [cursor=pointer]:
+                - img [ref=e1078]
+                - generic [ref=e1081]: Вперёд
+            - list [ref=e1082]:
+              - listitem [ref=e1083]:
+                - button "Анталья" [ref=e1084]:
+                  - figure "Анталья" [ref=e1085]:
+                    - img "Анталья" [ref=e1087] [cursor=pointer]
+                    - generic "Анталья" [ref=e1088]
+                    - generic [ref=e1089]:
+                      - img [ref=e1090]
+                      - generic [ref=e1092]: от 6 692 ₽
+              - listitem [ref=e1093]:
+                - button "Самуй" [ref=e1094]:
+                  - figure "Самуй" [ref=e1095]:
+                    - img "Самуй" [ref=e1097] [cursor=pointer]
+                    - generic "Самуй" [ref=e1098]
+              - listitem [ref=e1099]:
+                - button "Сейшелы" [ref=e1100]:
+                  - figure "Сейшелы" [ref=e1101]:
+                    - img "Сейшелы" [ref=e1103] [cursor=pointer]
+                    - generic "Сейшелы" [ref=e1104]
+              - listitem [ref=e1105]:
+                - button "Гоа" [ref=e1106]:
+                  - figure "Гоа" [ref=e1107]:
+                    - img "Гоа" [ref=e1109] [cursor=pointer]
+                    - generic "Гоа" [ref=e1110]
+              - listitem [ref=e1111]:
+                - button "Даламан" [ref=e1112]:
+                  - figure "Даламан" [ref=e1113]:
+                    - img "Даламан" [ref=e1115] [cursor=pointer]
+                    - generic "Даламан" [ref=e1116]
+              - listitem [ref=e1117]:
+                - button "Фукуок" [ref=e1118]:
+                  - figure "Фукуок" [ref=e1119]:
+                    - img "Фукуок" [ref=e1121] [cursor=pointer]
+                    - generic "Фукуок" [ref=e1122]
+              - listitem [ref=e1123]:
+                - button "Мальдивы" [ref=e1124]:
+                  - figure "Мальдивы" [ref=e1125]:
+                    - img "Мальдивы" [ref=e1127] [cursor=pointer]
+                    - generic "Мальдивы" [ref=e1128]
+              - listitem [ref=e1129]:
+                - button "Черногория" [ref=e1130]:
+                  - figure "Черногория" [ref=e1131]:
+                    - img "Черногория" [ref=e1133] [cursor=pointer]
+                    - generic "Черногория" [ref=e1134]
+              - listitem [ref=e1135]:
+                - button "Шри‑Ланка" [ref=e1136]:
+                  - figure "Шри‑Ланка" [ref=e1137]:
+                    - img "Шри-Ланка" [ref=e1139] [cursor=pointer]
+                    - generic "Шри-Ланка" [ref=e1140]: Шри‑Ланка
+              - listitem [ref=e1141]:
+                - button "Денпасар (Бали)" [ref=e1142]:
+                  - figure "Денпасар (Бали)" [ref=e1143]:
+                    - img "Денпасар (Бали)" [ref=e1145] [cursor=pointer]
+                    - generic "Денпасар (Бали)" [ref=e1146]
+              - listitem [ref=e1147]:
+                - button "Сочи" [ref=e1148]:
+                  - figure "Сочи" [ref=e1149]:
+                    - img "Сочи" [ref=e1151] [cursor=pointer]
+                    - generic "Сочи" [ref=e1152]
+                    - generic [ref=e1153]:
+                      - img [ref=e1154]
+                      - generic [ref=e1156]: от 18 668 ₽
+              - listitem [ref=e1157]:
+                - button "Паттайя" [ref=e1158]:
+                  - figure "Паттайя" [ref=e1159]:
+                    - img "Паттайя" [ref=e1161] [cursor=pointer]
+                    - generic "Паттайя" [ref=e1162]
+              - listitem [ref=e1163]:
+                - button "Хургада" [ref=e1164]:
+                  - figure "Хургада" [ref=e1165]:
+                    - img "Хургада" [ref=e1167] [cursor=pointer]
+                    - generic "Хургада" [ref=e1168]
+              - listitem [ref=e1169]:
+                - button "Пхукет" [ref=e1170]:
+                  - figure "Пхукет" [ref=e1171]:
+                    - img "Пхукет" [ref=e1173] [cursor=pointer]
+                    - generic "Пхукет" [ref=e1174]
+                    - generic [ref=e1175]:
+                      - img [ref=e1176]
+                      - generic [ref=e1178]: от 38 451 ₽
+              - listitem [ref=e1179]:
+                - button "Нячанг" [ref=e1180]:
+                  - figure "Нячанг" [ref=e1181]:
+                    - img "Нячанг" [ref=e1183] [cursor=pointer]
+                    - generic "Нячанг" [ref=e1184]
+        - generic [ref=e1187] [cursor=pointer]:
+          - generic [ref=e1188]:
+            - img "Санкт-Петербург" [ref=e1190]
+            - generic [ref=e1191]:
+              - generic [ref=e1192]:
+                - img [ref=e1193]
+                - generic [ref=e1195]: Санкт-Петербург от 15 645 ₽
+              - img [ref=e1196]
+              - img [ref=e1198]
+              - img [ref=e1200]
+              - img [ref=e1202]
+          - generic [ref=e1204]:
+            - heading "Бертгольд Центр" [level=3] [ref=e1205]
+            - paragraph [ref=e1206]: Поэтесса Ольга Берггольц тут ни при чём — произносите название правильно. Здание фабрики по созданию типографских шрифтов имени Германа Бертгольда превратили в креативный кластер с кучей кафе, творческих студий, локальных магазинов и шикарным видом с крыши.
+          - button "Показать" [ref=e1207]:
+            - generic [ref=e1208]: Показать
+        - generic [ref=e1211] [cursor=pointer]:
+          - generic [ref=e1212]:
+            - img "Стамбул" [ref=e1214]
+            - generic [ref=e1215]:
+              - generic [ref=e1216]:
+                - img [ref=e1217]
+                - generic [ref=e1219]: Стамбул от 4 579 ₽
+              - img [ref=e1220]
+              - img [ref=e1222]
+              - img [ref=e1224]
+              - img [ref=e1226]
+          - generic [ref=e1228]:
+            - heading "Гранд-Базар" [level=3] [ref=e1229]
+            - paragraph [ref=e1230]: Проверьте свои навыки ведения переговоров и ориентирования на Гранд‑базаре. Все 5 000 торговых точек обойти вряд ли удастся, да и цены тут завышены. А вот купить выгодно украшения или хотя бы сделать фото на фоне ковра — можно.
+          - button "Показать" [ref=e1231]:
+            - generic [ref=e1232]: Показать
+        - generic [ref=e1235]:
+          - generic [ref=e1236]:
+            - heading "Карта цен" [level=2] [ref=e1237]
+            - paragraph [ref=e1238]: Так легче найти самый дешёвый билет
+          - button "Открыть" [ref=e1240] [cursor=pointer]:
+            - generic [ref=e1242]: Открыть
+        - 'link "Журнал ПСЖР Всё просто: мы пишем про путешествия — вы читаете Читать" [ref=e1244] [cursor=pointer]':
+          - /url: https://www.aviasales.ru/psgr?utm_source=aviasales.ru&utm_medium=baner&utm_campaign=blog&utm_content=psgr
+          - generic [ref=e1245]: Журнал ПСЖР
+          - generic [ref=e1246]: "Всё просто: мы пишем про путешествия — вы читаете"
+          - button "Читать" [ref=e1247]:
+            - generic [ref=e1248]: Читать
+        - generic [ref=e1250]:
+          - img [ref=e1251]
+          - heading "Долистали до конца?" [level=2] [ref=e1252]
+          - paragraph [ref=e1253]: Вот вам милый котик!
+          - button "Вернуться в начало" [ref=e1254] [cursor=pointer]:
+            - generic [ref=e1255]: Вернуться в начало
+      - generic [ref=e1257]:
+        - img [ref=e1258]
+        - paragraph [ref=e1260]: Помогаем сравнить билеты и купить самый дешёвый
+        - button "Узнать больше" [ref=e1261] [cursor=pointer]:
+          - generic [ref=e1262]: Узнать больше
+    - generic [ref=e1264]:
+      - generic [ref=e1266]:
+        - text: Популярные направления
+        - generic [ref=e1267]:
+          - generic [ref=e1268] [cursor=pointer]:
+            - generic [ref=e1269]:
+              - link "Коломбо" [ref=e1270]:
+                - /url: /cities/kolombo-cmb
+              - link "Шри‑Ланка" [ref=e1271]:
+                - /url: /countries/shri-lanka
+            - img [ref=e1272]
+          - generic [ref=e1274] [cursor=pointer]:
+            - generic [ref=e1275]:
+              - link "Мале" [ref=e1276]:
+                - /url: /cities/male-mle
+              - link "Мальдивы" [ref=e1277]:
+                - /url: /countries/maldivy
+            - img [ref=e1278]
+          - generic [ref=e1280] [cursor=pointer]:
+            - generic [ref=e1281]:
+              - link "Ташкент" [ref=e1282]:
+                - /url: /cities/tashkent-tas
+              - link "Узбекистан" [ref=e1283]:
+                - /url: /countries/uzbekistan
+            - img [ref=e1284]
+          - generic [ref=e1286] [cursor=pointer]:
+            - generic [ref=e1287]:
+              - link "Бангкок" [ref=e1288]:
+                - /url: /cities/bangkok-bkk
+              - link "Таиланд" [ref=e1289]:
+                - /url: /countries/tailand
+            - img [ref=e1290]
+          - generic [ref=e1292] [cursor=pointer]:
+            - generic [ref=e1293]:
+              - link "Белград" [ref=e1294]:
+                - /url: /cities/belgrad-beg
+              - link "Сербия" [ref=e1295]:
+                - /url: /countries/serbiya
+            - img [ref=e1296]
+          - generic [ref=e1298] [cursor=pointer]:
+            - generic [ref=e1299]:
+              - link "Дубай" [ref=e1300]:
+                - /url: /cities/dubai-dxb
+              - link "ОАЭ" [ref=e1301]:
+                - /url: /countries/oae
+            - img [ref=e1302]
+          - generic [ref=e1304] [cursor=pointer]:
+            - generic [ref=e1305]:
+              - link "Стамбул" [ref=e1306]:
+                - /url: /cities/stambul-ist
+              - link "Турция" [ref=e1307]:
+                - /url: /countries/turtsiya
+            - img [ref=e1308]
+          - generic [ref=e1310] [cursor=pointer]:
+            - generic [ref=e1311]:
+              - link "Манила" [ref=e1312]:
+                - /url: /cities/manila-mnl
+              - link "Филиппины" [ref=e1313]:
+                - /url: /countries/filippiny
+            - img [ref=e1314]
+          - generic [ref=e1316] [cursor=pointer]:
+            - generic [ref=e1317]:
+              - link "Подгорица" [ref=e1318]:
+                - /url: /cities/podgoritsa-tgd
+              - link "Черногория" [ref=e1319]:
+                - /url: /countries/chernogoriya
+            - img [ref=e1320]
+          - generic [ref=e1322] [cursor=pointer]:
+            - generic [ref=e1323]:
+              - link "Маврикий" [ref=e1324]:
+                - /url: /cities/plaisans-mru
+              - link "Маврикий" [ref=e1325]:
+                - /url: /countries/mavrikii
+            - img [ref=e1326]
+          - generic [ref=e1328] [cursor=pointer]:
+            - generic [ref=e1329]:
+              - link "Токио" [ref=e1330]:
+                - /url: /cities/tokio-tyo
+              - link "Япония" [ref=e1331]:
+                - /url: /countries/yaponiya
+            - img [ref=e1332]
+      - generic [ref=e1334]:
+        - generic [ref=e1335]:
+          - generic [ref=e1337]: Авиасейлс для бизнеса
+          - generic [ref=e1338]:
+            - generic [ref=e1339]: "Бесплатный сервис, где есть всё для командировок: от билетов до виз"
+            - link "Покажите" [ref=e1340] [cursor=pointer]:
+              - /url: https://b2b.aviasales.ru/?utm_source=b2c&utm_medium=footer
+              - generic [ref=e1341]: Покажите
+        - generic [ref=e1343]:
+          - link "Авиакомпании" [ref=e1344] [cursor=pointer]:
+            - /url: /airlines
+          - generic [ref=e1345]:
+            - link "Победа" [ref=e1346] [cursor=pointer]:
+              - /url: /airlines/victory
+            - link "Россия" [ref=e1347] [cursor=pointer]:
+              - /url: /airlines/rossiya-airlines
+            - link "Азимут" [ref=e1348] [cursor=pointer]:
+              - /url: /airlines/aerocon
+            - link "Ямал" [ref=e1349] [cursor=pointer]:
+              - /url: /airlines/yamal-air
+            - link "Red Sea Airlines" [ref=e1350] [cursor=pointer]:
+              - /url: /airlines/red-sea-airlines
+            - button "Ещё 5 авиакомпаний" [ref=e1351] [cursor=pointer]
+        - generic [ref=e1352]:
+          - text: Направления
+          - generic [ref=e1353]:
+            - link "Москва — Сочи" [ref=e1354] [cursor=pointer]:
+              - /url: /routes/mow/aer
+            - link "Москва — Калининград" [ref=e1355] [cursor=pointer]:
+              - /url: /routes/mow/kgd
+            - link "Москва — Красноярск" [ref=e1356] [cursor=pointer]:
+              - /url: /routes/mow/kja
+            - link "Москва — Махачкала" [ref=e1357] [cursor=pointer]:
+              - /url: /routes/mow/mcx
+            - link "Москва — Санкт-Петербург" [ref=e1358] [cursor=pointer]:
+              - /url: /routes/mow/led
+            - link "Москва — Екатеринбург" [ref=e1359] [cursor=pointer]:
+              - /url: /routes/mow/svx
+        - generic [ref=e1360]:
+          - link "Города" [ref=e1361] [cursor=pointer]:
+            - /url: /cities
+          - generic [ref=e1362]:
+            - link "Москва" [ref=e1363] [cursor=pointer]:
+              - /url: /cities/moskva-mow
+            - link "Новосибирск" [ref=e1364] [cursor=pointer]:
+              - /url: /cities/novosibirsk-ovb
+            - link "Санкт-Петербург" [ref=e1365] [cursor=pointer]:
+              - /url: /cities/sankt-peterburg-led
+            - link "Тюмень" [ref=e1366] [cursor=pointer]:
+              - /url: /cities/tumen-tjm
+            - link "Калининград" [ref=e1367] [cursor=pointer]:
+              - /url: /cities/kaliningrad-kgd
+            - button "Ещё 5 городов" [ref=e1368] [cursor=pointer]
+        - generic [ref=e1369]:
+          - link "Аэропорты" [ref=e1370] [cursor=pointer]:
+            - /url: /airports
+          - generic [ref=e1371]:
+            - link "Шереметьево" [ref=e1372] [cursor=pointer]:
+              - /url: /airports/sheremetevo
+            - link "Внуково" [ref=e1373] [cursor=pointer]:
+              - /url: /airports/vnukovo
+            - link "Казань" [ref=e1374] [cursor=pointer]:
+              - /url: /airports/kazan
+            - link "Домодедово" [ref=e1375] [cursor=pointer]:
+              - /url: /airports/domodedovo
+            - link "Уфа" [ref=e1376] [cursor=pointer]:
+              - /url: /airports/ufa
+            - button "Ещё 5 аэропортов" [ref=e1377] [cursor=pointer]
+        - generic [ref=e1378]:
+          - link "Авиасейлс в мире" [ref=e1379] [cursor=pointer]:
+            - /url: /countries
+          - generic [ref=e1380]:
+            - link "Беларусь" [ref=e1381] [cursor=pointer]:
+              - /url: https://www.aviasales.by
+            - link "Казахстан" [ref=e1382] [cursor=pointer]:
+              - /url: https://www.aviasales.kz
+            - link "Таджикистан" [ref=e1383] [cursor=pointer]:
+              - /url: https://www.aviasales.tj
+            - link "Узбекистан" [ref=e1384] [cursor=pointer]:
+              - /url: https://www.aviasales.uz
+            - link "Кыргызстан" [ref=e1385] [cursor=pointer]:
+              - /url: https://www.aviasales.kg
+            - button "Ещё 2 страны" [ref=e1386] [cursor=pointer]
+        - generic [ref=e1387]:
+          - link "Помощь и советы" [ref=e1388] [cursor=pointer]:
+            - /url: /faq?opened_from=footer-services
+          - generic [ref=e1389]:
+            - link "Не пришёл билет" [ref=e1390] [cursor=pointer]:
+              - /url: /faq/instructions/ne-prishel-bilet?opened_from=footer-services
+            - link "Возврат или обмен билета" [ref=e1391] [cursor=pointer]:
+              - /url: /faq/instructions/vozvrat-ili-obmen-bileta?opened_from=footer-services
+            - link "Про багаж" [ref=e1392] [cursor=pointer]:
+              - /url: /faq/instructions/pro-bagazh?opened_from=footer-services
+            - link "Изменение паспортных данных" [ref=e1393] [cursor=pointer]:
+              - /url: /faq/instructions/izmenenie-pasportnyh-dannyh?opened_from=footer-services
+            - link "Перелёты с детьми" [ref=e1394] [cursor=pointer]:
+              - /url: /faq/instructions/perelety-s-detmi?opened_from=footer-services
+            - button "Ещё 6 вопросов" [ref=e1395] [cursor=pointer]
+      - separator [ref=e1396]
+      - generic [ref=e1397]:
+        - generic [ref=e1398]:
+          - generic [ref=e1399]:
+            - img [ref=e1401]
+            - generic [ref=e1406]:
+              - generic [ref=e1407]: Авиасейлс
+              - generic [ref=e1408]: © 2007–2026
+          - generic [ref=e1409]:
+            - link [ref=e1410] [cursor=pointer]:
+              - /url: https://vk.com/aviasales
+              - img [ref=e1411]
+            - link [ref=e1413] [cursor=pointer]:
+              - /url: https://t.me/aviasales
+              - img [ref=e1414]
+            - link [ref=e1416] [cursor=pointer]:
+              - /url: https://twitter.com/aviasales
+              - img [ref=e1417]
+            - link [ref=e1419] [cursor=pointer]:
+              - /url: https://www.tiktok.com/@aviasales
+              - img [ref=e1420]
+            - link [ref=e1422] [cursor=pointer]:
+              - /url: https://dzen.ru/aviasales
+              - img [ref=e1423]
+            - link [ref=e1425] [cursor=pointer]:
+              - /url: https://www.youtube.com/aviasales
+              - img [ref=e1426]
+            - link [ref=e1428] [cursor=pointer]:
+              - /url: https://ok.ru/aviasales
+              - img [ref=e1429]
+        - generic [ref=e1431]:
+          - link "Об Авиасейлс" [ref=e1432] [cursor=pointer]:
+            - /url: /about
+          - link "Вакансии" [ref=e1433] [cursor=pointer]:
+            - /url: https://www.aviasales.ru/about/vacancies
+          - link "Поддержка" [ref=e1434] [cursor=pointer]:
+            - /url: https://www.aviasales.ru/faq?opened_from=footer
+          - link "Реклама" [ref=e1435] [cursor=pointer]:
+            - /url: https://ad.aviasales.ru/
+          - link "Пресс‑центр" [ref=e1436] [cursor=pointer]:
+            - /url: https://newsroom.aviasales.com/
+        - generic [ref=e1437]:
+          - link "Отели А ещё хостелы и квартиры" [ref=e1438] [cursor=pointer]:
+            - /url: /hotels
+            - img [ref=e1440]
+            - generic [ref=e1442]:
+              - generic [ref=e1443]: Отели
+              - generic [ref=e1444]: А ещё хостелы и квартиры
+          - link "Экскурсии В городах по всему миру" [ref=e1445] [cursor=pointer]:
+            - /url: https://www.aviasales.ru/ekskursii?&source_target=footer
+            - img [ref=e1447]
+            - generic [ref=e1450]:
+              - generic [ref=e1451]: Экскурсии
+              - generic [ref=e1452]: В городах по всему миру
+          - link "Travelpayouts Партнёрская программа" [ref=e1453] [cursor=pointer]:
+            - /url: https://www.travelpayouts.com/ru/offers/aviasales-partnerskaya-programma/
+            - img [ref=e1455]
+            - generic [ref=e1458]:
+              - generic [ref=e1459]: Travelpayouts
+              - generic [ref=e1460]: Партнёрская программа
+          - link "Журнал от Авиасейлс 1000+ статей о путешествиях" [ref=e1461] [cursor=pointer]:
+            - /url: https://www.aviasales.ru/psgr?utm_source=aviasales.ru&utm_medium=footer&utm_campaign=blog&utm_content=psgr
+            - img [ref=e1463]
+            - generic [ref=e1466]:
+              - generic [ref=e1467]: Журнал от Авиасейлс
+              - generic [ref=e1468]: 1000+ статей о путешествиях
+          - link "Телеграм‑бот низких цен Ловит дешёвые билеты" [ref=e1469] [cursor=pointer]:
+            - /url: https://t.me/AviasalesCheapTicketsBot?start=MTQzMTQzfGZvb3Rlcl9hcw==
+            - img [ref=e1471]
+            - generic [ref=e1473]:
+              - generic [ref=e1474]: Телеграм‑бот низких цен
+              - generic [ref=e1475]: Ловит дешёвые билеты
+        - generic [ref=e1476]:
+          - button "В приложении тоже удобно Если цена на билет упадёт, сразу пришлём уведомление" [ref=e1477] [cursor=pointer]:
+            - generic [ref=e1478]:
+              - generic [ref=e1479]: В приложении тоже удобно
+              - generic [ref=e1480]: Если цена на билет упадёт, сразу пришлём уведомление
+          - generic [ref=e1482]:
+            - generic [ref=e1483]:
+              - generic [ref=e1485]: Рассылка с выгодными билетами
+              - img [ref=e1488]
+            - generic [ref=e1493]:
+              - textbox "На какую почту отправлять" [ref=e1497]
+              - generic:
+                - button [disabled]:
+                  - img
+            - generic [ref=e1498]:
+              - link "Соглашаюсь получать рекламу" [ref=e1499] [cursor=pointer]:
+                - /url: /advertising-consent
+              - text: ", нескучные письма, подборки билетов и другие полезности"
+        - link "Юридические документы" [ref=e1502] [cursor=pointer]:
+          - /url: https://www.aviasales.ru/my/settings?open_source=footer#privacy
+  - generic [ref=e1504]:
+    - generic [ref=e1505]:
+      - text: Мы используем
+      - link "куки" [ref=e1506] [cursor=pointer]:
+        - /url: /privacy
+      - text: и
+      - link "рекомендательные технологии" [ref=e1507] [cursor=pointer]:
+        - /url: https://static.aviasales.com/legal-docs/RU-RU-Aviasales-Recommendation-System-Rules.html
+      - text: — без них Авиасейлс просто не сможет нормально работать
+    - button "Да без проблем" [ref=e1508] [cursor=pointer]:
+      - generic [ref=e1509]: Да без проблем
+  - status [ref=e1510]

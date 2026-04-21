@@ -1,0 +1,203 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e6]:
+        - link [ref=e7] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e8]:
+            - img [ref=e9]
+            - img [ref=e13]
+        - navigation [ref=e26]:
+          - list [ref=e27]:
+            - listitem [ref=e28] [cursor=pointer]:
+              - link "Flights" [ref=e29]:
+                - /url: /
+                - img [ref=e31]
+                - generic [ref=e33]: Flights
+            - listitem [ref=e34] [cursor=pointer]:
+              - link "Hotels" [ref=e35]:
+                - /url: /hotels?source=tab_change
+                - img [ref=e37]
+                - generic [ref=e39]: Hotels
+        - generic [ref=e40]:
+          - link "Support" [ref=e42] [cursor=pointer]:
+            - /url: /faq?opened_from=header
+            - img [ref=e43]
+            - generic [ref=e45]: Support
+          - button "Country, Language, Currency" [ref=e48] [cursor=pointer]:
+            - img [ref=e49]
+            - generic [ref=e51]: usd · EN
+          - generic [ref=e53] [cursor=pointer]:
+            - checkbox
+      - generic [ref=e60]:
+        - generic [ref=e61]:
+          - generic [ref=e62]:
+            - combobox [ref=e63]:
+              - generic [ref=e65]:
+                - textbox "From" [ref=e66] [cursor=pointer]: Dusseldorf
+                - generic [ref=e67]: DUS
+            - combobox [ref=e68]:
+              - generic [ref=e70]:
+                - textbox "To" [ref=e71] [cursor=pointer]: Barcelona
+                - generic [ref=e72]: BCN
+            - button [ref=e73] [cursor=pointer]:
+              - img [ref=e74]
+              - img [ref=e76]
+          - generic [ref=e78]:
+            - generic [ref=e80]:
+              - button "Tue, May 19" [ref=e81] [cursor=pointer]:
+                - generic [ref=e83]: Tue, May 19
+                - img [ref=e85]
+              - button "Thu, May 21" [ref=e87] [cursor=pointer]:
+                - generic [ref=e89]: Thu, May 21
+                - img [ref=e91]
+            - button "passengers Business" [ref=e95] [cursor=pointer]:
+              - generic "passengers" [ref=e96]: 1 passenger
+              - generic [ref=e97]: Business
+        - button "Search flights" [ref=e99] [cursor=pointer]:
+          - generic [ref=e100]: Search flights
+        - contentinfo [ref=e101]:
+          - button "Create multi‑city route" [ref=e103] [cursor=pointer]:
+            - img [ref=e104]
+            - generic [ref=e106]: Create multi‑city route
+    - generic [ref=e107]:
+      - generic [ref=e109]:
+        - img
+        - generic [ref=e112]: Prices for nearby dates
+        - img [ref=e115]
+      - generic [ref=e123]:
+        - generic [ref=e128]: Loading filters
+        - generic [ref=e135]:
+          - generic [ref=e137]:
+            - img [ref=e138]
+            - generic [ref=e139]:
+              - img [ref=e140]
+              - img [ref=e142]
+              - img [ref=e143]
+            - generic [ref=e144]:
+              - img [ref=e145]
+              - img [ref=e147]
+              - img [ref=e148]
+          - generic [ref=e150]:
+            - img [ref=e151]
+            - generic [ref=e152]:
+              - img [ref=e153]
+              - img [ref=e155]
+              - img [ref=e156]
+            - generic [ref=e157]:
+              - img [ref=e158]
+              - img [ref=e160]
+              - img [ref=e161]
+          - generic [ref=e163]:
+            - img [ref=e164]
+            - generic [ref=e165]:
+              - img [ref=e166]
+              - img [ref=e168]
+              - img [ref=e169]
+            - generic [ref=e170]:
+              - img [ref=e171]
+              - img [ref=e173]
+              - img [ref=e174]
+          - generic [ref=e176]:
+            - img [ref=e177]
+            - generic [ref=e178]:
+              - img [ref=e179]
+              - img [ref=e181]
+              - img [ref=e182]
+            - generic [ref=e183]:
+              - img [ref=e184]
+              - img [ref=e186]
+              - img [ref=e187]
+          - generic [ref=e189]:
+            - img [ref=e190]
+            - generic [ref=e191]:
+              - img [ref=e192]
+              - img [ref=e194]
+              - img [ref=e195]
+            - generic [ref=e196]:
+              - img [ref=e197]
+              - img [ref=e199]
+              - img [ref=e200]
+          - generic [ref=e202]:
+            - img [ref=e203]
+            - generic [ref=e204]:
+              - img [ref=e205]
+              - img [ref=e207]
+              - img [ref=e208]
+            - generic [ref=e209]:
+              - img [ref=e210]
+              - img [ref=e212]
+              - img [ref=e213]
+          - generic [ref=e215]:
+            - img [ref=e216]
+            - generic [ref=e217]:
+              - img [ref=e218]
+              - img [ref=e220]
+              - img [ref=e221]
+            - generic [ref=e222]:
+              - img [ref=e223]
+              - img [ref=e225]
+              - img [ref=e226]
+          - generic [ref=e228]:
+            - img [ref=e229]
+            - generic [ref=e230]:
+              - img [ref=e231]
+              - img [ref=e233]
+              - img [ref=e234]
+            - generic [ref=e235]:
+              - img [ref=e236]
+              - img [ref=e238]
+              - img [ref=e239]
+          - generic [ref=e241]:
+            - img [ref=e242]
+            - generic [ref=e243]:
+              - img [ref=e244]
+              - img [ref=e246]
+              - img [ref=e247]
+            - generic [ref=e248]:
+              - img [ref=e249]
+              - img [ref=e251]
+              - img [ref=e252]
+          - generic [ref=e254]:
+            - img [ref=e255]
+            - generic [ref=e256]:
+              - img [ref=e257]
+              - img [ref=e259]
+              - img [ref=e260]
+            - generic [ref=e261]:
+              - img [ref=e262]
+              - img [ref=e264]
+              - img [ref=e265]
+    - generic [ref=e267]:
+      - separator [ref=e268]
+      - generic [ref=e269]:
+        - generic [ref=e271]:
+          - img [ref=e273]
+          - generic [ref=e278]:
+            - generic [ref=e279]: Aviasales
+            - generic [ref=e280]: © 2007–2026
+        - generic [ref=e281]:
+          - link "About Aviasales" [ref=e282] [cursor=pointer]:
+            - /url: /about
+          - link "Newsroom" [ref=e283] [cursor=pointer]:
+            - /url: https://newsroom.aviasales.com/
+        - button "Give our mobile app a try We’ll notify you if the ticket price drops" [ref=e285] [cursor=pointer]:
+          - generic [ref=e286]:
+            - generic [ref=e287]: Give our mobile app a try
+            - generic [ref=e288]: We’ll notify you if the ticket price drops
+        - generic [ref=e291]: Giant Travel Unicorn Two Limited, a Hong Kong corporation (BRN No. 76803739) with a legal seat at Suite 31/F, Tower Two, Times Square, 1 Matheson Street, Causeway Bay, Hong Kong
+        - link "Legal documents" [ref=e294] [cursor=pointer]:
+          - /url: /privacy
+    - button [ref=e295] [cursor=pointer]:
+      - img [ref=e296]
+  - generic [ref=e299]:
+    - generic [ref=e300]:
+      - text: We collect, process, and share some of your personal information. Visit our
+      - link "Privacy Policy" [ref=e301] [cursor=pointer]:
+        - /url: /privacy
+      - text: and
+      - link "Cookie Policy" [ref=e302] [cursor=pointer]:
+        - /url: /cookie
+      - text: to learn more about your user rights and how to opt out of data sharing
+    - button "Ok" [ref=e303] [cursor=pointer]:
+      - generic [ref=e304]: Ok

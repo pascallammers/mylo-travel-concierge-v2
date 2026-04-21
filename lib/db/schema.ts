@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, json, varchar, integer, uuid, real } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, json, varchar, integer, uuid, real, uniqueIndex, index } from 'drizzle-orm/pg-core';
 import { generateId } from 'ai';
 import { InferSelectModel } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
@@ -777,3 +777,80 @@ export const thriveCartImportState = pgTable('thrivecart_import_state', {
   status: text('status').notNull().default('idle'), // 'idle' | 'running' | 'failed'
   lastError: text('last_error'),
 });
+
+// ============================================
+// Flight Deals
+// ============================================
+
+export const flightDeals = pgTable('flight_deals', {
+  id: text('id').primaryKey().$defaultFn(() => generateId()),
+  origin: varchar('origin', { length: 3 }).notNull(),
+  destination: varchar('destination', { length: 3 }).notNull(),
+  destinationName: text('destination_name'),
+  departureDate: timestamp('departure_date').notNull(),
+  returnDate: timestamp('return_date'),
+  price: real('price').notNull(),
+  currency: varchar('currency', { length: 3 }).notNull().default('EUR'),
+  averagePrice: real('average_price'),
+  priceDifference: real('price_difference'),
+  priceChangePercent: real('price_change_percent'),
+  dealScore: integer('deal_score').notNull().default(0),
+  airline: text('airline'),
+  stops: integer('stops').default(0),
+  flightDuration: integer('flight_duration'),
+  cabinClass: text('cabin_class', { enum: ['economy', 'premium_economy', 'business', 'first'] }).notNull().default('economy'),
+  tripType: text('trip_type', { enum: ['roundtrip', 'oneway'] }).notNull().default('roundtrip'),
+  affiliateLink: text('affiliate_link'),
+  categories: json('categories').$type<string[]>().default([]),
+  source: text('source').notNull().default('travelpayouts'),
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('flight_deals_route_date_cabin_source_uniq').on(table.origin, table.destination, table.departureDate, table.cabinClass, table.source),
+  index('flight_deals_origin_expires_idx').on(table.origin, table.expiresAt),
+  index('flight_deals_score_idx').on(table.dealScore),
+]);
+
+export type FlightDeal = InferSelectModel<typeof flightDeals>;
+
+export const priceHistory = pgTable('price_history', {
+  id: text('id').primaryKey().$defaultFn(() => generateId()),
+  origin: varchar('origin', { length: 3 }).notNull(),
+  destination: varchar('destination', { length: 3 }).notNull(),
+  price: real('price').notNull(),
+  currency: varchar('currency', { length: 3 }).notNull().default('EUR'),
+  cabinClass: text('cabin_class', { enum: ['economy', 'premium_economy', 'business', 'first'] }).notNull().default('economy'),
+  source: text('source').notNull().default('travelpayouts'),
+  scannedAt: timestamp('scanned_at').notNull().defaultNow(),
+}, (table) => [
+  index('price_history_route_scanned_idx').on(table.origin, table.destination, table.scannedAt),
+]);
+
+export const dealRoutes = pgTable('deal_routes', {
+  id: text('id').primaryKey().$defaultFn(() => generateId()),
+  origin: varchar('origin', { length: 3 }).notNull(),
+  destination: varchar('destination', { length: 3 }),
+  priority: integer('priority').notNull().default(5),
+  source: text('source', { enum: ['basis', 'user-generated'] }).notNull().default('basis'),
+  userCount: integer('user_count').notNull().default(0),
+  lastScannedAt: timestamp('last_scanned_at'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => [
+  index('deal_routes_active_priority_idx').on(table.isActive, table.priority),
+]);
+
+export const userDealPreferences = pgTable('user_deal_preferences', {
+  id: text('id').primaryKey().$defaultFn(() => generateId()),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  originAirports: json('origin_airports').$type<string[]>().default([]),
+  preferredDestinations: json('preferred_destinations').$type<string[]>().default([]),
+  cabinClass: text('cabin_class', { enum: ['economy', 'premium_economy', 'business', 'first'] }).default('economy'),
+  maxPrice: real('max_price'),
+  emailDigest: text('email_digest', { enum: ['none', 'weekly', 'daily'] }).notNull().default('none'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export type UserDealPreferences = InferSelectModel<typeof userDealPreferences>;

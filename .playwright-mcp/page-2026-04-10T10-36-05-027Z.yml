@@ -1,0 +1,59 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]: Flight tickets
+    - heading "Your journey begins here" [level=1] [ref=e7]
+  - banner [ref=e8]:
+    - generic [ref=e12]:
+      - generic [ref=e14]:
+        - button "DE" [ref=e15] [cursor=pointer]
+        - button "EUR" [ref=e16] [cursor=pointer]
+      - generic [ref=e18]:
+        - generic [ref=e19]:
+          - generic [ref=e20]:
+            - textbox "Abflug von" [ref=e21]: Düsseldorf, Deutschland
+            - generic [ref=e22]: DUS
+          - generic [ref=e23]:
+            - textbox "Flugziel" [ref=e24]
+            - generic [ref=e25]: BCN
+        - generic [ref=e26]:
+          - generic [ref=e27] [cursor=pointer]:
+            - textbox "Hinflug" [ref=e28]: 19 Mai, Di
+            - button [ref=e30]:
+              - img [ref=e31]
+          - generic [ref=e34] [cursor=pointer]:
+            - textbox "Rückflug" [ref=e35]: 21 Mai, Do
+            - button [ref=e37]:
+              - img [ref=e38]
+        - generic [ref=e41] [cursor=pointer]:
+          - textbox [ref=e42]: 1 Passagier
+          - generic [ref=e43]: Economy
+          - img [ref=e45]
+        - link "Flüge suchen" [ref=e47] [cursor=pointer]:
+          - /url: https://search.jetradar.com?flightSearch=DUS1905BCN21051
+      - generic [ref=e48]:
+        - button "Multi-City-Route erstellen" [ref=e49] [cursor=pointer]:
+          - img [ref=e50]
+          - generic [ref=e53]: Multi-City-Route erstellen
+        - generic [ref=e54] [cursor=pointer]:
+          - img [ref=e55]
+          - generic [ref=e58]: Hotels anzeigen
+  - main [ref=e59]:
+    - generic [ref=e63]:
+      - generic [ref=e64]: Suche nach Flügen
+      - generic [ref=e67]: Filter werden geladen
+  - contentinfo [ref=e150]:
+    - generic [ref=e151]:
+      - generic [ref=e152]: Travelpayouts © 2008−2026
+      - generic [ref=e153]:
+        - link "Terms of Service" [ref=e154] [cursor=pointer]:
+          - /url: "#"
+        - link "Privacy Policy" [ref=e155] [cursor=pointer]:
+          - /url: "#"
+        - link "Cookie Policy" [ref=e156] [cursor=pointer]:
+          - /url: "#"
+  - generic [ref=e157]:
+    - generic [ref=e159]: To provide a better experience we use cookies to store your search history and selected filters. By clicking or navigating the site, you agree to allow our collection of information through cookies.
+    - generic [ref=e160]:
+      - button "Accept" [ref=e161] [cursor=pointer]
+      - link "Cookies Policy" [ref=e162] [cursor=pointer]:
+        - /url: "#"

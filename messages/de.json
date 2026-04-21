@@ -218,7 +218,8 @@
     "older": "Älter"
   },
   "sidebar": {
-    "newChat": "Neuer Chat"
+    "newChat": "Neuer Chat",
+    "deals": "Flugdeals"
   },
   "userProfile": {
     "settings": "Einstellungen",
@@ -230,5 +231,146 @@
     "hideEmail": "E-Mail verbergen",
     "showEmail": "E-Mail anzeigen",
     "signInToSave": "Melden Sie sich an, um Ihren Fortschritt zu speichern"
+  },
+  "deals": {
+    "title": "Flugdeals",
+    "subtitle": "Entdecke kuratierte Flugdeals ab deinem Flughafen und übergib sie direkt an MYLO.",
+    "staleNotice": "Zuletzt aktualisiert vor {hours}h",
+    "filters": {
+      "origin": "Abflughafen",
+      "allDeals": "Alle Deals",
+      "destination": "Ziel",
+      "anywhere": "Überall",
+      "anytime": "Jederzeit",
+      "month": "Monat",
+      "cabinClass": "Klasse",
+      "economy": "Economy",
+      "premiumEconomy": "Premium Economy",
+      "business": "Business",
+      "first": "First",
+      "stops": "Stopps",
+      "anyStops": "Beliebig",
+      "nonstop": "Direktflug",
+      "maxOne": "Max. 1 Stopp",
+      "tripType": "Reisetyp",
+      "allTripTypes": "Alle Reisetypen",
+      "roundtrip": "Hin- und Rückflug",
+      "oneway": "Nur Hinflug",
+      "sort": "Sortierung",
+      "sortScore": "Nach Score",
+      "sortPrice": "Nach Preis",
+      "sortSavings": "Nach Ersparnis",
+      "buckets": {
+        "weekend_escape": "Wochenend",
+        "long_haul": "Fernreise",
+        "points": "Punkte"
+      },
+      "apply": "Anwenden",
+      "reset": "Zurücksetzen"
+    },
+    "bucketsMeta": {
+      "weekend_escape": {
+        "title": "Wochenend-Escape",
+        "description": "Kurze Trips mit starkem Preis-Leistungs-Verhältnis für spontane Auszeiten.",
+        "empty": "Keine Wochenend-Deals gerade. Schau später nochmal vorbei."
+      },
+      "long_haul": {
+        "title": "Fernreise-Deal",
+        "description": "Langstrecken mit auffällig guten Cash-Preisen für größere Trips.",
+        "empty": "Keine Fernreise-Deals gerade. Schau später nochmal vorbei."
+      },
+      "points": {
+        "title": "Punkte-Schnapper",
+        "description": "Award- und Punkte-Optionen, die sich für Meilensammler besonders lohnen.",
+        "empty": "Keine Punkte-Deals gerade. Schau später nochmal vorbei."
+      }
+    },
+    "card": {
+      "from": "ab",
+      "savings": "Ersparnis",
+      "avgPrice": "Durchschnittspreis",
+      "stops_zero": "Direktflug",
+      "stops_one": "1 Stopp",
+      "stops_other": "{count} Stopps",
+      "roundtrip": "Hin- und Rückflug",
+      "oneway": "Nur Hinflug",
+      "book": "Buchen",
+      "checkWithMylo": "Mit MYLO prüfen",
+      "why": "Warum spannend",
+      "forWhom": "Für wen",
+      "pointsUnit": "Punkte",
+      "priceHistory": "Preishistorie",
+      "personalized": "Passt zu dir:",
+      "moreDetails": "Mehr Details",
+      "lessDetails": "Weniger Details",
+      "recommendationBook": "Buchen empfohlen ({percent}%)",
+      "recommendationWatch": "Beobachten ({percent}%)",
+      "dealScore": "AI Deal Score",
+      "exceptional": "Außergewöhnlich",
+      "veryGood": "Sehr gut",
+      "good": "Gut"
+    },
+    "featured": {
+      "eyebrow": "Personalisierte Empfehlung",
+      "title": "{destination} passt gerade besonders gut zu dir",
+      "description": "MYLO hat diesen Deal basierend auf deinen gespeicherten Präferenzen nach oben sortiert.",
+      "cta": "Mit MYLO besprechen",
+      "points": "Punkte"
+    },
+    "preferences": {
+      "eyebrow": "Phase 2 aktiv",
+      "title": "Deine Deal-Präferenzen",
+      "description": "Speichere Heimatflughäfen, Wunschziele, Budget und Benachrichtigungsfrequenz. MYLO priorisiert damit deinen Feed und kann dir passende Deals proaktiv zuspielen.",
+      "originAirports": "Heimatflughäfen",
+      "originAirportsPlaceholder": "Flughafen oder Stadt suchen",
+      "preferredDestinations": "Wunschziele",
+      "preferredDestinationsPlaceholder": "Ziel oder Stadt suchen",
+      "cabinClass": "Bevorzugte Klasse",
+      "cabinClassOptions": {
+        "any": "Keine Präferenz",
+        "economy": "Economy",
+        "premium_economy": "Premium Economy",
+        "business": "Business",
+        "first": "First"
+      },
+      "maxPrice": "Budget für Cash-Deals",
+      "maxPricePlaceholder": "z. B. 450",
+      "emailDigest": "Deal-Benachrichtigung",
+      "emailDigestHelp": "Lege fest, ob MYLO dir passende Flugdeals regelmäßig per E-Mail schicken soll.",
+      "emailDigestOptions": {
+        "none": "Kein Digest",
+        "daily": "Täglich",
+        "weekly": "Wöchentlich"
+      },
+      "digestStatus": {
+        "none": "Kein Digest aktiv",
+        "daily": "Täglicher Digest aktiv",
+        "weekly": "Wöchentlicher Digest aktiv"
+      },
+      "airportSearchPlaceholder": "Nach Flughafen, Stadt oder IATA-Code suchen",
+      "airportSearchEmpty": "Kein passender Flughafen gefunden.",
+      "airportSearchLoading": "Suche läuft...",
+      "removeSelection": "entfernen",
+      "helper": "Heimatflughäfen und Wunschziele kannst du jetzt direkt suchen. Das Cash-Budget beeinflusst nur EUR-Deals.",
+      "save": "Präferenzen speichern",
+      "saving": "Speichert...",
+      "saved": "Deal-Präferenzen gespeichert",
+      "saveError": "Präferenzen konnten nicht gespeichert werden"
+    },
+    "empty": {
+      "title": "Keine Deals gefunden",
+      "description": "Aktuell keine Deals für deine Filter. Probiere andere Filter oder schau später nochmal vorbei."
+    },
+    "restricted": {
+      "title": "Flugdeals sind noch im privaten Test",
+      "description": "Diese Ansicht ist aktuell nur für ausgewählte Tester freigeschaltet.",
+      "cta": "Zurück zu MYLO"
+    },
+    "error": {
+      "title": "Deals konnten nicht geladen werden",
+      "description": "Bitte versuche es später erneut.",
+      "retry": "Erneut laden"
+    },
+    "ad": "Anzeige"
   }
 }

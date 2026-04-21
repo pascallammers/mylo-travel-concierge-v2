@@ -19,6 +19,14 @@
     {
       "path": "/api/cron/thrivecart-transactions",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/scan-deals",
+      "schedule": "0 */2 * * *"
+    },
+    {
+      "path": "/api/cron/deal-digests",
+      "schedule": "0 6 * * *"
     }
   ]
 }
