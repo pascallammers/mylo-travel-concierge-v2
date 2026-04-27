@@ -5,13 +5,13 @@ const FIXED_NOW = new Date('2026-04-27T10:00:00.000Z');
 
 export const edgeCases: EvalFixture[] = [
   {
-    id: 'edge-001-past-date',
+    id: 'edge-001-past-date-refusal',
     source: 'edge',
-    description: 'Past-date flight query — routing must still pick search_flights',
+    description: 'Past-date flight query → LLM refuses pre-call, politely informs user (per system prompt)',
     userQuery: 'Flüge von Frankfurt nach Phuket am 15.03.2024 in Business',
-    expectedTool: 'search_flights',
+    expectedTool: null,
     reason:
-      'Past-date validation lives at the tool layer, not the router. The system prompt explicitly routes any flight keyword to search_flights regardless of date validity.',
+      'System prompt at lib/chat/mylo-system-prompt.ts:79-86 explicitly says: BEFORE calling search_flights, check if dates are in the past. If past, politely inform the user WITHOUT calling the tool. This fixture validates the pre-call date guard. The `now` field below makes 2024-03-15 unambiguously past.',
     now: FIXED_NOW,
   },
   {
