@@ -197,3 +197,50 @@ Status legend: `[OPEN]` not started · `[WIP]` in progress · `[DONE]` shipped �
 **Decision-needed:** API-Shape — `formatTransferOptions(amount, { region, locale, sourceProgram })` oder `formatTransferOptions(amount, locale)` mit locale → region map?
 
 **Depends on / blocked by:** Lane D (System-Prompt-Assembler). Macht keinen Sinn isoliert zu fixen, weil aktuell kein Aufrufer existiert (Funktion ist Dead-Code-Primitive bis Lane D).
+
+---
+
+## 13. [OPEN] borski-toolkit Phase A2 + A3 (MCPs als AI-SDK-Tools, System-Prompt-Adaption)
+
+**What:** Phase A1 (Submodule + zod-Adapter + Cross-Check) ist gelandet. A2 und A3 stehen aus.
+
+- **A2 (~1–2h):** 4 freie HTTP-MCPs aus `lib/data/borski-toolkit/.mcp.json` als AI-SDK-Tools wrappen — Skiplagged, Kiwi, Trivago, Ferryhopper. Eigene `lib/mcp/http-mcp-tool.ts` als reusable Wrapper, dann `lib/tools/flight-skiplagged.ts`, `flight-kiwi.ts`, `hotel-trivago.ts`, `ferry-ferryhopper.ts`. i18n de/en, Eval-Cases pro Tool. Erweitert Lane E von geplanten 3 auf 7 Tools.
+- **A3 (~2–3h, Teil von Lane D):** `lib/chat/mylo-system-prompt.ts` adaptiert die **Struktur** von borski's `AGENTS.md` (Pre-Output-Gate "keine Frage-Offers", Flight-Source-Priority-Tabelle, Output-Format-Regeln mit Markdown-Tables). Tone-of-Voice **eigenständig MYLO** (DACH-Concierge, kein US-Hacker-Voice). Tool-Routing-Section verweist auf MYLO-Set + borski-MCPs.
+
+**Why:** Phase A1 hat bewiesen, dass borski's Daten direkt nutzbar sind und MYLO's Lane B in 6 Punkten cross-validieren konnten. Die MCPs erweitern Phase 1 ohne Eigenbau (Skiplagged Hidden-City, Kiwi Virtual-Interlining sind nicht trivial selbst zu schreiben). System-Prompt-Struktur ist ein 6-Monate-Refinement, das wir nicht von Grund auf neu aufbauen müssen.
+
+**Pros:** Schneller Phase-1-Capability-Sprung mit minimalem Eigenbau. Phase-1-System-Prompt erbt 6 Monate borski-Iteration. Cross-Model-Korrektheit (Claude + borski's curated patterns).
+
+**Cons:** A2 fügt externe HTTP-Dependencies hinzu (Verfügbarkeit der 4 Free-MCPs). A3 macht den System-Prompt komplexer — gegen "klein anfangen"-Pragmatik, aber Lane D braucht eh einen vollen Re-Write.
+
+**Context:** Adapter unter `lib/data/borski-toolkit-adapter/` (READY). Submodule `lib/data/borski-toolkit/` mit `.mcp.json`, `AGENTS.md`. Cross-Check-Report unter `lib/data/borski-toolkit-adapter/CROSS-CHECK.md`.
+
+**Decision-needed:** A2 und A3 in einer Lane (Phase 1), oder A2 → Lane E (Tool-Layer), A3 → Lane D (Prompt-Layer)? Empfehlung: split nach Lane, weil Tool-Wrapping und System-Prompt-Architecture verschiedene Skill-Zugriffe haben.
+
+**Depends on / blocked by:** A2 unabhängig. A3 hängt an Lane D Start (`lib/chat/mylo-system-prompt.ts`-Extract).
+
+---
+
+## 14. [OPEN] 5 borski/Lane-B Transfer-Ratio-Diskrepanzen real-world verifizieren
+
+**What:** Cross-Check (`CROSS-CHECK.md`) hat 5 Discrepancies + 1 Missing-Partner zwischen MYLO Lane B und borski's `transfer-partners.json` aufgedeckt. Pro Discrepancy: live-source verifizieren und entweder MYLO oder borski upstream-issue korrigieren.
+
+| # | Partner | Issuer | MYLO ratio | borski ratio | Severity |
+|---|---|---|---|---|---|
+| a | **Aeromexico Club Premier** | US Amex MR | 1.600 (5:8) | 1.000 (1:1) | 🔴 HIGH |
+| b | Emirates Skywards | US Amex MR | 1.000 | 0.800 (5:4) | 🟡 MED |
+| c | Emirates Skywards | US Capital One | 1.000 | 0.750 (4:3) | 🟡 MED |
+| d | I Prefer Hotel Rewards | US Capital One | 2.000 (1:2) | 1.000 | 🟡 MED |
+| e | Choice Privileges | US Citi TY | 1.500 (2:3) | 2.000 (1:2) | 🟡 MED |
+| f | I Prefer Hotel Rewards | US Citi TY | 2.000 (1:2) | 4.000 (1:4) | 🟢 LOW |
+| g | JetBlue TrueBlue (missing) | US Capital One | — | 0.600 (5:3) | 🟢 LOW |
+
+**Why:** Lane B's Codex-Fix-Pass hat Aeromexico von 1:1 → 5:8 geändert. borski sagt jetzt 1:1. **Entweder Codex hat über-korrigiert, oder borski ist stale.** Für jeden 🔴/🟡 Eintrag: live-Source (Amex/Cap-One/Citi Transfer-Page) prüfen, dann MYLO updaten oder Issue an borski upstream filen.
+
+**Pros:** Datenkorrektheit pre-merge. Etabliert borski als ständigen Cross-Validator (Pattern aus Lane B + Codex bestätigt).
+
+**Cons:** ~1–2h Recherche (live Pages prüfen, ggf. Wayback-Machine bei Devaluation-Verifikation). Pro 🔴: ggf. Lane B Code-Update + neuer Snapshot-Test.
+
+**Context:** Diskrepanzen-Tabelle in `lib/data/borski-toolkit-adapter/CROSS-CHECK.md`. Re-Run Script: `npx tsx lib/data/borski-toolkit-adapter/_scripts/cross-check.mts`.
+
+**Depends on / blocked by:** Nichts. Standalone, aber 🔴 Aeromexico vor Phase-1-Ship klären (sonst falsche Empfehlungen für US-User).
