@@ -16,6 +16,7 @@ import { stdin, stdout } from 'node:process';
 import { writeFile } from 'node:fs/promises';
 import { anonymizeUserQuery, scanForPii } from './anonymize';
 import { WEB_GROUP_TOOL_NAMES } from './mock-tools';
+import { extractTextFromParts } from './parts';
 
 const LOOKBACK_DAYS = 14;
 const CANDIDATE_LIMIT = 30;
@@ -31,22 +32,6 @@ type Candidate = {
   toolName: string;
   createdAt: Date;
 };
-
-function extractTextFromParts(parts: unknown): string {
-  if (!Array.isArray(parts)) return '';
-  for (const p of parts) {
-    if (
-      p &&
-      typeof p === 'object' &&
-      'type' in p &&
-      (p as { type: string }).type === 'text' &&
-      'text' in p
-    ) {
-      return String((p as { text: unknown }).text ?? '');
-    }
-  }
-  return '';
-}
 
 async function fetchCandidates(): Promise<Candidate[]> {
   // Find each assistant message's FIRST tool-* part (in array order),
