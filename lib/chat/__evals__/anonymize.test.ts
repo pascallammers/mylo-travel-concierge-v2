@@ -1,3 +1,4 @@
+// lib/chat/__evals__/anonymize.test.ts
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { anonymizeUserQuery, scanForPii } from './anonymize';
@@ -8,9 +9,20 @@ describe('anonymizeUserQuery', () => {
     assert.strictEqual(out, 'Buch mir was an user@example.com');
   });
 
-  it('replaces E.164 phone numbers', () => {
+  it('replaces emails with umlaut local-part', () => {
+    const out = anonymizeUserQuery('Schreib an müller@beispiel.de');
+    assert.strictEqual(out, 'Schreib an user@example.com');
+  });
+
+  it('replaces E.164 international phone numbers', () => {
     const out = anonymizeUserQuery('Ruf mich an unter +49 171 1234567');
     assert.match(out, /\+49 xxx xxx xxxx/);
+  });
+
+  it('replaces German national-format phone numbers', () => {
+    const out = anonymizeUserQuery('Erreichst du mich unter 0171 1234567?');
+    assert.match(out, /0xxx xxxxxxx/);
+    assert.doesNotMatch(out, /1234567/);
   });
 
   it('replaces 8+ digit numbers (loyalty IDs)', () => {
@@ -24,10 +36,21 @@ describe('anonymizeUserQuery', () => {
     assert.strictEqual(out, 'Flug am 15.03.2026 für 450 EUR');
   });
 
-  it('replaces a known user first name when provided', () => {
+  it('replaces a known user first name when provided (case-insensitive)', () => {
     const out = anonymizeUserQuery('Hallo, hier ist Pascal', { userName: 'Pascal' });
     assert.match(out, /\[Name\]/);
     assert.doesNotMatch(out, /Pascal/);
+  });
+
+  it('replaces lowercase variant of userName', () => {
+    const out = anonymizeUserQuery('hier ist pascal', { userName: 'Pascal' });
+    assert.match(out, /\[Name\]/);
+    assert.doesNotMatch(out, /pascal/i);
+  });
+
+  it('does NOT corrupt substrings that contain the userName', () => {
+    const out = anonymizeUserQuery('Tim fliegt nach Timbuktu', { userName: 'Tim' });
+    assert.strictEqual(out, '[Name] fliegt nach Timbuktu');
   });
 });
 
@@ -39,11 +62,27 @@ describe('scanForPii', () => {
     );
   });
 
+  it('flags international phones', () => {
+    assert.deepStrictEqual(scanForPii('+49 171 1234567'), ['phone-pattern']);
+  });
+
+  it('flags German national-format phones', () => {
+    assert.deepStrictEqual(scanForPii('0171 1234567'), ['phone-pattern']);
+  });
+
   it('flags long digit runs', () => {
     assert.deepStrictEqual(scanForPii('id 123456789'), ['long-digit-run']);
   });
 
   it('returns empty for clean text', () => {
     assert.deepStrictEqual(scanForPii('Flüge nach Bangkok'), []);
+  });
+
+  it('is idempotent across repeat calls (lastIndex reset works)', () => {
+    const text = 'user@example.com';
+    const first = scanForPii(text);
+    const second = scanForPii(text);
+    assert.deepStrictEqual(first, second);
+    assert.deepStrictEqual(first, ['email-pattern']);
   });
 });
