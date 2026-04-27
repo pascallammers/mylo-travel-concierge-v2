@@ -58,6 +58,9 @@ async function fetchCandidates(): Promise<Candidate[]> {
       and(
         eq(message.chatId, chat.id),
         eq(message.role, 'user'),
+        // Correlation heuristic: tool calls fire within 2 minutes after a user message.
+        // Edge case: if a user sends 2+ messages within 2 min, multiple message rows may
+        // match the same tool call → duplicates in candidates. Manual selection filters them.
         sql`${toolCalls.createdAt} between ${message.createdAt} and ${message.createdAt} + interval '2 minutes'`,
       ),
     )
@@ -92,7 +95,7 @@ function printCandidates(cands: Candidate[]): void {
   }
 }
 
-async function promptSelection(): Promise<number[]> {
+async function promptSelection(maxCandidates: number): Promise<number[]> {
   const rl = createInterface({ input: stdin, output: stdout });
   const ans = await rl.question(
     `\nSelect ${TARGET_COUNT} indices (comma-separated, e.g. 1,4,7,12,19): `,
@@ -105,17 +108,24 @@ async function promptSelection(): Promise<number[]> {
   if (ids.length !== TARGET_COUNT) {
     throw new Error(`Expected ${TARGET_COUNT} indices, got ${ids.length}`);
   }
+  if (new Set(ids).size !== TARGET_COUNT) {
+    throw new Error(`Indices must be unique. Got duplicates in: ${ids.join(',')}`);
+  }
+  for (const id of ids) {
+    if (id < 1 || id > maxCandidates) {
+      throw new Error(`Index ${id} out of range. Must be 1..${maxCandidates}.`);
+    }
+  }
   return ids;
 }
 
-function fixtureFromCandidate(c: Candidate, n: number): string {
-  const anon = anonymizeUserQuery(c.userQuery, { userName: c.userName ?? undefined });
+function fixtureFromCandidate(c: Candidate & { anon: string }, n: number): string {
   const id = `real-${String(n).padStart(3, '0')}`;
   return `  {
     id: '${id}',
     source: 'real',
     description: 'Extracted from production chat ${c.chatId.slice(0, 8)} on ${c.createdAt.toISOString().slice(0, 10)}',
-    userQuery: ${JSON.stringify(anon)},
+    userQuery: ${JSON.stringify(c.anon)},
     expectedTool: '${c.toolName}',
     reason: 'Production: this user query routed to ${c.toolName} successfully. Eval captures that behavior as the regression baseline.',
   },`;
@@ -128,10 +138,26 @@ async function main(): Promise<void> {
     throw new Error(`Only ${cands.length} candidates found, need ${TARGET_COUNT}`);
   }
   printCandidates(cands);
-  const selectedIdx = await promptSelection();
-  const selected = cands.filter((c) => selectedIdx.includes(c.idx));
+  const selectedIdx = await promptSelection(cands.length);
+  const selected = cands
+    .filter((c) => selectedIdx.includes(c.idx))
+    .map((c) => ({
+      ...c,
+      anon: anonymizeUserQuery(c.userQuery, { userName: c.userName ?? undefined }),
+    }));
 
-  // Build fixture file
+  // PII safety check — runs against the EXACT string that will be written to disk
+  for (const c of selected) {
+    const issues = scanForPii(c.anon);
+    if (issues.length > 0) {
+      console.error(`PII WARNING for chat ${c.chatId}: ${issues.join(', ')}`);
+      console.error(`  Anonymized text: ${c.anon}`);
+      console.error('Aborting. Review and improve anonymize.ts before re-running.');
+      process.exit(3);
+    }
+  }
+
+  // Build fixture file (only after PII scan passes)
   const entries = selected.map((c, i) => fixtureFromCandidate(c, i + 1)).join('\n');
   const file =
     `// lib/chat/__evals__/fixtures/real-chats.ts\n` +
@@ -139,18 +165,6 @@ async function main(): Promise<void> {
     `// Anonymized — please review before committing.\n` +
     `import type { EvalFixture } from './types';\n\n` +
     `export const realChats: EvalFixture[] = [\n${entries}\n];\n`;
-
-  // PII safety check
-  for (const c of selected) {
-    const anon = anonymizeUserQuery(c.userQuery, { userName: c.userName ?? undefined });
-    const issues = scanForPii(anon);
-    if (issues.length > 0) {
-      console.error(`PII WARNING for chat ${c.chatId}: ${issues.join(', ')}`);
-      console.error(`  Anonymized text: ${anon}`);
-      console.error('Aborting. Review and improve anonymize.ts before re-running.');
-      process.exit(3);
-    }
-  }
 
   await writeFile('lib/chat/__evals__/fixtures/real-chats.ts', file, 'utf8');
   console.log(`\nWrote ${selected.length} fixtures to lib/chat/__evals__/fixtures/real-chats.ts`);
