@@ -1,0 +1,49 @@
+# .github/workflows/eval.yml
+name: MYLO Routing Eval
+on:
+  pull_request:
+    paths:
+      - 'lib/chat/mylo-system-prompt.ts'
+      - 'lib/tools/**'
+      - 'lib/chat/__evals__/**'
+      - 'app/actions.ts'
+      - '.github/workflows/eval.yml'
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Write .env.local for tsx --env-file
+        # `pnpm eval` uses `tsx --env-file=.env.local`, which fails if the file is missing.
+        # Write all env vars that env/server.ts validates at import time. Most can be fakes —
+        # only XAI_API_KEY needs to be a real secret. The strict @t3-oss/env-nextjs validator
+        # requires every key it lists to be present, so we provide placeholders for the rest.
+        run: |
+          cat > .env.local <<EOF
+          XAI_API_KEY=${{ secrets.XAI_API_KEY }}
+          ANTHROPIC_API_KEY=ci-fake-key
+          DATABASE_URL=postgres://ci:fake@localhost:5432/ci
+          THRIVECART_API_KEY=ci-fake
+          THRIVECART_SECRET_WORD=ci-fake
+          UPSTASH_REDIS_REST_URL=https://ci-fake.upstash.io
+          UPSTASH_REDIS_REST_TOKEN=ci-fake
+          EOF
+
+      - name: Run MYLO routing eval
+        run: pnpm eval
+        env:
+          EVAL_MODEL: grok-4-1-fast-non-reasoning
