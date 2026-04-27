@@ -70,7 +70,10 @@ export const serverEnv = createEnv({
     THRIVECART_ACCOUNT_ID: z.string().optional().default('never-economy-again'),
   },
   experimental__runtimeEnv: process.env,
-  // Bypass validation when SKIP_ENV_VALIDATION=1 — used by CI eval workflows and
-  // Docker build steps where most service vars aren't required for the running task.
-  skipValidation: !!process.env.SKIP_ENV_VALIDATION,
+  // Bypass validation only on explicit '1' or 'true'. Truthy-coerce would treat
+  // '0'/'false' as enabled and silently disable validation. Used by CI eval
+  // workflows and Docker build steps where most service vars aren't required.
+  skipValidation:
+    process.env.SKIP_ENV_VALIDATION === '1' ||
+    process.env.SKIP_ENV_VALIDATION === 'true',
 });
