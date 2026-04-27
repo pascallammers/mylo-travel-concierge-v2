@@ -18,12 +18,15 @@ describe('buildMockToolRegistry', () => {
     }
   });
 
-  it('preserves the inputSchema from the production tool', () => {
+  it('preserves the inputSchema from the production tool (parses production schema)', () => {
     const registry = buildMockToolRegistry();
-    // search_flights production schema requires `query` (verify via parse)
-    assert.ok(
-      'inputSchema' in registry.search_flights,
-      'search_flights mock missing inputSchema',
+    const tool = registry.search_flights as { inputSchema: { safeParse: (v: unknown) => { success: boolean } } };
+    assert.ok(tool.inputSchema, 'search_flights mock missing inputSchema');
+    const parsed = tool.inputSchema.safeParse({});
+    assert.strictEqual(
+      parsed.success,
+      false,
+      'search_flights schema should reject empty input — confirms production schema preserved',
     );
   });
 });
