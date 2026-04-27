@@ -1,15 +1,19 @@
 /**
  * Capital One Venture transfer partners (US).
  *
- * Sources: capitalone.com/credit-cards/travel-partners (official, 29.01.2026 update),
- * The Points Guy (13.02.2026), AwardWallet, Going.
+ * Sources: capitalone.com/learn-grow (29.01.2026 update), Going (Feb 2026),
+ * Roaming Cactus (Mar 2026), AwardWallet, OneMileAtATime, Doctor of Credit
+ * (verified 27.04.2026).
  *
  * Min 1,000, increments 1,000.
  *
  * Important: Capital One does NOT include United, Delta, American, Southwest,
- * JetBlue, or Hyatt.
+ * or Hyatt.
  *
- * Last updated: April 2026
+ * Notable 2025-2026 changes:
+ * - Emirates Skywards 1:1 -> 4:3 on 13.01.2026
+ *
+ * Last updated: April 2026 (TODO 14 verification)
  */
 
 import type { PartnerMap } from './types';
@@ -217,15 +221,19 @@ export const CAPITAL_ONE_PARTNERS: PartnerMap = {
   emiratesSkywards: {
     name: 'Emirates Skywards',
     brand: 'Emirates',
-    amexPoints: 1,
-    partnerMiles: 1,
-    effectiveRate: 100,
+    amexPoints: 4,
+    partnerMiles: 3,
+    effectiveRate: 75,
     minTransfer: 1000,
     transferIncrement: 1000,
     transferDuration: INSTANT,
     alliance: null,
     type: 'airline',
     currencyUnit: { de: 'Meilen', en: 'Miles' },
+    notes: {
+      de: 'Abgewertet 13.01.2026 von 1:1 auf 4:3 (1.000 C1 = 750 Skywards). Schlechtester Skywards-Transfer aller US-Issuer.',
+      en: 'Devalued 13.01.2026 from 1:1 to 4:3 (1,000 C1 = 750 Skywards). Worst Skywards transfer among US issuers.',
+    },
   },
   etihadGuest: {
     name: 'Etihad Guest',
@@ -255,6 +263,23 @@ export const CAPITAL_ONE_PARTNERS: PartnerMap = {
     notes: {
       de: 'Virgin-Atlantic-Zugang via Virgin Red.',
       en: 'Includes Virgin Atlantic access via Virgin Red.',
+    },
+  },
+  jetblueTrueBlue: {
+    name: 'JetBlue TrueBlue',
+    brand: 'JetBlue',
+    amexPoints: 5,
+    partnerMiles: 3,
+    effectiveRate: 60,
+    minTransfer: 1000,
+    transferIncrement: 1000,
+    transferDuration: INSTANT,
+    alliance: null,
+    type: 'airline',
+    currencyUnit: { de: 'Punkte', en: 'Points' },
+    notes: {
+      de: '5:3 Ratio (1.000 C1 = 600 TrueBlue). Schwache Ratio; eher Citi/Chase für JetBlue nutzen.',
+      en: '5:3 ratio (1,000 C1 = 600 TrueBlue). Weak ratio; prefer Citi/Chase for JetBlue.',
     },
   },
   wyndham: {
