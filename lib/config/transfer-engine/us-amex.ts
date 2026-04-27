@@ -195,15 +195,19 @@ export const AMEX_US_PARTNERS: PartnerMap = {
   aeromexico: {
     name: 'Aeromexico Club Premier',
     brand: 'Aeromexico',
-    amexPoints: 1,
-    partnerMiles: 1,
-    effectiveRate: 100,
+    amexPoints: 5,
+    partnerMiles: 8,
+    effectiveRate: 160,
     minTransfer: 1000,
     transferIncrement: 1000,
     transferDuration: UP_TO_SEVEN_DAYS,
     alliance: 'SkyTeam',
     type: 'airline',
     currencyUnit: { de: 'Punkte', en: 'Points' },
+    notes: {
+      de: '1.000 MR = 1.600 Aeromexico Punkte (5:8). Sehr starke Ratio.',
+      en: '1,000 MR = 1,600 Aeromexico points (5:8). Very strong ratio.',
+    },
   },
   virginAtlantic: {
     name: 'Virgin Atlantic Flying Club',
@@ -214,12 +218,12 @@ export const AMEX_US_PARTNERS: PartnerMap = {
     minTransfer: 1000,
     transferIncrement: 1000,
     transferDuration: INSTANT,
-    alliance: null,
+    alliance: 'SkyTeam',
     type: 'airline',
     currencyUnit: { de: 'Punkte', en: 'Points' },
     notes: {
-      de: 'ANA First Class via Virgin.',
-      en: 'ANA First via Virgin.',
+      de: 'SkyTeam-Mitglied seit 02.03.2023. ANA First Class via Virgin.',
+      en: 'SkyTeam member since 2023-03-02. ANA First via Virgin.',
     },
   },
   emiratesSkywards: {

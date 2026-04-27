@@ -236,9 +236,13 @@ export const CITI_PARTNERS: PartnerMap = {
     minTransfer: 1000,
     transferIncrement: 1000,
     transferDuration: INSTANT,
-    alliance: null,
+    alliance: 'SkyTeam',
     type: 'airline',
     currencyUnit: { de: 'Punkte', en: 'Points' },
+    notes: {
+      de: 'SkyTeam-Mitglied seit 02.03.2023.',
+      en: 'SkyTeam member since 2023-03-02.',
+    },
   },
   wyndham: {
     name: 'Wyndham Rewards',

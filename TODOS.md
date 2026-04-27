@@ -179,3 +179,21 @@ Status legend: `[OPEN]` not started · `[WIP]` in progress · `[DONE]` shipped �
 **Context:** No Apify integration exists in code today. Decision is purely scope/strategy.
 
 **Depends on / blocked by:** Phase-Gate 3 outcome. If DACH unit-economics are healthy and Travelpayouts coverage is sufficient, scrap. If Phase-3 reveals coverage gaps, revisit.
+
+---
+
+## 12. [OPEN] Locale → Region-Routing in transfer-engine
+
+**What:** `formatAmexDachTransferOptions(amount, locale)` in `lib/config/transfer-engine/helpers.ts` ignoriert die Region — egal welches `locale`, es werden immer DACH-Partner mit DACH-Ratios (5:4 etc.) angezeigt. Sobald die Engine im System-Prompt-Assembler (Lane D) verwendet wird, muss eine echte Region-Auswahl rein: `locale='de'` → DACH-Partner, `locale='en'` → US-Partner (welche der 5 US-Programme? Wahrscheinlich Amex MR US als Default für Amex-Cardholder, alle 5 für Generic-Output).
+
+**Why:** Aktuell falsch für US-User: 50.000 MR in den USA → 50.000 Flying Blue (1:1), nicht 40.000 (5:4 DACH). Der AI-Output zeigt aber DACH-Werte, was zu falschen Empfehlungen führt sobald wir Englisch-Output an US-User streamen.
+
+**Pros:** Korrekte Berechnungen je Region. Saubere Voraussetzung für Lane D System-Prompt-Assembler. Vermeidet Bug-Class.
+
+**Cons:** Erweitert die API-Surface. Locale ist nicht 1:1 = Region (DE-User in USA möglich). Eventuell explizit `region: 'dach' | 'us'` Parameter statt Locale-driven.
+
+**Context:** Heute alle DACH-Aufrufe identisch. Open question: Wie kommt MYLO an die Region des Users? Optionen: (a) IP/Geo-Detect, (b) AwardWallet-Programm-Mix als Heuristik (hat Chase UR? → US), (c) explizites User-Setting `/settings/region`. Founding-Members sind alle DACH, also Phase-1-Default = DACH ohne Penalty.
+
+**Decision-needed:** API-Shape — `formatTransferOptions(amount, { region, locale, sourceProgram })` oder `formatTransferOptions(amount, locale)` mit locale → region map?
+
+**Depends on / blocked by:** Lane D (System-Prompt-Assembler). Macht keinen Sinn isoliert zu fixen, weil aktuell kein Aufrufer existiert (Funktion ist Dead-Code-Primitive bis Lane D).

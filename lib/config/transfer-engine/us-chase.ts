@@ -176,12 +176,12 @@ export const CHASE_PARTNERS: PartnerMap = {
     minTransfer: 1000,
     transferIncrement: 1000,
     transferDuration: INSTANT,
-    alliance: null,
+    alliance: 'SkyTeam',
     type: 'airline',
     currencyUnit: { de: 'Punkte', en: 'Points' },
     notes: {
-      de: 'ANA First/Business via Virgin Sweet Spot.',
-      en: 'ANA First/Business via Virgin sweet spot.',
+      de: 'SkyTeam-Mitglied seit 02.03.2023. ANA First/Business via Virgin Sweet Spot.',
+      en: 'SkyTeam member since 2023-03-02. ANA First/Business via Virgin sweet spot.',
     },
   },
   hyatt: {
