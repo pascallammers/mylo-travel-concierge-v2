@@ -28,11 +28,19 @@ export const BorskiMetaSchema = z
 /**
  * A single transfer partner entry. `ratio` is the conversion factor
  * (points_out / point_in). 1.0 = 1:1, 0.8 = 5:4 (you lose 20%).
+ *
+ * `note` and `transfer_time` are present on a subset of entries (~36 of
+ * ~115 partners as of 2026-04-06). `passthrough()` preserves any further
+ * fields borski may add upstream so they survive the load step.
  */
-export const BorskiTransferPartnerSchema = z.object({
-  program: z.string(),
-  ratio: z.number().nonnegative(),
-});
+export const BorskiTransferPartnerSchema = z
+  .object({
+    program: z.string(),
+    ratio: z.number().nonnegative(),
+    note: z.string().optional(),
+    transfer_time: z.string().optional(),
+  })
+  .passthrough();
 
 export type BorskiTransferPartner = z.infer<typeof BorskiTransferPartnerSchema>;
 

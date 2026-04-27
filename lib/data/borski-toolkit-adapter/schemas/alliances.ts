@@ -38,12 +38,18 @@ export type BorskiAllianceEntry = z.infer<typeof BorskiAllianceEntrySchema>;
 
 /**
  * Top-level schema for `alliances.json`.
+ *
+ * `passthrough()` preserves extra top-level keys borski ships
+ * (`key_booking_relationships`, `non_alliance_notable`) instead of
+ * silently dropping them on load.
  */
-export const BorskiAlliancesFileSchema = z.object({
-  _meta: BorskiMetaSchema,
-  star_alliance: BorskiAllianceEntrySchema,
-  oneworld: BorskiAllianceEntrySchema,
-  skyteam: BorskiAllianceEntrySchema,
-});
+export const BorskiAlliancesFileSchema = z
+  .object({
+    _meta: BorskiMetaSchema,
+    star_alliance: BorskiAllianceEntrySchema,
+    oneworld: BorskiAllianceEntrySchema,
+    skyteam: BorskiAllianceEntrySchema,
+  })
+  .passthrough();
 
 export type BorskiAlliancesFile = z.infer<typeof BorskiAlliancesFileSchema>;

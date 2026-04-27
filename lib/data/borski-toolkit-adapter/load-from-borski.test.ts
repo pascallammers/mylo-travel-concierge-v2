@@ -54,6 +54,14 @@ describe('loadTransferPartners', () => {
     const b = loadTransferPartners();
     assert.equal(a, b);
   });
+
+  it('preserves the optional `note` field on partners that ship one', () => {
+    const file = loadTransferPartners();
+    const cathay = file.amex_mr.airlines.cathay;
+    assert.ok(cathay, 'amex_mr.airlines.cathay present');
+    assert.equal(typeof cathay.note, 'string', 'cathay.note preserved');
+    assert.ok((cathay.note ?? '').length > 0, 'cathay.note is non-empty');
+  });
 });
 
 describe('loadSweetSpots', () => {

@@ -1,19 +1,23 @@
 /**
  * Type-safe loaders for the borski-toolkit data files.
  *
- * Server-side only. Reads JSON from `lib/data/borski-toolkit/data/`,
- * validates against the colocated zod schemas, and caches the result
- * across calls within the same process.
+ * Server-side only. JSON is imported statically (build-time inlined via the
+ * bundler), parsed against the colocated zod schemas, and cached across
+ * calls within the same process. No filesystem read at runtime — works
+ * identically in tsx tests, `next dev`, `next start`, and Vercel without
+ * any `outputFileTracingIncludes` config.
  *
- * The borski-toolkit submodule is the single source of truth — never modify
- * its files. To pull upstream updates, see `LICENSE-THIRD-PARTY.md`.
+ * Trade-off: the 6 active JSON files (~99 KB total) ship inside any
+ * server bundle that imports this module. The 3 large hotel-property
+ * files (~2 MB combined) are intentionally NOT imported here — add a
+ * separate fs-backed loader when the hotel feature lands in Phase 2.
+ *
+ * The borski-toolkit submodule is the single source of truth — never
+ * modify its files. To pull upstream updates, see `LICENSE-THIRD-PARTY.md`.
  *
  * @module lib/data/borski-toolkit-adapter/load-from-borski
  */
 
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
 import {
   BorskiTransferPartnersFileSchema,
   BorskiSweetSpotsFileSchema,
@@ -29,36 +33,12 @@ import {
   type BorskiHotelChainsFile,
 } from './schemas';
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-
-/**
- * Absolute path to a borski-toolkit data file.
- *
- * @param filename - basename inside `lib/data/borski-toolkit/data/`.
- */
-function dataPath(filename: string): string {
-  return resolve(HERE, '..', 'borski-toolkit', 'data', filename);
-}
-
-/**
- * Read, parse, and validate one borski JSON file.
- *
- * Errors:
- * - `ENOENT` if the submodule has not been initialized (`git submodule update --init`).
- * - `ZodError` if the file shape drifted upstream (re-pin or update schema).
- *
- * @param filename - basename inside `lib/data/borski-toolkit/data/`.
- * @param schema - zod parser for the file.
- */
-function readAndValidate<T>(
-  filename: string,
-  schema: { parse: (raw: unknown) => T },
-): T {
-  const path = dataPath(filename);
-  const raw = readFileSync(path, 'utf8');
-  const json: unknown = JSON.parse(raw);
-  return schema.parse(json);
-}
+import transferPartnersData from '../borski-toolkit/data/transfer-partners.json' with { type: 'json' };
+import sweetSpotsData from '../borski-toolkit/data/sweet-spots.json' with { type: 'json' };
+import pointsValuationsData from '../borski-toolkit/data/points-valuations.json' with { type: 'json' };
+import alliancesData from '../borski-toolkit/data/alliances.json' with { type: 'json' };
+import partnerAwardsData from '../borski-toolkit/data/partner-awards.json' with { type: 'json' };
+import hotelChainsData from '../borski-toolkit/data/hotel-chains.json' with { type: 'json' };
 
 // ============================================
 // Per-file lazy caches
@@ -78,10 +58,7 @@ let hotelChainsCache: BorskiHotelChainsFile | null = null;
  */
 export function loadTransferPartners(): BorskiTransferPartnersFile {
   if (transferPartnersCache) return transferPartnersCache;
-  transferPartnersCache = readAndValidate(
-    'transfer-partners.json',
-    BorskiTransferPartnersFileSchema,
-  );
+  transferPartnersCache = BorskiTransferPartnersFileSchema.parse(transferPartnersData);
   return transferPartnersCache;
 }
 
@@ -92,7 +69,7 @@ export function loadTransferPartners(): BorskiTransferPartnersFile {
  */
 export function loadSweetSpots(): BorskiSweetSpotsFile {
   if (sweetSpotsCache) return sweetSpotsCache;
-  sweetSpotsCache = readAndValidate('sweet-spots.json', BorskiSweetSpotsFileSchema);
+  sweetSpotsCache = BorskiSweetSpotsFileSchema.parse(sweetSpotsData);
   return sweetSpotsCache;
 }
 
@@ -103,10 +80,7 @@ export function loadSweetSpots(): BorskiSweetSpotsFile {
  */
 export function loadPointsValuations(): BorskiPointsValuationsFile {
   if (pointsValuationsCache) return pointsValuationsCache;
-  pointsValuationsCache = readAndValidate(
-    'points-valuations.json',
-    BorskiPointsValuationsFileSchema,
-  );
+  pointsValuationsCache = BorskiPointsValuationsFileSchema.parse(pointsValuationsData);
   return pointsValuationsCache;
 }
 
@@ -117,7 +91,7 @@ export function loadPointsValuations(): BorskiPointsValuationsFile {
  */
 export function loadAlliances(): BorskiAlliancesFile {
   if (alliancesCache) return alliancesCache;
-  alliancesCache = readAndValidate('alliances.json', BorskiAlliancesFileSchema);
+  alliancesCache = BorskiAlliancesFileSchema.parse(alliancesData);
   return alliancesCache;
 }
 
@@ -128,10 +102,7 @@ export function loadAlliances(): BorskiAlliancesFile {
  */
 export function loadPartnerAwards(): BorskiPartnerAwardsFile {
   if (partnerAwardsCache) return partnerAwardsCache;
-  partnerAwardsCache = readAndValidate(
-    'partner-awards.json',
-    BorskiPartnerAwardsFileSchema,
-  );
+  partnerAwardsCache = BorskiPartnerAwardsFileSchema.parse(partnerAwardsData);
   return partnerAwardsCache;
 }
 
@@ -142,13 +113,13 @@ export function loadPartnerAwards(): BorskiPartnerAwardsFile {
  */
 export function loadHotelChains(): BorskiHotelChainsFile {
   if (hotelChainsCache) return hotelChainsCache;
-  hotelChainsCache = readAndValidate('hotel-chains.json', BorskiHotelChainsFileSchema);
+  hotelChainsCache = BorskiHotelChainsFileSchema.parse(hotelChainsData);
   return hotelChainsCache;
 }
 
 /**
- * Reset all in-memory caches. Useful for tests that need a fresh load
- * after mutating the underlying file.
+ * Reset all in-memory caches. Useful for tests that need a fresh parse
+ * after mutating the underlying schema.
  */
 export function resetBorskiCaches(): void {
   transferPartnersCache = null;
