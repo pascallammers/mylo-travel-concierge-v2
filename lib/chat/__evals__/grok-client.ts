@@ -20,24 +20,22 @@ export async function runRoutingCall(args: {
   userQuery: string;
   tools: Record<string, unknown>;
 }): Promise<RouteEvalResult> {
-  const start = Date.now();
-
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    const start = Date.now();
+    const controller = new AbortController();
+    const timeoutHandle = setTimeout(() => controller.abort(new Error('eval call timeout')), TIMEOUT_MS);
+
     try {
-      const result = await Promise.race([
-        generateText({
-          model: args.model,
-          system: args.system,
-          prompt: args.userQuery,
-          // biome-ignore lint/suspicious/noExplicitAny: AI SDK tool type narrowing is intentionally loose here
-          tools: args.tools as any,
-          temperature: 0,
-          stopWhen: stepCountIs(1),
-        }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('eval call timeout')), TIMEOUT_MS),
-        ),
-      ]);
+      const result = await generateText({
+        model: args.model,
+        system: args.system,
+        prompt: args.userQuery,
+        // biome-ignore lint/suspicious/noExplicitAny: AI SDK tool type narrowing is intentionally loose here
+        tools: args.tools as any,
+        temperature: 0,
+        stopWhen: stepCountIs(1),
+        abortSignal: controller.signal,
+      });
       return {
         toolCalls: result.toolCalls?.map((tc) => ({ toolName: tc.toolName })) ?? [],
         durationMs: Date.now() - start,
@@ -52,6 +50,8 @@ export async function runRoutingCall(args: {
         continue;
       }
       throw err;
+    } finally {
+      clearTimeout(timeoutHandle);
     }
   }
   throw new Error('runRoutingCall: exhausted retries (unreachable)');
