@@ -13,7 +13,10 @@
     "test": "tsx --test \"lib/**/*.test.ts\"",
     "test:unit": "tsx --test \"lib/api/*.test.ts\" \"lib/db/**/*.test.ts\"",
     "test:integration": "tsx --test \"lib/tools/*.integration.test.ts\"",
-    "test:watch": "tsx --test --watch \"lib/**/*.test.ts\""
+    "test:watch": "tsx --test --watch \"lib/**/*.test.ts\"",
+    "eval": "tsx lib/chat/__evals__/run.ts",
+    "eval:extract-real": "tsx lib/chat/__evals__/extract-real-chats.ts",
+    "test:evals": "tsx --env-file=.env.local --conditions=react-server --test \"lib/chat/__evals__/**/*.test.ts\""
   },
   "dependencies": {
     "@ai-sdk/anthropic": "2.0.18",
