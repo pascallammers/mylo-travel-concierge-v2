@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-27
 **Method:** Web Search + Exa primary/secondary source verification
-**Scope:** All 16 DACH partners + ~74 US-Issuer-Partner combinations
+**Scope:** All 14 DACH partners + 75 US-Issuer-Partner combinations (89 total)
 
 This document supersedes `CROSS-CHECK.md` for MYLO-vs-reality verification. The original cross-check used borski as the reference; here, both MYLO and borski are checked against live 2025-2026 source material from issuer pages, AwardWallet, OneMileAtATime, Frequent Miler, The Points Guy, Upgraded Points, LoyaltyLobby, Roaming Cactus, and German specialist sites.
 
@@ -12,20 +12,22 @@ This document supersedes `CROSS-CHECK.md` for MYLO-vs-reality verification. The 
 
 ## Summary scoreboard
 
-| Region / Issuer | MYLO Partners | Verified Correct | MYLO Issues Found |
+Counts reflect the partner-map size POST-fixes (Hawaiian removed from Amex US, JetBlue added to Capital One). Pre-fix counts: Amex US 20, Capital One 21.
+
+| Region / Issuer | MYLO Partners (post-fix) | Verified Correct | MYLO Issues Found |
 |---|---|---|---|
-| DACH (Amex Germany) | 16 | **16 / 16** ✅ | 0 |
-| US Amex MR | 19 | 17 / 19 | **2** (Emirates stale, Hawaiian gone) |
+| DACH (Amex Germany) | 14 | **14 / 14** ✅ | 0 |
+| US Amex MR | 19 | 19 / 19 ✅ (after fixes) | **2 fixed** (Emirates 5:4, Hawaiian removed) |
 | US Chase UR | 13 | **13 / 13** ✅ | 0 |
-| US Capital One | 21 | 19 / 21 | **2** (Emirates stale, JetBlue missing) |
+| US Capital One | 22 | 22 / 22 ✅ (after fixes) | **2 fixed** (Emirates 4:3, JetBlue 5:3 added) |
 | US Citi TY | 21 | **21 / 21** ✅ | 0 |
-| **Total** | 90 | 86 / 90 | **4 fixes needed** |
+| **Total** | **89** | **89 / 89 ✅** | **4 fixes applied** |
 
 ---
 
-## DACH (Amex Germany) — 16/16 verified ✅
+## DACH (Amex Germany) — 14/14 verified ✅
 
-All 16 partners cross-checked against `travel-insider.de` (Aug 2025), `kreditkarten.com` (Jul 2025), `loyaltylobby.com` (Jul 2025), `travel-dealz.de` (Jul 2025) — all confirm the August 1, 2025 devaluations and current ratios.
+All 14 partners cross-checked against `travel-insider.de` (Aug 2025), `kreditkarten.com` (Jul 2025), `loyaltylobby.com` (Jul 2025), `travel-dealz.de` (Jul 2025) — all confirm the August 1, 2025 devaluations and current ratios.
 
 | Partner | MYLO ratio | Verified | Sources |
 |---|---|---|---|
@@ -194,7 +196,7 @@ borski's `last_updated: 2026-04-06` did NOT incorporate the Citi April-19 devalu
   (borski's data on these 7 partners now aligns with reality, MYLO must catch up)
 ```
 
-After these fixes, MYLO should be **90/90 = 100% accurate** to current 2026-04-27 reality.
+After these fixes, MYLO is **89/89 = 100% accurate** to current 2026-04-27 reality.
 
 ## Sources
 
