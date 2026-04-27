@@ -2,15 +2,18 @@
  * American Express Membership Rewards US transfer partners.
  *
  * SEPARATE from Amex DACH — different partner list and ratios.
- * Sources: americanexpress.com/mrupdates (official), AwardWallet, hotelredemptions.com (Apr 2026).
+ * Sources: americanexpress.com/mrupdates (official), AwardWallet, OneMileAtATime,
+ * Roaming Cactus, hotelredemptions.com (verified 27.04.2026).
  *
  * Min 1,000, increments 1,000. Most airline transfers instant or up to 24 hrs; hotels 1-2 days.
  *
  * Notable 2024-2026 changes:
+ * - Hawaiian Airlines removed 30.06.2025 (HawaiianMiles -> Atmos Rewards transition 01.10.2025)
+ * - Emirates Skywards 1:1 -> 5:4 on 09/2025
  * - Cathay 1:1 -> 5:4 on 01.03.2026
  * - Etihad Guest exits 30.06.2026
  *
- * Last updated: April 2026
+ * Last updated: April 2026 (TODO 14 verification)
  */
 
 import type { PartnerMap } from './types';
@@ -229,15 +232,19 @@ export const AMEX_US_PARTNERS: PartnerMap = {
   emiratesSkywards: {
     name: 'Emirates Skywards',
     brand: 'Emirates',
-    amexPoints: 1,
-    partnerMiles: 1,
-    effectiveRate: 100,
+    amexPoints: 5,
+    partnerMiles: 4,
+    effectiveRate: 80,
     minTransfer: 1000,
     transferIncrement: 1000,
     transferDuration: INSTANT,
     alliance: null,
     type: 'airline',
     currencyUnit: { de: 'Meilen', en: 'Miles' },
+    notes: {
+      de: 'Abgewertet 09/2025 von 1:1 auf 5:4. Hohe Treibstoffzuschläge auf Awards.',
+      en: 'Devalued 09/2025 from 1:1 to 5:4. High fuel surcharges on awards.',
+    },
   },
   etihadGuest: {
     name: 'Etihad Guest',
@@ -254,23 +261,6 @@ export const AMEX_US_PARTNERS: PartnerMap = {
     notes: {
       de: 'PARTNERSCHAFT ENDET 30.06.2026.',
       en: 'PARTNERSHIP ENDS 30.06.2026.',
-    },
-  },
-  hawaiianAirlines: {
-    name: 'Hawaiian Airlines',
-    brand: 'Hawaiian',
-    amexPoints: 1,
-    partnerMiles: 1,
-    effectiveRate: 100,
-    minTransfer: 1000,
-    transferIncrement: 1000,
-    transferDuration: INSTANT,
-    alliance: null,
-    type: 'airline',
-    currencyUnit: { de: 'Meilen', en: 'Miles' },
-    notes: {
-      de: '[UNVERIFIED] Atmos-Migration unklar (Stand April 2026).',
-      en: '[UNVERIFIED] Atmos migration status unclear as of April 2026.',
     },
   },
   jetblueTrueBlue: {
