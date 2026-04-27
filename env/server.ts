@@ -70,4 +70,7 @@ export const serverEnv = createEnv({
     THRIVECART_ACCOUNT_ID: z.string().optional().default('never-economy-again'),
   },
   experimental__runtimeEnv: process.env,
+  // Bypass validation when SKIP_ENV_VALIDATION=1 — used by CI eval workflows and
+  // Docker build steps where most service vars aren't required for the running task.
+  skipValidation: !!process.env.SKIP_ENV_VALIDATION,
 });

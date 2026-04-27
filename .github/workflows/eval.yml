@@ -29,19 +29,61 @@ jobs:
 
       - name: Write .env.local for tsx --env-file
         # `pnpm eval` uses `tsx --env-file=.env.local`, which fails if the file is missing.
-        # Write all env vars that env/server.ts validates at import time. Most can be fakes —
-        # only XAI_API_KEY needs to be a real secret. The strict @t3-oss/env-nextjs validator
-        # requires every key it lists to be present, so we provide placeholders for the rest.
+        # SKIP_ENV_VALIDATION bypasses the @t3-oss/env-nextjs Zod schema, but several
+        # production modules (lib/db, lib/gemini-file-search-store, etc.) call client
+        # constructors at module-import time using these vars directly. Provide all 37
+        # required vars with safe fakes; only XAI_API_KEY needs a real secret because the
+        # eval actually calls xAI. URL-shaped vars use valid URL placeholders so Neon/
+        # Upstash constructors don't throw on parse.
+        #
+        # If env/server.ts adds a new required var: append a placeholder line below.
+        # The CI smoke step right after this catches any miss with a clear error.
         run: |
           cat > .env.local <<EOF
+          SKIP_ENV_VALIDATION=1
           XAI_API_KEY=${{ secrets.XAI_API_KEY }}
-          ANTHROPIC_API_KEY=ci-fake-key
+          ANTHROPIC_API_KEY=ci-fake
+          GROQ_API_KEY=ci-fake
+          GOOGLE_GENERATIVE_AI_API_KEY=ci-fake
+          DAYTONA_API_KEY=ci-fake
           DATABASE_URL=postgres://ci:fake@localhost:5432/ci
-          THRIVECART_API_KEY=ci-fake
-          THRIVECART_SECRET_WORD=ci-fake
+          BETTER_AUTH_SECRET=ci-fake-secret-min-32-chars-long
+          GITHUB_CLIENT_ID=ci-fake
+          GITHUB_CLIENT_SECRET=ci-fake
+          GOOGLE_CLIENT_ID=ci-fake
+          GOOGLE_CLIENT_SECRET=ci-fake
+          TWITTER_CLIENT_ID=ci-fake
+          TWITTER_CLIENT_SECRET=ci-fake
+          REDIS_URL=redis://ci-fake:6379
           UPSTASH_REDIS_REST_URL=https://ci-fake.upstash.io
           UPSTASH_REDIS_REST_TOKEN=ci-fake
+          TAVILY_API_KEY=ci-fake
+          EXA_API_KEY=ci-fake
+          VALYU_API_KEY=ci-fake
+          TMDB_API_KEY=ci-fake
+          YT_ENDPOINT=https://ci-fake.example.com
+          FIRECRAWL_API_KEY=ci-fake
+          PARALLEL_API_KEY=ci-fake
+          OPENWEATHER_API_KEY=ci-fake
+          GOOGLE_MAPS_API_KEY=ci-fake
+          AMADEUS_API_KEY=ci-fake
+          AMADEUS_API_SECRET=ci-fake
+          CRON_SECRET=ci-fake
+          BLOB_READ_WRITE_TOKEN=ci-fake
+          SMITHERY_API_KEY=ci-fake
+          COINGECKO_API_KEY=ci-fake
+          QSTASH_TOKEN=ci-fake
+          RESEND_API_KEY=ci-fake
+          SUPERMEMORY_API_KEY=ci-fake
+          AWARDWALLET_API_KEY=ci-fake
+          THRIVECART_API_KEY=ci-fake
+          THRIVECART_SECRET_WORD=ci-fake
           EOF
+
+      - name: Smoke-test env imports (catches missing vars before eval runs)
+        # If env/server.ts adds a new required var, this fails with a clear Zod error
+        # naming the missing key — much clearer than the eval throwing mid-import.
+        run: npx tsx --env-file=.env.local --conditions=react-server -e "import('./env/server.js').then(() => console.log('env imports OK'))"
 
       - name: Run MYLO routing eval
         run: pnpm eval
