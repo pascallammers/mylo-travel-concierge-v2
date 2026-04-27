@@ -1,7 +1,16 @@
 // lib/chat/__evals__/extract-real-chats.ts
+//
+// One-off interactive script: pulls recent user-query → first-tool-call pairs
+// from production Neon and writes anonymized fixtures.
+//
+// Production stores tool calls in `message.parts` JSON with type 'tool-<name>'
+// (AI SDK 5.x convention), NOT in the separate `tool_calls` table (which is
+// empty in production at the time of this writing). The query joins each
+// assistant message that has at least one tool-* part with the latest user
+// message in the same chat that came before it (within 5 minutes).
+
 import { dbUncached } from '@/lib/db';
-import { chat, message, toolCalls, user } from '@/lib/db/schema';
-import { and, eq, gte, inArray, sql, desc } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 import { writeFile } from 'node:fs/promises';
@@ -11,6 +20,7 @@ import { WEB_GROUP_TOOL_NAMES } from './mock-tools';
 const LOOKBACK_DAYS = 14;
 const CANDIDATE_LIMIT = 30;
 const TARGET_COUNT = 5;
+const ALLOWED_TOOL_TYPES = WEB_GROUP_TOOL_NAMES.map((n) => `tool-${n}`);
 
 type Candidate = {
   idx: number;
@@ -39,50 +49,65 @@ function extractTextFromParts(parts: unknown): string {
 }
 
 async function fetchCandidates(): Promise<Candidate[]> {
-  const since = new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
-
-  const rows = await dbUncached
-    .select({
-      chatId: chat.id,
-      userId: chat.userId,
-      userName: user.name,
-      parts: message.parts,
-      messageCreatedAt: message.createdAt,
-      toolName: toolCalls.toolName,
-      toolCreatedAt: toolCalls.createdAt,
-    })
-    .from(toolCalls)
-    .innerJoin(chat, eq(chat.id, toolCalls.chatId))
-    .innerJoin(
-      message,
-      and(
-        eq(message.chatId, chat.id),
-        eq(message.role, 'user'),
-        // Correlation heuristic: tool calls fire within 2 minutes after a user message.
-        // Edge case: if a user sends 2+ messages within 2 min, multiple message rows may
-        // match the same tool call → duplicates in candidates. Manual selection filters them.
-        sql`${toolCalls.createdAt} between ${message.createdAt} and ${message.createdAt} + interval '2 minutes'`,
-      ),
+  // Find each assistant message's FIRST tool-* part (in array order),
+  // then join with the latest user message in the same chat within 5 min before.
+  const rows = await dbUncached.execute(sql`
+    WITH assistant_first_tool AS (
+      SELECT DISTINCT ON (m.id)
+        m.id as a_id,
+        m.chat_id,
+        m.created_at as a_created_at,
+        elem.value->>'type' as part_type
+      FROM message m
+      CROSS JOIN LATERAL jsonb_array_elements(m.parts::jsonb) WITH ORDINALITY AS elem(value, ordinality)
+      WHERE m.role = 'assistant'
+        AND m.created_at > now() - interval '${sql.raw(String(LOOKBACK_DAYS))} days'
+        AND elem.value->>'type' IN (${sql.join(ALLOWED_TOOL_TYPES.map((t) => sql`${t}`), sql`, `)})
+      ORDER BY m.id, elem.ordinality
+    ),
+    triggering_user_msg AS (
+      SELECT DISTINCT ON (a.a_id)
+        a.a_id,
+        a.chat_id,
+        a.a_created_at,
+        a.part_type,
+        u.id as user_id,
+        u.parts as user_parts,
+        u.created_at as user_created_at
+      FROM assistant_first_tool a
+      JOIN message u ON u.chat_id = a.chat_id
+        AND u.role = 'user'
+        AND u.created_at < a.a_created_at
+        AND u.created_at > a.a_created_at - interval '5 minutes'
+      ORDER BY a.a_id, u.created_at DESC
     )
-    .innerJoin(user, eq(user.id, chat.userId))
-    .where(
-      and(
-        eq(toolCalls.status, 'succeeded'),
-        inArray(toolCalls.toolName, [...WEB_GROUP_TOOL_NAMES]),
-        gte(message.createdAt, since),
-      ),
-    )
-    .orderBy(desc(toolCalls.createdAt))
-    .limit(CANDIDATE_LIMIT);
+    SELECT
+      t.user_id,
+      t.chat_id,
+      t.a_created_at,
+      t.part_type,
+      t.user_parts,
+      c."userId" as chat_user_id,
+      u.name as user_name
+    FROM triggering_user_msg t
+    JOIN chat c ON c.id = t.chat_id
+    LEFT JOIN "user" u ON u.id = c."userId"
+    ORDER BY t.a_created_at DESC
+    LIMIT ${CANDIDATE_LIMIT}
+  `);
 
-  return rows.map((r, idx) => ({
+  // Drizzle's `.execute()` over Neon HTTP returns FullQueryResults — extract `.rows`.
+  // biome-ignore lint/suspicious/noExplicitAny: drizzle execute() row shape varies by adapter
+  const data = (rows as any).rows ?? [];
+
+  return data.map((r: Record<string, unknown>, idx: number) => ({
     idx: idx + 1,
-    chatId: r.chatId,
-    userId: r.userId,
-    userName: r.userName,
-    userQuery: extractTextFromParts(r.parts),
-    toolName: r.toolName,
-    createdAt: r.toolCreatedAt,
+    chatId: String(r.chat_id ?? ''),
+    userId: String(r.chat_user_id ?? ''),
+    userName: (r.user_name as string | null) ?? null,
+    userQuery: extractTextFromParts(r.user_parts),
+    toolName: String(r.part_type ?? '').replace(/^tool-/, ''),
+    createdAt: new Date(r.a_created_at as string),
   }));
 }
 
@@ -120,7 +145,7 @@ async function promptSelection(maxCandidates: number): Promise<number[]> {
 }
 
 function fixtureFromCandidate(c: Candidate & { anon: string }, n: number): string {
-  const id = `real-${String(n).padStart(3, '0')}`;
+  const id = `real-${String(n).padStart(3, '0')}-${c.toolName.replace(/_/g, '-')}`;
   return `  {
     id: '${id}',
     source: 'real',
