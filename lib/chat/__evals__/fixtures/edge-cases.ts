@@ -45,13 +45,13 @@ export const edgeCases: EvalFixture[] = [
     now: FIXED_NOW,
   },
   {
-    id: 'edge-005-loyalty-aggregate',
+    id: 'edge-005-datetime-tz',
     source: 'edge',
-    description: 'Aggregate loyalty query → answer from system context, NO tool',
-    userQuery: 'Wie viele Punkte habe ich insgesamt?',
-    expectedTool: null,
+    description: 'Timezone query for travel destination → datetime tool',
+    userQuery: 'Wie spät ist es gerade in Bangkok?',
+    expectedTool: 'datetime',
     reason:
-      'System prompt explicitly says: aggregate questions are answered from the loyalty summary already injected into the system context. Calling get_loyalty_balances would be a routing failure.',
+      'System prompt: datetime tool handles time/timezone queries directly. KB-First does NOT apply when a domain-specific tool exists. Replaces the previous loyalty-aggregate fixture which was not testable without injected user context.',
     now: FIXED_NOW,
   },
   {
