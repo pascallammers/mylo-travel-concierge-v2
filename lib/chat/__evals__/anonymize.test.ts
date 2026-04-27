@@ -52,6 +52,25 @@ describe('anonymizeUserQuery', () => {
     const out = anonymizeUserQuery('Tim fliegt nach Timbuktu', { userName: 'Tim' });
     assert.strictEqual(out, '[Name] fliegt nach Timbuktu');
   });
+
+  it('does NOT corrupt names with adjacent non-ASCII letters (Anaïs vs Ana)', () => {
+    // \b treats ï as non-word in JS regex, so a naive \bAna\b would
+    // incorrectly replace the "Ana" prefix of "Anaïs". Unicode-safe lookarounds
+    // using \p{L}\p{N}_ prevent that.
+    const out = anonymizeUserQuery('Hallo Anaïs!', { userName: 'Ana' });
+    assert.strictEqual(out, 'Hallo Anaïs!');
+  });
+
+  it('replaces userName containing umlauts at word boundaries', () => {
+    const out = anonymizeUserQuery('Ich heiße Müller', { userName: 'Müller' });
+    assert.strictEqual(out, 'Ich heiße [Name]');
+  });
+
+  it('does NOT corrupt umlaut-containing names embedded in longer words', () => {
+    // "Müllerhausen" contains "Müller" but is a different word.
+    const out = anonymizeUserQuery('Wir wohnen in Müllerhausen', { userName: 'Müller' });
+    assert.strictEqual(out, 'Wir wohnen in Müllerhausen');
+  });
 });
 
 describe('scanForPii', () => {

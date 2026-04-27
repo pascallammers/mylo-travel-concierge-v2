@@ -25,9 +25,14 @@ export function anonymizeUserQuery(
   out = out.replace(LONG_DIGIT_RE, 'XXXXXXXX');
   if (opts.userName) {
     const escaped = opts.userName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    // Word-boundary + case-insensitive: avoids 'Tim' corrupting 'Timbuktu',
-    // matches 'pascal' even if user typed it lowercase.
-    out = out.replace(new RegExp('\\b' + escaped + '\\b', 'giu'), '[Name]');
+    // Unicode-safe word boundary: \b only treats ASCII [A-Za-z0-9_] as word
+    // chars even with the u flag, so naive \bAna\b incorrectly matches the
+    // "Ana" prefix of "Anaïs". Lookbehind/lookahead with \p{L}\p{N}_ handles
+    // umlauts and other non-ASCII letters correctly for DACH names.
+    out = out.replace(
+      new RegExp(`(?<![\\p{L}\\p{N}_])${escaped}(?![\\p{L}\\p{N}_])`, 'giu'),
+      '[Name]',
+    );
   }
   return out;
 }
