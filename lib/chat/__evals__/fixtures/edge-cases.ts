@@ -1,0 +1,77 @@
+// lib/chat/__evals__/fixtures/edge-cases.ts
+import type { EvalFixture } from './types';
+
+const FIXED_NOW = new Date('2026-04-27T10:00:00.000Z');
+
+export const edgeCases: EvalFixture[] = [
+  {
+    id: 'edge-001-past-date',
+    source: 'edge',
+    description: 'Past-date flight query — routing must still pick search_flights',
+    userQuery: 'Flüge von Frankfurt nach Phuket am 15.03.2024 in Business',
+    expectedTool: 'search_flights',
+    reason:
+      'Past-date validation lives at the tool layer, not the router. The system prompt explicitly routes any flight keyword to search_flights regardless of date validity.',
+    now: FIXED_NOW,
+  },
+  {
+    id: 'edge-002-kb-general-travel',
+    source: 'edge',
+    description: 'General informational travel query → KB-First mandate',
+    userQuery: 'Wann ist beste Reisezeit für Bali?',
+    expectedTool: 'knowledge_base',
+    reason:
+      'KB-First applies to ANY informational/factual query without explicit booking intent. Bali timing is a general travel question.',
+    now: FIXED_NOW,
+  },
+  {
+    id: 'edge-003-award-explicit-de',
+    source: 'edge',
+    description: 'DACH-German award/miles query MUST route to search_flights',
+    userQuery: 'Wie viele Meilen brauche ich für Frankfurt-Tokyo Business?',
+    expectedTool: 'search_flights',
+    reason:
+      'System prompt lists "Meilen", "Award", and route patterns as flight triggers. This must NOT fall back to web_search.',
+    now: FIXED_NOW,
+  },
+  {
+    id: 'edge-004-loyalty-specific',
+    source: 'edge',
+    description: 'Provider-specific loyalty query → tool, not system context',
+    userQuery: 'Wie viele Lufthansa-Meilen habe ich?',
+    expectedTool: 'get_loyalty_balances',
+    reason:
+      'System prompt: specific provider details require the tool, system context only covers aggregates.',
+    now: FIXED_NOW,
+  },
+  {
+    id: 'edge-005-loyalty-aggregate',
+    source: 'edge',
+    description: 'Aggregate loyalty query → answer from system context, NO tool',
+    userQuery: 'Wie viele Punkte habe ich insgesamt?',
+    expectedTool: null,
+    reason:
+      'System prompt explicitly says: aggregate questions are answered from the loyalty summary already injected into the system context. Calling get_loyalty_balances would be a routing failure.',
+    now: FIXED_NOW,
+  },
+  {
+    id: 'edge-006-weather',
+    source: 'edge',
+    description: 'Direct weather query → weather tool, not KB or web',
+    userQuery: 'Wie ist das Wetter in Bangkok?',
+    expectedTool: 'get_weather_data',
+    reason:
+      'Weather has its own tool. KB-First does NOT apply when a domain-specific tool exists.',
+    now: FIXED_NOW,
+  },
+  {
+    id: 'edge-007-mixed-language',
+    source: 'edge',
+    description: 'English location-near query → nearby_places_search, not web_search',
+    userQuery: 'Show me hotels near Phuket Old Town',
+    expectedTool: 'nearby_places_search',
+    reason:
+      'System prompt: "near <location>" triggers nearby_places_search. Language-mixing must not break routing.',
+    now: FIXED_NOW,
+  },
+];
