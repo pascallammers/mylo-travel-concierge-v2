@@ -24,3 +24,6 @@ export * from './knowledge-base';
 export * from './supermemory';
 export * from './knowledge-base-query';
 export * from './loyalty-balances';
+export * from './cpp-calculator';
+export * from './transfer-partner-optimizer';
+export * from './sweet-spot-lookup';
