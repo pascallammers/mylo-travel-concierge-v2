@@ -36,9 +36,9 @@ describe('buildMyloWebSystemPrompt', () => {
       assert.match(prompt, /Tool-Outputs sind die EINZIGE Quelle der Wahrheit/);
     });
 
-    it('requires per-row source attribution when multiple tools were called', () => {
+    it('forbids mixing rows from different flight tools', () => {
       const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
-      assert.match(prompt, /zitiere PRO ZEILE die Quelle/);
+      assert.match(prompt, /vermische keine Werte aus verschiedenen Tools/i);
     });
 
     it('forbids interpolation across providers', () => {
@@ -67,20 +67,20 @@ describe('buildMyloWebSystemPrompt', () => {
       assert.match(prompt, /(if|wenn).*(no|kein|missing|fehlt).*(booking link|Buchungslink)/i);
     });
 
-    it('forbids wrapping plain-text source labels (Seats.aero, Duffel, etc.) as markdown links', () => {
+    it('forbids exposing internal provider names (Seats.aero, Duffel, etc.)', () => {
       const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
-      // German clause
-      assert.match(prompt, /Quellen-Spalten sind Plain Text/i);
-      assert.match(prompt, /Seats\.aero.*Duffel.*Skiplagged.*Kiwi/);
-      // English clause
-      assert.match(prompt, /Source labels.*are plain text.*do not wrap/i);
-      // Examples must mention the specific bad pattern from Test 3
-      assert.match(prompt, /\[Seats\.aero\]\(https:\/\/seats\.aero\)/);
+      assert.match(prompt, /Interne Provider-Namen bleiben intern/i);
+      assert.match(prompt, /NIEMALS "Seats\.aero", "Duffel", "Amadeus"/);
+      assert.match(prompt, /Internal provider names stay internal/i);
+      assert.match(prompt, /NEVER mention "Seats\.aero", "Duffel", "Amadeus"/);
     });
 
-    it('explains why source labels must stay plain (URLs are fabricated)', () => {
+    it('still allows public booking links from flight tools', () => {
       const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
-      assert.match(prompt, /(URLs?.*(fabricated|erfunden))|(URLs?.*invent)/i);
+      assert.match(prompt, /\[Skiplagged\]\(url\)/);
+      assert.match(prompt, /\[Kiwi\]\(url\)/);
+      assert.match(prompt, /\[Google\]\(url\)/);
+      assert.match(prompt, /\[Skyscanner\]\(url\)/);
     });
   });
 
