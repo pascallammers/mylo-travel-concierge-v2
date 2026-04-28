@@ -27,3 +27,7 @@ export * from './loyalty-balances';
 export * from './cpp-calculator';
 export * from './transfer-partner-optimizer';
 export * from './sweet-spot-lookup';
+export * from './skiplagged-flight-search';
+export * from './kiwi-flight-search';
+export * from './trivago-hotel-search';
+export * from './ferryhopper-search';
