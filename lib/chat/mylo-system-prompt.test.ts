@@ -66,6 +66,22 @@ describe('buildMyloWebSystemPrompt', () => {
       // Catches the "[Duffel API](https://duffel.com)" hallucination from Test 1.
       assert.match(prompt, /(if|wenn).*(no|kein|missing|fehlt).*(booking link|Buchungslink)/i);
     });
+
+    it('forbids wrapping plain-text source labels (Seats.aero, Duffel, etc.) as markdown links', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      // German clause
+      assert.match(prompt, /Quellen-Spalten sind Plain Text/i);
+      assert.match(prompt, /Seats\.aero.*Duffel.*Skiplagged.*Kiwi/);
+      // English clause
+      assert.match(prompt, /Source labels.*are plain text.*do not wrap/i);
+      // Examples must mention the specific bad pattern from Test 3
+      assert.match(prompt, /\[Seats\.aero\]\(https:\/\/seats\.aero\)/);
+    });
+
+    it('explains why source labels must stay plain (URLs are fabricated)', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      assert.match(prompt, /(URLs?.*(fabricated|erfunden))|(URLs?.*invent)/i);
+    });
   });
 
   describe('KB_FIRST_AND_ROUTING section', () => {

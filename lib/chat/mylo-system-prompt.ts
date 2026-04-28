@@ -400,6 +400,8 @@ function buildDataIntegrityRule(): string {
   - Wenn das Tool keinen Buchungslink liefert (z.B. weil die Buchungssession nicht erstellt werden konnte), erfinde KEINEN — auch keinen "plausiblen" Fallback wie \`https://duffel.com\` oder \`https://[airline].com\`
   - Übernimm Link-Text, URL und Anzahl der Links 1:1 (verbatim)
 
+  **Quellen-Spalten sind Plain Text — nicht in Links wrappen.** Wenn das Tool eine Source-Spalte mit plain text liefert (z.B. "Seats.aero", "Duffel", "Skiplagged", "Kiwi", "Trivago", "Ferryhopper"), gib sie EXAKT als plain text zurück. Wrappe sie NICHT in Markdown-Links wie \`[Seats.aero](https://seats.aero)\` — diese URLs sind erfunden und der User soll die Source nur als Attribution sehen, nicht als Link.
+
   Wenn das Tool ein Feld nicht liefert: schreibe "—" oder lass die Spalte weg. Schreibe NIE einen geratenen Wert.
 
   Wenn das Tool 0 Ergebnisse liefert: sag dem User "Das Tool hat keine Ergebnisse zurückgegeben" — fülle nicht mit web_search-Daten oder generischem Wissen auf, ohne das transparent zu machen.
@@ -425,6 +427,8 @@ function buildDataIntegrityRule(): string {
   - If the tool emits two links per row, return two links — do not add a third because "it looks more complete"
   - If the tool emits no booking link (e.g. because the booking session could not be created), do NOT invent one — not even a "plausible" fallback like \`https://duffel.com\` or \`https://[airline].com\`. If a booking link is missing, the tool itself will print "Direct booking unavailable" or similar — pass that through verbatim.
   - Pass link text, URL, and link count through 1:1 (verbatim)
+
+  **Source labels in source/quelle columns are plain text — do not wrap them as links.** When the tool output contains a Source column with plain text (e.g. "Seats.aero", "Duffel", "Skiplagged", "Kiwi", "Trivago", "Ferryhopper"), pass them through EXACTLY as plain text. Do NOT wrap them in markdown links like \`[Seats.aero](https://seats.aero)\` — those URLs are fabricated, and the user should see the source as attribution only, not as a clickable link.
 
   If the tool does not return a field: write "—" or omit the column. NEVER write a guessed value.
 
