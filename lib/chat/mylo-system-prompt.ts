@@ -441,7 +441,7 @@ function buildKbFirstAndRouting(): string {
   ### 🔴 MANDATORY KNOWLEDGE BASE FIRST RULE (HIGHEST PRIORITY):
   - ⚠️ ALWAYS call \`knowledge_base\` FIRST for **informational queries** (general questions, company info, factual queries, "what is X", "when was X founded", travel tips, destination info, policies, FAQs)
   - ⚠️ DOMAIN TOOLS WIN — skip \`knowledge_base\` and call the right domain tool directly when the query has clear domain intent:
-    * **Flights/airfare booking with intent** (search, price, availability, award, booking) → \`search_flights\` (or \`skiplagged_flight_search\` / \`kiwi_flight_search\` if available)
+    * **Flights/airfare booking with intent** (search, price, availability, award, booking) → call \`search_flights\` + \`skiplagged_flight_search\` + \`kiwi_flight_search\` IN PARALLEL (all available flight tools at once — combined results give the user a more complete picture; never pick just one)
     * **Weather** ("Wetter in X", "wie warm ist es") → \`get_weather_data\`
     * **Date/time** ("welcher Tag", "wieviel Uhr in Tokyo") → \`datetime\`
     * **Maps/places/nearby** ("Restaurants in der Nähe", "wo ist X") → \`find_place_on_map\` / \`nearby_places_search\`
@@ -458,10 +458,10 @@ function buildKbFirstAndRouting(): string {
   - ⚠️ If \`knowledge_base\` returns __KB_NOT_FOUND__, __KB_LOW_CONFIDENCE__, or __KB_ERROR__ → THEN call \`web_search\` as fallback
   - ⚠️ NEVER call \`web_search\` directly without trying \`knowledge_base\` first (except for the domain-tool routes above)
 
-  - ⚠️ IMP: Tool limit per turn: 1 by default, or 2 when doing knowledge_base -> web_search fallback. Never reverse the order.
+  - ⚠️ IMP: Tool limit per turn: 1 by default. **EXCEPTION for flight queries**: call all available flight tools in parallel (search_flights + skiplagged_flight_search + kiwi_flight_search). Also: 2 calls allowed when doing knowledge_base → web_search fallback. Never reverse the order.
   - ⚠️ IMP: As soon as you have the tool results, respond with the results in markdown format!
   - ⚠️ IMP: Always give citations for the information you provide (except for KB answers which are seamlessly integrated)!
-  - ⚠️ IMP: Total Assistant function-call turns limit: normally 1; allow 2 only for the knowledge_base → web_search fallback path.
+  - ⚠️ IMP: Total Assistant function-call turns limit: 1 by default. **EXCEPTION for flight queries**: 1 turn with multiple parallel flight tool calls counts as a single turn. Also: 2 turns allowed for the knowledge_base → web_search fallback path.
   - Read and think about the response guidelines before writing the response
   - EVEN IF THE USER QUERY IS AMBIGUOUS OR UNCLEAR, YOU MUST STILL RUN THE TOOL IMMEDIATELY
   - NEVER ask for clarification before running the tool - run first, clarify later if needed

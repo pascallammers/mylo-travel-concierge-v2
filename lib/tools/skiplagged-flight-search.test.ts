@@ -4,6 +4,7 @@ import { afterEach, describe, it } from 'node:test';
 import { _resetSessionCache } from '@/lib/mcp/http-mcp-tool';
 import {
   createSkiplaggedFlightSearchTool,
+  formatSkiplaggedResults,
   skiplaggedFlightSearchTool,
 } from './skiplagged-flight-search';
 
@@ -88,7 +89,7 @@ describe('skiplaggedFlightSearchTool', () => {
     assert.ok(skiplaggedFlightSearchTool.inputSchema);
   });
 
-  it('returns success with parsed result on happy path (SSE response)', async () => {
+  it('returns success with formatted markdown result on happy path (SSE response)', async () => {
     const { fetchImpl } = mockFetch([
       sseResponse({ jsonrpc: '2.0', id: 1, result: FAKE_FLIGHTS_RESULT }),
     ]);
@@ -100,7 +101,12 @@ describe('skiplaggedFlightSearchTool', () => {
 
     assert.strictEqual(r.success, true);
     if (r.success) {
-      assert.deepStrictEqual(r.result, FAKE_FLIGHTS_RESULT);
+      // Result is now a formatted markdown string, not raw JSON. The LLM
+      // can pass this through verbatim (NO-HALLUCINATION rule applies).
+      assert.strictEqual(typeof r.result, 'string');
+      assert.match(r.result, /Skiplagged/);
+      assert.match(r.result, /FRA/);
+      assert.match(r.result, /JFK/);
     }
   });
 
@@ -244,5 +250,88 @@ describe('skiplaggedFlightSearchTool', () => {
       maxStops: 'two',
     });
     assert.strictEqual(parse.success, false);
+  });
+});
+
+describe('formatSkiplaggedResults — markdown contract', () => {
+  // Pin down the rendering so the LLM cannot hallucinate <br/>, double-labels,
+  // or fabricate a Source attribution.
+  const sampleRaw = {
+    content: [{ type: 'text', text: 'Found 2 flights' }],
+    structuredContent: {
+      searchUrl: 'https://skiplagged.com/flights/FRA/JFK/2026-06-15',
+      flights: [
+        {
+          type: 'FlightCard',
+          id: 'f-sq26',
+          airlines: 'Singapore Airlines',
+          departure: { airport: 'FRA', dateTime: '2026-06-15T08:35:00+02:00' },
+          arrival: { airport: 'JFK', dateTime: '2026-06-15T11:10:00-04:00' },
+          duration: '8h 35m',
+          layovers: 0,
+          price: { amount: 413, currency: 'USD' },
+          deepLink: 'https://skiplagged.com/flights/FRA/JFK/2026-06-15#trip=SQ26',
+        },
+        {
+          type: 'FlightCard',
+          id: 'f-lh400h',
+          airlines: 'Lufthansa',
+          departure: { airport: 'FRA', dateTime: '2026-06-15T10:55:00+02:00' },
+          arrival: { airport: 'JFK', dateTime: '2026-06-15T13:35:00-04:00' },
+          duration: '8h 40m',
+          layovers: 0,
+          price: { amount: 1830, currency: 'USD' },
+          deepLink: 'https://skiplagged.com/flights/FRA/JFK/2026-06-15#trip=LH400~',
+          hiddenCity: true,
+        },
+      ],
+      pagination: { totalAvailable: 50, currentlyShowing: 2, hasMoreResults: true },
+    },
+  };
+
+  it('renders a markdown table with a Source column citing Skiplagged', () => {
+    const md = formatSkiplaggedResults(sampleRaw);
+    const headerLine = md.split('\n').find((l) => l.includes('Airline')) ?? '';
+    assert.match(headerLine, /Source|Quelle/i, 'table header must declare a source column');
+    // Source column on every flight row should literally say "Skiplagged"
+    const rowMatches = md.match(/\| Skiplagged \|/g) ?? [];
+    assert.ok(rowMatches.length >= 2, 'each flight row must cite Skiplagged');
+  });
+
+  it('does NOT emit literal <br/> tags (markdown tables do not render HTML breaks)', () => {
+    const md = formatSkiplaggedResults(sampleRaw);
+    assert.doesNotMatch(md, /<br\s*\/?>/i, 'no literal <br/> in output');
+  });
+
+  it('renders exactly one booking link per row (no [Book](url) [Skiplagged](url) duplicates)', () => {
+    const md = formatSkiplaggedResults(sampleRaw);
+    // Per row there should be one [Skiplagged](deepLink) link, not two with the same URL.
+    const sq26Matches = md.match(/#trip=SQ26/g) ?? [];
+    assert.strictEqual(sq26Matches.length, 1, 'SQ26 deepLink must appear exactly once');
+    const lhMatches = md.match(/#trip=LH400~/g) ?? [];
+    assert.strictEqual(lhMatches.length, 1, 'LH400 deepLink must appear exactly once');
+  });
+
+  it('marks hidden-city itineraries with a Hidden-City badge', () => {
+    const md = formatSkiplaggedResults(sampleRaw);
+    assert.match(md, /Hidden[- ]City/i, 'hidden-city flights must be flagged');
+  });
+
+  it('preserves the searchUrl as a "see more results" link', () => {
+    const md = formatSkiplaggedResults(sampleRaw);
+    assert.match(md, /https:\/\/skiplagged\.com\/flights\/FRA\/JFK\/2026-06-15/);
+  });
+
+  it('handles zero flights gracefully', () => {
+    const empty = {
+      content: [{ type: 'text', text: 'Found 0 flights' }],
+      structuredContent: {
+        searchUrl: 'https://skiplagged.com/...',
+        flights: [],
+        pagination: { totalAvailable: 0, currentlyShowing: 0, hasMoreResults: false },
+      },
+    };
+    const md = formatSkiplaggedResults(empty);
+    assert.match(md, /no.*results|keine.*ergebnisse/i);
   });
 });

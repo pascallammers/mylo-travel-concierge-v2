@@ -8,6 +8,11 @@
 // 23 inputs, most of which an LLM won't use well. This wrapper exposes the 9
 // fields that matter for DACH travel-concierge use cases. Hidden-city is
 // enabled by default because that's Skiplagged's signature value prop.
+//
+// The tool returns FORMATTED MARKDOWN (not raw JSON) so the NO-HALLUCINATION
+// rule in lib/chat/mylo-system-prompt.ts can protect the rendering verbatim.
+// Source column ("Skiplagged") + Hidden-City badge are deterministic so the
+// LLM never has to invent attribution.
 
 import { tool } from 'ai';
 import { z } from 'zod';
@@ -70,7 +75,7 @@ const inputSchema = z.object({
     ),
 });
 
-type SkiplaggedToolSuccess = { success: true; result: unknown };
+type SkiplaggedToolSuccess = { success: true; result: string };
 type SkiplaggedToolError = { success: false; error: string };
 export type SkiplaggedToolResult = SkiplaggedToolSuccess | SkiplaggedToolError;
 
@@ -78,10 +83,87 @@ interface ToolDeps {
   fetchImpl?: typeof fetch;
 }
 
+/**
+ * Format Skiplagged's structuredContent into a markdown table that the LLM
+ * can pass through verbatim. Source column = "Skiplagged" per row,
+ * Hidden-City badge in the Type column when applicable, single deepLink per
+ * row (no double-labeling), no literal <br/> in cells.
+ *
+ * Exported so unit tests can pin down the contract.
+ */
+export function formatSkiplaggedResults(raw: unknown): string {
+  const r = (raw ?? {}) as {
+    structuredContent?: {
+      searchUrl?: string;
+      flights?: Array<{
+        airlines?: string;
+        departure?: { airport?: string; dateTime?: string };
+        arrival?: { airport?: string; dateTime?: string };
+        duration?: string;
+        layovers?: number;
+        price?: { amount?: number; currency?: string };
+        deepLink?: string;
+        hiddenCity?: boolean;
+      }>;
+      pagination?: { totalAvailable?: number; hasMoreResults?: boolean };
+    };
+  };
+
+  const flights = r.structuredContent?.flights ?? [];
+  const searchUrl = r.structuredContent?.searchUrl;
+  const total = r.structuredContent?.pagination?.totalAvailable;
+
+  if (flights.length === 0) {
+    return 'Skiplagged returned no results for this search. Try different dates or relaxing the cabin / stops filter.';
+  }
+
+  const lines: string[] = [];
+  lines.push(`## Skiplagged Flights (${flights.length}${total && total > flights.length ? ` of ${total}+` : ''} results)`);
+  lines.push('');
+  lines.push('| No. | Airline | Price | Departure | Arrival | Duration | Stops | Type | Booking | Source |');
+  lines.push('|-----|---------|-------|-----------|---------|----------|-------|------|---------|--------|');
+
+  flights.forEach((f, idx) => {
+    const airline = f.airlines ?? '—';
+    const price = f.price?.amount != null && f.price?.currency
+      ? `${f.price.currency} ${f.price.amount}`
+      : '—';
+    const depAirport = f.departure?.airport ?? '—';
+    const arrAirport = f.arrival?.airport ?? '—';
+    const depTime = formatTime(f.departure?.dateTime);
+    const arrTime = formatTime(f.arrival?.dateTime);
+    const duration = f.duration ?? '—';
+    const stops = f.layovers === 0 ? 'Nonstop' : f.layovers != null ? `${f.layovers} stop(s)` : '—';
+    const type = f.hiddenCity ? 'Hidden-City' : 'Standard';
+    const booking = f.deepLink ? `[Skiplagged](${f.deepLink})` : '—';
+
+    lines.push(
+      `| ${idx + 1} | ${airline} | ${price} | ${depAirport} ${depTime} | ${arrAirport} ${arrTime} | ${duration} | ${stops} | ${type} | ${booking} | Skiplagged |`,
+    );
+  });
+
+  if (searchUrl) {
+    lines.push('');
+    lines.push(`[Open full search on Skiplagged](${searchUrl})`);
+  }
+
+  return lines.join('\n');
+}
+
+function formatTime(iso: string | undefined): string {
+  if (!iso) return '';
+  // Skiplagged returns ISO with timezone offset like "2026-06-15T08:35:00+02:00".
+  // Extract HH:MM without forcing locale conversion (keep the local time
+  // Skiplagged shows in its UI).
+  const match = iso.match(/T(\d{2}):(\d{2})/);
+  if (match) return `${match[1]}:${match[2]}`;
+  return iso;
+}
+
 export function createSkiplaggedFlightSearchTool(deps: ToolDeps = {}) {
   return tool({
     description:
-      "Search Skiplagged for flights including hidden-city itineraries. Use this when the user asks for flight options, prices, schedules, or wants to compare cash prices across dates. Returns flights[] with airlines, departure/arrival, duration, price, and Skiplagged deepLink. Hidden-city is on by default because that's Skiplagged's key edge over other engines. Combine with cpp_calculator to evaluate cash-vs-points trade-offs.",
+      "Search Skiplagged for flights including hidden-city itineraries. Use this when the user asks for flight options, prices, schedules, or wants to compare cash prices across dates. Returns a formatted markdown table with airlines, departure/arrival, duration, price, hidden-city badges, and a Skiplagged deepLink per row. Hidden-city is on by default because that's Skiplagged's key edge over other engines. Combine with cpp_calculator to evaluate cash-vs-points trade-offs.",
     inputSchema,
     execute: async (input): Promise<SkiplaggedToolResult> => {
       const r = await callMcpTool({
@@ -91,7 +173,7 @@ export function createSkiplaggedFlightSearchTool(deps: ToolDeps = {}) {
         requiresSession: false,
         fetchImpl: deps.fetchImpl,
       });
-      if (r.ok) return { success: true, result: r.result };
+      if (r.ok) return { success: true, result: formatSkiplaggedResults(r.result) };
       return { success: false, error: r.error };
     },
   });

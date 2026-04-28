@@ -86,6 +86,15 @@ describe('buildMyloWebSystemPrompt', () => {
       const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
       assert.match(prompt, /Never reverse the order/);
     });
+
+    it('overrides the 1-tool-per-turn limit for flight queries (call all flight tools in parallel)', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      // The default rule "Tool limit per turn: 1 by default" caused Test 2 to
+      // call only skiplagged_flight_search instead of also calling search_flights.
+      // The flight-tool exception must explicitly authorize parallel calls.
+      assert.match(prompt, /flight queries.*(call|run|execute).*all.*(flight tools|in parallel)/i);
+      assert.match(prompt, /search_flights.*\+.*skiplagged_flight_search/);
+    });
   });
 
   describe('TOOL_SPECIFIC_GUIDELINES section', () => {
