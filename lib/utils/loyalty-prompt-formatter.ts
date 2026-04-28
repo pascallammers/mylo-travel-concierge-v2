@@ -11,6 +11,12 @@ Der Nutzer hat AwardWallet nicht verbunden. Bei Fragen zu Treuepunkten oder Meil
     en: `### Loyalty Programs
 User has not connected AwardWallet. If they ask about loyalty points or miles, suggest connecting their AwardWallet account at /settings/loyalty.`,
   },
+  syncError: {
+    de: (lastSync: string) => `### Loyalty Programs (Sync FEHLGESCHLAGEN)
+Der Nutzer hat AwardWallet verbunden, aber die letzte Synchronisierung schlug am ${lastSync} fehl. Erwähne dies, falls der Nutzer nach Punkten/Meilen fragt — die gespeicherten Daten könnten veraltet sein. Verlasse dich NICHT auf konkrete Punktezahlen für Empfehlungen, sondern weise den Nutzer auf /settings/loyalty hin, um die Verbindung zu erneuern.`,
+    en: (lastSync: string) => `### Loyalty Programs (Sync FAILED)
+User has an AwardWallet connection but the last sync failed on ${lastSync}. If the user asks about points or miles, mention this — the stored balances may be stale. Do NOT act on the cached balance numbers for recommendations; point the user to /settings/loyalty to refresh the connection.`,
+  },
   connectedHeader: {
     de: '### Treueprogramme (AwardWallet verbunden)',
     en: '### Loyalty Programs (AwardWallet Connected)',
@@ -35,21 +41,31 @@ User has not connected AwardWallet. If they ask about loyalty points or miles, s
  * @returns A formatted string for the system prompt, or null if not connected
  */
 export function formatLoyaltyDataForPrompt(data: UserLoyaltyData, locale: PromptLocale = 'en'): string {
-  if (!data.connected || data.accounts.length === 0) {
+  const dateLocale = locale === 'de' ? 'de-DE' : 'en-US';
+  const formatSyncDate = (d: Date | null): string =>
+    d
+      ? new Date(d).toLocaleDateString(dateLocale, {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      : (locale === 'de' ? 'Nie' : 'Never');
+
+  // Sync-failure path: tell the LLM the connection exists but data may be stale.
+  // We branch on `status` first because back-compat `connected:false` covers both
+  // 'error' and 'disconnected' which need very different chat-context.
+  if (data.status === 'error') {
+    return promptI18n.syncError[locale](formatSyncDate(data.lastSyncedAt));
+  }
+
+  if (data.status === 'disconnected' || data.accounts.length === 0) {
     return promptI18n.notConnected[locale];
   }
 
-  const dateLocale = locale === 'de' ? 'de-DE' : 'en-US';
   const totalPoints = data.accounts.reduce((sum, acc) => sum + acc.balance, 0);
-  const lastSync = data.lastSyncedAt
-    ? new Date(data.lastSyncedAt).toLocaleDateString(dateLocale, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : (locale === 'de' ? 'Nie' : 'Never');
+  const lastSync = formatSyncDate(data.lastSyncedAt);
 
   const accountsSummary = data.accounts
     .map((acc) => {

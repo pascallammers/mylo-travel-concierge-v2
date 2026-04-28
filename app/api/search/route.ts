@@ -213,9 +213,21 @@ export async function POST(req: Request) {
   const loyaltyDataPromise = user
     ? getUserLoyaltyData(user.id).catch((error) => {
         console.error('Failed to load loyalty data:', error);
-        return { connected: false, lastSyncedAt: null, accounts: [] };
+        return {
+          status: 'disconnected' as const,
+          connected: false,
+          lastSyncedAt: null,
+          lastError: null,
+          accounts: [],
+        };
       })
-    : Promise.resolve({ connected: false, lastSyncedAt: null, accounts: [] });
+    : Promise.resolve({
+        status: 'disconnected' as const,
+        connected: false,
+        lastSyncedAt: null,
+        lastError: null,
+        accounts: [],
+      });
 
   if (user) {
     const isProUser = user.isProUser;

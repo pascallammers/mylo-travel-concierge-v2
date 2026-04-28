@@ -183,6 +183,8 @@
     "refresh": "Refresh",
     "programsSynced": "{count} programs synced",
     "syncFailed": "Sync failed",
+    "syncErrorTitle": "AwardWallet sync has failed since {lastSynced}.",
+    "syncErrorDescription": "Please try again or reconnect AwardWallet under Settings → Loyalty.",
     "loadError": "Error loading loyalty programs",
     "loadErrorShort": "Error loading",
     "retry": "Try again",

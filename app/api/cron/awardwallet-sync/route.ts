@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { serverEnv } from '@/env/server';
 import { getConnectedUser } from '@/lib/api/awardwallet-client';
 import {
-  getActiveConnections,
+  getSyncableConnections,
   syncLoyaltyAccounts,
   updateConnectionStatus,
 } from '@/lib/db/queries/awardwallet';
@@ -37,13 +37,23 @@ export async function POST(request: NextRequest) {
   let failedCount = 0;
 
   try {
-    const connections = await getActiveConnections();
-    console.log(`[AwardWallet Cron] Found ${connections.length} active connections`);
+    // Includes 'connected' rows + 'error' rows whose backoff has elapsed,
+    // so connections that previously failed actually get retried by the cron
+    // instead of being permanently stuck in the error state.
+    const connections = await getSyncableConnections();
+    console.log(`[AwardWallet Cron] Found ${connections.length} syncable connections`);
 
     for (const connection of connections) {
       try {
         const accounts = await getConnectedUser(connection.awUserId);
         const accountCount = await syncLoyaltyAccounts(connection.id, accounts);
+
+        // If this was a recovery (was in 'error', sync just succeeded), flip
+        // the status back to 'connected' and clear the error message.
+        if (connection.status === 'error') {
+          await updateConnectionStatus(connection.id, 'connected');
+          console.log(`[AwardWallet Cron] Recovered user ${connection.userId} from error state`);
+        }
 
         results.push({
           userId: connection.userId,
@@ -56,6 +66,8 @@ export async function POST(request: NextRequest) {
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
+        // Keep status='error', refresh errorMessage. No retry counter exists
+        // in the schema yet — see TODO in lib/db/queries/awardwallet.ts.
         await updateConnectionStatus(connection.id, 'error', errorMessage);
 
         results.push({

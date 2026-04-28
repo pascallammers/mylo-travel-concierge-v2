@@ -23,19 +23,35 @@ export interface LoyaltyAccount {
 
 /**
  * Combined user loyalty data for UI display.
+ *
+ * Mirrors the shape returned by `getUserLoyaltyData` so that pure formatting
+ * helpers in this module stay free of server-only imports.
  */
+export type LoyaltyDataStatus = 'connected' | 'error' | 'disconnected';
+
 export interface UserLoyaltyData {
+  status: LoyaltyDataStatus;
+  /** @deprecated Use `status === 'connected'`. Kept for back-compat. */
   connected: boolean;
   lastSyncedAt: Date | null;
+  lastError: string | null;
   accounts: LoyaltyAccount[];
 }
 
 /**
  * Response format for the loyalty balances tool.
+ *
+ * `status` lets the LLM distinguish "user has no connection" from
+ * "user has a connection but the last sync failed and the balances may
+ * be stale". `connected` is kept for back-compat (true iff status='connected').
  */
 export interface LoyaltyBalancesResponse {
+  /** @deprecated Prefer `status`. */
   connected: boolean;
+  status: LoyaltyDataStatus;
   lastSyncedAt: string | null;
+  /** Error message if status='error', otherwise null. */
+  lastError: string | null;
   totalPoints: number;
   accountCount: number;
   accounts: LoyaltyAccountSummary[];
@@ -109,13 +125,34 @@ export function formatLoyaltyResponse(
   provider?: string,
   includeDetails: boolean = true
 ): LoyaltyBalancesResponse {
-  if (!data.connected) {
+  if (data.status === 'disconnected') {
     return {
       connected: false,
+      status: 'disconnected',
       lastSyncedAt: null,
+      lastError: null,
       totalPoints: 0,
       accountCount: 0,
       accounts: [],
+    };
+  }
+
+  // 'error' state: surface accounts (so the LLM can answer "what was your last
+  // known balance?") but flag the error explicitly so the assistant warns the
+  // user the data may be stale.
+  if (data.status === 'error') {
+    let accounts = data.accounts;
+    if (provider) {
+      accounts = filterByProvider(accounts, provider);
+    }
+    return {
+      connected: false,
+      status: 'error',
+      lastSyncedAt: data.lastSyncedAt?.toISOString() ?? null,
+      lastError: data.lastError,
+      totalPoints: calculateTotalPoints(accounts),
+      accountCount: accounts.length,
+      accounts: includeDetails ? accounts.map(formatAccount) : [],
     };
   }
 
@@ -127,7 +164,9 @@ export function formatLoyaltyResponse(
 
   return {
     connected: true,
+    status: 'connected',
     lastSyncedAt: data.lastSyncedAt?.toISOString() ?? null,
+    lastError: null,
     totalPoints: calculateTotalPoints(accounts),
     accountCount: accounts.length,
     accounts: includeDetails ? accounts.map(formatAccount) : [],

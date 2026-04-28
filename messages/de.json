@@ -183,6 +183,8 @@
     "refresh": "Aktualisieren",
     "programsSynced": "{count} Programme synchronisiert",
     "syncFailed": "Synchronisation fehlgeschlagen",
+    "syncErrorTitle": "AwardWallet-Sync schlug fehl seit {lastSynced}.",
+    "syncErrorDescription": "Bitte versuche es erneut oder verbinde AwardWallet neu unter Einstellungen → Loyalty.",
     "loadError": "Fehler beim Laden der Treueprogramme",
     "loadErrorShort": "Fehler beim Laden",
     "retry": "Erneut versuchen",

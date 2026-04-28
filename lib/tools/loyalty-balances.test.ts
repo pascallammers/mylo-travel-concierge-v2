@@ -37,8 +37,10 @@ function createMockAccount(overrides: Partial<LoyaltyAccount> = {}): LoyaltyAcco
  */
 function createConnectedUserData(accounts: LoyaltyAccount[]): UserLoyaltyData {
   return {
+    status: 'connected',
     connected: true,
     lastSyncedAt: new Date('2026-01-20T10:00:00Z'),
+    lastError: null,
     accounts,
   };
 }
@@ -48,9 +50,29 @@ function createConnectedUserData(accounts: LoyaltyAccount[]): UserLoyaltyData {
  */
 function createDisconnectedUserData(): UserLoyaltyData {
   return {
+    status: 'disconnected',
     connected: false,
     lastSyncedAt: null,
+    lastError: null,
     accounts: [],
+  };
+}
+
+/**
+ * Creates UserLoyaltyData representing an active connection whose last sync
+ * failed. We intentionally retain accounts so callers can decide whether to
+ * surface (potentially stale) balances alongside the error flag.
+ */
+function createErrorUserData(
+  accounts: LoyaltyAccount[],
+  lastError = 'IP_DENIED: Request rejected by AwardWallet',
+): UserLoyaltyData {
+  return {
+    status: 'error',
+    connected: false,
+    lastSyncedAt: new Date('2026-01-15T10:00:00Z'),
+    lastError,
+    accounts,
   };
 }
 
@@ -375,8 +397,10 @@ describe('formatLoyaltyResponse', () => {
   describe('Edge Cases', () => {
     it('handles empty accounts array', () => {
       const data: UserLoyaltyData = {
+        status: 'connected',
         connected: true,
         lastSyncedAt: new Date(),
+        lastError: null,
         accounts: [],
       };
 
@@ -389,8 +413,10 @@ describe('formatLoyaltyResponse', () => {
 
     it('handles null lastSyncedAt', () => {
       const data: UserLoyaltyData = {
+        status: 'connected',
         connected: true,
         lastSyncedAt: null,
+        lastError: null,
         accounts: [createMockAccount()],
       };
 
@@ -420,6 +446,86 @@ describe('formatLoyaltyResponse', () => {
       const result = formatLoyaltyResponse(data, 'café');
 
       assert.equal(result.accountCount, 1);
+    });
+  });
+
+  describe('Sync Error State', () => {
+    it('returns status="error" and surfaces lastError', () => {
+      const accounts = [createMockAccount({ balance: 50_000 })];
+      const data = createErrorUserData(accounts, 'IP_DENIED');
+
+      const result = formatLoyaltyResponse(data);
+
+      assert.equal(result.status, 'error');
+      assert.equal(result.connected, false, 'connected stays false so old UI degrades safely');
+      assert.equal(result.lastError, 'IP_DENIED');
+    });
+
+    it('keeps lastSyncedAt timestamp from the (failed) connection', () => {
+      const data = createErrorUserData([createMockAccount()]);
+
+      const result = formatLoyaltyResponse(data);
+
+      assert.equal(result.lastSyncedAt, '2026-01-15T10:00:00.000Z');
+    });
+
+    it('still returns cached account data so the LLM can mention stale balances', () => {
+      const accounts = [
+        createMockAccount({ providerName: 'Lufthansa', balance: 50_000 }),
+        createMockAccount({ id: 'acc-2', providerName: 'United', balance: 30_000 }),
+      ];
+      const data = createErrorUserData(accounts);
+
+      const result = formatLoyaltyResponse(data);
+
+      assert.equal(result.accountCount, 2);
+      assert.equal(result.totalPoints, 80_000);
+      assert.equal(result.accounts.length, 2);
+    });
+
+    it('respects provider filter in error state', () => {
+      const accounts = [
+        createMockAccount({ providerCode: 'LH', providerName: 'Lufthansa' }),
+        createMockAccount({ id: 'acc-2', providerCode: 'UA', providerName: 'United' }),
+      ];
+      const data = createErrorUserData(accounts);
+
+      const result = formatLoyaltyResponse(data, 'LH');
+
+      assert.equal(result.status, 'error');
+      assert.equal(result.accountCount, 1);
+      assert.equal(result.accounts[0].providerCode, 'LH');
+    });
+
+    it('respects includeDetails=false in error state', () => {
+      const accounts = [createMockAccount(), createMockAccount({ id: 'acc-2' })];
+      const data = createErrorUserData(accounts);
+
+      const result = formatLoyaltyResponse(data, undefined, false);
+
+      assert.equal(result.status, 'error');
+      assert.equal(result.accountCount, 2);
+      assert.deepEqual(result.accounts, []);
+    });
+
+    it('disconnected response carries status="disconnected" and null lastError', () => {
+      const data = createDisconnectedUserData();
+
+      const result = formatLoyaltyResponse(data);
+
+      assert.equal(result.status, 'disconnected');
+      assert.equal(result.lastError, null);
+      assert.equal(result.connected, false);
+    });
+
+    it('connected response carries status="connected" and null lastError', () => {
+      const data = createConnectedUserData([createMockAccount()]);
+
+      const result = formatLoyaltyResponse(data);
+
+      assert.equal(result.status, 'connected');
+      assert.equal(result.lastError, null);
+      assert.equal(result.connected, true);
     });
   });
 });

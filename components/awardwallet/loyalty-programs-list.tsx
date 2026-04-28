@@ -16,7 +16,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { LoyaltyProgramCard } from './loyalty-program-card';
-import { Loader2, RefreshCw, Unplug } from 'lucide-react';
+import { AlertTriangle, Loader2, RefreshCw, Unplug } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -32,9 +32,14 @@ interface LoyaltyAccount {
   logoUrl?: string | null;
 }
 
+type LoyaltyDataStatus = 'connected' | 'error' | 'disconnected';
+
 interface AccountsResponse {
+  /** @deprecated Prefer `status`. Retained while older clients are in flight. */
   connected: boolean;
+  status?: LoyaltyDataStatus;
   lastSyncedAt: string | null;
+  lastError?: string | null;
   accounts: LoyaltyAccount[];
 }
 
@@ -165,11 +170,58 @@ export function LoyaltyProgramsList({ onDisconnected, className }: LoyaltyProgra
     );
   }
 
-  if (!data?.connected) {
+  // Sync-error path: the user *does* have a connection, but the last sync
+  // failed. We must NOT render the "not connected" empty state — that gas-
+  // lights the user. Show a red banner + retry CTA instead, so the failure
+  // is visible and recoverable.
+  const status: LoyaltyDataStatus =
+    data?.status ?? (data?.connected ? 'connected' : 'disconnected');
+
+  if (status === 'error') {
+    const lastSyncedLabel = formatLastSynced(data?.lastSyncedAt ?? null, t);
+    return (
+      <div className={cn('space-y-3', className)}>
+        <div
+          role="alert"
+          className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3"
+        >
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-destructive" />
+          <div className="flex-1 space-y-1">
+            <p className="text-sm font-medium text-destructive">
+              {t('syncErrorTitle', { lastSynced: lastSyncedLabel })}
+            </p>
+            <p className="text-xs text-muted-foreground">{t('syncErrorDescription')}</p>
+            {data?.lastError ? (
+              <p className="text-xs text-muted-foreground/80 font-mono break-all">
+                {data.lastError}
+              </p>
+            ) : null}
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending}
+          >
+            {syncMutation.isPending ? (
+              <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="w-3.5 h-3.5 mr-2" />
+            )}
+            {t('refresh')}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (status !== 'connected' || !data) {
     return null;
   }
 
-  const accounts = data.accounts || [];
+  const accounts = data.accounts;
 
   return (
     <div className={cn('space-y-4', className)}>

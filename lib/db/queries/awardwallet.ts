@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, isNull, lt, or } from 'drizzle-orm';
 import { db } from '../index';
 import {
   awardwalletConnections,
@@ -15,11 +15,28 @@ import type { AWLoyaltyAccount } from '@/lib/api/awardwallet-client';
 export type { AwardWalletConnection, LoyaltyAccount };
 
 /**
- * Combined user loyalty data for UI display
+ * UI-facing connection state for loyalty data.
+ * - 'connected'    – last sync succeeded, accounts can be trusted
+ * - 'error'        – connection exists but last sync failed; UI should warn,
+ *                    chat-context should hint that data may be stale
+ * - 'disconnected' – no connection at all (or status='disconnected' in DB)
+ */
+export type LoyaltyDataStatus = 'connected' | 'error' | 'disconnected';
+
+/**
+ * Combined user loyalty data for UI display.
+ *
+ * `connected` is kept for backwards-compat (true iff status === 'connected').
+ * New consumers should branch on `status` so they can render the
+ * sync-failed banner / pass error context to the LLM.
  */
 export interface UserLoyaltyData {
+  status: LoyaltyDataStatus;
+  /** @deprecated Use `status === 'connected'`. Retained for API back-compat. */
   connected: boolean;
   lastSyncedAt: Date | null;
+  /** Last error message recorded on the connection, if status='error'. */
+  lastError: string | null;
   accounts: LoyaltyAccount[];
 }
 
@@ -237,19 +254,37 @@ export async function getUserLoyaltyData(userId: string): Promise<UserLoyaltyDat
   try {
     const connection = await getConnection(userId);
 
-    if (!connection || connection.status !== 'connected') {
+    // No row at all, or explicitly disconnected → behave like before.
+    if (!connection || connection.status === 'disconnected') {
       return {
+        status: 'disconnected',
         connected: false,
         lastSyncedAt: null,
+        lastError: null,
         accounts: [],
       };
     }
 
-    const accounts = await getLoyaltyAccounts(connection.id);
+    // status='error': we still want to surface the existing accounts (potentially stale)
+    // alongside the error flag so the UI can warn AND the LLM can be told the data is stale.
+    if (connection.status === 'error') {
+      const accounts = await getLoyaltyAccounts(connection.id);
+      return {
+        status: 'error',
+        connected: false,
+        lastSyncedAt: connection.lastSyncedAt,
+        lastError: connection.errorMessage,
+        accounts,
+      };
+    }
 
+    // status='connected'
+    const accounts = await getLoyaltyAccounts(connection.id);
     return {
+      status: 'connected',
       connected: true,
       lastSyncedAt: connection.lastSyncedAt,
+      lastError: null,
       accounts,
     };
   } catch {
@@ -269,5 +304,53 @@ export async function getActiveConnections(): Promise<AwardWalletConnection[]> {
       .where(eq(awardwalletConnections.status, 'connected'));
   } catch {
     throw new ChatSDKError('bad_request:database', 'Failed to get active connections');
+  }
+}
+
+/**
+ * Backoff window for retrying connections in the 'error' state.
+ * Without dedicated retry-tracking columns we re-use `last_synced_at`
+ * as a poor-man's backoff: only retry if the last successful sync
+ * (or last failure-marked sync attempt) is older than this window.
+ *
+ * TODO(awardwallet): when the schema gains `retry_count` / `last_error_at`
+ * columns, switch to exponential backoff keyed off those fields and
+ * cap retries (e.g. give up after N failures, mark connection inactive).
+ * [lane-c-followup]
+ */
+const ERROR_RETRY_BACKOFF_MS = 24 * 60 * 60 * 1000; // 24h
+
+/**
+ * Returns connections the cron should attempt to sync this run:
+ *   - all 'connected' rows (regular cadence)
+ *   - 'error' rows whose last_synced_at is null OR older than the backoff window
+ *
+ * This fixes the bug where once a connection flips to 'error' the cron
+ * never retries it (because `getActiveConnections` filtered status='connected'
+ * only). Manual /api/awardwallet/sync still works regardless of status.
+ *
+ * @returns Array of connections to sync
+ */
+export async function getSyncableConnections(): Promise<AwardWalletConnection[]> {
+  try {
+    const cutoff = new Date(Date.now() - ERROR_RETRY_BACKOFF_MS);
+
+    return await db
+      .select()
+      .from(awardwalletConnections)
+      .where(
+        or(
+          eq(awardwalletConnections.status, 'connected'),
+          and(
+            eq(awardwalletConnections.status, 'error'),
+            or(
+              isNull(awardwalletConnections.lastSyncedAt),
+              lt(awardwalletConnections.lastSyncedAt, cutoff),
+            ),
+          ),
+        ),
+      );
+  } catch {
+    throw new ChatSDKError('bad_request:database', 'Failed to get syncable connections');
   }
 }
