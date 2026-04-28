@@ -145,4 +145,4 @@ export function createKiwiFlightSearchTool(deps: ToolDeps = {}) {
 export const kiwiFlightSearchTool = createKiwiFlightSearchTool();
 
 // Exported for tests so we can verify the date/cabin translation independently.
-export const _internals = { toEuropeDate, buildKiwiArgs, CABIN_CODE };
+export const _kiwiInternals = { toEuropeDate, buildKiwiArgs, CABIN_CODE };

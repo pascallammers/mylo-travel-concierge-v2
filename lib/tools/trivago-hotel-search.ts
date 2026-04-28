@@ -179,4 +179,4 @@ export function createTrivagoHotelSearchTool(deps: ToolDeps = {}) {
 
 export const trivagoHotelSearchTool = createTrivagoHotelSearchTool();
 
-export const _internals = { buildHotelRating, buildReviewRating, buildTrivagoArgs, REVIEW_TIERS };
+export const _trivagoInternals = { buildHotelRating, buildReviewRating, buildTrivagoArgs, REVIEW_TIERS };

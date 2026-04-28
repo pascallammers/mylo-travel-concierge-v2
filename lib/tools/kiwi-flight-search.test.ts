@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import { afterEach, describe, it } from 'node:test';
 import { _resetSessionCache } from '@/lib/mcp/http-mcp-tool';
 import {
-  _internals,
+  _kiwiInternals,
   createKiwiFlightSearchTool,
   kiwiFlightSearchTool,
 } from './kiwi-flight-search';
@@ -76,19 +76,19 @@ async function run(rawInput: unknown, fetchImpl?: typeof fetch) {
 
 describe('kiwiFlightSearchTool — internals', () => {
   it('toEuropeDate converts YYYY-MM-DD to dd/mm/yyyy', () => {
-    assert.strictEqual(_internals.toEuropeDate('2026-06-15'), '15/06/2026');
-    assert.strictEqual(_internals.toEuropeDate('2026-12-01'), '01/12/2026');
+    assert.strictEqual(_kiwiInternals.toEuropeDate('2026-06-15'), '15/06/2026');
+    assert.strictEqual(_kiwiInternals.toEuropeDate('2026-12-01'), '01/12/2026');
   });
 
   it('CABIN_CODE maps human names to Kiwi single-letter codes', () => {
-    assert.strictEqual(_internals.CABIN_CODE.economy, 'M');
-    assert.strictEqual(_internals.CABIN_CODE['premium-economy'], 'W');
-    assert.strictEqual(_internals.CABIN_CODE.business, 'C');
-    assert.strictEqual(_internals.CABIN_CODE.first, 'F');
+    assert.strictEqual(_kiwiInternals.CABIN_CODE.economy, 'M');
+    assert.strictEqual(_kiwiInternals.CABIN_CODE['premium-economy'], 'W');
+    assert.strictEqual(_kiwiInternals.CABIN_CODE.business, 'C');
+    assert.strictEqual(_kiwiInternals.CABIN_CODE.first, 'F');
   });
 
   it('buildKiwiArgs nests passengers and translates dates+cabin for one-way', () => {
-    const args = _internals.buildKiwiArgs({
+    const args = _kiwiInternals.buildKiwiArgs({
       flyFrom: 'FRA',
       flyTo: 'JFK',
       departureDate: '2026-06-15',
@@ -113,7 +113,7 @@ describe('kiwiFlightSearchTool — internals', () => {
   });
 
   it('buildKiwiArgs adds returnDate + returnDateFlexRange for round trips', () => {
-    const args = _internals.buildKiwiArgs({
+    const args = _kiwiInternals.buildKiwiArgs({
       flyFrom: 'MUC',
       flyTo: 'BKK',
       departureDate: '2026-09-01',

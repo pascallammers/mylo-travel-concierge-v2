@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import { afterEach, describe, it } from 'node:test';
 import { _resetSessionCache } from '@/lib/mcp/http-mcp-tool';
 import {
-  _internals,
+  _trivagoInternals,
   createTrivagoHotelSearchTool,
   trivagoHotelSearchTool,
 } from './trivago-hotel-search';
@@ -82,29 +82,29 @@ async function run(rawInput: unknown, fetchImpl?: typeof fetch) {
 
 describe('trivagoHotelSearchTool — internals', () => {
   it('buildHotelRating returns undefined when min is undefined', () => {
-    assert.strictEqual(_internals.buildHotelRating(undefined), undefined);
+    assert.strictEqual(_trivagoInternals.buildHotelRating(undefined), undefined);
   });
 
   it('buildHotelRating sets keys for stars >= min (inclusive)', () => {
-    assert.deepStrictEqual(_internals.buildHotelRating(4), {
+    assert.deepStrictEqual(_trivagoInternals.buildHotelRating(4), {
       '4star': true,
       '5star': true,
     });
-    assert.deepStrictEqual(_internals.buildHotelRating(3), {
+    assert.deepStrictEqual(_trivagoInternals.buildHotelRating(3), {
       '3star': true,
       '4star': true,
       '5star': true,
     });
-    assert.deepStrictEqual(_internals.buildHotelRating(5), { '5star': true });
+    assert.deepStrictEqual(_trivagoInternals.buildHotelRating(5), { '5star': true });
   });
 
   it('buildReviewRating maps tier names to Trivago key shape, inclusive', () => {
-    assert.strictEqual(_internals.buildReviewRating(undefined), undefined);
-    assert.deepStrictEqual(_internals.buildReviewRating('8.0'), {
+    assert.strictEqual(_trivagoInternals.buildReviewRating(undefined), undefined);
+    assert.deepStrictEqual(_trivagoInternals.buildReviewRating('8.0'), {
       rating80: true,
       rating85: true,
     });
-    assert.deepStrictEqual(_internals.buildReviewRating('7.0'), {
+    assert.deepStrictEqual(_trivagoInternals.buildReviewRating('7.0'), {
       rating70: true,
       rating75: true,
       rating80: true,
@@ -113,7 +113,7 @@ describe('trivagoHotelSearchTool — internals', () => {
   });
 
   it('buildTrivagoArgs flattens base inputs and renames radius', () => {
-    const args = _internals.buildTrivagoArgs({
+    const args = _trivagoInternals.buildTrivagoArgs({
       latitude: 52.52,
       longitude: 13.405,
       radiusMeters: 5000,
@@ -138,7 +138,7 @@ describe('trivagoHotelSearchTool — internals', () => {
   });
 
   it('buildTrivagoArgs adds children_ages, hotel_rating, review_rating, filters when provided', () => {
-    const args = _internals.buildTrivagoArgs({
+    const args = _trivagoInternals.buildTrivagoArgs({
       latitude: 52.52,
       longitude: 13.405,
       radiusMeters: 5000,
