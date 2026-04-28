@@ -16,7 +16,7 @@ import {
   lookout,
 } from './schema';
 import { ChatSDKError } from '../errors';
-import { db } from './index';
+import { db, dbUncached } from './index';
 import { getDodoPayments, setDodoPayments, getDodoProStatus, setDodoProStatus } from '../performance-cache';
 
 type VisibilityType = 'public' | 'private';
@@ -140,6 +140,27 @@ export async function getChatById({ id }: { id: string }) {
     return selectedChat;
   } catch (error) {
     throw new ChatSDKError('bad_request:database', 'Failed to get chat by id');
+  }
+}
+
+/**
+ * Cache-bypassing variant of getChatById.
+ *
+ * Use this immediately after creating a chat (e.g. on the chat-detail page
+ * loaded right after submission). The default getChatById goes through the
+ * read-replica + Upstash cache stack — when the chat row was just inserted
+ * via maindb, the replica/cache may still serve a negative result for up to
+ * 10 minutes (cache TTL). The page's 15s backoff loop returns 404 instead
+ * of waiting for cache propagation.
+ *
+ * dbUncached talks straight to the primary Neon instance with no cache layer.
+ */
+export async function getChatByIdFresh({ id }: { id: string }) {
+  try {
+    const [selectedChat] = await dbUncached.select().from(chat).where(eq(chat.id, id));
+    return selectedChat;
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to get chat by id (fresh)');
   }
 }
 

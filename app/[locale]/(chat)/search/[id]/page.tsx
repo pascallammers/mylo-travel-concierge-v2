@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { ChatInterface } from '@/components/chat-interface';
 import { getUser } from '@/lib/auth-utils';
-import { getChatById, getMessagesByChatId } from '@/lib/db/queries';
+import { getChatByIdFresh, getMessagesByChatId } from '@/lib/db/queries';
 import { Message, type Chat } from '@/lib/db/schema';
 import { Metadata } from 'next';
 import { UIMessagePart } from 'ai';
@@ -17,14 +17,17 @@ async function fetchChatWithBackoff(id: string): Promise<Chat | undefined> {
   let delayMs = 500;
   const deadline = Date.now() + maximumWaitMs;
 
-  // First immediate attempt
-  let chat = await getChatById({ id });
+  // Use the cache-bypassing variant: this page is loaded immediately after
+  // saveChat in the API route, and the default getChatById goes through the
+  // read-replica + Upstash cache (10 min TTL by default). A cached negative
+  // result causes the backoff loop to return undefined and the page to 404.
+  let chat = await getChatByIdFresh({ id });
   if (chat) return chat;
 
   while (Date.now() < deadline) {
     const remainingMs = deadline - Date.now();
     await sleep(Math.min(delayMs, remainingMs));
-    chat = await getChatById({ id });
+    chat = await getChatByIdFresh({ id });
     if (chat) return chat;
     delayMs = Math.min(delayMs * 2, maximumWaitMs);
   }
