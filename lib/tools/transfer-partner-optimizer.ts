@@ -71,8 +71,13 @@ interface PartnerEntry {
   brand: string;
   ratio: string;
   effectiveRate: number;
+  /** Partner-program miles received for `pointsUsed` source points (not the user's full balance). */
   milesOut: number;
+  /** Source points actually transferred — aligned to transferIncrement and ≥ minTransfer.
+   *  Differs from input.sourcePoints when the user's balance has leftovers. */
+  pointsUsed: number;
   minTransfer: number;
+  transferIncrement: number;
   transferDuration: string;
   alliance: string | null;
   type: 'airline' | 'hotel' | 'other';
@@ -97,7 +102,14 @@ export const transferPartnerOptimizerTool = tool({
     }
 
     const filtered = filterByAirline(partnerMap, input.targetAirline);
-    const ranked = rankByMilesOut(filtered, input.sourcePoints);
+    // Drop partners the user cannot actually transfer to with this balance:
+    // either below minTransfer, or no aligned multiple of transferIncrement
+    // exists at-or-below sourcePoints. Without this, Codex finding shows e.g.
+    // "500 DACH Amex → Flying Blue" even though Flying Blue requires 625 min.
+    const transferable = filtered.filter(
+      ([, p]) => effectiveTransferable(p, input.sourcePoints) > 0,
+    );
+    const ranked = rankByMilesOut(transferable, input.sourcePoints);
     const topN = ranked.slice(0, input.limit);
 
     return {
@@ -125,6 +137,15 @@ function filterByAirline(
   });
 }
 
+// Largest source-points amount that can actually be transferred to this
+// partner: aligned down to transferIncrement, gated by minTransfer. Returns 0
+// if no valid transfer is possible (balance too small or doesn't align).
+function effectiveTransferable(partner: TransferPartner, sourcePoints: number): number {
+  const aligned =
+    Math.floor(sourcePoints / partner.transferIncrement) * partner.transferIncrement;
+  return aligned >= partner.minTransfer ? aligned : 0;
+}
+
 function rankByMilesOut(
   entries: Array<[string, TransferPartner]>,
   sourcePoints: number,
@@ -132,10 +153,13 @@ function rankByMilesOut(
   return entries
     .slice()
     .sort(([idA, a], [idB, b]) => {
-      // milesOut = floor(sourcePoints * partnerMiles / amexPoints) — same denominator,
-      // so equivalent to sorting by effectiveRate desc.
-      const aMiles = (sourcePoints * a.partnerMiles) / a.amexPoints;
-      const bMiles = (sourcePoints * b.partnerMiles) / b.amexPoints;
+      // Rank by miles obtainable from the *transferable* portion, not the raw
+      // balance — otherwise a partner with a too-high minimum could outrank
+      // valid partners purely on effectiveRate.
+      const aUsable = effectiveTransferable(a, sourcePoints);
+      const bUsable = effectiveTransferable(b, sourcePoints);
+      const aMiles = (aUsable * a.partnerMiles) / a.amexPoints;
+      const bMiles = (bUsable * b.partnerMiles) / b.amexPoints;
       return bMiles - aMiles;
     });
 }
@@ -146,7 +170,9 @@ function formatEntry(
   sourcePoints: number,
   locale: TransferLocale,
 ): PartnerEntry {
-  const milesOut = calculatePartnerMilesIn(partnerMap, partnerId, sourcePoints) ?? 0;
+  const pointsUsed = effectiveTransferable(partner, sourcePoints);
+  // calculatePartnerMilesIn floors the result so milesOut stays integer.
+  const milesOut = calculatePartnerMilesIn(partnerMap, partnerId, pointsUsed) ?? 0;
   return {
     partnerId,
     partnerName: partner.name,
@@ -154,7 +180,9 @@ function formatEntry(
     ratio: formatTransferRatio(partner),
     effectiveRate: partner.effectiveRate,
     milesOut,
+    pointsUsed,
     minTransfer: partner.minTransfer,
+    transferIncrement: partner.transferIncrement,
     transferDuration: getLocalizedValue(partner.transferDuration, locale),
     alliance: partner.alliance ?? null,
     type: partner.type,

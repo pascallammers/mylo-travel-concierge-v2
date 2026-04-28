@@ -162,3 +162,109 @@ describe('transferPartnerOptimizerTool — output shape', () => {
     assert.strictEqual(parse.success, false);
   });
 });
+
+describe('transferPartnerOptimizerTool — minTransfer + transferIncrement', () => {
+  it('filters out partners when sourcePoints is below minTransfer (Codex finding #3)', async () => {
+    // Flying Blue DACH: minTransfer=625, transferIncrement=5.
+    // 500 source points → aligned 500, but 500 < 625 → impossible.
+    const r = await run({
+      sourceProgram: 'amex_dach',
+      sourcePoints: 500,
+      targetAirline: 'Flying Blue',
+    });
+    assert.strictEqual(r.success, true);
+    if (r.success) {
+      const flyingBlue = r.partners.find(
+        (p: { partnerName: string }) => /Flying Blue/i.test(p.partnerName),
+      );
+      assert.strictEqual(
+        flyingBlue,
+        undefined,
+        'Flying Blue should be filtered out when sourcePoints < minTransfer',
+      );
+    }
+  });
+
+  it('includes partner when sourcePoints meets minTransfer', async () => {
+    // 1000 source points clears Flying Blue's 625 minimum.
+    const r = await run({
+      sourceProgram: 'amex_dach',
+      sourcePoints: 1000,
+      targetAirline: 'Flying Blue',
+    });
+    assert.strictEqual(r.success, true);
+    if (r.success) {
+      assert.ok(r.partners.length >= 1);
+      const flyingBlue = r.partners.find(
+        (p: { partnerName: string }) => /Flying Blue/i.test(p.partnerName),
+      );
+      assert.ok(flyingBlue, 'Flying Blue should appear when above minTransfer');
+    }
+  });
+
+  it('exposes pointsUsed and transferIncrement on every entry', async () => {
+    const r = await run({
+      sourceProgram: 'amex_dach',
+      sourcePoints: 100_000,
+      limit: 3,
+    });
+    assert.strictEqual(r.success, true);
+    if (r.success) {
+      for (const p of r.partners) {
+        assert.strictEqual(typeof p.pointsUsed, 'number');
+        assert.ok(p.pointsUsed > 0, 'pointsUsed must be positive after filtering');
+        assert.ok(p.pointsUsed <= 100_000, 'pointsUsed cannot exceed sourcePoints');
+        assert.strictEqual(typeof p.transferIncrement, 'number');
+        assert.ok(p.transferIncrement >= 1);
+      }
+    }
+  });
+
+  it('aligns pointsUsed to transferIncrement (Codex finding #3 part 2)', async () => {
+    // Flying Blue increment is 5. 1003 source → aligned to 1000 (closest below
+    // that's a multiple of 5).
+    const r = await run({
+      sourceProgram: 'amex_dach',
+      sourcePoints: 1003,
+      targetAirline: 'Flying Blue',
+    });
+    assert.strictEqual(r.success, true);
+    if (r.success) {
+      const flyingBlue = r.partners.find(
+        (p: { partnerName: string }) => /Flying Blue/i.test(p.partnerName),
+      );
+      assert.ok(flyingBlue);
+      if (flyingBlue) {
+        assert.strictEqual(
+          flyingBlue.pointsUsed % flyingBlue.transferIncrement,
+          0,
+          'pointsUsed must be a multiple of transferIncrement',
+        );
+        assert.ok(
+          flyingBlue.pointsUsed <= 1003,
+          'pointsUsed must not exceed sourcePoints',
+        );
+      }
+    }
+  });
+
+  it('milesOut is calculated from pointsUsed, not raw sourcePoints', async () => {
+    // 1003 → pointsUsed=1000, Flying Blue ratio 5:4, expected milesOut=800
+    const r = await run({
+      sourceProgram: 'amex_dach',
+      sourcePoints: 1003,
+      targetAirline: 'Flying Blue',
+    });
+    assert.strictEqual(r.success, true);
+    if (r.success) {
+      const flyingBlue = r.partners.find(
+        (p: { partnerName: string }) => /Flying Blue/i.test(p.partnerName),
+      );
+      assert.ok(flyingBlue);
+      if (flyingBlue) {
+        // Flying Blue ratio 5:4 → 1000 source × 4/5 = 800 miles (not 1003 × 4/5 = 802)
+        assert.strictEqual(flyingBlue.milesOut, 800);
+      }
+    }
+  });
+});
