@@ -295,7 +295,7 @@ describe('formatSkiplaggedResults — markdown contract', () => {
           layovers: 0,
           price: { amount: 1830, currency: 'USD' },
           deepLink: 'https://skiplagged.com/flights/FRA/JFK/2026-06-15#trip=LH400~',
-          hiddenCity: true,
+          attributes: ['hidden-city', 'nonstop'],
         },
       ],
       pagination: { totalAvailable: 50, currentlyShowing: 2, hasMoreResults: true },
@@ -328,6 +328,49 @@ describe('formatSkiplaggedResults — markdown contract', () => {
   it('marks hidden-city itineraries with a Hidden-City badge', () => {
     const md = formatSkiplaggedResults(sampleRaw);
     assert.match(md, /Hidden[- ]City/i, 'hidden-city flights must be flagged');
+    assert.match(md, /1 hidden-city/i, 'summary must count hidden-city rows explicitly');
+  });
+
+  it('marks legacy hiddenCity boolean itineraries with a Hidden-City badge', () => {
+    const md = formatSkiplaggedResults({
+      structuredContent: {
+        flights: [
+          {
+            airlines: 'Lufthansa',
+            departure: { airport: 'FRA', dateTime: '2026-06-15T10:55:00+02:00' },
+            arrival: { airport: 'JFK', dateTime: '2026-06-15T13:35:00-04:00' },
+            duration: '8h 40m',
+            layovers: 0,
+            price: { amount: 1830, currency: 'USD' },
+            deepLink: 'https://skiplagged.com/flights/FRA/JFK/2026-06-15#trip=LH400~',
+            hiddenCity: true,
+          },
+        ],
+      },
+    });
+    assert.match(md, /Hidden[- ]City/i);
+  });
+
+  it('states when Skiplagged returned no hidden-city rows', () => {
+    const md = formatSkiplaggedResults({
+      structuredContent: {
+        flights: [
+          {
+            airlines: 'Singapore Airlines',
+            departure: { airport: 'FRA', dateTime: '2026-06-15T08:35:00+02:00' },
+            arrival: { airport: 'JFK', dateTime: '2026-06-15T11:10:00-04:00' },
+            duration: '8h 35m',
+            layovers: 0,
+            price: { amount: 413, currency: 'USD' },
+            deepLink: 'https://skiplagged.com/flights/FRA/JFK/2026-06-15#trip=SQ26',
+          },
+        ],
+      },
+    });
+
+    assert.match(md, /0 hidden-city/i);
+    assert.match(md, /none of the returned rows are hidden-city/i);
+    assert.doesNotMatch(md, /\| Hidden-City \|/i);
   });
 
   it('preserves the searchUrl as a "see more results" link', () => {

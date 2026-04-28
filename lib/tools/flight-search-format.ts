@@ -96,16 +96,16 @@ export const flightI18n = {
     en: (count: number) => `## Flights with Miles/Points (${count} results)\n`,
   },
   awardTableHeader: {
-    de: '| Nr. | Airline | Klasse | Preis | Abflug | Ankunft | Dauer | Stops | Sitze | Flugnummer | Quelle |',
-    en: '| No. | Airline | Class | Price | Departure | Arrival | Duration | Stops | Seats | Flight No. | Source |',
+    de: '| Nr. | Airline | Klasse | Preis | Abflug | Ankunft | Dauer | Stops | Sitze | Flugnummer |',
+    en: '| No. | Airline | Class | Price | Departure | Arrival | Duration | Stops | Seats | Flight No. |',
   },
   cashHeader: {
     de: (count: number) => `## Flüge mit Barzahlung (${count} Ergebnisse)\n`,
     en: (count: number) => `## Flights with Cash (${count} results)\n`,
   },
   cashTableHeader: {
-    de: '| Nr. | Airline | Preis | Abflug | Ankunft | Dauer | Stops | Buchen | Quelle |',
-    en: '| No. | Airline | Price | Departure | Arrival | Duration | Stops | Book | Source |',
+    de: '| Nr. | Airline | Preis | Abflug | Ankunft | Dauer | Stops | Buchen |',
+    en: '| No. | Airline | Price | Departure | Arrival | Duration | Stops | Book |',
   },
   directBookingUnavailable: {
     de: 'Keine Direktbuchung verfügbar',
@@ -154,9 +154,8 @@ function formatTime(timeStr: string): string {
 /**
  * Format flight results for LLM response.
  *
- * Source columns ("Seats.aero" / "Duffel") are rendered deterministically per
- * row so the LLM never has to invent attribution to satisfy the per-row
- * source-attribution requirement of the NO-HALLUCINATION rule.
+ * Internal provider names ("Seats.aero" / "Duffel") must never be rendered to
+ * end users. The section heading gives the user-facing category instead.
  *
  * When the Duffel booking session cannot be created (e.g. Duffel Payments
  * disabled), the row emits an explicit "Direct booking unavailable" hint
@@ -211,7 +210,7 @@ export async function formatFlightResults(
   if (result.seats.count > 0) {
     sections.push(flightI18n.awardHeader[locale](result.seats.count));
     sections.push(flightI18n.awardTableHeader[locale]);
-    sections.push(`|-----|---------|--------|-------|--------|---------|-------|-------|-------|------------|--------|`);
+    sections.push(`|-----|---------|--------|-------|--------|---------|-------|-------|-------|------------|`);
 
     result.seats.flights.forEach((flight: any, idx: number) => {
       const departTime = formatTime(flight.outbound.departure.time);
@@ -219,7 +218,7 @@ export async function formatFlightResults(
       const seats = flight.seatsLeft || '-';
 
       sections.push(
-        `| ${idx + 1} | ${flight.airline} | ${flight.cabin} | ${flight.price} | ${flight.outbound.departure.airport} ${departTime} | ${flight.outbound.arrival.airport} ${arriveTime} | ${flight.outbound.duration} | ${flight.outbound.stops} | ${seats} | ${flight.outbound.flightNumbers} | Seats.aero |`,
+        `| ${idx + 1} | ${flight.airline} | ${flight.cabin} | ${flight.price} | ${flight.outbound.departure.airport} ${departTime} | ${flight.outbound.arrival.airport} ${arriveTime} | ${flight.outbound.duration} | ${flight.outbound.stops} | ${seats} | ${flight.outbound.flightNumbers} |`,
       );
     });
     sections.push('');
@@ -229,7 +228,7 @@ export async function formatFlightResults(
   if (result.cash.count > 0) {
     sections.push(flightI18n.cashHeader[locale](result.cash.count));
     sections.push(flightI18n.cashTableHeader[locale]);
-    sections.push(`|-----|---------|-------|--------|---------|-------|-------|--------|--------|`);
+    sections.push(`|-----|---------|-------|--------|---------|-------|-------|--------|`);
 
     result.cash.flights.forEach((flight: any, idx: number) => {
       const departureDate = flight.departure.time.split('T')[0];
@@ -262,7 +261,7 @@ export async function formatFlightResults(
       const price = `${flight.price.total} ${flight.price.currency}`;
 
       sections.push(
-        `| ${idx + 1} | ${flight.airline} | ${price} | ${flight.departure.airport} ${departTime} | ${flight.arrival.airport} ${arriveTime} | ${flight.duration} | ${stops} | ${bookingLinks} | Duffel |`,
+        `| ${idx + 1} | ${flight.airline} | ${price} | ${flight.departure.airport} ${departTime} | ${flight.arrival.airport} ${arriveTime} | ${flight.duration} | ${stops} | ${bookingLinks} |`,
       );
     });
     sections.push('');

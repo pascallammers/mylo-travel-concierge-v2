@@ -120,6 +120,7 @@ export function formatSkiplaggedResults(raw: unknown): string {
         price?: { amount?: number; currency?: string };
         deepLink?: string;
         hiddenCity?: boolean;
+        attributes?: string[];
       }>;
       pagination?: { totalAvailable?: number; hasMoreResults?: boolean };
     };
@@ -134,7 +135,19 @@ export function formatSkiplaggedResults(raw: unknown): string {
   }
 
   const lines: string[] = [];
-  lines.push(`## Skiplagged Flights (${flights.length}${total && total > flights.length ? ` of ${total}+` : ''} results)`);
+  const isHiddenCityFlight = (flight: (typeof flights)[number]) =>
+    flight.hiddenCity === true || (flight.attributes ?? []).includes('hidden-city');
+  const hiddenCityCount = flights.filter(isHiddenCityFlight).length;
+
+  lines.push(
+    `## Skiplagged Flights (${flights.length}${total && total > flights.length ? ` of ${total}+` : ''} results, ${hiddenCityCount} hidden-city)`,
+  );
+  lines.push('');
+  lines.push(
+    hiddenCityCount > 0
+      ? `Hidden-city rows returned: ${hiddenCityCount}. Only rows with Type = Hidden-City are hidden-city itineraries.`
+      : 'Hidden-city search was enabled, but none of the returned rows are hidden-city itineraries. All returned rows are Standard unless the Type column says otherwise.',
+  );
   lines.push('');
   lines.push('| No. | Airline | Price | Departure | Arrival | Duration | Stops | Type | Booking | Source |');
   lines.push('|-----|---------|-------|-----------|---------|----------|-------|------|---------|--------|');
@@ -150,7 +163,10 @@ export function formatSkiplaggedResults(raw: unknown): string {
     const arrTime = formatTime(f.arrival?.dateTime);
     const duration = f.duration ?? '—';
     const stops = f.layovers === 0 ? 'Nonstop' : f.layovers != null ? `${f.layovers} stop(s)` : '—';
-    const type = f.hiddenCity ? 'Hidden-City' : 'Standard';
+    const attributes = f.attributes ?? [];
+    const isHiddenCity = isHiddenCityFlight(f);
+    const isVirtualInterline = attributes.includes('virtual-interline');
+    const type = isHiddenCity ? 'Hidden-City' : isVirtualInterline ? 'Virtual Interline' : 'Standard';
     const booking = f.deepLink ? `[Skiplagged](${f.deepLink})` : '—';
 
     lines.push(

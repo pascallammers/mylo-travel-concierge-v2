@@ -6,8 +6,8 @@
  * [Duffel API](https://duffel.com) per row when duffelBookingUrl is null).
  *
  * The contract:
- * 1. Both award and cash tables include a "Source" / "Quelle" column so the
- *    LLM never has to invent attribution to satisfy the per-row source rule.
+ * 1. Both award and cash tables avoid internal provider names in customer-facing
+ *    markdown.
  * 2. When duffelBookingUrl is null, the cash table emits an explicit
  *    "Direct booking unavailable" hint instead of leaving silent space the
  *    LLM will pad.
@@ -73,22 +73,20 @@ function makeCashResult() {
 }
 
 describe('formatFlightResults', () => {
-  describe('source attribution columns', () => {
-    it('award table includes a Source column so the LLM never invents attribution', async () => {
+  describe('internal provider names', () => {
+    it('award table does not expose Seats.aero to end users', async () => {
       const out = await formatFlightResults(makeAwardResult(), baseParams, 'de');
-      // The header line that contains "Airline" must also contain a Source/Quelle column.
       const headerLine = out.split('\n').find((l) => l.includes('Airline')) ?? '';
-      assert.match(headerLine, /Quelle|Source/i, 'award table header must declare a source column');
-      // And the rendered row must mention Seats.aero as the source.
-      assert.match(out, /Seats\.aero/);
+      assert.doesNotMatch(headerLine, /Quelle|Source/i, 'award table must not expose a source column');
+      assert.doesNotMatch(out, /Seats\.aero/i);
     });
 
-    it('cash table includes a Source column with Duffel attribution', async () => {
+    it('cash table does not expose Duffel to end users', async () => {
       const out = await formatFlightResults(makeCashResult(), baseParams, 'de');
       const cashSection = out.split('## ').find((s) => /Cash|Barzahlung/i.test(s)) ?? '';
       const headerLine = cashSection.split('\n').find((l) => l.includes('Airline')) ?? '';
-      assert.match(headerLine, /Quelle|Source/i, 'cash table header must declare a source column');
-      assert.match(cashSection, /Duffel/, 'cash rows must cite Duffel');
+      assert.doesNotMatch(headerLine, /Quelle|Source/i, 'cash table must not expose a source column');
+      assert.doesNotMatch(cashSection, /Duffel/i);
     });
   });
 
