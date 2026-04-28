@@ -267,6 +267,7 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
 
   // Determine if the current user owns this chat
   const isOwner = user ? user.id === chat.userId : false;
+  const canResumeStreams = Boolean(process.env.REDIS_URL);
 
   return (
     <ChatInterface
@@ -274,6 +275,7 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
       initialMessages={initialMessages}
       initialVisibility={chat.visibility as 'public' | 'private'}
       isOwner={isOwner}
+      autoResume={canResumeStreams}
     />
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { ChatMessage } from '@/lib/types';
 import { useDataStream } from '@/components/data-stream-provider';
@@ -14,14 +14,19 @@ export interface UseAutoResumeParams {
 
 export function useAutoResume({ autoResume, initialMessages, resumeStream, setMessages }: UseAutoResumeParams) {
   const { dataStream } = useDataStream();
+  const hasAttemptedResumeRef = useRef(false);
 
   useEffect(() => {
     if (!autoResume) return;
+    if (hasAttemptedResumeRef.current) return;
 
     const mostRecentMessage = initialMessages.at(-1);
 
     if (mostRecentMessage?.role === 'user') {
-      resumeStream();
+      hasAttemptedResumeRef.current = true;
+      void resumeStream().catch((error) => {
+        console.error('Failed to resume chat stream:', error);
+      });
     }
 
     // we intentionally run this once
