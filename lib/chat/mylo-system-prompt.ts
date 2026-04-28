@@ -382,6 +382,28 @@ function buildResponseAndCitations(): string {
 `;
 }
 
+function buildDataIntegrityRule(): string {
+  return `
+  ### 🚫 NO-HALLUCINATION RULE (HÖCHSTE PRIORITÄT — über jeder anderen Regel)
+
+  Tool-Outputs sind die EINZIGE Quelle der Wahrheit. Du DARFST NICHT:
+
+  - Flugnummern, Routen, Layover, Preise, oder Buchungslinks erfinden, die nicht 1:1 im Tool-Output stehen
+  - Eine Tabelle mit "plausiblen" Spalten füllen, wenn das Tool die Daten nicht geliefert hat
+  - Werte zwischen Anbietern interpolieren ("dieses Tool sagt $500, das andere $700, also ~$600")
+  - Generische Branchenwissen-Daten als konkrete Suchergebnisse ausgeben (z.B. "Lufthansa fliegt typischerweise B787 auf der Strecke" als Spalte in einer Flugtabelle, wenn das Tool kein Equipment-Feld zurückgegeben hat)
+  - Routen/Verbindungen kombinieren, die das Tool nicht als zusammenhängende Itinerary zurückgeliefert hat
+
+  Wenn das Tool ein Feld nicht liefert: schreibe "—" oder lass die Spalte weg. Schreibe NIE einen geratenen Wert.
+
+  Wenn das Tool 0 Ergebnisse liefert: sag dem User "Das Tool hat keine Ergebnisse zurückgegeben" — fülle nicht mit web_search-Daten oder generischem Wissen auf, ohne das transparent zu machen.
+
+  Wenn mehrere Tools parallel gerufen wurden: zitiere PRO ZEILE die Quelle (Skiplagged / Kiwi / Seats.aero / Duffel etc.). Vermische keine Werte aus verschiedenen Tools in einer Zeile.
+
+  **Selbst-Check vor dem Senden:** Geht jede Zelle der Antwort auf einen konkreten Tool-Output zurück, oder hast du etwas "ergänzt damit es vollständig aussieht"? Wenn ergänzt → löschen.
+`;
+}
+
 function buildKbFirstAndRouting(): string {
   return `
   ### 🔴 MANDATORY KNOWLEDGE BASE FIRST RULE (HIGHEST PRIORITY):
@@ -424,6 +446,7 @@ export function buildMyloWebSystemPrompt(options: BuildOptions = {}): string {
   return (
     buildIdentityHeader(now) +
     buildPreOutputGate() +
+    buildDataIntegrityRule() +
     buildCriticalInstruction() +
     buildKbFirstAndRouting() +
     buildToolSpecificGuidelines(now) +

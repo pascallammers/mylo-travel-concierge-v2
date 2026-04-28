@@ -29,6 +29,24 @@ describe('buildMyloWebSystemPrompt', () => {
     });
   });
 
+  describe('NO_HALLUCINATION_RULE section', () => {
+    it('forbids fabricating tool-output fields', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      assert.match(prompt, /NO-HALLUCINATION RULE/);
+      assert.match(prompt, /Tool-Outputs sind die EINZIGE Quelle der Wahrheit/);
+    });
+
+    it('requires per-row source attribution when multiple tools were called', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      assert.match(prompt, /zitiere PRO ZEILE die Quelle/);
+    });
+
+    it('forbids interpolation across providers', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      assert.match(prompt, /Werte zwischen Anbietern interpolieren/);
+    });
+  });
+
   describe('KB_FIRST_AND_ROUTING section', () => {
     it('mandates knowledge_base before web_search', () => {
       const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });

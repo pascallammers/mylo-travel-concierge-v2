@@ -705,11 +705,15 @@ async function formatFlightResults(result: any, params: any, locale: FlightLocal
   const sections: string[] = [];
   const partialFailures: string[] = [];
 
-  // Track partial failures for user notification
-  if (result.seats.error && result.amadeus.count > 0) {
+  // Track partial failures for user notification.
+  // result shape: { seats: {...}, cash: {...} }. cash = Duffel; seats = Seats.aero.
+  // (Earlier versions had a third Amadeus provider — replaced by Duffel; the
+  // partial-failure check still referenced the removed `result.amadeus` and
+  // crashed `formatFlightResults` whenever search_flights ran.)
+  if (result.seats.error && result.cash.count > 0) {
     partialFailures.push(flightI18n.awardFlightsLabel[locale]);
   }
-  if (result.amadeus.error && result.seats.count > 0) {
+  if (result.cash.error && result.seats.count > 0) {
     partialFailures.push(flightI18n.cashFlightsLabel[locale]);
   }
 
