@@ -40,6 +40,7 @@ import { ChatSDKError } from '@/lib/errors';
 import { cn, SearchGroupId, invalidateChatsCache } from '@/lib/utils';
 import { DEFAULT_MODEL, requiresProSubscription } from '@/ai/providers';
 import { ConnectorProvider } from '@/lib/connectors';
+import type { SuggestedQuestionHistoryMessage } from '@/lib/chat';
 
 // State management imports
 import { chatReducer, createInitialState } from '@/components/chat-state';
@@ -52,6 +53,7 @@ interface ChatInterfaceProps {
   initialMessages?: any[];
   initialVisibility?: 'public' | 'private';
   isOwner?: boolean;
+  autoResume?: boolean;
 }
 
 const settingsTabValues = new Set(['profile', 'usage', 'subscription', 'loyalty', 'memories']);
@@ -62,6 +64,7 @@ const ChatInterface = memo(
     initialMessages,
     initialVisibility = 'private',
     isOwner = true,
+    autoResume = false,
   }: ChatInterfaceProps): React.JSX.Element => {
     const router = useRouter();
     const [query] = useQueryState('query', parseAsString.withDefault(''));
@@ -267,14 +270,18 @@ const ChatInterface = memo(
 
         // Only generate suggested questions if authenticated user or private chat
         if (message.parts && message.role === 'assistant' && (user || chatState.selectedVisibilityType === 'private')) {
-          const lastPart = message.parts[message.parts.length - 1];
-          const lastPartText = lastPart && lastPart.type === 'text' ? lastPart.text : '';
-          const newHistory = [
+          const lastTextPart = [...message.parts].reverse().find((part) => part.type === 'text');
+          const lastPartText = lastTextPart?.text ?? '';
+          const newHistory: SuggestedQuestionHistoryMessage[] = [
             { role: 'user', content: lastSubmittedQueryRef.current },
             { role: 'assistant', content: lastPartText },
           ];
-          const { questions } = await suggestQuestions(newHistory);
-          dispatch({ type: 'SET_SUGGESTED_QUESTIONS', payload: questions });
+          try {
+            const { questions } = await suggestQuestions(newHistory);
+            dispatch({ type: 'SET_SUGGESTED_QUESTIONS', payload: questions });
+          } catch (error) {
+            console.error('Error generating suggested questions:', error);
+          }
         }
       },
       onError: (error) => {
@@ -316,7 +323,7 @@ const ChatInterface = memo(
     );
 
     useAutoResume({
-      autoResume: true,
+      autoResume: autoResume && Boolean(initialChatId),
       initialMessages: initialMessages || [],
       resumeStream,
       setMessages,
@@ -360,7 +367,7 @@ const ChatInterface = memo(
                 const lastPart = message.parts[message.parts.length - 1];
                 return lastPart.type === 'text' ? lastPart.text : '';
               }
-              return message.content || '';
+              return typeof message.content === 'string' ? message.content : '';
             };
 
             const getAssistantContent = (message: typeof lastAssistantMessage) => {
@@ -368,10 +375,10 @@ const ChatInterface = memo(
                 const lastPart = message.parts[message.parts.length - 1];
                 return lastPart.type === 'text' ? lastPart.text : '';
               }
-              return message.content || '';
+              return typeof message.content === 'string' ? message.content : '';
             };
 
-            const newHistory = [
+            const newHistory: SuggestedQuestionHistoryMessage[] = [
               { role: 'user', content: getUserContent(lastUserMessage) },
               { role: 'assistant', content: getAssistantContent(lastAssistantMessage) },
             ];

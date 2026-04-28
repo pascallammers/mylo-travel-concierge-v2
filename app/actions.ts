@@ -4,11 +4,15 @@
 import { geolocation } from '@vercel/functions';
 import { serverEnv } from '@/env/server';
 import { SearchGroupId } from '@/lib/utils';
-import { UIMessage, generateText, Output, NoOutputGeneratedError } from 'ai';
+import { UIMessage, generateText } from 'ai';
 import type { ModelMessage } from 'ai';
-import { z } from 'zod';
 import { getUser } from '@/lib/auth-utils';
 import { PHASE_1_TOOL_NAMES, isPhase1ToolsEnabled } from '@/lib/chat/feature-flags';
+import {
+  buildSuggestedQuestionsPrompt,
+  parseSuggestedQuestionsText,
+  type SuggestedQuestionHistoryMessage,
+} from '@/lib/chat/suggested-questions';
 import { generateXaiSpeech } from '@/lib/xai/voice';
 import { scira, languageModel } from '@/ai/providers';
 import {
@@ -51,67 +55,36 @@ export async function getCurrentUser() {
   return await getComprehensiveUserData();
 }
 
-export async function suggestQuestions(history: any[]) {
+export async function suggestQuestions(history: SuggestedQuestionHistoryMessage[]) {
   'use server';
 
-  console.log(history);
+  const prompt = buildSuggestedQuestionsPrompt(history);
+
+  if (!prompt) {
+    return { questions: [] };
+  }
 
   try {
-    const result = await generateText({
+    const { text } = await generateText({
       model: languageModel,
-      system: `Du bist ein Such-Folgefragen-Generator. Du MUSST EXAKT 3 Folgefragen basierend auf dem Gesprächsverlauf erstellen.
+      system: `Du bist ein Such-Folgefragen-Generator. Erstelle kurze, konkrete Folgefragen basierend auf dem Gesprächsverlauf.
 
-### Richtlinien für die Fragengenerierung:
-- Erstelle genau 3 Fragen, die offen sind und weitere Diskussion fördern
-- Fragen müssen prägnant sein (5-10 Wörter) aber spezifisch und kontextbezogen
-- Jede Frage muss konkrete Nomen, Entitäten oder klare Kontext-Marker enthalten
-- NIEMALS Pronomen verwenden (er, sie, ihm, sein, ihr, etc.) - immer Eigennamen aus dem Kontext nutzen
-- Fragen müssen zu den verfügbaren Tools im System passen
-- Fragen sollten natürlich aus dem vorherigen Gespräch fließen
-- Du bist hier um Fragen für die Suchmaschine zu generieren, nicht um Tools zu nutzen oder auszuführen!!
-
-### Tool-spezifische Fragetypen:
-- Web-Suche: Fokus auf faktische Informationen, aktuelle Ereignisse oder Allgemeinwissen
-- Akademisch: Fokus auf wissenschaftliche Themen, Forschungsfragen oder Bildungsinhalte
-- YouTube: Fokus auf Tutorials, Anleitungen oder Content-Entdeckung
-- Social Media (X/Twitter): Fokus auf Trends, Meinungen oder soziale Konversationen
-- Code/Analyse: Fokus auf Programmierung, Datenanalyse oder technische Problemlösung
-- Wetter: Weiterleitung zu News, Sport oder anderen Nicht-Wetter-Themen
-- Standort: Fokus auf Kultur, Geschichte, Sehenswürdigkeiten oder lokale Informationen
-- Finanzen: Fokus auf Marktanalyse, Anlagestrategien oder wirtschaftliche Themen
-
-### Kontext-Transformationsregeln:
-- Bei Wetter-Gesprächen → Generiere Fragen zu News, Sport oder anderen Nicht-Wetter-Themen
-- Bei Programmier-Gesprächen → Generiere Fragen zu Algorithmen, Datenstrukturen oder Code-Optimierung
-- Bei standortbasierten Gesprächen → Generiere Fragen zu Kultur, Geschichte oder lokalen Attraktionen
-- Bei mathematischen Anfragen → Generiere Fragen zu verwandten Anwendungen oder theoretischen Konzepten
-- Bei aktuellen Ereignissen → Generiere Fragen zu Implikationen, Hintergrund oder verwandten Themen
-
-### Formatierungsanforderungen:
-- Keine Aufzählungszeichen, Nummerierung oder Präfixe
-- Keine Anführungszeichen um Fragen
-- Jede Frage muss grammatikalisch vollständig sein
-- Jede Frage muss mit einem Fragezeichen enden
-- Fragen müssen vielfältig sein und dürfen sich nicht wiederholen
-- Keine Anweisungen oder Meta-Kommentare in den Fragen`,
-      messages: history,
-      experimental_output: Output.object({
-        schema: z.object({
-          questions: z.array(z.string().max(150)).describe('Die generierten Fragen basierend auf dem Gesprächsverlauf.').max(3),
-        }),
-      }),
+Regeln:
+- Gib exakt 3 Fragen zurück, eine Frage pro Zeile.
+- Keine Tools, keine Funktionsaufrufe, kein JSON, keine Markdown-Tabelle.
+- Keine Nummerierung, keine Anführungszeichen, keine Meta-Kommentare.
+- Jede Frage muss mit einem Fragezeichen enden.
+- Jede Frage muss konkrete Nomen aus dem Gespräch enthalten.`,
+      prompt,
+      maxOutputTokens: 220,
     });
 
-    const output = result.experimental_output;
     return {
-      questions: output?.questions ?? [],
+      questions: parseSuggestedQuestionsText(text),
     };
   } catch (error) {
-    if (NoOutputGeneratedError.isInstance(error)) {
-      console.error('Failed to generate suggested questions:', (error as any).text);
-      return { questions: [] };
-    }
-    throw error;
+    console.error('Failed to generate suggested questions:', error instanceof Error ? error.message : 'Unknown error');
+    return { questions: [] };
   }
 }
 
