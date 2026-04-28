@@ -45,6 +45,27 @@ describe('buildMyloWebSystemPrompt', () => {
       const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
       assert.match(prompt, /Werte zwischen Anbietern interpolieren/);
     });
+
+    it('includes an English version of the rule (since user replies are typically English)', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      assert.match(prompt, /Tool outputs are the ONLY source of truth/i);
+      assert.match(prompt, /(do not|never).*(rename|relabel|add|remove|translate|normalize|prettify)/i);
+    });
+
+    it('forbids renaming, relabeling, or adding markdown links from tool output', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      // Verbatim markdown rule covers the Test 1 failure mode:
+      // tool emitted [Google] but LLM rendered [Google Flights] and added
+      // a fabricated [Duffel API](https://duffel.com) link per row.
+      assert.match(prompt, /markdown links?.*(verbatim|exactly|unchanged|1:1)/i);
+      assert.match(prompt, /(do not|never|kein|nicht).*(prettify|verschönern|umbenennen|relabel|rename)/i);
+    });
+
+    it('explicitly forbids fabricating booking links when the tool did not provide one', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      // Catches the "[Duffel API](https://duffel.com)" hallucination from Test 1.
+      assert.match(prompt, /(if|wenn).*(no|kein|missing|fehlt).*(booking link|Buchungslink)/i);
+    });
   });
 
   describe('KB_FIRST_AND_ROUTING section', () => {

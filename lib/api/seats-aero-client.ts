@@ -29,8 +29,12 @@ export interface SeatsAeroSearchParams {
 }
 
 /**
- * Formatted flight result from Seats.aero
- * Note: provider field removed to hide data source from end users
+ * Formatted flight result from Seats.aero.
+ *
+ * The Seats.aero provider IS surfaced to end users — the renderer in
+ * lib/tools/flight-search.ts adds a "Source: Seats.aero" column per row
+ * to satisfy the per-row source-attribution requirement of the
+ * NO-HALLUCINATION rule (lib/chat/mylo-system-prompt.ts).
  */
 export interface SeatsAeroFlight {
   id: string;
@@ -209,7 +213,6 @@ function formatTripToFlight(
 
     return {
       id: trip.ID,
-      // provider field removed to hide data source from end users
       price: priceStr,
       pricePerPerson: priceStr,
       airline: trip.Carriers?.split(',')[0]?.trim() || 'Unknown',

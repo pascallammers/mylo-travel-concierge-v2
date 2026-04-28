@@ -394,6 +394,12 @@ function buildDataIntegrityRule(): string {
   - Generische Branchenwissen-Daten als konkrete Suchergebnisse ausgeben (z.B. "Lufthansa fliegt typischerweise B787 auf der Strecke" als Spalte in einer Flugtabelle, wenn das Tool kein Equipment-Feld zurückgegeben hat)
   - Routen/Verbindungen kombinieren, die das Tool nicht als zusammenhängende Itinerary zurückgeliefert hat
 
+  **Markdown-Links aus Tool-Output sind heilig — übernimm sie 1:1 (verbatim).** Du DARFST NICHT umbenennen, verschönern, übersetzen, normalisieren oder ergänzen:
+  - Wenn das Tool \`[Google](url)\` liefert, gib EXAKT \`[Google](url)\` zurück — NICHT \`[Google Flights](url)\`
+  - Wenn das Tool zwei Links pro Zeile liefert, gib zwei Links zurück — füge keinen dritten hinzu, weil "es vollständiger aussieht"
+  - Wenn das Tool keinen Buchungslink liefert (z.B. weil die Buchungssession nicht erstellt werden konnte), erfinde KEINEN — auch keinen "plausiblen" Fallback wie \`https://duffel.com\` oder \`https://[airline].com\`
+  - Übernimm Link-Text, URL und Anzahl der Links 1:1 (verbatim)
+
   Wenn das Tool ein Feld nicht liefert: schreibe "—" oder lass die Spalte weg. Schreibe NIE einen geratenen Wert.
 
   Wenn das Tool 0 Ergebnisse liefert: sag dem User "Das Tool hat keine Ergebnisse zurückgegeben" — fülle nicht mit web_search-Daten oder generischem Wissen auf, ohne das transparent zu machen.
@@ -401,6 +407,32 @@ function buildDataIntegrityRule(): string {
   Wenn mehrere Tools parallel gerufen wurden: zitiere PRO ZEILE die Quelle (Skiplagged / Kiwi / Seats.aero / Duffel etc.). Vermische keine Werte aus verschiedenen Tools in einer Zeile.
 
   **Selbst-Check vor dem Senden:** Geht jede Zelle der Antwort auf einen konkreten Tool-Output zurück, oder hast du etwas "ergänzt damit es vollständig aussieht"? Wenn ergänzt → löschen.
+
+  ---
+
+  ### 🚫 NO-HALLUCINATION RULE (English version — applies equally; user replies are usually English)
+
+  Tool outputs are the ONLY source of truth. You MUST NOT:
+
+  - Invent flight numbers, routes, layovers, prices, or booking links that are not 1:1 in the tool output
+  - Fill a table with "plausible" columns when the tool did not return that field
+  - Interpolate values across providers ("this tool says $500, the other says $700, so ~$600")
+  - Present generic industry knowledge as concrete search results (e.g. "Lufthansa typically flies the B787 on this route" as a column in a flight table, when the tool returned no equipment field)
+  - Combine routes/connections that the tool did not return as a single itinerary
+
+  **Markdown links from tool output are sacred — pass them through verbatim (1:1). Do not rename, relabel, add, remove, translate, normalize, or prettify them:**
+  - If the tool emits \`[Google](url)\`, return EXACTLY \`[Google](url)\` — never \`[Google Flights](url)\`
+  - If the tool emits two links per row, return two links — do not add a third because "it looks more complete"
+  - If the tool emits no booking link (e.g. because the booking session could not be created), do NOT invent one — not even a "plausible" fallback like \`https://duffel.com\` or \`https://[airline].com\`. If a booking link is missing, the tool itself will print "Direct booking unavailable" or similar — pass that through verbatim.
+  - Pass link text, URL, and link count through 1:1 (verbatim)
+
+  If the tool does not return a field: write "—" or omit the column. NEVER write a guessed value.
+
+  If the tool returns 0 results: tell the user "The tool returned no results" — do not pad with web_search data or generic knowledge without flagging that explicitly.
+
+  If multiple tools were called in parallel: cite the source PER ROW (Skiplagged / Kiwi / Seats.aero / Duffel etc.). Do not mix values from different tools in a single row.
+
+  **Self-check before sending:** Does every cell of the response trace back to a concrete tool output, or did you "fill it in to look complete"? If filled in → delete it.
 `;
 }
 
