@@ -11,7 +11,17 @@ import {
   buildGoogleFlightsUrl,
   buildSkyscannerUrl,
 } from '@/lib/utils/flight-search-links';
-import { createDuffelBookingSession } from '@/lib/utils/duffel-links';
+
+// Booking-session creator is injected to keep the renderer free of the
+// server-env import graph. The tool entry-point passes the real
+// createDuffelBookingSession; unit tests pass a stub.
+export type BookingSessionCreator = (params: {
+  origin: string;
+  destination: string;
+  departDate: string;
+  returnDate?: string;
+  passengers: number;
+}) => Promise<{ url: string }>;
 
 export type FlightLocale = 'de' | 'en';
 
@@ -157,6 +167,7 @@ export async function formatFlightResults(
   result: any,
   params: any,
   locale: FlightLocale = 'de',
+  createBookingSession?: BookingSessionCreator,
 ): Promise<string> {
   const sections: string[] = [];
   const partialFailures: string[] = [];
@@ -173,11 +184,13 @@ export async function formatFlightResults(
     partialFailures.push(flightI18n.cashFlightsLabel[locale]);
   }
 
-  // Try to create Duffel booking session for direct booking link
+  // Try to create Duffel booking session for direct booking link.
+  // When no creator is injected (or it throws), we skip — the per-row hint
+  // path will render "Direct booking unavailable" instead.
   let duffelBookingUrl: string | null = null;
-  if (result.cash.count > 0) {
+  if (result.cash.count > 0 && createBookingSession) {
     try {
-      const session = await createDuffelBookingSession({
+      const session = await createBookingSession({
         origin: result.cash.flights[0].departure.airport,
         destination: result.cash.flights[0].arrival.airport,
         departDate: params.departDate,

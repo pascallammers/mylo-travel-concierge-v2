@@ -105,5 +105,23 @@ describe('formatFlightResults', () => {
       assert.doesNotMatch(out, /https:\/\/duffel\.com(?:[\s)]|$)/, 'corporate duffel.com link must never appear');
       assert.doesNotMatch(out, /\[Duffel API\]/, 'fabricated [Duffel API] label must never appear');
     });
+
+    it('falls back to the unavailable hint when the injected creator throws', async () => {
+      const failingCreator = async () => {
+        throw new Error('Duffel Payments not enabled');
+      };
+      const out = await formatFlightResults(makeCashResult(), baseParams, 'de', failingCreator);
+      assert.match(out, /keine direktbuchung/i);
+      assert.doesNotMatch(out, /\[Buchen\]/);
+    });
+  });
+
+  describe('happy-path with injected booking-session creator', () => {
+    it('renders the [Buchen] link when the creator returns a real booking URL', async () => {
+      const creator = async () => ({ url: 'https://booking.example.com/abc123' });
+      const out = await formatFlightResults(makeCashResult(), baseParams, 'de', creator);
+      assert.match(out, /\[Buchen\]\(https:\/\/booking\.example\.com\/abc123\)/);
+      assert.doesNotMatch(out, /keine direktbuchung/i);
+    });
   });
 });
