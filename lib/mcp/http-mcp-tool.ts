@@ -50,6 +50,33 @@ export type McpToolResponse =
   | { ok: true; result: unknown }
   | { ok: false; error: string };
 
+/**
+ * Strip internal details (stack traces, hostnames, auth headers, file paths)
+ * from an error string before it's surfaced to the LLM. Keeps the message
+ * compact and free of sensitive transport-layer detail.
+ *
+ * Exported so per-tool wrappers can apply the same sanitation to messages
+ * they construct themselves (e.g., when wrapping callMcpTool errors into
+ * markdown).
+ */
+export function sanitizeMcpError(input: string): string {
+  if (!input) return 'unknown error';
+  // Take only the first line — strips stack traces appended after \n.
+  let s = input.split('\n')[0];
+  // Drop URLs (could leak hostnames / paths / query strings).
+  s = s.replace(/https?:\/\/\S+/gi, '<url>');
+  // Drop auth-like header tokens: "authorization: Bearer xxx" or "Bearer abc.def".
+  s = s.replace(/(authorization|x-api-key|api[-_]?key)\s*[:=]\s*\S+/gi, '<auth>');
+  s = s.replace(/\bBearer\s+[A-Za-z0-9._\-]+/gi, '<auth>');
+  // Drop bare hostnames like "mcp.kiwi.com" or "internal.example.local:443".
+  s = s.replace(/\b(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?\b/gi, '<host>');
+  // Drop POSIX-ish absolute paths (/Users/.../file.ts).
+  s = s.replace(/(?:^|\s)\/[\w./-]+/g, ' <path>');
+  // Cap length so bad upstream errors can't blow up the prompt.
+  if (s.length > 240) s = `${s.slice(0, 240)}…`;
+  return s.trim() || 'unknown error';
+}
+
 export async function callMcpTool(params: CallMcpToolParams): Promise<McpToolResponse> {
   const { url, toolName, args, requiresSession } = params;
   const fetchImpl = params.fetchImpl ?? globalThis.fetch;
@@ -89,12 +116,15 @@ export async function callMcpTool(params: CallMcpToolParams): Promise<McpToolRes
 
     if (!response.ok) {
       const statusText = response.statusText ? ` ${response.statusText}` : '';
-      return { ok: false, error: `HTTP ${response.status}${statusText}` };
+      return { ok: false, error: sanitizeMcpError(`HTTP ${response.status}${statusText}`) };
     }
 
     const payload = await readJsonRpcResponse(response);
     if (payload.error) {
-      return { ok: false, error: payload.error.message ?? String(payload.error) };
+      return {
+        ok: false,
+        error: sanitizeMcpError(payload.error.message ?? String(payload.error)),
+      };
     }
     return { ok: true, result: payload.result };
   } catch (err) {
@@ -103,7 +133,10 @@ export async function callMcpTool(params: CallMcpToolParams): Promise<McpToolRes
     if (err instanceof Error && err.name === 'TimeoutError') {
       return { ok: false, error: `MCP request timed out after ${timeoutMs}ms` };
     }
-    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    return {
+      ok: false,
+      error: sanitizeMcpError(err instanceof Error ? err.message : String(err)),
+    };
   }
 }
 

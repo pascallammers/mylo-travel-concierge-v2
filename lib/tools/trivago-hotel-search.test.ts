@@ -191,8 +191,11 @@ describe('trivagoHotelSearchTool', () => {
       fetchImpl,
     );
 
-    assert.strictEqual(r.success, true);
-    if (r.success) assert.deepStrictEqual(r.result, FAKE_TRIVAGO_RESULT);
+    // Tool now returns a markdown string in both success and failure cases.
+    assert.strictEqual(typeof r, 'string');
+    assert.match(r, /## Trivago Hotels/);
+    assert.match(r, /```json/);
+    assert.match(r, /Hotel Adlon/);
     assert.strictEqual(calls.length, 2);
     assert.strictEqual(readBody(calls[0]).method, 'initialize');
     assert.strictEqual(readBody(calls[1]).params?.name, 'trivago-accommodation-radius-search');
@@ -267,7 +270,7 @@ describe('trivagoHotelSearchTool', () => {
     assert.strictEqual('hotel_rating' in args, false);
   });
 
-  it('returns error when Trivago returns JSON-RPC error', async () => {
+  it('returns markdown error string when Trivago returns JSON-RPC error', async () => {
     const { fetchImpl } = mockFetch([
       jsonResponse(
         { jsonrpc: '2.0', id: 1, result: {} },
@@ -291,11 +294,12 @@ describe('trivagoHotelSearchTool', () => {
       fetchImpl,
     );
 
-    assert.strictEqual(r.success, false);
-    if (!r.success) assert.match(r.error, /Internal Trivago failure/);
+    assert.strictEqual(typeof r, 'string');
+    assert.match(r, /## Trivago search unavailable/);
+    assert.match(r, /Internal Trivago failure/);
   });
 
-  it('returns error when fetch throws during init', async () => {
+  it('returns markdown error string when fetch throws during init', async () => {
     const fetchImpl: typeof fetch = async () => {
       throw new Error('ECONNREFUSED');
     };
@@ -308,8 +312,31 @@ describe('trivagoHotelSearchTool', () => {
       },
       fetchImpl,
     );
-    assert.strictEqual(r.success, false);
-    if (!r.success) assert.match(r.error, /ECONNREFUSED/);
+    assert.strictEqual(typeof r, 'string');
+    assert.match(r, /## Trivago search unavailable/);
+    assert.match(r, /ECONNREFUSED/);
+  });
+
+  it('error response is a markdown string with user-readable language, no raw JSON object', async () => {
+    const fetchImpl: typeof fetch = async () => {
+      throw new Error('boom');
+    };
+
+    const r = await run(
+      {
+        latitude: 52.52,
+        longitude: 13.405,
+        arrival: '2026-06-15',
+        departure: '2026-06-18',
+      },
+      fetchImpl,
+    );
+
+    assert.strictEqual(typeof r, 'string');
+    assert.match(r, /##.*unavailable/i);
+    assert.match(r, /Falling back|try again|temporarily/i);
+    assert.doesNotMatch(r, /"success"\s*:\s*false/);
+    assert.doesNotMatch(r, /^\s*\{/);
   });
 
   it('schema rejects out-of-range latitude', () => {

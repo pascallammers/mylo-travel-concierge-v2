@@ -20,7 +20,7 @@
 
 import { tool } from 'ai';
 import { z } from 'zod';
-import { callMcpTool } from '@/lib/mcp/http-mcp-tool';
+import { callMcpTool, sanitizeMcpError } from '@/lib/mcp/http-mcp-tool';
 
 const TRIVAGO_URL = 'https://mcp.trivago.com/mcp';
 
@@ -177,9 +177,36 @@ function buildTrivagoArgs(input: Input): Record<string, unknown> {
   return args;
 }
 
-type TrivagoToolSuccess = { success: true; result: unknown };
-type TrivagoToolError = { success: false; error: string };
-export type TrivagoToolResult = TrivagoToolSuccess | TrivagoToolError;
+// MCP best practice: tools return user-readable text content (markdown) even
+// on failure. The LLM (xAI Grok) handles markdown gracefully; an
+// `{ success: false }` JSON envelope confused it. Tool returns a string in
+// both success and failure cases.
+//
+// TODO: structured renderer — replace JSON-in-codeblock fallback with a real
+// markdown table renderer (hotel name / stars / price / distance / source)
+// once we agree on the columns. This subagent's scope is error handling only.
+export type TrivagoToolResult = string;
+
+/** Render Trivago raw JSON inside a fenced code block. Best-effort placeholder. */
+export function formatTrivagoResults(raw: unknown): string {
+  let body: string;
+  try {
+    body = JSON.stringify(raw, null, 2);
+  } catch {
+    body = String(raw);
+  }
+  return ['## Trivago Hotels', '', '```json', body, '```'].join('\n');
+}
+
+/** Markdown error message returned when Trivago is unreachable / errors out. */
+export function formatTrivagoError(rawError: string): string {
+  const reason = sanitizeMcpError(rawError);
+  return [
+    '## Trivago search unavailable',
+    '',
+    `Trivago could not return results right now (reason: ${reason}). The user can try again in a moment, or we can fall back to other accommodation sources if available.`,
+  ].join('\n');
+}
 
 interface ToolDeps {
   fetchImpl?: typeof fetch;
@@ -198,8 +225,8 @@ export function createTrivagoHotelSearchTool(deps: ToolDeps = {}) {
         requiresSession: true,
         fetchImpl: deps.fetchImpl,
       });
-      if (r.ok) return { success: true, result: r.result };
-      return { success: false, error: r.error };
+      if (r.ok) return formatTrivagoResults(r.result);
+      return formatTrivagoError(r.error);
     },
   });
 }

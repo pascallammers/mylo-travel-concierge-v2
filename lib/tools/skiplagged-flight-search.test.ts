@@ -89,7 +89,7 @@ describe('skiplaggedFlightSearchTool', () => {
     assert.ok(skiplaggedFlightSearchTool.inputSchema);
   });
 
-  it('returns success with formatted markdown result on happy path (SSE response)', async () => {
+  it('returns formatted markdown string on happy path (SSE response)', async () => {
     const { fetchImpl } = mockFetch([
       sseResponse({ jsonrpc: '2.0', id: 1, result: FAKE_FLIGHTS_RESULT }),
     ]);
@@ -99,15 +99,12 @@ describe('skiplaggedFlightSearchTool', () => {
       fetchImpl,
     );
 
-    assert.strictEqual(r.success, true);
-    if (r.success) {
-      // Result is now a formatted markdown string, not raw JSON. The LLM
-      // can pass this through verbatim (NO-HALLUCINATION rule applies).
-      assert.strictEqual(typeof r.result, 'string');
-      assert.match(r.result, /Skiplagged/);
-      assert.match(r.result, /FRA/);
-      assert.match(r.result, /JFK/);
-    }
+    // Result is a formatted markdown string in both success and error cases.
+    // The LLM can pass this through verbatim (NO-HALLUCINATION rule applies).
+    assert.strictEqual(typeof r, 'string');
+    assert.match(r, /Skiplagged/);
+    assert.match(r, /FRA/);
+    assert.match(r, /JFK/);
   });
 
   it('sends POST to Skiplagged MCP endpoint with tools/call payload', async () => {
@@ -174,7 +171,7 @@ describe('skiplaggedFlightSearchTool', () => {
     assert.strictEqual(args.returnDate, '2026-09-15');
   });
 
-  it('returns error response when MCP returns JSON-RPC error', async () => {
+  it('returns markdown error string when MCP returns JSON-RPC error', async () => {
     const { fetchImpl } = mockFetch([
       sseResponse({
         jsonrpc: '2.0',
@@ -188,13 +185,12 @@ describe('skiplaggedFlightSearchTool', () => {
       fetchImpl,
     );
 
-    assert.strictEqual(r.success, false);
-    if (!r.success) {
-      assert.match(r.error, /Invalid IATA/);
-    }
+    assert.strictEqual(typeof r, 'string');
+    assert.match(r, /## Skiplagged search unavailable/);
+    assert.match(r, /Invalid IATA/);
   });
 
-  it('returns error when fetch throws (network failure)', async () => {
+  it('returns markdown error string when fetch throws (network failure)', async () => {
     const fetchImpl: typeof fetch = async () => {
       throw new Error('ENETUNREACH');
     };
@@ -204,10 +200,27 @@ describe('skiplaggedFlightSearchTool', () => {
       fetchImpl,
     );
 
-    assert.strictEqual(r.success, false);
-    if (!r.success) {
-      assert.match(r.error, /ENETUNREACH/);
-    }
+    assert.strictEqual(typeof r, 'string');
+    assert.match(r, /## Skiplagged search unavailable/);
+    assert.match(r, /ENETUNREACH/);
+  });
+
+  it('error response is a markdown string with user-readable language, no raw JSON object', async () => {
+    const fetchImpl: typeof fetch = async () => {
+      throw new Error('boom');
+    };
+
+    const r = await run(
+      { origin: 'FRA', destination: 'JFK', departureDate: '2026-06-15' },
+      fetchImpl,
+    );
+
+    assert.strictEqual(typeof r, 'string');
+    assert.match(r, /##.*unavailable/i);
+    assert.match(r, /Falling back|try again|temporarily/i);
+    // Must NOT look like a `{ success: false, error: ... }` JSON envelope.
+    assert.doesNotMatch(r, /"success"\s*:\s*false/);
+    assert.doesNotMatch(r, /^\s*\{/);
   });
 
   it('schema rejects malformed departureDate before execute runs', () => {

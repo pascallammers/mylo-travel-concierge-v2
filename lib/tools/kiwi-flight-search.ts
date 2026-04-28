@@ -12,7 +12,7 @@
 
 import { tool } from 'ai';
 import { z } from 'zod';
-import { callMcpTool } from '@/lib/mcp/http-mcp-tool';
+import { callMcpTool, sanitizeMcpError } from '@/lib/mcp/http-mcp-tool';
 
 const KIWI_URL = 'https://mcp.kiwi.com';
 
@@ -127,9 +127,37 @@ function buildKiwiArgs(input: z.infer<typeof inputSchema>): Record<string, unkno
   return args;
 }
 
-type KiwiToolSuccess = { success: true; result: unknown };
-type KiwiToolError = { success: false; error: string };
-export type KiwiToolResult = KiwiToolSuccess | KiwiToolError;
+// MCP best practice: tools return user-readable text content (markdown) even
+// on failure. The LLM (xAI Grok) handles markdown gracefully; an
+// `{ success: false }` JSON envelope confused it. Tool returns a string in
+// both success and failure cases.
+//
+// TODO: structured renderer — replace JSON-in-codeblock fallback with a real
+// markdown table renderer (airline / price / route / duration / source) once
+// Kiwi response shape is pinned down. This subagent's scope is error handling
+// only; the success path is a best-effort passthrough.
+export type KiwiToolResult = string;
+
+/** Render Kiwi raw JSON inside a fenced code block. Best-effort placeholder. */
+export function formatKiwiResults(raw: unknown): string {
+  let body: string;
+  try {
+    body = JSON.stringify(raw, null, 2);
+  } catch {
+    body = String(raw);
+  }
+  return ['## Kiwi.com Flights', '', '```json', body, '```'].join('\n');
+}
+
+/** Markdown error message returned when Kiwi is unreachable / errors out. */
+export function formatKiwiError(rawError: string): string {
+  const reason = sanitizeMcpError(rawError);
+  return [
+    '## Kiwi.com search unavailable',
+    '',
+    `Kiwi.com could not return results right now (reason: ${reason}). Falling back to other flight providers if available; the user can also try again in a moment.`,
+  ].join('\n');
+}
 
 interface ToolDeps {
   fetchImpl?: typeof fetch;
@@ -148,8 +176,8 @@ export function createKiwiFlightSearchTool(deps: ToolDeps = {}) {
         requiresSession: true,
         fetchImpl: deps.fetchImpl,
       });
-      if (r.ok) return { success: true, result: r.result };
-      return { success: false, error: r.error };
+      if (r.ok) return formatKiwiResults(r.result);
+      return formatKiwiError(r.error);
     },
   });
 }

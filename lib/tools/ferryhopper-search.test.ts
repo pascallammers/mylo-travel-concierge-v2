@@ -106,8 +106,11 @@ describe('ferryhopperSearchTool', () => {
       fetchImpl,
     );
 
-    assert.strictEqual(r.success, true);
-    if (r.success) assert.deepStrictEqual(r.result, FAKE_FERRY_RESULT);
+    // Tool now returns a markdown string in both success and failure cases.
+    assert.strictEqual(typeof r, 'string');
+    assert.match(r, /## Ferryhopper Trips/);
+    assert.match(r, /```json/);
+    assert.match(r, /Blue Star Ferries/);
     assert.strictEqual(calls.length, 1); // stateless — no init call
     assert.strictEqual(calls[0].url, 'https://mcp.ferryhopper.com/mcp');
     const body = readBody(calls[0]);
@@ -120,7 +123,7 @@ describe('ferryhopperSearchTool', () => {
     });
   });
 
-  it('returns error when MCP returns JSON-RPC error', async () => {
+  it('returns markdown error string when MCP returns JSON-RPC error', async () => {
     const { fetchImpl } = mockFetch([
       jsonResponse({
         jsonrpc: '2.0',
@@ -138,11 +141,12 @@ describe('ferryhopperSearchTool', () => {
       fetchImpl,
     );
 
-    assert.strictEqual(r.success, false);
-    if (!r.success) assert.match(r.error, /No ferry route/);
+    assert.strictEqual(typeof r, 'string');
+    assert.match(r, /## Ferryhopper search unavailable/);
+    assert.match(r, /No ferry route/);
   });
 
-  it('returns error when fetch throws', async () => {
+  it('returns markdown error string when fetch throws', async () => {
     const fetchImpl: typeof fetch = async () => {
       throw new Error('ETIMEDOUT');
     };
@@ -154,8 +158,30 @@ describe('ferryhopperSearchTool', () => {
       },
       fetchImpl,
     );
-    assert.strictEqual(r.success, false);
-    if (!r.success) assert.match(r.error, /ETIMEDOUT/);
+    assert.strictEqual(typeof r, 'string');
+    assert.match(r, /## Ferryhopper search unavailable/);
+    assert.match(r, /ETIMEDOUT/);
+  });
+
+  it('error response is a markdown string with user-readable language, no raw JSON object', async () => {
+    const fetchImpl: typeof fetch = async () => {
+      throw new Error('boom');
+    };
+
+    const r = await run(
+      {
+        departureLocation: 'Athens',
+        arrivalLocation: 'Mykonos',
+        date: '2026-07-15',
+      },
+      fetchImpl,
+    );
+
+    assert.strictEqual(typeof r, 'string');
+    assert.match(r, /##.*unavailable/i);
+    assert.match(r, /Falling back|try again|temporarily/i);
+    assert.doesNotMatch(r, /"success"\s*:\s*false/);
+    assert.doesNotMatch(r, /^\s*\{/);
   });
 
   it('schema rejects malformed date', () => {

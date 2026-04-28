@@ -10,7 +10,7 @@
 
 import { tool } from 'ai';
 import { z } from 'zod';
-import { callMcpTool } from '@/lib/mcp/http-mcp-tool';
+import { callMcpTool, sanitizeMcpError } from '@/lib/mcp/http-mcp-tool';
 
 const FERRYHOPPER_URL = 'https://mcp.ferryhopper.com/mcp';
 
@@ -31,9 +31,37 @@ const inputSchema = z.object({
     .describe('Departure date in YYYY-MM-DD format.'),
 });
 
-type FerryhopperToolSuccess = { success: true; result: unknown };
-type FerryhopperToolError = { success: false; error: string };
-export type FerryhopperToolResult = FerryhopperToolSuccess | FerryhopperToolError;
+// MCP best practice: tools return user-readable text content (markdown) even
+// on failure. The LLM (xAI Grok) handles markdown gracefully; an
+// `{ success: false }` JSON envelope confused it. Tool returns a string in
+// both success and failure cases.
+//
+// TODO: structured renderer — replace JSON-in-codeblock fallback with a real
+// markdown table renderer (route / departure / arrival / vessel / price /
+// source) once we pin the desired columns. This subagent's scope is error
+// handling only.
+export type FerryhopperToolResult = string;
+
+/** Render Ferryhopper raw JSON inside a fenced code block. Best-effort placeholder. */
+export function formatFerryhopperResults(raw: unknown): string {
+  let body: string;
+  try {
+    body = JSON.stringify(raw, null, 2);
+  } catch {
+    body = String(raw);
+  }
+  return ['## Ferryhopper Trips', '', '```json', body, '```'].join('\n');
+}
+
+/** Markdown error message returned when Ferryhopper is unreachable / errors out. */
+export function formatFerryhopperError(rawError: string): string {
+  const reason = sanitizeMcpError(rawError);
+  return [
+    '## Ferryhopper search unavailable',
+    '',
+    `Ferryhopper could not return results right now (reason: ${reason}). The user can try again in a moment; falling back to other transport options if relevant.`,
+  ].join('\n');
+}
 
 interface ToolDeps {
   fetchImpl?: typeof fetch;
@@ -52,8 +80,8 @@ export function createFerryhopperSearchTool(deps: ToolDeps = {}) {
         requiresSession: false,
         fetchImpl: deps.fetchImpl,
       });
-      if (r.ok) return { success: true, result: r.result };
-      return { success: false, error: r.error };
+      if (r.ok) return formatFerryhopperResults(r.result);
+      return formatFerryhopperError(r.error);
     },
   });
 }

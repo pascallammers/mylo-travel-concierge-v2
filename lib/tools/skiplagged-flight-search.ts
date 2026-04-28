@@ -16,7 +16,7 @@
 
 import { tool } from 'ai';
 import { z } from 'zod';
-import { callMcpTool } from '@/lib/mcp/http-mcp-tool';
+import { callMcpTool, sanitizeMcpError } from '@/lib/mcp/http-mcp-tool';
 
 const SKIPLAGGED_URL = 'https://mcp.skiplagged.com/mcp';
 
@@ -75,9 +75,25 @@ const inputSchema = z.object({
     ),
 });
 
-type SkiplaggedToolSuccess = { success: true; result: string };
-type SkiplaggedToolError = { success: false; error: string };
-export type SkiplaggedToolResult = SkiplaggedToolSuccess | SkiplaggedToolError;
+// MCP best practice: tools return user-readable text content even on failure.
+// The LLM (xAI Grok) handles markdown gracefully; an `{ success: false }` JSON
+// envelope confused it (vague "technical error" responses). Tool now returns
+// markdown string in BOTH success and failure cases.
+export type SkiplaggedToolResult = string;
+
+/**
+ * Build a markdown-formatted error message that the LLM can read and explain
+ * to the user. Mentions a fallback so the model knows it's allowed to keep
+ * working with other providers instead of bailing out.
+ */
+export function formatSkiplaggedError(rawError: string): string {
+  const reason = sanitizeMcpError(rawError);
+  return [
+    '## Skiplagged search unavailable',
+    '',
+    `Skiplagged could not return results right now (reason: ${reason}). Falling back to other flight providers if available; the user can also try again in a moment.`,
+  ].join('\n');
+}
 
 interface ToolDeps {
   fetchImpl?: typeof fetch;
@@ -173,8 +189,8 @@ export function createSkiplaggedFlightSearchTool(deps: ToolDeps = {}) {
         requiresSession: false,
         fetchImpl: deps.fetchImpl,
       });
-      if (r.ok) return { success: true, result: formatSkiplaggedResults(r.result) };
-      return { success: false, error: r.error };
+      if (r.ok) return formatSkiplaggedResults(r.result);
+      return formatSkiplaggedError(r.error);
     },
   });
 }
