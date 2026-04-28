@@ -26,6 +26,8 @@ jobs:
           # submodules automatically, so production builds aren't affected.
           submodules: recursive
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
