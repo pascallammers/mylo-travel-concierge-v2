@@ -270,13 +270,6 @@ export async function generateSpeech(text: string) {
 // Map deprecated 'buddy' group ID to 'memory' for backward compatibility
 type LegacyGroupId = SearchGroupId | 'buddy';
 
-// Phase 1 tools (Lane E + Phase 1b — points/miles + booking) gate behind a
-// feature flag so we can roll back without redeploying if any MCP provider
-// (Skiplagged, Kiwi, Trivago, Ferryhopper) goes flaky in production. Default
-// OFF: set ENABLE_PHASE_1_TOOLS=1 in env to expose them. The Phase 1a
-// (static-data) tools are gated together with Phase 1b for atomic rollback.
-const phase1Active: readonly string[] = isPhase1ToolsEnabled() ? PHASE_1_TOOL_NAMES : [];
-
 const groupTools = {
   web: [
     'web_search',
@@ -295,9 +288,10 @@ const groupTools = {
     'datetime',
     'knowledge_base',
     'get_loyalty_balances',
-    ...phase1Active,
+    // Phase 1 tools are appended dynamically inside getGroupConfig so the
+    // ENABLE_PHASE_1_TOOLS flag is read per request, not just at module init.
     // 'mcp_search',
-  ] as readonly string[],
+  ] as const,
   academic: ['academic_search', 'code_interpreter', 'datetime'] as const,
   youtube: ['youtube_search', 'datetime'] as const,
   reddit: ['reddit_search', 'datetime'] as const,
@@ -1040,8 +1034,18 @@ export async function getGroupConfig(groupId: LegacyGroupId = 'web') {
     }
   }
 
-  const tools = groupTools[groupId as keyof typeof groupTools];
+  const baseTools = groupTools[groupId as keyof typeof groupTools];
   const instructions = groupInstructions[groupId as keyof typeof groupInstructions];
+
+  // Read ENABLE_PHASE_1_TOOLS per request, not at module init, so flipping the
+  // flag in production takes effect without restarting all server processes.
+  // Phase 1 tools (cpp_calculator, transfer_partner_optimizer, sweet_spot_lookup,
+  // skiplagged_flight_search, kiwi_flight_search, trivago_hotel_search,
+  // ferryhopper_search) only apply to the 'web' group today.
+  const tools =
+    groupId === 'web' && isPhase1ToolsEnabled()
+      ? ([...baseTools, ...PHASE_1_TOOL_NAMES] as readonly string[])
+      : baseTools;
 
   return {
     tools,
