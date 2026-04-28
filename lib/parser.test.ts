@@ -118,15 +118,145 @@ describe('markdownJoinerTransform', () => {
   });
 
   it('forwards non-text chunks (tool-call, etc.) unchanged', async () => {
+    // Use a precisely-typed literal extracted from TextStreamPart's discriminated
+    // union instead of `as any`. Project rule: never use `any`.
+    const toolInputStart: Extract<Chunk, { type: 'tool-input-start' }> = {
+      type: 'tool-input-start',
+      id: 'call-1',
+      toolName: 'search_flights',
+      dynamic: false,
+    };
     const input: Chunk[] = [
       { type: 'text-start', id: 'text-1' },
       { type: 'text-delta', id: 'text-1', text: 'before tool ' },
       { type: 'text-end', id: 'text-1' },
       // tool-input-start is a non-text chunk that must pass through unchanged
-      { type: 'tool-input-start', id: 'call-1', toolName: 'search_flights', dynamic: false } as any,
+      toolInputStart,
     ];
     const out = await runTransform(input);
     const lastChunk = out[out.length - 1];
     assert.equal(lastChunk.type, 'tool-input-start');
+  });
+
+  it('text-start without any text-delta then text-end forwards unchanged', async () => {
+    // Edge case: empty text block. Buffer is empty so no extra chunks should
+    // be emitted; the start/end pair just passes through.
+    const input: Chunk[] = [
+      { type: 'text-start', id: 'text-1' },
+      { type: 'text-end', id: 'text-1' },
+    ];
+    const out = await runTransform(input);
+
+    assert.equal(out.length, 2, 'no extra chunks should be synthesised');
+    assert.equal(out[0].type, 'text-start');
+    assert.equal(out[1].type, 'text-end');
+    // No text-delta chunks should be present at all
+    const deltas = out.filter((c) => c.type === 'text-delta');
+    assert.equal(deltas.length, 0);
+  });
+
+  it('forwards a late text-delta that arrives AFTER text-end with same id', async () => {
+    // Malformed-stream defence: a text-delta arriving after its text-end is
+    // an upstream protocol violation. Our transform should NOT be the layer
+    // that swallows or rewrites it — it must forward verbatim. The
+    // downstream UI consumer can decide how to handle the protocol break.
+    const input: Chunk[] = [
+      { type: 'text-start', id: 'text-1' },
+      { type: 'text-delta', id: 'text-1', text: 'hello' },
+      { type: 'text-end', id: 'text-1' },
+      { type: 'text-delta', id: 'text-1', text: ' world' },
+    ];
+    const out = await runTransform(input);
+
+    const deltas = out.filter(
+      (c): c is Extract<Chunk, { type: 'text-delta' }> => c.type === 'text-delta',
+    );
+    // The late delta must still appear in the output.
+    const concat = deltas.map((d) => d.text).join('');
+    assert.equal(concat, 'hello world');
+    // And it must still carry the id (we never strip ids).
+    for (const d of deltas) {
+      assert.equal(d.id, 'text-1');
+    }
+  });
+
+  it('flushes buffered content via flushBufferAs when stream aborts mid-buffer between non-text chunks', async () => {
+    // Repro: text-delta starts buffering '[partial' (an incomplete link),
+    // then a non-text tool chunk arrives, then the stream closes WITHOUT a
+    // text-end. flush() must fire and emit the buffered tail as a text-delta
+    // with the lastTextId observed from the original text-delta.
+    const toolInputStart: Extract<Chunk, { type: 'tool-input-start' }> = {
+      type: 'tool-input-start',
+      id: 'call-9',
+      toolName: 'search_flights',
+      dynamic: false,
+    };
+    const input: Chunk[] = [
+      { type: 'text-start', id: 'text-1' },
+      { type: 'text-delta', id: 'text-1', text: '[partial' },
+      toolInputStart,
+      // no text-end, stream just closes
+    ];
+    const out = await runTransform(input);
+
+    // tool-input-start must still pass through.
+    const tools = out.filter((c) => c.type === 'tool-input-start');
+    assert.equal(tools.length, 1);
+
+    // The buffered '[partial' must be flushed as a text-delta carrying
+    // the lastTextId ('text-1') — never id-less.
+    const deltas = out.filter(
+      (c): c is Extract<Chunk, { type: 'text-delta' }> => c.type === 'text-delta',
+    );
+    assert.ok(deltas.length >= 1, 'buffered tail must be flushed');
+    const concat = deltas.map((d) => d.text).join('');
+    assert.match(concat, /\[partial$/);
+    for (const d of deltas) {
+      assert.equal(d.id, 'text-1');
+    }
+  });
+
+  it('warns when flushBufferAs has buffered content but no active text-id', async () => {
+    // Defensive telemetry: if upstream feeds a text-delta with no id (a
+    // protocol violation we cannot satisfy), the buffer can fill but
+    // lastTextId stays undefined. flush() must surface a single console.warn
+    // so the silent drop is observable in production logs — and stay silent
+    // on the no-op happy path.
+    const originalWarn = console.warn;
+    const warnings: Array<{ msg: unknown; meta: unknown }> = [];
+    console.warn = (msg: unknown, meta?: unknown) => {
+      warnings.push({ msg, meta });
+    };
+
+    try {
+      // Cast through unknown to forge an id-less text-delta. This is the
+      // exact malformed shape we want to defend against — never use `any`.
+      const idlessDelta = {
+        type: 'text-delta',
+        text: '[buffered-no-id',
+      } as unknown as Chunk;
+      const input: Chunk[] = [idlessDelta];
+      await runTransform(input);
+
+      assert.equal(warnings.length, 1, 'expected exactly one console.warn call');
+      assert.match(
+        String(warnings[0].msg),
+        /markdownJoinerTransform.*dropping.*buffer.*stream-end/,
+      );
+      const meta = warnings[0].meta as { chars: number; sample: string };
+      assert.equal(meta.chars, '[buffered-no-id'.length);
+      assert.equal(meta.sample, '[buffered-no-id');
+
+      // Happy path sanity: a clean stream must NOT trigger the warn.
+      warnings.length = 0;
+      await runTransform([
+        { type: 'text-start', id: 'text-1' },
+        { type: 'text-delta', id: 'text-1', text: 'plain text.' },
+        { type: 'text-end', id: 'text-1' },
+      ]);
+      assert.equal(warnings.length, 0, 'happy path must stay silent');
+    } finally {
+      console.warn = originalWarn;
+    }
   });
 });

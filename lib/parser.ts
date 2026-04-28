@@ -101,6 +101,15 @@ export const markdownJoinerTransform =
           text: remaining,
           ...(lastProviderMetadata ? { providerMetadata: lastProviderMetadata } : {}),
         } as TextStreamPart<TOOLS>);
+      } else if (remaining) {
+        // Buffered content that we cannot safely emit (no active text-id).
+        // This indicates an upstream protocol violation (text-delta seen with
+        // no id, or buffer somehow non-empty without ever observing one).
+        // Emit a single warning so the silent-drop is observable in logs.
+        console.warn(
+          '[markdownJoinerTransform] dropping N chars from buffer at stream-end without active text-id',
+          { chars: remaining.length, sample: remaining.slice(0, 80) },
+        );
       }
     };
 
