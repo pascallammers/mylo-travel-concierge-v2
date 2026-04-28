@@ -15,8 +15,16 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
+        with:
+          # Fetch the borski-toolkit submodule. The eval suite itself imports
+          # tools individually (lib/chat/__evals__/mock-tools.ts skips the
+          # @/lib/tools barrel by design), so today this isn't strictly
+          # required. But any future eval that pulls in cpp_calculator,
+          # transfer_partner_optimizer, or sweet_spot_lookup would fail at
+          # module-resolution time without this, because those tools statically
+          # `import ... '../borski-toolkit/data/*.json'`. Vercel handles
+          # submodules automatically, so production builds aren't affected.
+          submodules: recursive
 
       - uses: actions/setup-node@v4
         with:
