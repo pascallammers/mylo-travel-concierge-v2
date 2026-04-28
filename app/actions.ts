@@ -8,6 +8,7 @@ import { UIMessage, generateText, Output, NoOutputGeneratedError } from 'ai';
 import type { ModelMessage } from 'ai';
 import { z } from 'zod';
 import { getUser } from '@/lib/auth-utils';
+import { PHASE_1_TOOL_NAMES, isPhase1ToolsEnabled } from '@/lib/chat/feature-flags';
 import { generateXaiSpeech } from '@/lib/xai/voice';
 import { scira, languageModel } from '@/ai/providers';
 import {
@@ -269,6 +270,13 @@ export async function generateSpeech(text: string) {
 // Map deprecated 'buddy' group ID to 'memory' for backward compatibility
 type LegacyGroupId = SearchGroupId | 'buddy';
 
+// Phase 1 tools (Lane E + Phase 1b — points/miles + booking) gate behind a
+// feature flag so we can roll back without redeploying if any MCP provider
+// (Skiplagged, Kiwi, Trivago, Ferryhopper) goes flaky in production. Default
+// OFF: set ENABLE_PHASE_1_TOOLS=1 in env to expose them. The Phase 1a
+// (static-data) tools are gated together with Phase 1b for atomic rollback.
+const phase1Active: readonly string[] = isPhase1ToolsEnabled() ? PHASE_1_TOOL_NAMES : [];
+
 const groupTools = {
   web: [
     'web_search',
@@ -287,8 +295,9 @@ const groupTools = {
     'datetime',
     'knowledge_base',
     'get_loyalty_balances',
+    ...phase1Active,
     // 'mcp_search',
-  ] as const,
+  ] as readonly string[],
   academic: ['academic_search', 'code_interpreter', 'datetime'] as const,
   youtube: ['youtube_search', 'datetime'] as const,
   reddit: ['reddit_search', 'datetime'] as const,

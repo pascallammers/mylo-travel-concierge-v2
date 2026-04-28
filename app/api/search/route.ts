@@ -69,6 +69,13 @@ import {
   extremeSearchTool,
   createConnectorsSearchTool,
   knowledgeBaseTool,
+  cppCalculatorTool,
+  transferPartnerOptimizerTool,
+  sweetSpotLookupTool,
+  skiplaggedFlightSearchTool,
+  kiwiFlightSearchTool,
+  trivagoHotelSearchTool,
+  ferryhopperSearchTool,
 } from '@/lib/tools';
 import { flightSearchTool } from '@/lib/tools/flight-search';
 import { getLoyaltyBalancesTool } from '@/lib/tools/loyalty-balances';
@@ -504,6 +511,17 @@ export async function POST(req: Request) {
           greeting: greetingTool(timezone),
           knowledge_base: knowledgeBaseTool,
           get_loyalty_balances: getLoyaltyBalancesTool,
+          // Phase 1 tools (Lane E + Phase 1b). Registered unconditionally;
+          // exposure to the model is gated by groupTools.web in app/actions.ts,
+          // which checks ENABLE_PHASE_1_TOOLS. Keeping the registry stable here
+          // means a flag flip doesn't require a redeploy of this route.
+          cpp_calculator: cppCalculatorTool,
+          transfer_partner_optimizer: transferPartnerOptimizerTool,
+          sweet_spot_lookup: sweetSpotLookupTool,
+          skiplagged_flight_search: skiplaggedFlightSearchTool,
+          kiwi_flight_search: kiwiFlightSearchTool,
+          trivago_hotel_search: trivagoHotelSearchTool,
+          ferryhopper_search: ferryhopperSearchTool,
         };
 
         // Filter to only include active tools
