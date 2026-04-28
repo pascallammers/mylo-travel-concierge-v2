@@ -359,4 +359,63 @@ describe('trivagoHotelSearchTool', () => {
     });
     assert.strictEqual(parse.success, false);
   });
+
+  it('schema rejects children > 0 without childrenAges (Trivago needs ages)', () => {
+    // biome-ignore lint/suspicious/noExplicitAny: schema typing irrelevant
+    const parse = (trivagoHotelSearchTool.inputSchema as any).safeParse({
+      latitude: 52.52,
+      longitude: 13.405,
+      arrival: '2026-06-15',
+      departure: '2026-06-18',
+      children: 2,
+      // childrenAges intentionally missing
+    });
+    assert.strictEqual(parse.success, false);
+    if (!parse.success) {
+      const msg = JSON.stringify(parse.error.issues);
+      assert.match(msg, /childrenAges is required/);
+    }
+  });
+
+  it('schema rejects mismatched ages count (children=2 but ages="10")', () => {
+    // biome-ignore lint/suspicious/noExplicitAny: schema typing irrelevant
+    const parse = (trivagoHotelSearchTool.inputSchema as any).safeParse({
+      latitude: 52.52,
+      longitude: 13.405,
+      arrival: '2026-06-15',
+      departure: '2026-06-18',
+      children: 2,
+      childrenAges: '10', // only 1 age but children=2
+    });
+    assert.strictEqual(parse.success, false);
+    if (!parse.success) {
+      const msg = JSON.stringify(parse.error.issues);
+      assert.match(msg, /exactly one age per child/);
+    }
+  });
+
+  it('schema accepts children=0 without childrenAges', () => {
+    // biome-ignore lint/suspicious/noExplicitAny: schema typing irrelevant
+    const parse = (trivagoHotelSearchTool.inputSchema as any).safeParse({
+      latitude: 52.52,
+      longitude: 13.405,
+      arrival: '2026-06-15',
+      departure: '2026-06-18',
+      children: 0,
+    });
+    assert.strictEqual(parse.success, true);
+  });
+
+  it('schema accepts matching children count and ages', () => {
+    // biome-ignore lint/suspicious/noExplicitAny: schema typing irrelevant
+    const parse = (trivagoHotelSearchTool.inputSchema as any).safeParse({
+      latitude: 52.52,
+      longitude: 13.405,
+      arrival: '2026-06-15',
+      departure: '2026-06-18',
+      children: 3,
+      childrenAges: '8-10-12',
+    });
+    assert.strictEqual(parse.success, true);
+  });
 });

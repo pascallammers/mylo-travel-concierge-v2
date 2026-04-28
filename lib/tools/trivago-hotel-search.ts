@@ -26,7 +26,8 @@ const TRIVAGO_URL = 'https://mcp.trivago.com/mcp';
 
 const REVIEW_TIERS = ['7.0', '7.5', '8.0', '8.5'] as const;
 
-const inputSchema = z.object({
+const inputSchema = z
+  .object({
   latitude: z
     .number()
     .min(-90)
@@ -99,7 +100,25 @@ const inputSchema = z.object({
     .boolean()
     .default(false)
     .describe('Filter to hotels that include breakfast.'),
-});
+  })
+  .refine((v) => (v.children > 0 ? !!v.childrenAges : true), {
+    message:
+      'childrenAges is required when children > 0 (dash-separated ages, e.g. "10-12-14").',
+    path: ['childrenAges'],
+  })
+  .refine(
+    (v) => {
+      if (v.children === 0) return true;
+      if (!v.childrenAges) return true; // already caught by previous refine
+      const count = v.childrenAges.split('-').length;
+      return count === v.children;
+    },
+    {
+      message:
+        'childrenAges must list exactly one age per child (separated by dashes). E.g. children=2 → "10-12".',
+      path: ['childrenAges'],
+    },
+  );
 
 type Input = z.infer<typeof inputSchema>;
 
