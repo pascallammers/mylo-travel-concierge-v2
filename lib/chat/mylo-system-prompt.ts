@@ -71,10 +71,14 @@ function buildToolSpecificGuidelines(now: Date): string {
   - If the user is greeting you, use the 'greeting' tool without overthinking it
   - Following are the tool specific guidelines:
 
-  #### ⚠️ PRIORITY 1: Flight Search Tool (ALWAYS CHECK THIS FIRST!)
-  - 🚨 CRITICAL: If user mentions ANYTHING about flights, airlines, or air travel → USE search_flights, NOT web_search!
-  - ⚠️ URGENT: Run search_flights tool IMMEDIATELY for ANY query about flights, airfare, or air travel
-  - This tool has HIGHEST PRIORITY - check for flight keywords BEFORE considering other tools
+  #### ⚠️ PRIORITY 1: Flight Search Tool (for SEARCH intent — NOT factual airline questions)
+  - 🚨 CRITICAL: Use search_flights for FLIGHT SEARCH/PRICE/AVAILABILITY/BOOKING/AWARD-FLIGHT queries — i.e. intent to *find or book* a flight on a specific route
+  - ❌ DO NOT use search_flights for FACTUAL questions about airlines (use web_search or knowledge_base):
+    * "Is Lufthansa Star Alliance or SkyTeam?" → web_search
+    * "When was Emirates founded?" → web_search
+    * "What aircraft does Singapore Airlines fly the A380 on?" → web_search
+    * "Was ist der Unterschied zwischen Business und First Class?" → knowledge_base
+  - ⚠️ URGENT: Run search_flights tool IMMEDIATELY when intent IS flight search — origin, destination, dates, fare class, or "find/cheapest/award/book" verbs all signal search intent
 
   **📅 IMPORTANT - Date Validation (Check BEFORE calling the tool):**
   - Today's date is: ${now.toISOString().split('T')[0]}
@@ -381,11 +385,24 @@ function buildResponseAndCitations(): string {
 function buildKbFirstAndRouting(): string {
   return `
   ### 🔴 MANDATORY KNOWLEDGE BASE FIRST RULE (HIGHEST PRIORITY):
-  - ⚠️ ALWAYS call \`knowledge_base\` FIRST for ANY query that is NOT a flight/booking request
-  - ⚠️ This includes: general questions, company info, factual queries, "what is X", "when was X founded", travel tips, destination info, policies, FAQs, ANY informational question
-  - ⚠️ ONLY skip \`knowledge_base\` when query contains EXPLICIT booking intent: specific dates + flight keywords (e.g., "Flug am 15.12 nach Paris buchen")
+  - ⚠️ ALWAYS call \`knowledge_base\` FIRST for **informational queries** (general questions, company info, factual queries, "what is X", "when was X founded", travel tips, destination info, policies, FAQs)
+  - ⚠️ DOMAIN TOOLS WIN — skip \`knowledge_base\` and call the right domain tool directly when the query has clear domain intent:
+    * **Flights/airfare booking with intent** (search, price, availability, award, booking) → \`search_flights\` (or \`skiplagged_flight_search\` / \`kiwi_flight_search\` if available)
+    * **Weather** ("Wetter in X", "wie warm ist es") → \`get_weather_data\`
+    * **Date/time** ("welcher Tag", "wieviel Uhr in Tokyo") → \`datetime\`
+    * **Maps/places/nearby** ("Restaurants in der Nähe", "wo ist X") → \`find_place_on_map\` / \`nearby_places_search\`
+    * **Translation** → \`text_translate\`
+    * **Movies/TV** ("Trending Filme", "What's the rating of X") → \`movie_tv_search\` / \`trending_movies\` / \`trending_tv\`
+    * **Code execution / calculations** → \`code_interpreter\`
+    * **Stocks / crypto** → \`stock_chart\` / \`crypto_tools\`
+    * **Points/miles balances** → \`get_loyalty_balances\`
+    * **Cents-per-point evaluation** ("ist Award X mit Y Punkten ein guter Deal?") → \`cpp_calculator\`
+    * **Where to transfer points** ("ich habe N Amex Punkte, wo umtauschen?") → \`transfer_partner_optimizer\`
+    * **Award sweet spots** ("award sweet spot nach Japan") → \`sweet_spot_lookup\`
+    * **Hotel search** ("Hotel in/nahe X") → \`trivago_hotel_search\` (if available)
+    * **Ferry routes** (Greek islands, Italy↔Croatia, Mediterranean ferries) → \`ferryhopper_search\` (if available)
   - ⚠️ If \`knowledge_base\` returns __KB_NOT_FOUND__, __KB_LOW_CONFIDENCE__, or __KB_ERROR__ → THEN call \`web_search\` as fallback
-  - ⚠️ NEVER call \`web_search\` directly without trying \`knowledge_base\` first (except for transactional flight queries)
+  - ⚠️ NEVER call \`web_search\` directly without trying \`knowledge_base\` first (except for the domain-tool routes above)
 
   - ⚠️ IMP: Tool limit per turn: 1 by default, or 2 when doing knowledge_base -> web_search fallback. Never reverse the order.
   - ⚠️ IMP: As soon as you have the tool results, respond with the results in markdown format!

@@ -50,10 +50,13 @@ describe('buildMyloWebSystemPrompt', () => {
   });
 
   describe('TOOL_SPECIFIC_GUIDELINES section', () => {
-    it('marks search_flights as PRIORITY 1 with explicit header', () => {
+    it('marks search_flights as PRIORITY 1 for search intent only (not factual queries)', () => {
       const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
       assert.match(prompt, /PRIORITY 1: Flight Search Tool/);
-      assert.match(prompt, /USE search_flights, NOT web_search/);
+      // search_flights should fire on SEARCH/PRICE/AVAILABILITY intent
+      assert.match(prompt, /Use search_flights for FLIGHT SEARCH\/PRICE\/AVAILABILITY/);
+      // …but factual airline questions should route to web_search/knowledge_base instead
+      assert.match(prompt, /DO NOT use search_flights for FACTUAL questions/);
     });
 
     it('lists German and English flight trigger keywords', () => {
