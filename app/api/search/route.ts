@@ -83,6 +83,11 @@ import { markdownJoinerTransform } from '@/lib/parser';
 import { ChatMessage } from '@/lib/types';
 import { getUserLoyaltyData } from '@/lib/db/queries/awardwallet';
 import { formatLoyaltyDataForPrompt } from '@/lib/utils/loyalty-prompt-formatter';
+import {
+  isFlightIntent,
+  extractTextFromMessage,
+  FLIGHT_TOOL_NAMES,
+} from '@/lib/chat/flight-intent-detector';
 
 let globalStreamContext: ResumableStreamContext | null = null;
 
@@ -573,6 +578,47 @@ export async function POST(req: Request) {
           (user ? `\n\n${loyaltyContext}` : ''),
         toolChoice: 'auto',
         tools: createToolRegistry(dataStream, searchProvider, user, selectedConnectors, timezone, activeTools),
+        // Deterministic flight-tool routing (Subagent C — code-level safety net).
+        // When the latest user message clearly signals a flight-search intent,
+        // we restrict the active tool space to flight tools and require a tool
+        // call. This is defense-in-depth on top of the system prompt's
+        // "call all flight tools in parallel" instruction.
+        //
+        // Only intervenes on the FIRST step (stepNumber === 0). Subsequent
+        // steps use default behaviour so the model can summarise / format
+        // results across all tools.
+        //
+        // For non-flight queries we return {} → all tools available, model decides.
+        prepareStep: ({ stepNumber, messages: stepMessages }) => {
+          if (stepNumber !== 0) return {};
+
+          const lastUser = [...stepMessages].reverse().find((m) => m.role === 'user');
+          const userText = extractTextFromMessage(lastUser);
+
+          if (!isFlightIntent(userText)) return {};
+
+          // Only enable the flight tools that are actually registered for this
+          // request — gating (e.g. ENABLE_PHASE_1_TOOLS) lives in
+          // app/actions.ts → groupTools, surfaced via `activeTools`.
+          const enabledFlightTools = FLIGHT_TOOL_NAMES.filter((t) =>
+            activeTools.includes(t as any),
+          );
+
+          // No flight tools registered for this group → fall back to default
+          // routing (better than forcing toolChoice: 'required' with an empty
+          // active set, which would error).
+          if (enabledFlightTools.length === 0) return {};
+
+          console.log(
+            '🎯 [prepareStep] Flight intent detected — restricting to:',
+            enabledFlightTools,
+          );
+
+          return {
+            activeTools: enabledFlightTools as any,
+            toolChoice: 'required' as const,
+          };
+        },
         experimental_repairToolCall: async ({ toolCall, tools, inputSchema, error }) => {
           if (NoSuchToolError.isInstance(error)) {
             return null;
