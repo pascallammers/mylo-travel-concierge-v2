@@ -118,7 +118,15 @@ const inputSchema = z
         'childrenAges must list exactly one age per child (separated by dashes). E.g. children=2 → "10-12".',
       path: ['childrenAges'],
     },
-  );
+  )
+  .refine((v) => Date.parse(v.departure) > Date.parse(v.arrival), {
+    message: 'departure must be strictly after arrival (YYYY-MM-DD).',
+    path: ['departure'],
+  })
+  .refine((v) => v.rooms <= v.adults, {
+    message: 'rooms must be <= adults (Trivago rejects bookings with more rooms than adults).',
+    path: ['rooms'],
+  });
 
 type Input = z.infer<typeof inputSchema>;
 

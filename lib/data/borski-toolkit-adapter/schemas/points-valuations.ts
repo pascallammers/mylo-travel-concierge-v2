@@ -31,13 +31,26 @@ export type BorskiValuationSources = z.infer<typeof BorskiValuationSourcesSchema
 /**
  * A single program's valuation: floor (min/conservative) and ceiling
  * (max/optimistic) in cents per point, with per-source breakdown.
+ *
+ * Refines guard against borski drift: a deprecated/zeroed program with
+ * floor=0/ceiling=0 would silently classify every redemption as "excellent"
+ * in cpp-calculator (cpp >= ceiling=0 always passes the excellent branch).
  */
-export const BorskiValuationEntrySchema = z.object({
-  name: z.string(),
-  floor: z.number().nonnegative(),
-  ceiling: z.number().nonnegative(),
-  sources: BorskiValuationSourcesSchema,
-});
+export const BorskiValuationEntrySchema = z
+  .object({
+    name: z.string(),
+    floor: z.number().nonnegative(),
+    ceiling: z.number().nonnegative(),
+    sources: BorskiValuationSourcesSchema,
+  })
+  .refine((v) => v.ceiling > 0, {
+    message: 'ceiling must be > 0 (zeroed valuations break tier classification)',
+    path: ['ceiling'],
+  })
+  .refine((v) => v.floor <= v.ceiling, {
+    message: 'floor must be <= ceiling',
+    path: ['floor'],
+  });
 
 export type BorskiValuationEntry = z.infer<typeof BorskiValuationEntrySchema>;
 

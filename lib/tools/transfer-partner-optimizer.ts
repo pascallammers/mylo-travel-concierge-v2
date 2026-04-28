@@ -43,8 +43,9 @@ const inputSchema = z.object({
     ),
   sourcePoints: z
     .number()
+    .int()
     .positive()
-    .describe('How many source-program points the user wants to transfer.'),
+    .describe('How many source-program points the user wants to transfer (integer).'),
   targetAirline: z
     .string()
     .optional()

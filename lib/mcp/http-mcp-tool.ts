@@ -19,6 +19,7 @@
 
 const PROTOCOL_VERSION = '2024-11-05';
 const SESSION_TTL_MS = 5 * 60 * 1000;
+const REQUEST_TIMEOUT_MS = 15_000;
 const CLIENT_INFO = { name: 'mylo-travel-concierge', version: '0.1.0' };
 
 interface SessionEntry {
@@ -41,6 +42,8 @@ export interface CallMcpToolParams {
   requiresSession: boolean;
   fetchImpl?: typeof fetch;
   now?: () => number;
+  /** Per-call timeout in ms. Defaults to REQUEST_TIMEOUT_MS (15s). */
+  timeoutMs?: number;
 }
 
 export type McpToolResponse =
@@ -51,11 +54,12 @@ export async function callMcpTool(params: CallMcpToolParams): Promise<McpToolRes
   const { url, toolName, args, requiresSession } = params;
   const fetchImpl = params.fetchImpl ?? globalThis.fetch;
   const now = params.now ?? Date.now;
+  const timeoutMs = params.timeoutMs ?? REQUEST_TIMEOUT_MS;
 
   try {
     let sessionId: string | undefined;
     if (requiresSession) {
-      sessionId = await getOrCreateSession(url, fetchImpl, now);
+      sessionId = await getOrCreateSession(url, fetchImpl, now, timeoutMs);
     }
 
     const callBody = JSON.stringify({
@@ -69,15 +73,17 @@ export async function callMcpTool(params: CallMcpToolParams): Promise<McpToolRes
       method: 'POST',
       headers: buildHeaders(sessionId),
       body: callBody,
+      signal: AbortSignal.timeout(timeoutMs),
     });
 
     if (response.status === 404 && requiresSession) {
       sessionCache.delete(url);
-      sessionId = await getOrCreateSession(url, fetchImpl, now);
+      sessionId = await getOrCreateSession(url, fetchImpl, now, timeoutMs);
       response = await fetchImpl(url, {
         method: 'POST',
         headers: buildHeaders(sessionId),
         body: callBody,
+        signal: AbortSignal.timeout(timeoutMs),
       });
     }
 
@@ -92,6 +98,11 @@ export async function callMcpTool(params: CallMcpToolParams): Promise<McpToolRes
     }
     return { ok: true, result: payload.result };
   } catch (err) {
+    // AbortSignal.timeout throws TimeoutError (DOMException) on expiry.
+    // Surface a stable, LLM-friendly error so the agent can retry or fall back.
+    if (err instanceof Error && err.name === 'TimeoutError') {
+      return { ok: false, error: `MCP request timed out after ${timeoutMs}ms` };
+    }
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
@@ -100,6 +111,7 @@ async function getOrCreateSession(
   url: string,
   fetchImpl: typeof fetch,
   now: () => number,
+  timeoutMs: number,
 ): Promise<string> {
   const cached = sessionCache.get(url);
   if (cached && cached.expiresAt > now()) {
@@ -121,6 +133,7 @@ async function getOrCreateSession(
     method: 'POST',
     headers: buildHeaders(undefined),
     body: initBody,
+    signal: AbortSignal.timeout(timeoutMs),
   });
 
   if (!response.ok) {

@@ -81,7 +81,7 @@ interface ToolDeps {
 export function createSkiplaggedFlightSearchTool(deps: ToolDeps = {}) {
   return tool({
     description:
-      'Search Skiplagged for flights including hidden-city itineraries. Use this when the user asks for flight options, prices, schedules, or wants to compare cash prices across dates. Returns flights[] with airlines, departure/arrival, duration, price, and Skiplagged deepLink. Hidden-city is on by default because that\'s Skiplagged\'s key edge over other engines. Combine with cppCalculatorTool to evaluate cash-vs-points trade-offs.',
+      "Search Skiplagged for flights including hidden-city itineraries. Use this when the user asks for flight options, prices, schedules, or wants to compare cash prices across dates. Returns flights[] with airlines, departure/arrival, duration, price, and Skiplagged deepLink. Hidden-city is on by default because that's Skiplagged's key edge over other engines. Combine with cpp_calculator to evaluate cash-vs-points trade-offs.",
     inputSchema,
     execute: async (input): Promise<SkiplaggedToolResult> => {
       const r = await callMcpTool({
