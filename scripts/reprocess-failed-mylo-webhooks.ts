@@ -25,7 +25,7 @@ import { config } from 'dotenv';
 config({ path: '.env.local' });
 
 import { neon } from '@neondatabase/serverless';
-import { processWebhookEvent } from '../lib/thrivecart/webhook-handler';
+import { handleOrderSuccess } from '../lib/thrivecart/webhook-handler';
 import {
   isProductPurchase,
   normalizeThriveCartPayload,
@@ -136,32 +136,46 @@ async function main(): Promise<void> {
     }
 
     try {
-      const result = await processWebhookEvent(c.payload as unknown as ThriveCartWebhookPayload);
+      // Call handleOrderSuccess directly to bypass the event_id idempotency check
+      // (the original webhook is already in the log; we don't want a duplicate row).
+      const email = (normalized.customer?.email || '').toLowerCase().trim();
+      const result = await handleOrderSuccess(normalized as ThriveCartWebhookPayload, email);
       console.log(`  -> action=${result.action} success=${result.success}`);
+
+      // Patch the original webhook_log row with the recovered action
       if (result.success) {
-        recovered++;
-        const details = JSON.stringify({
-          originalLogId: c.log_id,
-          originalProcessedAt: c.processed_at,
-          invoiceId: c.invoice_id,
-          recoveredAction: result.action,
-        });
         await sql`
-          INSERT INTO admin_activity_log (id, target_user_id, action, performed_by, details, created_at)
-          SELECT
-            md5(random()::text || u.id || NOW()::text),
-            u.id,
-            'webhook.recovered_via_reprocess_script',
-            NULL,
-            ${details}::json,
-            NOW()
-          FROM "user" u
-          WHERE LOWER(u.email) = LOWER(${c.customer_email});
+          UPDATE thrivecart_webhook_log
+          SET action = ${`recovered:${result.action}`}
+          WHERE id = ${c.log_id};
         `;
-      } else {
+      }
+
+      if (!result.success) {
         failed++;
         console.error(`  -> FAILED: ${result.error}`);
+        continue;
       }
+
+      recovered++;
+      const details = JSON.stringify({
+        originalLogId: c.log_id,
+        originalProcessedAt: c.processed_at,
+        invoiceId: c.invoice_id,
+        recoveredAction: result.action,
+      });
+      await sql`
+        INSERT INTO admin_activity_log (id, target_user_id, action, performed_by, details, created_at)
+        SELECT
+          md5(random()::text || u.id || NOW()::text),
+          u.id,
+          'webhook.recovered_via_reprocess_script',
+          NULL,
+          ${details}::json,
+          NOW()
+        FROM "user" u
+        WHERE LOWER(u.email) = LOWER(${c.customer_email});
+      `;
     } catch (err) {
       failed++;
       console.error(`  -> EXCEPTION:`, err instanceof Error ? err.message : err);
