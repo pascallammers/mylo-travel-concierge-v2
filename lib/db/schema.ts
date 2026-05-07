@@ -298,6 +298,7 @@ export const thrivecartWebhookLog = pgTable('thrivecart_webhook_log', {
   payload: json('payload'),
   processedAt: timestamp('processed_at').notNull().defaultNow(),
   result: text('result').notNull(), // 'success' | 'error' | 'skipped'
+  action: text('action'), // e.g. 'new_user_created', 'skipped_non_mylo_product'
   errorMessage: text('error_message'),
 });
 
