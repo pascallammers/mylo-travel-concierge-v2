@@ -110,7 +110,11 @@ export async function processWebhookEvent(
 
 // --- Event Handlers ---
 
-async function handleOrderSuccess(
+/**
+ * Exported for reprocess scripts that need to skip idempotency checks.
+ * Normal callers should use processWebhookEvent.
+ */
+export async function handleOrderSuccess(
   payload: ThriveCartWebhookPayload,
   email: string
 ): Promise<WebhookProcessingResult> {
