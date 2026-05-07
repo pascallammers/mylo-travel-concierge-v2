@@ -26,14 +26,16 @@ import type { ThriveCartWebhookPayload, WebhookProcessingResult } from './types'
 import { generateId } from 'ai';
 import { logAdminActivity } from '@/lib/admin/activity-logger';
 import { thrivecartConfig } from './config';
+import { isProductPurchase, normalizeThriveCartPayload } from './payload-normalizer';
 
 /**
  * Process a ThriveCart webhook event.
  * Logs the event, checks for duplicates, then dispatches to the appropriate handler.
  */
 export async function processWebhookEvent(
-  payload: ThriveCartWebhookPayload
+  rawPayload: ThriveCartWebhookPayload | Record<string, unknown>
 ): Promise<WebhookProcessingResult> {
+  const payload = normalizeThriveCartPayload(rawPayload);
   const email = payload.customer?.email?.toLowerCase().trim();
   const eventType = payload.event;
   const orderId = String(payload.order_id || '');
@@ -99,6 +101,7 @@ export async function processWebhookEvent(
     payload: payload as unknown as Record<string, unknown>,
     processedAt: new Date(),
     result: result.success ? 'success' : 'error',
+    action: result.action || null,
     errorMessage: result.error || null,
   });
 
@@ -119,18 +122,16 @@ async function handleOrderSuccess(
 
   // Only process MYLO product purchases (product_id from config, default 5)
   const myloProductId = Number(thrivecartConfig.productId);
-  const myloPurchase = purchases?.find((p) => p.product_id === myloProductId);
-  const isMyloBaseProduct = payload.base_product === myloProductId;
-
-  if (!myloPurchase && !isMyloBaseProduct) {
-    console.log(`[ThriveCart] Order ${orderId} is not a MYLO product (base_product: ${payload.base_product}, expected: ${myloProductId}), skipping user creation. Products: ${JSON.stringify(purchases?.map(p => ({ id: p.product_id, name: p.product_name })))}`);
+  if (!isProductPurchase(payload, myloProductId)) {
+    console.log(`[ThriveCart] Order ${orderId} is not a MYLO product (base_product: ${payload.base_product}, expected: ${myloProductId}), skipping user creation.`);
     return {
       success: true,
       action: 'skipped_non_mylo_product',
     };
   }
 
-  const amount = myloPurchase?.amount || order?.total || 0;
+  const myloPurchase = purchases?.find((p) => Number(p.product_id) === myloProductId);
+  const amount = Number(myloPurchase?.amount || order?.total || 0);
 
   // Check if user already exists
   const existingUser = await findUserByEmail(email);
@@ -262,7 +263,7 @@ async function handleSubscriptionPayment(
   }
 
   const myloProductId = Number(thrivecartConfig.productId);
-  const myloPurchase = payload.purchases?.find((p) => p.product_id === myloProductId);
+  const myloPurchase = payload.purchases?.find((p) => Number(p.product_id) === myloProductId);
   const eventId = payload.event_id ? String(payload.event_id) : crypto.randomBytes(8).toString('hex');
   await recordPayment(foundUser.id, {
     orderId: eventId,
@@ -334,7 +335,7 @@ async function handleRefund(
 
   // Record the refund payment with negative amount
   const myloProductIdRefund = Number(thrivecartConfig.productId);
-  const myloPurchase = payload.purchases?.find((p) => p.product_id === myloProductIdRefund);
+  const myloPurchase = payload.purchases?.find((p) => Number(p.product_id) === myloProductIdRefund);
   const eventId = payload.event_id ? String(payload.event_id) : crypto.randomBytes(8).toString('hex');
   await recordPayment(foundUser.id, {
     orderId: eventId,
