@@ -113,7 +113,7 @@ export default function AuthCard() {
         <div className="pt-4">
           <p className="text-xs text-center text-muted-foreground">
             {t('noAccount')}{' '}
-            <a href="https://chat.never-economy-again.com" className="text-foreground hover:underline" target="_blank">
+            <a href="https://webinar.never-economy-again.com/evergreen-nea-3-0" className="text-foreground hover:underline" target="_blank" rel="noopener noreferrer">
               {t('buyNow')}
             </a>
           </p>
