@@ -40,6 +40,7 @@ export async function processWebhookEvent(
   const eventType = payload.event;
   const orderId = String(payload.order_id || '');
   const eventId = payload.event_id ? String(payload.event_id) : null;
+  const myloProductId = Number(thrivecartConfig.productId);
 
   if (!email) {
     return { success: false, action: 'rejected', error: 'No customer email in payload' };
@@ -56,6 +57,25 @@ export async function processWebhookEvent(
       console.log(`[ThriveCart] Duplicate event ${eventId} skipped`);
       return { success: true, action: 'skipped_duplicate' };
     }
+  }
+
+  if (isProductScopedEvent(eventType) && !isProductPurchase(payload, myloProductId)) {
+    const result = { success: true, action: 'skipped_non_mylo_product' };
+
+    await db.insert(thrivecartWebhookLog).values({
+      id: generateId(),
+      eventType,
+      eventId,
+      orderId,
+      customerEmail: email,
+      payload: payload as unknown as Record<string, unknown>,
+      processedAt: new Date(),
+      result: 'success',
+      action: result.action,
+      errorMessage: null,
+    });
+
+    return result;
   }
 
   let result: WebhookProcessingResult;
@@ -109,6 +129,18 @@ export async function processWebhookEvent(
 }
 
 // --- Event Handlers ---
+
+function isProductScopedEvent(eventType: ThriveCartWebhookPayload['event']): boolean {
+  return [
+    'order.success',
+    'order.subscription_payment',
+    'order.subscription_cancelled',
+    'order.refund',
+    'order.rebill_failed',
+    'order.subscription_paused',
+    'order.subscription_resumed',
+  ].includes(eventType);
+}
 
 /**
  * Exported for reprocess scripts that need to skip idempotency checks.
