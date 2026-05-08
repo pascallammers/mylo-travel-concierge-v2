@@ -1011,7 +1011,11 @@ export async function recordToolCall(params: {
 
     return { id: result.id, dedupeKey };
   } catch (error) {
-    throw new ChatSDKError('bad_request:database', 'Failed to record tool call');
+    console.error('[recordToolCall] insert failed:', error);
+    throw new ChatSDKError(
+      'bad_request:database',
+      error instanceof Error ? error.message : String(error),
+    );
   }
 }
 
@@ -1045,7 +1049,11 @@ export async function updateToolCall(
       .set(updateData)
       .where(eq(toolCalls.id, id));
   } catch (error) {
-    throw new ChatSDKError('bad_request:database', 'Failed to update tool call');
+    console.error('[updateToolCall] update failed:', error);
+    throw new ChatSDKError(
+      'bad_request:database',
+      error instanceof Error ? error.message : String(error),
+    );
   }
 }
 

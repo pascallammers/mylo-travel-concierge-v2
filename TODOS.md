@@ -6,9 +6,37 @@ Status legend: `[OPEN]` not started · `[WIP]` in progress · `[DONE]` shipped �
 
 ---
 
-## 1. [OPEN] `tool_calls` Tabelle Tracking-Bug debuggen
+## 1. [WIP] `tool_calls` Tabelle Tracking-Bug debuggen
 
-**What:** Investigate why `tool_calls` table has 0 rows in 30 days while `message.parts` shows 762+ tool invocations. Either fix tracking or deprecate the table.
+**Status (2026-04-29):** Root cause identifiziert + Fix angewendet (uncommitted local edits). Verification durch lokales `pnpm dev` + Tool-Call ausstehend.
+
+**Root cause (verified):**
+- Issue A: `recordToolCall` wird NUR in `lib/tools/flight-search.ts` aufgerufen. Die 8 anderen AI-SDK-Tools (cppCalculator, sweetSpotLookup, transferPartnerOptimizer, kiwi, skiplagged, trivago, ferryhopper, knowledge_base) haben keinen Code-Pfad zu tool_calls.
+- Issue B (hypothesis): Selbst flight-search.ts schreibt vermutlich nicht — outer try/catch in flight-search.ts:178-181 schluckt DB-Errors als `console.warn` mit der ChatSDKError.message (die NICHT die echte cause enthält). Echter DB-Fehler unklar bis zum nächsten Run mit der erweiterten Error-Preservation.
+
+**Fix angewendet (lokal, uncommitted):**
+- `lib/db/queries.ts`: `recordToolCall` + `updateToolCall` catch-block preserves original error message via ChatSDKError.cause + logs via console.error.
+- `app/api/search/route.ts:695`: `onStepFinish` Hook erweitert — persistiert ALLE tool calls aus `event.toolCalls` + `event.toolResults` per Step. Single source of truth, idempotent via dedupeKey. flight-search.ts custom recordToolCall bleibt unverändert (dedupe verhindert double-insert).
+
+**Verification (Pascal lokal):**
+1. `pnpm dev` starten, ein Tool triggern (z.B. cpp_calculator via Chat-Frage).
+2. Console-Output prüfen — wenn Issue B war "DB-error", sehen wir jetzt den echten Stack-Trace via `[recordToolCall] insert failed:`. Wenn Issue A war "no insertion path", sehen wir Insertions ohne Fehler.
+3. SQL: `SELECT tool_name, COUNT(*) FROM tool_calls WHERE created_at >= NOW() - INTERVAL '1 hour' GROUP BY tool_name;` — sollte > 0 rows liefern.
+4. Wenn rows da: Phase-Gate-1 Validation (TODO 15) kann mit Q0a über tool_calls als saubere Source laufen.
+5. Wenn rows fehlen + Stack-Trace zeigt DB-Issue: gezielter zweiter Fix-Pass nötig.
+
+**Followups (separate TODOs falls Verification erfolgreich):**
+- Backfill historische tool-calls aus `message.parts` JSON via einmaliges Migration-Script (lese parts[].type='tool-call', insert in tool_calls). Erlaubt Phase-1-Validation auch über die letzten 30 Tage rückwirkend.
+- `lib/tools/flight-search.ts` recordToolCall-Block kann optional entfernt werden weil onStepFinish jetzt zentral macht. Aktuell harmless durch dedupe.
+- `lib/db/queries/tool-calls.test.ts` ist stale (alte Signatur mit `parameters` + `status:'pending'`). Refresh oder löschen.
+
+**Why:** KPI dashboard depends on per-tool latency/error data. Phase-Gate measurements fall back to `message.parts` JSON-filtering today — works but fragile (parts schema can change). Forensic debugging of failed tool runs is impossible without `tool_calls`.
+
+**Pros:** Granular status/latency/error logs, durable Phase-Gate source, KPI dashboard accuracy.
+
+**Cons:** ~½–1 day debug time without immediate Phase-1 ROI.
+
+**Context:** Schema at `lib/db/schema.ts:358`. Insert call site needs to be traced (likely in `app/api/search/route.ts` tool-execution path or AI SDK middleware). 30-day query: `SELECT COUNT(*) FROM tool_calls WHERE created_at >= NOW() - INTERVAL '30 days'` returns 0.
 
 **Why:** KPI dashboard depends on per-tool latency/error data. Phase-Gate measurements fall back to `message.parts` JSON-filtering today — works but fragile (parts schema can change). Forensic debugging of failed tool runs is impossible without `tool_calls`.
 
@@ -244,3 +272,43 @@ Status legend: `[OPEN]` not started · `[WIP]` in progress · `[DONE]` shipped �
 **Context:** Diskrepanzen-Tabelle in `lib/data/borski-toolkit-adapter/CROSS-CHECK.md`. Re-Run Script: `npx tsx lib/data/borski-toolkit-adapter/_scripts/cross-check.mts`.
 
 **Depends on / blocked by:** Nichts. Standalone, aber 🔴 Aeromexico vor Phase-1-Ship klären (sonst falsche Empfehlungen für US-User).
+
+---
+
+## 15. [OPEN] Phase-1-Award-Engine Validation ausführen (CEO-Plan-blockierend)
+
+**What:** Phase-Gate-1-Validation als Vorbedingung jeglicher Pipeline-Erweiterung ausführen. 6 SQL-Queries (Q0a Schema-Verify tool_calls, Q0b Schema-Verify message.parts, Q1 distinct paying users mit Award-Tool-Use 14d, Q2 Counter-Beweis Award-Fragen ohne Tool-Call, Q3 Tool-Failure-Rate, Q5 Cancel-Rate-Baseline) + 5 manuelle Quality-Spot-Check-Konversationen. Decision per 3-Bucket-Tree (PASS/ITERATE/FAIL) mit 2-Iteration-Stop-Loss (4 Wochen max).
+
+**Why:** /plan-ceo-review (2026-04-29) hat Pascal's Pipeline-Erweiterungs-Plan auf Premise-Inversion zurückgewiesen: das echte Problem ist Akquise-Tod + unvalidated Phase-1, nicht Pipeline-Tiefe. Cross-Model-Konsens (Claude + Codex). Bevor Multi-Source-Cash + Hybrid-Score gebaut werden, muss Phase-Gate-1 (5 distinct paying users + Award-Tool-Use + 4/5 Quality-Spot-Check) empirisch validiert sein. Sonst bauen wir auf nicht-validiertem Foundation.
+
+**Pros:** Validiert die 28%-Punkte-Premise empirisch (oder widerlegt sie). Liefert Cancel-Rate-Baseline für spätere Retention-Messung. Catches Tracking-Bugs (TODO #1) bevor sie in Phase 2 weiterproblematisch werden. Time-to-Decision: 1-2 Tage Datenanalyse + Decision-Sitting.
+
+**Cons:** Pascal will lieber "bauen" als "messen". Disziplin-Anforderung gegen Founder-Bauch-Gefuehl. Wenn Tracking global kaputt: zusätzlicher Tracking-Bug-Fix-Detour (TODO #1).
+
+**Context:** Vollständiger Plan in `~/.gstack/projects/pascallammers-mylo-travel-concierge-v2/ceo-plans/2026-04-29-flight-deals-phase-1-validation.md`. Stop-Loss: nach 2 ITERATE-Cycles ohne PASS → /office-hours zur Strategy-Re-Evaluation.
+
+**Effort:** S (human ~1-2 Tage, davon SQL ~30min + Quality-Spot-Check ~1h + Decision-Sitting ~30min / CC: ~30-60min Query-Drafting wenn Schema-Annahmen verifiziert)
+
+**Priority:** P1 — blockiert TODO 16 + alle Pipeline-Erweiterungen aus dem Eng-Review-Deferred-Memo.
+
+**Depends on / blocked by:** TODO 1 (`tool_calls` Tracking-Bug) — wenn Q0a leer und Q0b auch leer, muss Tracking erst gefixt werden bevor Validation Sinn macht.
+
+---
+
+## 16. [BLOCKED] Eng-Review reopen mit reduziertem Scope (nach Phase-Gate-1 PASS)
+
+**What:** Wenn TODO 15 in PASS-Bucket landet: /plan-eng-review reopen für die nächste Phase. Reduzierter Scope basierend auf Codex-Verdict: Kiwi-only (kein Skiplagged), JSONB metadata (statt 4 columns), zScore + hybridBonus only (statt 5-Signal), Cron-Budget-Spike vorher messen.
+
+**Why:** Eng-Review wurde 2026-04-28 mit Status DEFERRED beendet, weil Plan-Drift gegen APPROVED Design Doc + Codex Outside-Voice rote Blocker geflagged hat. Investiertes Material (11 Decisions, Test-Plan, Cross-Model-Tensions) ist konserviert in Deferred-Memo. Nach Phase-Gate-1 PASS und natürlichem Ansatz-D-Flip (Public-Rollout) wird die Multi-Source-Decision empirisch begründbar.
+
+**Pros:** Investierte Eng-Review-Decisions gehen nicht verloren. Reduzierter Scope ist ehrlicher MVP-Phase-2. Klar dokumentierter Re-Entry-Point statt Eng-Review-Material zu verlieren.
+
+**Cons:** Conditional TODO — wenn Phase-Gate-1 FAIL, wird das nie ausgeführt und kann archiviert werden.
+
+**Context:** Eng-Review-Deferred-Memo: `~/.gstack/projects/pascallammers-mylo-travel-concierge-v2/pascallammers-feature-flightdeals-apify-eng-review-deferred-20260428-234456.md`. Codex-Verdict in selben Memo zitiert.
+
+**Effort:** M (human ~3-5 Tage Eng-Review + ~3-5 Tage Build / CC: ~15-20min Eng-Review + ~3-4h Build)
+
+**Priority:** P2 — conditional auf TODO 15 PASS.
+
+**Depends on / blocked by:** TODO 15 (Phase-1-Validation Decision = PASS). Wenn FAIL oder ITERATE-loop-aborted: dieser TODO wird in [DONE-as-skipped] verschoben.

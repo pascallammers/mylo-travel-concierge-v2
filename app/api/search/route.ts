@@ -33,6 +33,8 @@ import {
   saveMessages,
   incrementExtremeSearchUsage,
   incrementMessageUsage,
+  recordToolCall,
+  updateToolCall,
   updateChatTitleById,
 } from '@/lib/db/queries';
 import { ChatSDKError } from '@/lib/errors';
@@ -692,9 +694,39 @@ export async function POST(req: Request) {
             console.log('Called Tool: ', event.chunk.toolName);
           }
         },
-        onStepFinish(event) {
+        onStepFinish: async (event) => {
           if (event.warnings) {
             console.log('Warnings: ', event.warnings);
+          }
+
+          if (event.toolCalls && event.toolCalls.length > 0 && id) {
+            await Promise.allSettled(
+              event.toolCalls.map(async (toolCall) => {
+                try {
+                  const recorded = await recordToolCall({
+                    chatId: id,
+                    toolName: toolCall.toolName,
+                    request: toolCall.input as unknown,
+                  });
+                  const matchingResult = event.toolResults?.find(
+                    (tr) => tr.toolCallId === toolCall.toolCallId,
+                  );
+                  await updateToolCall(recorded.id, {
+                    status: matchingResult ? 'succeeded' : 'failed',
+                    response: matchingResult?.output as unknown,
+                    error: matchingResult ? undefined : 'no tool result returned',
+                    startedAt: new Date(),
+                    finishedAt: new Date(),
+                  });
+                } catch (error) {
+                  console.warn(
+                    '[onStepFinish] tool_calls persistence failed for',
+                    toolCall.toolName,
+                    error instanceof Error ? error.message : error,
+                  );
+                }
+              }),
+            );
           }
         },
         onFinish: async (event) => {
