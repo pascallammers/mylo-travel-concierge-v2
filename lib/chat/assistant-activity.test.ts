@@ -45,8 +45,9 @@ describe('assistant activity indicator rules', () => {
     assert.strictEqual(shouldShowFlightSearchOutputActivity('streaming', parts, 1), false);
   });
 
-  it('only lets step-start show dots when no later progress part exists', () => {
+  it('keeps step-start dots active while tool work is running but assistant text is missing', () => {
     assert.strictEqual(shouldShowStepStartActivity('streaming', [stepStart], 0), true);
-    assert.strictEqual(shouldShowStepStartActivity('streaming', [stepStart, flightInput], 0), false);
+    assert.strictEqual(shouldShowStepStartActivity('streaming', [stepStart, flightInput], 0), true);
+    assert.strictEqual(shouldShowStepStartActivity('streaming', [stepStart, flightOutput, visibleText], 0), false);
   });
 });

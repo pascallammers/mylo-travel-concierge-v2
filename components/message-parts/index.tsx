@@ -293,6 +293,16 @@ const AssistantActivityIndicator = ({ showLogo }: { showLogo: boolean }) => (
   </>
 );
 
+const renderAssistantActivityIfUnowned = (parts: ChatMessage['parts'], partIndex: number) => {
+  const showLogo = shouldRenderAssistantActivityLogo(parts, partIndex);
+
+  if (!showLogo) {
+    return null;
+  }
+
+  return <AssistantActivityIndicator showLogo={showLogo} />;
+};
+
 // Error component for tool errors
 const ToolErrorDisplay = ({ errorText, toolName }: { errorText: string; toolName: string }) => (
   <div className="w-full my-4 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950">
@@ -2132,13 +2142,13 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
               case 'input-streaming':
                 return (
                   <React.Fragment key={`${messageIndex}-${partIndex}`}>
-                    <AssistantActivityIndicator showLogo={shouldRenderAssistantActivityLogo(parts, partIndex)} />
+                    {renderAssistantActivityIfUnowned(parts, partIndex)}
                   </React.Fragment>
                 );
               case 'input-available':
                 return (
                   <React.Fragment key={`${messageIndex}-${partIndex}`}>
-                    <AssistantActivityIndicator showLogo={shouldRenderAssistantActivityLogo(parts, partIndex)} />
+                    {renderAssistantActivityIfUnowned(parts, partIndex)}
                   </React.Fragment>
                 );
               case 'output-available':
@@ -2223,7 +2233,7 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
                 if (shouldShowFlightSearchOutputActivity(status, parts, partIndex)) {
                   return (
                     <React.Fragment key={`${messageIndex}-${partIndex}`}>
-                      <AssistantActivityIndicator showLogo={shouldRenderAssistantActivityLogo(parts, partIndex)} />
+                      {renderAssistantActivityIfUnowned(parts, partIndex)}
                     </React.Fragment>
                   );
                 }

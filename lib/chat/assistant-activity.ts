@@ -10,12 +10,6 @@ function hasStepStartBefore(parts: readonly MessagePart[], partIndex: number): b
   return parts.slice(0, partIndex).some((part) => part.type === 'step-start');
 }
 
-function hasProgressPartAfter(parts: readonly MessagePart[], partIndex: number): boolean {
-  return parts
-    .slice(partIndex + 1)
-    .some((part) => part.type === 'reasoning' || part.type.startsWith('tool-') || isNonEmptyTextPart(part));
-}
-
 function hasNonEmptyTextAfter(parts: readonly MessagePart[], partIndex: number): boolean {
   return parts.slice(partIndex + 1).some(isNonEmptyTextPart);
 }
@@ -32,7 +26,7 @@ export function shouldRenderAssistantActivityLogo(parts: readonly MessagePart[],
 }
 
 /**
- * Keeps the step-start indicator active until a real progress part appears.
+ * Keeps the step-start indicator active until assistant text appears.
  *
  * @param status - Current chat stream status.
  * @param parts - Parts in the current assistant message.
@@ -44,7 +38,7 @@ export function shouldShowStepStartActivity(
   parts: readonly MessagePart[],
   partIndex: number,
 ): boolean {
-  return status === 'streaming' && !hasProgressPartAfter(parts, partIndex);
+  return status === 'streaming' && !hasNonEmptyTextAfter(parts, partIndex);
 }
 
 /**
