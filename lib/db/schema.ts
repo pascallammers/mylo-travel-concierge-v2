@@ -93,6 +93,7 @@ export const message = pgTable('message', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   model: text('model'),
   inputTokens: integer('input_tokens'),
+  cachedInputTokens: integer('cached_input_tokens'),
   outputTokens: integer('output_tokens'),
   totalTokens: integer('total_tokens'),
   completionTime: real('completion_time'),

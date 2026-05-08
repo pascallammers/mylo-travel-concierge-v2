@@ -102,6 +102,7 @@ export const messageMetadataSchema = z.object({
   model: z.string(),
   completionTime: z.number().nullable(),
   inputTokens: z.number().nullable(),
+  cachedInputTokens: z.number().nullable(),
   outputTokens: z.number().nullable(),
   totalTokens: z.number().nullable(),
 });

@@ -21,6 +21,8 @@ import {
   Repeat,
   AlertTriangle,
   BarChart3,
+  Bot,
+  Activity,
 } from 'lucide-react';
 
 type DateRange = 'this_month' | 'last_month' | 'this_year' | 'last_year' | 'all_time';
@@ -64,6 +66,15 @@ interface KPIData {
     refunds: number;
     refundAmount: number;
     paymentSuccessRate: number;
+  };
+  aiUsage: {
+    totalTokens: number;
+    inputTokens: number;
+    cachedInputTokens: number;
+    outputTokens: number;
+    totalCostUsd: number;
+    previousPeriodCostUsd: number;
+    activeUsers: number;
   };
   growth: {
     monthlyRevenue: Array<{ month: string; revenue: number; subscribers: number }>;
@@ -169,6 +180,15 @@ export default function KPIDashboard() {
       currency: 'EUR',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const formatUsd = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(amount);
   };
 
@@ -330,6 +350,58 @@ export default function KPIDashboard() {
                 description="Customer Lifetime Value"
                 icon={TrendingUp}
                 iconClassName="text-violet-500"
+                delay={300}
+              />
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* AI Usage KPIs */}
+      <div>
+        <h2 className="mb-4 font-['Playfair_Display'] text-2xl font-semibold tracking-tight">
+          AI-Nutzung
+        </h2>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {loading ? (
+            [...Array(4)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="pb-2"><Skeleton className="h-4 w-24" /></CardHeader>
+                <CardContent><Skeleton className="h-8 w-16" /></CardContent>
+              </Card>
+            ))
+          ) : data && (
+            <>
+              <StatsCard
+                title="Tokens"
+                value={data.aiUsage.totalTokens.toLocaleString('de-DE')}
+                description={`${data.aiUsage.activeUsers} aktive Nutzer`}
+                icon={Bot}
+                iconClassName="text-blue-500"
+                delay={0}
+              />
+              <StatsCard
+                title="Input Tokens"
+                value={data.aiUsage.inputTokens.toLocaleString('de-DE')}
+                description={`${data.aiUsage.cachedInputTokens.toLocaleString('de-DE')} cached`}
+                icon={Activity}
+                iconClassName="text-violet-500"
+                delay={100}
+              />
+              <StatsCard
+                title="Output Tokens"
+                value={data.aiUsage.outputTokens.toLocaleString('de-DE')}
+                description="Antwort-Tokens im Zeitraum"
+                icon={BarChart3}
+                iconClassName="text-orange-500"
+                delay={200}
+              />
+              <StatsCard
+                title="AI-Kosten"
+                value={formatUsd(data.aiUsage.totalCostUsd)}
+                description={previousPeriodLabel ? `${previousPeriodLabel}: ${formatUsd(data.aiUsage.previousPeriodCostUsd)}` : DATE_RANGE_LABELS[dateRange]}
+                icon={DollarSign}
+                iconClassName="text-emerald-500"
                 delay={300}
               />
             </>

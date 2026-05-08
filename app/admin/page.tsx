@@ -20,7 +20,12 @@ interface Stats {
 interface TokenAnalytics {
   totalTokens: number;
   totalCost: number;
-  topUsers: Array<{ email: string; tokens: number }>;
+  totalCostUsd: number;
+  estimatedRevenueEur: number;
+  estimatedProfitEur: number;
+  cachedInputTokens: number;
+  trackedUsers: number;
+  topUsers: Array<{ email: string; tokens: number; costUsd: number }>;
 }
 
 interface ActivityAnalytics {
@@ -193,15 +198,15 @@ export default function AdminDashboard() {
                 />
                 <StatsCard
                   title="Costs (30 Days)"
-                  value={`$${tokenAnalytics.totalCost.toFixed(2)}`}
-                  description="Aggregierte API-Kosten"
+                  value={`$${tokenAnalytics.totalCostUsd.toFixed(2)}`}
+                  description="Grok 4.3 API-Kosten"
                   icon={HardDrive}
                   delay={200}
                 />
                 <StatsCard
-                  title="Ø Interactions"
-                  value={activityAnalytics.avgInteractionsPerUser}
-                  description="pro aktivem Nutzer / 30 Tage"
+                  title="Profit Estimate"
+                  value={`€${tokenAnalytics.estimatedProfitEur.toFixed(2)}`}
+                  description={`${tokenAnalytics.trackedUsers} Nutzer mit Verbrauch`}
                   icon={Activity}
                   delay={300}
                 />

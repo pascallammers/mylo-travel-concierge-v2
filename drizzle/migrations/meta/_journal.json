@@ -134,6 +134,13 @@
       "when": 1778157553137,
       "tag": "0018_add_action_to_webhook_log",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1778236800000,
+      "tag": "0019_add_cached_input_tokens",
+      "breakpoints": true
     }
   ]
 }
