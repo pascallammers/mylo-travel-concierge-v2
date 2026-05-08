@@ -46,15 +46,55 @@ function withAwardWalletProxy(init: RequestInit): RequestInit {
 
 /**
  * Classifies an upstream HTTP status into the appropriate ChatSDKError code.
- * Auth (401/403) and 5xx coming from the upstream API are NOT user-input
- * errors, so they must not be reported as `bad_request:api` (which renders
- * "check your input" to the end user). They are surfaced as
- * `service_unavailable:api` instead.
+ * Auth (401/403) and 5xx coming from the upstream API are generally NOT
+ * user-input errors, so they must not be reported as `bad_request:api` (which
+ * renders "check your input" to the end user). Entitlement failures with a
+ * stable AwardWallet error code are surfaced as access-denied instead.
  */
-function classifyUpstreamStatus(status: number): 'service_unavailable:api' | 'bad_request:api' {
+function classifyUpstreamStatus(
+  status: number,
+  awardWalletErrorCode?: string,
+): 'service_unavailable:api' | 'bad_request:api' | 'forbidden:api' {
+  if (awardWalletErrorCode === 'BUSINESS_ADMINS_REQUIRE_PLUS') return 'forbidden:api';
   if (status === 401 || status === 403) return 'service_unavailable:api';
   if (status >= 500) return 'service_unavailable:api';
   return 'bad_request:api';
+}
+
+interface AwardWalletErrorDetails {
+  code?: string;
+  message?: string;
+}
+
+function parseAwardWalletError(errorText: string): AwardWalletErrorDetails {
+  try {
+    const parsed: unknown = JSON.parse(errorText);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return {};
+    }
+
+    const payload = parsed as Record<string, unknown>;
+    return {
+      code: typeof payload.code === 'string' ? payload.code : undefined,
+      message: typeof payload.message === 'string' ? payload.message : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
+function createAwardWalletStatusError(status: number, errorText: string, fallbackMessage: string): ChatSDKError {
+  const awardWalletError = parseAwardWalletError(errorText);
+  const errorCode = classifyUpstreamStatus(status, awardWalletError.code);
+  const cause =
+    awardWalletError.code === 'BUSINESS_ADMINS_REQUIRE_PLUS'
+      ? (awardWalletError.message ??
+        'Access denied. All business account admins must have AwardWallet Plus to make this API call.')
+      : status === 401 || status === 403
+        ? `Upstream authentication failed (status ${status})`
+        : fallbackMessage;
+
+  return new ChatSDKError(errorCode, cause);
 }
 
 /**
@@ -133,10 +173,7 @@ export async function createAuthUrl(): Promise<string> {
 
     let response: Response;
     try {
-      response = await fetch(
-        `${AWARDWALLET_BASE_URL}/create-auth-url`,
-        withAwardWalletProxy(fetchOptions),
-      );
+      response = await fetch(`${AWARDWALLET_BASE_URL}/create-auth-url`, withAwardWalletProxy(fetchOptions));
     } catch (fetchError) {
       // If a proxy is configured, ALL outbound calls MUST go through it
       // (AwardWallet enforces an IP allowlist). A proxy-fetch failure must
@@ -156,12 +193,7 @@ export async function createAuthUrl(): Promise<string> {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('[AwardWallet] Failed to create auth URL:', response.status, errorText);
-      throw new ChatSDKError(
-        classifyUpstreamStatus(response.status),
-        response.status === 401 || response.status === 403
-          ? `Upstream authentication failed (status ${response.status})`
-          : `AwardWallet API error: ${response.status}`,
-      );
+      throw createAwardWalletStatusError(response.status, errorText, `AwardWallet API error: ${response.status}`);
     }
 
     const data = await response.json();
@@ -223,12 +255,7 @@ export async function getConnectionInfo(code: string): Promise<AWConnectionInfo>
       if (response.status === 400 || response.status === 404) {
         throw new ChatSDKError('bad_request:api', 'Invalid or expired authorization code');
       }
-      throw new ChatSDKError(
-        classifyUpstreamStatus(response.status),
-        response.status === 401 || response.status === 403
-          ? `Upstream authentication failed (status ${response.status})`
-          : `AwardWallet API error: ${response.status}`,
-      );
+      throw createAwardWalletStatusError(response.status, errorText, `AwardWallet API error: ${response.status}`);
     }
 
     const data = await response.json();
@@ -273,11 +300,10 @@ export async function getConnectedUser(awUserId: string): Promise<AWLoyaltyAccou
     if (!response.ok) {
       const errorText = await response.text();
       console.error('[AwardWallet] Failed to get connected user:', response.status, errorText);
-      throw new ChatSDKError(
-        classifyUpstreamStatus(response.status),
-        response.status === 401 || response.status === 403
-          ? `Upstream authentication failed (status ${response.status})`
-          : `Failed to fetch loyalty accounts: status ${response.status}`,
+      throw createAwardWalletStatusError(
+        response.status,
+        errorText,
+        `Failed to fetch loyalty accounts: status ${response.status}`,
       );
     }
 

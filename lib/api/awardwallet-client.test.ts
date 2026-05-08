@@ -255,6 +255,32 @@ describe('AwardWallet Client', () => {
       );
     });
 
+    it('getConnectedUser: BUSINESS_ADMINS_REQUIRE_PLUS becomes forbidden:api', async () => {
+      global.fetch = mock.fn(async () => ({
+        ok: false,
+        status: 403,
+        text: async () =>
+          JSON.stringify({
+            error: 'access_denied',
+            code: 'BUSINESS_ADMINS_REQUIRE_PLUS',
+            message: 'Access denied. All business account admins must have AwardWallet Plus to make this API call',
+          }),
+      })) as any;
+
+      await assert.rejects(
+        async () => {
+          await getConnectedUser('aw-user-123');
+        },
+        (err: unknown) => {
+          assert.ok(err instanceof ChatSDKError);
+          assert.strictEqual(err.type, 'forbidden');
+          assert.strictEqual(err.statusCode, 403);
+          assert.match(String(err.cause), /AwardWallet Plus/);
+          return true;
+        },
+      );
+    });
+
     it('getConnectedUser: network error becomes service_unavailable:api', async () => {
       global.fetch = mock.fn(async () => {
         throw new Error('socket hang up');
@@ -323,11 +349,7 @@ describe('AwardWallet Client', () => {
 
       const second = __getProxyDispatcherForTests();
       assert.ok(second, 'expected rebuilt dispatcher');
-      assert.notStrictEqual(
-        first,
-        second,
-        'dispatcher must be rebuilt when proxy URL changes',
-      );
+      assert.notStrictEqual(first, second, 'dispatcher must be rebuilt when proxy URL changes');
 
       const cache = __getAwardWalletDispatcherCacheForTests();
       assert.strictEqual(cache?.url, 'http://proxy-b.local:9293');

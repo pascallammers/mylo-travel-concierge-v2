@@ -43,9 +43,26 @@ interface AccountsResponse {
   accounts: LoyaltyAccount[];
 }
 
+interface ApiErrorResponse {
+  message?: unknown;
+  cause?: unknown;
+}
+
 interface LoyaltyProgramsListProps {
   onDisconnected?: () => void;
   className?: string;
+}
+
+function getApiErrorMessage(payload: ApiErrorResponse, fallback: string): string {
+  if (typeof payload.cause === 'string' && payload.cause.length > 0) {
+    return payload.cause;
+  }
+
+  if (typeof payload.message === 'string' && payload.message.length > 0) {
+    return payload.message;
+  }
+
+  return fallback;
 }
 
 /**
@@ -94,7 +111,7 @@ export function LoyaltyProgramsList({ onDisconnected, className }: LoyaltyProgra
       const res = await fetch('/api/awardwallet/accounts');
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || t('loadError'));
+        throw new Error(getApiErrorMessage(err, t('loadError')));
       }
       return res.json();
     },
@@ -107,7 +124,7 @@ export function LoyaltyProgramsList({ onDisconnected, className }: LoyaltyProgra
       const res = await fetch('/api/awardwallet/sync', { method: 'POST' });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || t('syncFailed'));
+        throw new Error(getApiErrorMessage(err, t('syncFailed')));
       }
       return res.json();
     },
@@ -125,7 +142,7 @@ export function LoyaltyProgramsList({ onDisconnected, className }: LoyaltyProgra
       const res = await fetch('/api/awardwallet/disconnect', { method: 'POST' });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || t('disconnectError'));
+        throw new Error(getApiErrorMessage(err, t('disconnectError')));
       }
       return res.json();
     },

@@ -6,12 +6,25 @@ import {
   syncLoyaltyAccounts,
   updateConnectionStatus,
 } from '@/lib/db/queries/awardwallet';
+import { ChatSDKError } from '@/lib/errors';
 
 interface SyncResult {
   userId: string;
   status: 'success' | 'failed';
   accountCount?: number;
   error?: string;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof ChatSDKError && typeof error.cause === 'string') {
+    return error.cause;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return 'Unknown error';
 }
 
 /**
@@ -64,7 +77,7 @@ export async function POST(request: NextRequest) {
 
         console.log(`[AwardWallet Cron] Synced user ${connection.userId}: ${accountCount} accounts`);
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        const errorMessage = getErrorMessage(error);
 
         // Keep status='error', refresh errorMessage. No retry counter exists
         // in the schema yet — see TODO in lib/db/queries/awardwallet.ts.

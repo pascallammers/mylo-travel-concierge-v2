@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Redis } from '@upstash/redis';
 import { auth } from '@/lib/auth';
 import { getConnectedUser } from '@/lib/api/awardwallet-client';
-import { getConnection, syncLoyaltyAccounts } from '@/lib/db/queries/awardwallet';
+import { getConnection, syncLoyaltyAccounts, updateConnectionStatus } from '@/lib/db/queries/awardwallet';
 import { ChatSDKError } from '@/lib/errors';
 import { serverEnv } from '@/env/server';
 
@@ -13,11 +13,25 @@ const redis = new Redis({
 
 const RATE_LIMIT_SECONDS = 5 * 60; // 5 minutes
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof ChatSDKError && typeof error.cause === 'string') {
+    return error.cause;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return 'Unknown error';
+}
+
 /**
  * POST /api/awardwallet/sync
  * Triggers manual sync of loyalty accounts with rate limiting
  */
 export async function POST(request: NextRequest) {
+  let connectionId: string | null = null;
+
   try {
     const session = await auth.api.getSession({
       headers: request.headers,
@@ -46,6 +60,7 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+    connectionId = connection.id;
 
     // Rate limiting check (read-only — the rate-limit budget is only consumed
     // on a successful upstream + DB sync; failed syncs must not lock the user
@@ -76,6 +91,7 @@ export async function POST(request: NextRequest) {
 
     // Update database (may throw — rate limit NOT yet set)
     const accountCount = await syncLoyaltyAccounts(connection.id, accounts);
+    await updateConnectionStatus(connection.id, 'connected');
 
     // Only after a successful sync do we consume the rate-limit budget.
     // Errors above propagate to the catch block below without locking the user out.
@@ -91,6 +107,14 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('[AwardWallet] Sync error:', error);
+
+    if (connectionId) {
+      try {
+        await updateConnectionStatus(connectionId, 'error', getErrorMessage(error));
+      } catch (statusError) {
+        console.error('[AwardWallet] Failed to persist sync error state:', statusError);
+      }
+    }
 
     if (error instanceof ChatSDKError) {
       return error.toResponse();
