@@ -118,11 +118,6 @@ export async function generateTitleFromUserMessage({ message }: { message: UIMes
     - do not write anything other than the title
     - do not use quotes or colons`,
     prompt: JSON.stringify(message),
-    providerOptions: {
-      groq: {
-        service_tier: 'flex',
-      },
-    },
   });
 
   return title;

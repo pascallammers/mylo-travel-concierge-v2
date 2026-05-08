@@ -2,6 +2,7 @@ import { webSearchTool } from '@/lib/tools';
 import { xSearchTool } from '@/lib/tools/x-search';
 import { convertToModelMessages, generateText, stepCountIs } from 'ai';
 import { languageModel } from '@/ai/providers';
+import { getStreamPolicy } from '@/ai/failover';
 
 export const maxDuration = 800;
 
@@ -75,8 +76,10 @@ export async function POST(req: Request) {
         ? ['web_search' as const]
         : ['web_search' as const, 'x_search' as const];
 
+  const chatPolicy = getStreamPolicy('chat');
   const { text, steps } = await generateText({
     model: languageModel,
+    ...(chatPolicy && { providerOptions: { gateway: chatPolicy } }),
     system: systemPrompt,
     stopWhen: stepCountIs(2),
     messages: convertToModelMessages(messages),

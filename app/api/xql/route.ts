@@ -16,6 +16,7 @@ import { ChatSDKError } from '@/lib/errors';
 
 import { markdownJoinerTransform } from '@/lib/parser';
 import { languageModel } from '@/ai/providers';
+import { getStreamPolicy } from '@/ai/failover';
 
 import { z } from 'zod';
 
@@ -66,8 +67,10 @@ const xqlTool = tool({
 
         // Note: X search parameters removed as GPT-5 doesn't support xAI-specific features
         // This tool would need to be refactored to use a different X search API
+        const xqlPolicy = getStreamPolicy('chat');
         const result = await generateText({
             model: languageModel,
+            ...(xqlPolicy && { providerOptions: { gateway: xqlPolicy } }),
             prompt: `Search X/Twitter for: ${query}`,
             maxOutputTokens: 10,
         });
@@ -105,8 +108,10 @@ export async function POST(req: Request) {
         }
     }
 
+    const chatPolicy = getStreamPolicy('chat');
     const result = streamText({
         model: languageModel,
+        ...(chatPolicy && { providerOptions: { gateway: chatPolicy } }),
         messages: convertToModelMessages(messages),
         stopWhen: hasToolCall('xql'),
         onAbort: ({ steps }) => {

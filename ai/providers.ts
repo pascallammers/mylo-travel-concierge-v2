@@ -1,9 +1,4 @@
-import { createXai } from '@ai-sdk/xai';
-
-const xaiClient = createXai({
-  apiKey: process.env.XAI_API_KEY,
-  baseURL: 'https://api.x.ai/v1',
-});
+import { gateway } from '@ai-sdk/gateway';
 
 export type AIModelDefinition = {
   value: string;
@@ -21,10 +16,15 @@ export type AIModelDefinition = {
   requiresAuth?: boolean;
 };
 
+// `name` is the analytics/DB identifier persisted to messages.model and filtered
+// in app/api/admin/analytics/tokens/route.ts. `gatewaySlug` is the Vercel AI
+// Gateway routing slug (provider/model). Keeping them separate avoids breaking
+// existing analytics queries when the gateway prefix changes.
 const MODELS = {
   xai: {
-    name: 'grok-4-fast-reasoning',
-    displayName: 'Grok 4 Fast',
+    name: 'grok-4.3',
+    gatewaySlug: 'xai/grok-4.3',
+    displayName: 'Grok 4.3',
     capabilities: {
       vision: true,
       reasoning: true,
@@ -36,22 +36,20 @@ const MODELS = {
 
 const activeConfig = MODELS.xai;
 
-export const languageModel = xaiClient(activeConfig.name);
+export const languageModel = gateway(activeConfig.gatewaySlug);
 export const DEFAULT_MODEL = activeConfig.name;
 export const MODEL_CAPABILITIES = activeConfig.capabilities;
 
-let _airportResolverModel: ReturnType<typeof xaiClient> | undefined;
+// Lightweight model for airport-code normalization. grok-3-mini is text-only
+// (fine for "Frankfurt" → "FRA") and ~75% cheaper than the flagship: $0.30/M
+// input vs $1.25/M, $0.50/M output vs $2.50/M.
+const AIRPORT_RESOLVER_GATEWAY_SLUG = 'xai/grok-3-mini';
 
-/**
- * Returns the lightweight xAI model used for airport normalization.
- *
- * @returns The lazily initialized airport resolver model.
- */
-export function getAirportResolverModel(): ReturnType<typeof xaiClient> {
+let _airportResolverModel: ReturnType<typeof gateway> | undefined;
+
+export function getAirportResolverModel(): ReturnType<typeof gateway> {
   if (!_airportResolverModel) {
-    _airportResolverModel = process.env.XAI_API_KEY
-      ? xaiClient('grok-4-1-fast-non-reasoning')
-      : (languageModel as ReturnType<typeof xaiClient>);
+    _airportResolverModel = gateway(AIRPORT_RESOLVER_GATEWAY_SLUG);
   }
   return _airportResolverModel;
 }
@@ -92,7 +90,7 @@ export function getAcceptedFileTypes(): string {
  * Returns the active model metadata for legacy consumers.
  *
  * @param _modelValue - Unused legacy argument.
- * @returns The active xAI model configuration.
+ * @returns The active model configuration.
  */
 export function getModelConfig(_modelValue?: string) {
   return {
@@ -131,5 +129,5 @@ export const models: AIModelDefinition[] = [
   },
 ];
 
-console.log('[AI Provider] Using xAI Grok 4 Fast');
+console.log('[AI Provider] Using Vercel AI Gateway → xai/grok-4.3 (primary)');
 console.log(`[AI Provider] Model: ${activeConfig.name}`);

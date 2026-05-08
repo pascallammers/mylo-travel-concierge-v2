@@ -26,6 +26,7 @@ import {
   requiresProSubscription,
   shouldBypassRateLimits,
 } from '@/ai/providers';
+import { getStreamPolicy } from '@/ai/failover';
 import {
   createStreamId,
   getChatById,
@@ -453,6 +454,7 @@ export async function POST(req: Request) {
                   createdAt: new Date(),
                   model: model,
                   inputTokens: 0,
+                  cachedInputTokens: 0,
                   outputTokens: 0,
                   totalTokens: 0,
                   completionTime: 0,
@@ -572,10 +574,12 @@ export async function POST(req: Request) {
         return filteredTools;
       };
 
+      const chatPolicy = getStreamPolicy('chat');
       const result = streamText({
         model: languageModel,
         messages: convertToModelMessages(messages),
         ...getModelParameters(),
+        ...(chatPolicy && { providerOptions: { gateway: chatPolicy } }),
         stopWhen: stepCountIs(5),
         onAbort: ({ steps }) => {
           console.log('Stream aborted after', steps.length, 'steps');
@@ -583,6 +587,11 @@ export async function POST(req: Request) {
         maxRetries: 10,
         activeTools: [...activeTools],
         experimental_transform: markdownJoinerTransform(),
+        // Per-request context for tools. AI SDK v5 reads this on each tool's
+        // execute(input, { experimental_context }). The previous chatId
+        // extraction via messages[0].chatId never worked — that property
+        // doesn't exist on conversation messages.
+        experimental_context: { chatId: id, userId: user?.id },
         system:
           instructions +
           (customInstructions && (isCustomInstructionsEnabled ?? true)
@@ -653,6 +662,7 @@ export async function POST(req: Request) {
           try {
             const textResult = await generateText({
               model: languageModel,
+              ...(chatPolicy && { providerOptions: { gateway: chatPolicy } }),
               experimental_output: Output.object({
                 schema: tool.inputSchema,
               }),
@@ -738,6 +748,7 @@ export async function POST(req: Request) {
           console.log('Message content: ', event.response.messages[event.response.messages.length - 1].content);
           console.log('Response: ', event.response);
           console.log('Provider metadata: ', event.providerMetadata);
+          console.log('[Gateway] routing:', event.providerMetadata?.gateway?.routing);
           console.log('Sources: ', event.sources);
           console.log('Usage: ', event.usage);
           console.log('Total Usage: ', event.totalUsage);
@@ -802,6 +813,7 @@ export async function POST(req: Request) {
                 createdAt: new Date().toISOString(),
                 totalTokens: part.totalUsage?.totalTokens ?? null,
                 inputTokens: part.totalUsage?.inputTokens ?? null,
+                cachedInputTokens: part.totalUsage?.cachedInputTokens ?? null,
                 outputTokens: part.totalUsage?.outputTokens ?? null,
               };
             }
@@ -832,6 +844,7 @@ export async function POST(req: Request) {
             model: model,
             completionTime: message.metadata?.completionTime ?? 0,
             inputTokens: message.metadata?.inputTokens ?? 0,
+            cachedInputTokens: message.metadata?.cachedInputTokens ?? 0,
             outputTokens: message.metadata?.outputTokens ?? 0,
             totalTokens: message.metadata?.totalTokens ?? 0,
           })),
