@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { StatsCard } from '@/components/admin/stats-card';
 import { TokenUsageChart } from '@/components/admin/token-usage-chart';
 import { ActivityChart } from '@/components/admin/activity-chart';
+import { FailoverCard, type FailoverAnalytics } from '@/components/admin/failover-card';
 import { Activity, Clock, DollarSign, TrendingUp, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -78,6 +79,7 @@ export default function AnalyticsPage() {
   const [range, setRange] = useState('30');
   const [tokenAnalytics, setTokenAnalytics] = useState<TokenAnalytics | null>(null);
   const [activityAnalytics, setActivityAnalytics] = useState<ActivityAnalytics | null>(null);
+  const [failoverAnalytics, setFailoverAnalytics] = useState<FailoverAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -88,9 +90,13 @@ export default function AnalyticsPage() {
         setError(null);
 
         const qs = `?days=${range}`;
-        const [tokensRes, activityRes] = await Promise.all([
+        // Failover endpoint is allowed to fail (e.g. before migration 0020 has
+        // run on this environment) without taking down the rest of the
+        // dashboard. tokens/activity remain hard requirements.
+        const [tokensRes, activityRes, failoverRes] = await Promise.all([
           fetch(`/api/admin/analytics/tokens${qs}`),
           fetch(`/api/admin/analytics/activity${qs}`),
+          fetch('/api/admin/analytics/failover').catch(() => null),
         ]);
 
         if (!tokensRes.ok || !activityRes.ok) {
@@ -102,8 +108,18 @@ export default function AnalyticsPage() {
           activityRes.json(),
         ]);
 
+        let failoverData: FailoverAnalytics | null = null;
+        if (failoverRes && failoverRes.ok) {
+          try {
+            failoverData = await failoverRes.json();
+          } catch {
+            failoverData = null;
+          }
+        }
+
         setTokenAnalytics(tokensData);
         setActivityAnalytics(activityData);
+        setFailoverAnalytics(failoverData);
       } catch (err) {
         console.error('Error fetching analytics:', err);
         setError(err instanceof Error ? err.message : 'Unknown error');
@@ -220,6 +236,8 @@ export default function AnalyticsPage() {
           )
         )}
       </div>
+
+      <FailoverCard data={failoverAnalytics} loading={loading} />
 
       {/* Charts */}
       <div className="grid gap-4 md:grid-cols-2">
