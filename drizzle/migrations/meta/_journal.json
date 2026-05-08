@@ -141,6 +141,13 @@
       "when": 1778236800000,
       "tag": "0019_add_cached_input_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1778241600000,
+      "tag": "0020_add_failover_events",
+      "breakpoints": true
     }
   ]
 }

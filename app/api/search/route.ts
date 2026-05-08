@@ -25,6 +25,7 @@ import {
   requiresAuthentication,
   requiresProSubscription,
   shouldBypassRateLimits,
+  DEFAULT_MODEL,
 } from '@/ai/providers';
 import { getStreamPolicy } from '@/ai/failover';
 import {
@@ -91,6 +92,7 @@ import {
   extractTextFromMessage,
   FLIGHT_TOOL_NAMES,
 } from '@/lib/chat/flight-intent-detector';
+import { persistFailoverMetadata, recordGatewayFailure } from '@/lib/observability/failover-recorder';
 
 let globalStreamContext: ResumableStreamContext | null = null;
 
@@ -753,6 +755,8 @@ export async function POST(req: Request) {
           console.log('Usage: ', event.usage);
           console.log('Total Usage: ', event.totalUsage);
 
+          after(() => persistFailoverMetadata(event.providerMetadata, user ? id : null));
+
           if (user?.id && event.finishReason === 'stop') {
             after(async () => {
               try {
@@ -790,6 +794,10 @@ export async function POST(req: Request) {
         },
         onError(event) {
           console.log('Error: ', event.error);
+          // Synthetic failover event so total stream failures (handshake errors,
+          // network failures, full provider outages — exactly the cases where
+          // gateway routing metadata isn't available) stay visible.
+          after(() => recordGatewayFailure(`xai/${DEFAULT_MODEL}`, user ? id : null));
           const requestEndTime = Date.now();
           const processingTime = (requestEndTime - requestStartTime) / 1000;
           console.log('--------------------------------');

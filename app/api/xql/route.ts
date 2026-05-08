@@ -15,8 +15,10 @@ import {
 import { ChatSDKError } from '@/lib/errors';
 
 import { markdownJoinerTransform } from '@/lib/parser';
-import { languageModel } from '@/ai/providers';
+import { languageModel, DEFAULT_MODEL } from '@/ai/providers';
 import { getStreamPolicy } from '@/ai/failover';
+import { persistFailoverMetadata, recordGatewayFailure } from '@/lib/observability/failover-recorder';
+import { after } from 'next/server';
 
 import { z } from 'zod';
 
@@ -175,6 +177,8 @@ export async function POST(req: Request) {
             console.log('Usage: ', event.usage);
             console.log('Total Usage: ', event.totalUsage);
 
+            after(() => persistFailoverMetadata(event.providerMetadata));
+
             const requestEndTime = Date.now();
             const processingTime = (requestEndTime - requestStartTime) / 1000;
             console.log('--------------------------------');
@@ -183,6 +187,7 @@ export async function POST(req: Request) {
         },
         onError(event) {
             console.log('Error: ', event.error);
+            after(() => recordGatewayFailure(`xai/${DEFAULT_MODEL}`));
             const requestEndTime = Date.now();
             const processingTime = (requestEndTime - requestStartTime) / 1000;
             console.log('--------------------------------');
@@ -199,4 +204,3 @@ export async function POST(req: Request) {
         sendSources: true,
     });
 }
-
