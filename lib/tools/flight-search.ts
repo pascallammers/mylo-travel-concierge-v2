@@ -2,7 +2,6 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import { searchSeatsAero, TravelClass } from '@/lib/api/seats-aero-client';
 import { searchDuffel, searchDuffelFlexibleDates, mapCabinClass, getNearbyAirports, NearbyAirport } from '@/lib/api/duffel-client';
-import { recordToolCall, updateToolCall } from '@/lib/db/queries';
 import { mergeSessionState } from '@/lib/db/queries';
 import { resolveIATACode, resolveAirportCodesWithLLM, type AirportResolutionResult } from '@/lib/utils/airport-codes';
 import {
@@ -97,9 +96,14 @@ Examples of queries that should trigger this tool:
       .describe('Maximum taxes/fees for award flights (in USD)'),
   }),
 
-  execute: async (params, { abortSignal, messages }) => {
-    // Extract chatId from messages context
-    const chatId = (messages as any)?.[0]?.chatId || 'unknown';
+  execute: async (params, { abortSignal, experimental_context }) => {
+    // Per-request context injected by streamText({ experimental_context }) in
+    // app/api/search/route.ts. chatId is required for session-state tracking
+    // and failed-search logging; tool_calls persistence itself lives in the
+    // route's onStepFinish (centralized in commit 7e0305b).
+    const ctx = (experimental_context ?? {}) as { chatId?: string; userId?: string };
+    const chatId = ctx.chatId;
+    const userId = ctx.userId ?? 'anonymous';
 
     console.log('[Flight Search] Starting search:', params);
 
@@ -159,26 +163,6 @@ Examples of queries that should trigger this tool:
       : destination;
 
     console.log(`[Flight Search] Suche Fluege: ${originDisplay} -> ${destinationDisplay}`);
-
-    // 1. Record tool call (non-blocking, don't let DB failures stop execution)
-    let toolCallId: string | null = null;
-    try {
-      const result = await recordToolCall({
-        chatId,
-        toolName: 'search_flights',
-        request: { ...params, origin, destination },
-      });
-      toolCallId = result.id;
-
-      await updateToolCall(toolCallId, {
-        status: 'running',
-        startedAt: new Date(),
-      });
-      console.log('[Flight Search] ✓ DB logging enabled');
-    } catch (dbError) {
-      console.warn('[Flight Search] ⚠️ DB logging failed (continuing anyway):', dbError instanceof Error ? dbError.message : dbError);
-      // Continue execution even if DB fails
-    }
 
     try {
       // Detect flexible date search from query text (user clicked "Mit flexiblen Daten suchen")
@@ -264,25 +248,26 @@ Examples of queries that should trigger this tool:
         // Determine error type based on what failed
         const errorType = seatsError || duffelError ? 'provider_unavailable' : 'no_results';
 
-        // Log the failed search for monitoring (non-blocking)
-        try {
-          const userId = (messages as any)?.[0]?.userId || 'anonymous';
-          await logFailedSearch({
-            chatId,
-            userId,
-            queryText: fullQuery,
-            extractedOrigin: origin,
-            extractedDestination: destination,
-            departDate: params.departDate,
-            returnDate: params.returnDate || undefined,
-            cabin: params.cabin,
-            resultCount: 0,
-            errorType,
-            errorMessage: seatsError && duffelError ? 'Both providers failed' : undefined,
-          });
-          console.log('[Flight Search] Logged failed search to database');
-        } catch (logError) {
-          console.warn('[Flight Search] Failed to log search failure (non-blocking):', logError);
+        // Log the failed search for monitoring (non-blocking, requires chatId).
+        if (chatId) {
+          try {
+            await logFailedSearch({
+              chatId,
+              userId,
+              queryText: fullQuery,
+              extractedOrigin: origin,
+              extractedDestination: destination,
+              departDate: params.departDate,
+              returnDate: params.returnDate || undefined,
+              cabin: params.cabin,
+              resultCount: 0,
+              errorType,
+              errorMessage: seatsError && duffelError ? 'Both providers failed' : undefined,
+            });
+            console.log('[Flight Search] Logged failed search to database');
+          } catch (logError) {
+            console.warn('[Flight Search] Failed to log search failure (non-blocking):', logError);
+          }
         }
 
         // Only search for alternatives if this is a "no_results" case (not provider failure)
@@ -520,76 +505,57 @@ Examples of queries that should trigger this tool:
         cashCount: result.cash.count,
       });
 
-      // 4. Update tool call status (if DB logging is enabled)
-      if (toolCallId) {
+      // Update session state for follow-up turns ("noch günstiger?", "andere
+      // Daten?"). Non-blocking — a missing chatId or transient DB error must
+      // not fail the tool. tool_calls persistence is handled centrally by
+      // onStepFinish in app/api/search/route.ts.
+      if (chatId) {
         try {
-          await updateToolCall(toolCallId, {
-            status: 'succeeded',
-            response: result,
-            finishedAt: new Date(),
+          await mergeSessionState(chatId, {
+            last_flight_request: {
+              origin,
+              destination,
+              departDate: params.departDate,
+              returnDate: params.returnDate,
+              cabin: params.cabin,
+              passengers: params.passengers,
+              awardOnly: params.awardOnly,
+              loyaltyPrograms: params.loyaltyPrograms,
+            },
+            pending_flight_request: null,
           });
-        } catch (dbError) {
-          console.warn('[Flight Search] ⚠️ Failed to update DB status (non-critical):', dbError instanceof Error ? dbError.message : dbError);
+        } catch (sessionError) {
+          console.warn('[Flight Search] ⚠️ Failed to update session state (non-critical):', sessionError instanceof Error ? sessionError.message : sessionError);
         }
       }
 
-      // 5. Update session state (non-blocking - don't let this fail the tool)
-      try {
-        await mergeSessionState(chatId, {
-          last_flight_request: {
-            origin,
-            destination,
-            departDate: params.departDate,
-            returnDate: params.returnDate,
-            cabin: params.cabin,
-            passengers: params.passengers,
-            awardOnly: params.awardOnly,
-            loyaltyPrograms: params.loyaltyPrograms,
-          },
-          pending_flight_request: null,
-        });
-      } catch (sessionError) {
-        console.warn('[Flight Search] ⚠️ Failed to update session state (non-critical):', sessionError instanceof Error ? sessionError.message : sessionError);
-      }
-
-      // 6. Format response for LLM (inject real booking-session creator;
-      //    flight-search-format keeps the renderer free of the server env graph)
+      // Format response for LLM (inject real booking-session creator;
+      // flight-search-format keeps the renderer free of the server env graph)
       return await formatFlightResults(result, params, locale, createDuffelBookingSession);
     } catch (error) {
       console.error('[Flight Search] ❌ Error:', error);
 
-      // Log failed search for monitoring (non-blocking)
-      // This catches exceptions that bypass the normal no-results logging
-      try {
-        const userId = (messages as any)?.[0]?.userId || 'anonymous';
-        await logFailedSearch({
-          chatId,
-          userId,
-          queryText: `${params.origin} nach ${params.destination}`,
-          extractedOrigin: params.origin, // Use raw params since resolution may have failed
-          extractedDestination: params.destination,
-          departDate: params.departDate,
-          returnDate: params.returnDate || undefined,
-          cabin: params.cabin,
-          resultCount: 0,
-          errorType: 'exception',
-          errorMessage: error instanceof Error ? error.message : String(error),
-        });
-        console.log('[Flight Search] 📊 Exception logged to failed_search_logs');
-      } catch (logError) {
-        console.warn('[Flight Search] ⚠️ Failed to log exception (non-critical):', logError instanceof Error ? logError.message : logError);
-      }
-
-      // Update DB status if logging is enabled
-      if (toolCallId) {
+      // Log failed search for monitoring (non-blocking). Catches exceptions
+      // that bypass the normal no-results logging path. tool_calls failure
+      // status is recorded centrally in onStepFinish.
+      if (chatId) {
         try {
-          await updateToolCall(toolCallId, {
-            status: 'failed',
-            error: error instanceof Error ? error.message : String(error),
-            finishedAt: new Date(),
+          await logFailedSearch({
+            chatId,
+            userId,
+            queryText: `${params.origin} nach ${params.destination}`,
+            extractedOrigin: params.origin, // raw — resolution may have failed
+            extractedDestination: params.destination,
+            departDate: params.departDate,
+            returnDate: params.returnDate || undefined,
+            cabin: params.cabin,
+            resultCount: 0,
+            errorType: 'exception',
+            errorMessage: error instanceof Error ? error.message : String(error),
           });
-        } catch (dbError) {
-          console.warn('[Flight Search] ⚠️ Failed to update DB error status (non-critical):', dbError instanceof Error ? dbError.message : dbError);
+          console.log('[Flight Search] 📊 Exception logged to failed_search_logs');
+        } catch (logError) {
+          console.warn('[Flight Search] ⚠️ Failed to log exception (non-critical):', logError instanceof Error ? logError.message : logError);
         }
       }
 

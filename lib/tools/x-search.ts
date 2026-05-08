@@ -1,3 +1,8 @@
+// This file uses @ai-sdk/xai directly (not the Vercel AI Gateway) because xAI
+// Live Search via `searchParameters` is not stably proxied through the gateway
+// (see vercel/ai#12827). All other LLM call sites in this repo go through
+// ai/providers.ts → @ai-sdk/gateway. Do not migrate this file until the issue
+// is resolved.
 import { generateText, tool } from 'ai';
 import { z } from 'zod';
 import { getTweet } from 'react-tweet/api';
@@ -67,12 +72,16 @@ export const xSearchTool = tool({
       console.log('[X search - includeHandles]:', normalizedInclude, '[excludeHandles]:', normalizedExclude);
 
       const { text, sources } = await generateText({
-        model: xai('grok-4-fast-non-reasoning'),
+        model: xai('grok-4.3'),
         system: `You are a helpful assistant that searches for X posts and returns the results in a structured format. You will be given a search query and optional handles to include/exclude. You will then search for the posts and return the results in a structured format. You will also cite the sources in the format [Source No.]. Go very deep in the search and return the most relevant results.`,
         messages: [{ role: 'user', content: `${query}` }],
-        maxOutputTokens: 10,
+        // grok-4.3 has reasoning always-on; reasoning tokens count toward the
+        // output budget. Bumping the cap so citations actually emit and forcing
+        // low effort to keep latency/cost in check on this inner call.
+        maxOutputTokens: 256,
         providerOptions: {
           xai: {
+            reasoningEffort: 'low',
             searchParameters: {
               mode: 'on',
               fromDate: effectiveStart,
