@@ -15,16 +15,6 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-        with:
-          # Fetch the borski-toolkit submodule. The eval suite itself imports
-          # tools individually (lib/chat/__evals__/mock-tools.ts skips the
-          # @/lib/tools barrel by design), so today this isn't strictly
-          # required. But any future eval that pulls in cpp_calculator,
-          # transfer_partner_optimizer, or sweet_spot_lookup would fail at
-          # module-resolution time without this, because those tools statically
-          # `import ... '../borski-toolkit/data/*.json'`. Vercel handles
-          # submodules automatically, so production builds aren't affected.
-          submodules: recursive
 
       - uses: pnpm/action-setup@v4
 
@@ -92,6 +82,12 @@ jobs:
         # If env/server.ts adds a new required var, this fails with a clear Zod error
         # naming the missing key — much clearer than the eval throwing mid-import.
         run: npx tsx --env-file=.env.local --conditions=react-server -e "import('./env/server.js').then(() => console.log('env imports OK'))"
+
+      - name: Run eval suite unit tests
+        # Covers PII guard, anonymizer, reporting helpers, mock-tools.
+        # Without this CI step these tests silently rot — pnpm test in
+        # the default test script does not include lib/chat/__evals__/**.
+        run: pnpm test:evals
 
       - name: Run MYLO routing eval
         run: pnpm eval
