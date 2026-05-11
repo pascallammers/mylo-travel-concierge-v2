@@ -21,6 +21,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { callMcpTool, sanitizeMcpError } from '@/lib/mcp/http-mcp-tool';
+import { sanitizeForCodeblock } from './mcp-output-sanitizer';
 
 const TRIVAGO_URL = 'https://mcp.trivago.com/mcp';
 
@@ -191,7 +192,10 @@ export type TrivagoToolResult = string;
 export function formatTrivagoResults(raw: unknown): string {
   let body: string;
   try {
-    body = JSON.stringify(raw, null, 2);
+    // sanitizeForCodeblock neutralizes triple-backticks inside string values
+    // so a compromised provider can't escape the fence and inject markdown
+    // directives or fake assistant turns into the LLM context.
+    body = JSON.stringify(sanitizeForCodeblock(raw), null, 2);
   } catch {
     body = String(raw);
   }

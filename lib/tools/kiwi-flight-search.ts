@@ -13,6 +13,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { callMcpTool, sanitizeMcpError } from '@/lib/mcp/http-mcp-tool';
+import { sanitizeForCodeblock } from './mcp-output-sanitizer';
 
 const KIWI_URL = 'https://mcp.kiwi.com';
 
