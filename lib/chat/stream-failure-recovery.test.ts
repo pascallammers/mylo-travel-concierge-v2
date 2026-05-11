@@ -10,13 +10,13 @@ describe('recoverPartialOutput', () => {
 
   it('renders one cached tool result with localized header and footer on error', () => {
     const cache = new ToolResultCache();
-    cache.set('stream-1', 'unknown_tool', 'call-1', { ok: true });
+    cache.set('stream-1', 'search_flights', 'call-1', { ok: true });
 
     const recovered = recoverPartialOutput(cache.get('stream-1'), 'error', 'en');
 
     assert.ok(recovered);
     assert.match(recovered.content, /The final summary could not be generated/);
-    assert.match(recovered.content, /unknown_tool/);
+    assert.match(recovered.content, /search_flights/);
     assert.match(recovered.content, /"ok": true/);
     assert.match(recovered.content, /Please try again/);
   });
@@ -65,15 +65,40 @@ describe('recoverPartialOutput', () => {
     assert.notEqual(de.content, en.content);
   });
 
-  it('uses generic JSON fallback for tools without a dedicated renderer', () => {
+  it('skips non-allowlisted tools to prevent leaking internal tool output', () => {
     const cache = new ToolResultCache();
-    cache.set('stream-1', 'unknown_tool', 'call-1', { value: 42 });
+    cache.set('stream-1', 'unknown_tool', 'call-1', { secret: 'leak' });
+
+    const recovered = recoverPartialOutput(cache.get('stream-1'), 'error', 'en');
+
+    assert.equal(recovered, null);
+  });
+
+  it('renders only allowlisted tools when mixed with non-allowlisted ones', () => {
+    const cache = new ToolResultCache();
+    cache.set('stream-1', 'memory_search', 'call-1', { secret: 'leak' });
+    cache.set('stream-1', 'search_flights', 'call-2', 'flight-data');
 
     const recovered = recoverPartialOutput(cache.get('stream-1'), 'error', 'en');
 
     assert.ok(recovered);
-    assert.match(recovered.content, /```json/);
-    assert.match(recovered.content, /"value": 42/);
+    assert.match(recovered.content, /search_flights/);
+    assert.match(recovered.content, /flight-data/);
+    assert.doesNotMatch(recovered.content, /memory_search/);
+    assert.doesNotMatch(recovered.content, /leak/);
+  });
+
+  it('honors test-only renderer overrides for custom allowlisting', () => {
+    const cache = new ToolResultCache();
+    cache.set('stream-1', 'custom_tool', 'call-1', 'custom-output');
+
+    const recovered = recoverPartialOutput(cache.get('stream-1'), 'error', 'en', {
+      renderers: { custom_tool: (r) => String(r) },
+    });
+
+    assert.ok(recovered);
+    assert.match(recovered.content, /custom_tool/);
+    assert.match(recovered.content, /custom-output/);
   });
 
   it('uses dedicated Skiplagged renderer instead of JSON fallback', () => {

@@ -70,12 +70,19 @@ export function recoverPartialOutput(
     '',
   ];
 
+  let renderedCount = 0;
   for (const entry of entries) {
-    const renderer = renderers[entry.toolName] ?? renderGenericJsonBlock;
+    const renderer = renderers[entry.toolName];
+    if (!renderer) continue;
     sections.push(`### ${entry.toolName}`);
     sections.push('');
     sections.push(renderer(entry.result));
     sections.push('');
+    renderedCount++;
+  }
+
+  if (renderedCount === 0) {
+    return null;
   }
 
   sections.push('---');

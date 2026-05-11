@@ -28,6 +28,7 @@ import {
   DEFAULT_MODEL,
 } from '@/ai/providers';
 import { getStreamPolicy } from '@/ai/failover';
+import { GatewayError } from '@ai-sdk/gateway';
 import {
   createStreamId,
   getChatById,
@@ -603,6 +604,7 @@ export async function POST(req: Request) {
         stopWhen: stepCountIs(5),
         onAbort: ({ steps }) => {
           console.log('Stream aborted after', steps.length, 'steps');
+          toolResultCache.evict(streamId);
         },
         maxRetries: 10,
         activeTools: [...activeTools],
@@ -885,10 +887,12 @@ export async function POST(req: Request) {
             },
           });
           recoveryOutputWritten = recoveryOutputWritten || recoveryUsed;
-          if (!recoveryUsed) {
-            // Synthetic failover event so total stream failures (handshake errors,
-            // network failures, full provider outages — exactly the cases where
-            // gateway routing metadata isn't available) stay visible.
+          if (!recoveryUsed && GatewayError.isInstance(event.error)) {
+            // Synthetic failover event for total stream failures where gateway
+            // routing metadata isn't available (handshake errors, network
+            // failures, full provider outages). Gated on GatewayError so tool
+            // errors, validation errors, and app exceptions don't inflate the
+            // failover rate.
             after(() =>
               recordGatewayFailure(`xai/${DEFAULT_MODEL}`, user ? id : null, {
                 recoveryUsed: false,
