@@ -5,15 +5,20 @@ import { scanForPii } from '../anonymize';
 import { realChats } from './real-chats';
 
 describe('real-chats PII guard', () => {
+  const SCANNED_FIELDS = ['userQuery', 'description', 'reason'] as const;
+
   for (const fx of realChats) {
-    it(`fixture ${fx.id} contains no PII patterns`, () => {
-      const issues = scanForPii(fx.userQuery);
-      assert.deepStrictEqual(
-        issues,
-        [],
-        `${fx.id} userQuery contains PII: ${issues.join(', ')} → "${fx.userQuery}"`,
-      );
-    });
+    for (const field of SCANNED_FIELDS) {
+      it(`fixture ${fx.id} field "${field}" contains no PII patterns`, () => {
+        const value = fx[field];
+        const issues = scanForPii(value);
+        assert.deepStrictEqual(
+          issues,
+          [],
+          `${fx.id}.${field} contains PII: ${issues.join(', ')} → "${value}"`,
+        );
+      });
+    }
   }
 
   it('has the expected count of fixtures', () => {

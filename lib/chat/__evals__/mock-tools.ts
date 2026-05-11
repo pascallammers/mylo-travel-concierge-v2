@@ -17,6 +17,13 @@ import { datetimeTool } from '@/lib/tools/datetime';
 import { greetingTool } from '@/lib/tools/greeting';
 import { codeInterpreterTool } from '@/lib/tools/code-interpreter';
 import { getLoyaltyBalancesTool } from '@/lib/tools/loyalty-balances';
+import { cppCalculatorTool } from '@/lib/tools/cpp-calculator';
+import { transferPartnerOptimizerTool } from '@/lib/tools/transfer-partner-optimizer';
+import { sweetSpotLookupTool } from '@/lib/tools/sweet-spot-lookup';
+import { createSkiplaggedFlightSearchTool } from '@/lib/tools/skiplagged-flight-search';
+import { createKiwiFlightSearchTool } from '@/lib/tools/kiwi-flight-search';
+import { createTrivagoHotelSearchTool } from '@/lib/tools/trivago-hotel-search';
+import { createFerryhopperSearchTool } from '@/lib/tools/ferryhopper-search';
 
 export const WEB_GROUP_TOOL_NAMES = [
   'web_search',
@@ -35,6 +42,13 @@ export const WEB_GROUP_TOOL_NAMES = [
   'datetime',
   'knowledge_base',
   'get_loyalty_balances',
+  'cpp_calculator',
+  'transfer_partner_optimizer',
+  'sweet_spot_lookup',
+  'skiplagged_flight_search',
+  'kiwi_flight_search',
+  'trivago_hotel_search',
+  'ferryhopper_search',
 ] as const;
 
 export type WebGroupToolName = (typeof WEB_GROUP_TOOL_NAMES)[number];
@@ -63,5 +77,12 @@ export function buildMockToolRegistry() {
     datetime: withNoop(datetimeTool),
     knowledge_base: withNoop(knowledgeBaseTool),
     get_loyalty_balances: withNoop(getLoyaltyBalancesTool),
+    cpp_calculator: withNoop(cppCalculatorTool),
+    transfer_partner_optimizer: withNoop(transferPartnerOptimizerTool),
+    sweet_spot_lookup: withNoop(sweetSpotLookupTool),
+    skiplagged_flight_search: withNoop(createSkiplaggedFlightSearchTool()),
+    kiwi_flight_search: withNoop(createKiwiFlightSearchTool()),
+    trivago_hotel_search: withNoop(createTrivagoHotelSearchTool()),
+    ferryhopper_search: withNoop(createFerryhopperSearchTool()),
   };
 }

@@ -134,7 +134,7 @@ function fixtureFromCandidate(c: Candidate & { anon: string }, n: number): strin
   return `  {
     id: '${id}',
     source: 'real',
-    description: 'Extracted from production chat ${c.chatId.slice(0, 8)} on ${c.createdAt.toISOString().slice(0, 10)}',
+    description: 'Production-derived routing fixture, extracted ${c.createdAt.toISOString().slice(0, 10)} (chat ID redacted)',
     userQuery: ${JSON.stringify(c.anon)},
     expectedTool: '${c.toolName}',
     reason: 'Production: this user query routed to ${c.toolName} successfully. Eval captures that behavior as the regression baseline.',

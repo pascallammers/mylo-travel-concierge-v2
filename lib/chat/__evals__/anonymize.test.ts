@@ -93,6 +93,10 @@ describe('scanForPii', () => {
     assert.deepStrictEqual(scanForPii('id 123456789'), ['long-digit-run']);
   });
 
+  it('flags hex chat-id-style strings', () => {
+    assert.deepStrictEqual(scanForPii('extracted from chat a61bc1bc'), ['hex-id-pattern']);
+  });
+
   it('returns empty for clean text', () => {
     assert.deepStrictEqual(scanForPii('Flüge nach Bangkok'), []);
   });

@@ -13,6 +13,10 @@ const EMAIL_RE = /[\p{L}0-9._%+-]+@[\p{L}0-9.-]+\.[\p{L}]{2,}/giu;
 const PHONE_INTL_RE = /\+\d{1,3}[ -]?\d{2,4}[ -]?\d{3,4}[ -]?\d{3,4}/g;
 const PHONE_NATIONAL_RE = /\b0\d{2,4}[ /-]?\d{5,9}\b/g;
 const LONG_DIGIT_RE = /\b\d{8,}\b/g;
+// Production chat IDs are 8+ char hex strings (e.g. "a61bc1bc"). The lookahead
+// requires at least one a-f letter so pure-digit runs (already caught by
+// long-digit-run) don't double-flag.
+const HEX_ID_RE = /\b(?=[0-9a-f]*[a-f])[0-9a-f]{8,}\b/gi;
 
 export function anonymizeUserQuery(
   input: string,
@@ -42,10 +46,12 @@ export function scanForPii(text: string): string[] {
   if (EMAIL_RE.test(text)) issues.push('email-pattern');
   if (PHONE_INTL_RE.test(text) || PHONE_NATIONAL_RE.test(text)) issues.push('phone-pattern');
   if (LONG_DIGIT_RE.test(text)) issues.push('long-digit-run');
+  if (HEX_ID_RE.test(text)) issues.push('hex-id-pattern');
   // Reset regex lastIndex (global flag) so consecutive calls don't lie
   EMAIL_RE.lastIndex = 0;
   PHONE_INTL_RE.lastIndex = 0;
   PHONE_NATIONAL_RE.lastIndex = 0;
   LONG_DIGIT_RE.lastIndex = 0;
+  HEX_ID_RE.lastIndex = 0;
   return issues;
 }

@@ -7,7 +7,7 @@ export const realChats: EvalFixture[] = [
   {
     id: 'real-001-search-flights',
     source: 'real',
-    description: 'Extracted from production chat a61bc1bc on 2026-04-27',
+    description: 'Production-derived routing fixture (chat ID redacted)',
     userQuery: "Suche nach Meilen Flüge von faro nach Düsseldorf oder Köln. Am 24.07.",
     expectedTool: 'search_flights',
     reason: 'Production: this user query routed to search_flights successfully. Eval captures that behavior as the regression baseline.',
@@ -15,7 +15,7 @@ export const realChats: EvalFixture[] = [
   {
     id: 'real-002-knowledge-base',
     source: 'real',
-    description: 'Extracted from production chat f010c841 on 2026-04-27',
+    description: 'Production-derived routing fixture (chat ID redacted)',
     userQuery: "Ist Zadar in zagreb? ",
     expectedTool: 'knowledge_base',
     reason: 'Production: this user query routed to knowledge_base successfully. Eval captures that behavior as the regression baseline.',
@@ -23,7 +23,7 @@ export const realChats: EvalFixture[] = [
   {
     id: 'real-003-web-search',
     source: 'real',
-    description: 'Extracted from production chat a61bc1bc on 2026-04-27',
+    description: 'Production-derived routing fixture (chat ID redacted)',
     userQuery: "Warum fliegt Edelweiß von Zürich nach faro mit einer a350",
     expectedTool: 'web_search',
     reason: 'Production: this user query routed to web_search successfully. Eval captures that behavior as the regression baseline.',
@@ -31,7 +31,7 @@ export const realChats: EvalFixture[] = [
   {
     id: 'real-004-search-flights',
     source: 'real',
-    description: 'Extracted from production chat 62b9e8ea on 2026-04-26',
+    description: 'Production-derived routing fixture (chat ID redacted)',
     userQuery: "Welche Direktflüge Lufthansa Frankfurt Raleigh Dezember 2026?",
     expectedTool: 'search_flights',
     reason: 'Production: this user query routed to search_flights successfully. Eval captures that behavior as the regression baseline.',
@@ -39,7 +39,7 @@ export const realChats: EvalFixture[] = [
   {
     id: 'real-005-greeting',
     source: 'real',
-    description: 'Extracted from production chat a61bc1bc on 2026-04-26',
+    description: 'Production-derived routing fixture (chat ID redacted)',
     userQuery: "hallo bist du bereit für eine aufgabe",
     expectedTool: 'greeting',
     reason: 'Production: this user query routed to greeting successfully. Eval captures that behavior as the regression baseline.',
