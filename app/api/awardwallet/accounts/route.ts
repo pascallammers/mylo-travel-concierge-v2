@@ -5,8 +5,11 @@ import { getUserLoyaltyData } from '@/lib/db/queries/awardwallet';
 import { ChatSDKError } from '@/lib/errors';
 
 const AccountResponseSchema = z.object({
+  /** @deprecated Prefer `status`. Kept for back-compat with existing UI. */
   connected: z.boolean(),
+  status: z.enum(['connected', 'error', 'disconnected']),
   lastSyncedAt: z.string().nullable(),
+  lastError: z.string().nullable(),
   accounts: z.array(
     z.object({
       id: z.string(),
@@ -48,7 +51,9 @@ export async function GET(request: NextRequest) {
 
     const response: AccountsResponse = {
       connected: loyaltyData.connected,
+      status: loyaltyData.status,
       lastSyncedAt: loyaltyData.lastSyncedAt?.toISOString() ?? null,
+      lastError: loyaltyData.lastError,
       accounts: loyaltyData.accounts.map((acc) => ({
         id: acc.id,
         providerCode: acc.providerCode,

@@ -11,19 +11,29 @@ import { ProxyAgent } from 'undici';
  */
 const AWARDWALLET_BASE_URL = 'https://business.awardwallet.com/api/export/v1';
 
-let awardWalletDispatcher: ProxyAgent | undefined;
+/**
+ * Cached proxy dispatcher tagged with the URL it was built for.
+ * If the configured AWARDWALLET_PROXY_URL changes (e.g. via Next.js HMR
+ * when .env.local is edited in dev), we rebuild the dispatcher so it
+ * doesn't keep pointing at a stale proxy endpoint.
+ */
+let cachedDispatcher: { url: string; agent: ProxyAgent } | undefined;
 
 function getProxyDispatcher(): ProxyAgent | undefined {
-  if (!serverEnv.AWARDWALLET_PROXY_URL) return undefined;
-  if (!awardWalletDispatcher) {
-    try {
-      awardWalletDispatcher = new ProxyAgent(serverEnv.AWARDWALLET_PROXY_URL);
-    } catch (err) {
-      console.error('[AwardWallet] Failed to create ProxyAgent:', err);
-      return undefined;
-    }
+  const url = serverEnv.AWARDWALLET_PROXY_URL;
+  if (!url) return undefined;
+  if (cachedDispatcher && cachedDispatcher.url === url) {
+    return cachedDispatcher.agent;
   }
-  return awardWalletDispatcher;
+  try {
+    const agent = new ProxyAgent(url);
+    cachedDispatcher = { url, agent };
+    return agent;
+  } catch (err) {
+    console.error('[AwardWallet] Failed to create ProxyAgent:', err);
+    cachedDispatcher = undefined;
+    return undefined;
+  }
 }
 
 function withAwardWalletProxy(init: RequestInit): RequestInit {
@@ -32,6 +42,59 @@ function withAwardWalletProxy(init: RequestInit): RequestInit {
     return init;
   }
   return { ...init, dispatcher } as RequestInit;
+}
+
+/**
+ * Classifies an upstream HTTP status into the appropriate ChatSDKError code.
+ * Auth (401/403) and 5xx coming from the upstream API are generally NOT
+ * user-input errors, so they must not be reported as `bad_request:api` (which
+ * renders "check your input" to the end user). Entitlement failures with a
+ * stable AwardWallet error code are surfaced as access-denied instead.
+ */
+function classifyUpstreamStatus(
+  status: number,
+  awardWalletErrorCode?: string,
+): 'service_unavailable:api' | 'bad_request:api' | 'forbidden:api' {
+  if (awardWalletErrorCode === 'BUSINESS_ADMINS_REQUIRE_PLUS') return 'forbidden:api';
+  if (status === 401 || status === 403) return 'service_unavailable:api';
+  if (status >= 500) return 'service_unavailable:api';
+  return 'bad_request:api';
+}
+
+interface AwardWalletErrorDetails {
+  code?: string;
+  message?: string;
+}
+
+function parseAwardWalletError(errorText: string): AwardWalletErrorDetails {
+  try {
+    const parsed: unknown = JSON.parse(errorText);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return {};
+    }
+
+    const payload = parsed as Record<string, unknown>;
+    return {
+      code: typeof payload.code === 'string' ? payload.code : undefined,
+      message: typeof payload.message === 'string' ? payload.message : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
+function createAwardWalletStatusError(status: number, errorText: string, fallbackMessage: string): ChatSDKError {
+  const awardWalletError = parseAwardWalletError(errorText);
+  const errorCode = classifyUpstreamStatus(status, awardWalletError.code);
+  const cause =
+    awardWalletError.code === 'BUSINESS_ADMINS_REQUIRE_PLUS'
+      ? (awardWalletError.message ??
+        'Access denied. All business account admins must have AwardWallet Plus to make this API call.')
+      : status === 401 || status === 403
+        ? `Upstream authentication failed (status ${status})`
+        : fallbackMessage;
+
+  return new ChatSDKError(errorCode, cause);
 }
 
 /**
@@ -110,17 +173,19 @@ export async function createAuthUrl(): Promise<string> {
 
     let response: Response;
     try {
-      response = await fetch(
-        `${AWARDWALLET_BASE_URL}/create-auth-url`,
-        withAwardWalletProxy(fetchOptions),
-      );
+      response = await fetch(`${AWARDWALLET_BASE_URL}/create-auth-url`, withAwardWalletProxy(fetchOptions));
     } catch (fetchError) {
+      // If a proxy is configured, ALL outbound calls MUST go through it
+      // (AwardWallet enforces an IP allowlist). A proxy-fetch failure must
+      // bubble up as a real upstream error and not silently retry direct.
       if (useProxy) {
-        console.error('[AwardWallet] Proxy fetch failed, retrying without proxy:', fetchError);
-        response = await fetch(`${AWARDWALLET_BASE_URL}/create-auth-url`, fetchOptions);
-      } else {
-        throw fetchError;
+        console.error('[AwardWallet] Proxy fetch failed:', fetchError);
+        throw new ChatSDKError(
+          'service_unavailable:api',
+          `AwardWallet proxy fetch failed: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`,
+        );
       }
+      throw fetchError;
     }
 
     console.error('[AwardWallet] API response status:', response.status);
@@ -128,7 +193,7 @@ export async function createAuthUrl(): Promise<string> {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('[AwardWallet] Failed to create auth URL:', response.status, errorText);
-      throw new ChatSDKError('bad_request:api', `AwardWallet API error: ${response.status}`);
+      throw createAwardWalletStatusError(response.status, errorText, `AwardWallet API error: ${response.status}`);
     }
 
     const data = await response.json();
@@ -136,7 +201,7 @@ export async function createAuthUrl(): Promise<string> {
 
     if (!data.url || typeof data.url !== 'string') {
       console.error('[AwardWallet] API returned 200 but missing url field:', JSON.stringify(data));
-      throw new ChatSDKError('bad_request:api', 'AwardWallet API returned no authorization URL');
+      throw new ChatSDKError('service_unavailable:api', 'AwardWallet API returned no authorization URL');
     }
 
     console.error('[AwardWallet] Auth URL created successfully');
@@ -147,7 +212,10 @@ export async function createAuthUrl(): Promise<string> {
       throw error;
     }
     console.error('[AwardWallet] createAuthUrl unexpected error:', error);
-    throw new ChatSDKError('bad_request:api', 'Failed to generate authorization URL');
+    throw new ChatSDKError(
+      'service_unavailable:api',
+      `Failed to generate authorization URL: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
 
@@ -159,6 +227,13 @@ export async function createAuthUrl(): Promise<string> {
  */
 export async function getConnectionInfo(code: string): Promise<AWConnectionInfo> {
   const apiKey = serverEnv.AWARDWALLET_API_KEY;
+
+  // Validate user-supplied input up front. A missing/malformed code is a
+  // genuine bad-request — keep it as `bad_request:api` so the user sees
+  // "check your input".
+  if (!code || typeof code !== 'string' || code.trim().length === 0) {
+    throw new ChatSDKError('bad_request:api', 'Missing or invalid authorization code');
+  }
 
   console.error('[AwardWallet] Exchanging code for connection info');
 
@@ -176,7 +251,11 @@ export async function getConnectionInfo(code: string): Promise<AWConnectionInfo>
     if (!response.ok) {
       const errorText = await response.text();
       console.error('[AwardWallet] Failed to get connection info:', response.status, errorText);
-      throw new ChatSDKError('bad_request:api', `Invalid or expired authorization code`);
+      // 400 from this endpoint usually means an invalid/expired code (user input).
+      if (response.status === 400 || response.status === 404) {
+        throw new ChatSDKError('bad_request:api', 'Invalid or expired authorization code');
+      }
+      throw createAwardWalletStatusError(response.status, errorText, `AwardWallet API error: ${response.status}`);
     }
 
     const data = await response.json();
@@ -188,7 +267,10 @@ export async function getConnectionInfo(code: string): Promise<AWConnectionInfo>
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     console.error('[AwardWallet] getConnectionInfo error:', error);
-    throw new ChatSDKError('bad_request:api', 'Failed to exchange authorization code');
+    throw new ChatSDKError(
+      'service_unavailable:api',
+      `Failed to exchange authorization code: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
 
@@ -218,7 +300,11 @@ export async function getConnectedUser(awUserId: string): Promise<AWLoyaltyAccou
     if (!response.ok) {
       const errorText = await response.text();
       console.error('[AwardWallet] Failed to get connected user:', response.status, errorText);
-      throw new ChatSDKError('bad_request:api', `Failed to fetch loyalty accounts`);
+      throw createAwardWalletStatusError(
+        response.status,
+        errorText,
+        `Failed to fetch loyalty accounts: status ${response.status}`,
+      );
     }
 
     const data = await response.json();
@@ -231,7 +317,10 @@ export async function getConnectedUser(awUserId: string): Promise<AWLoyaltyAccou
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     console.error('[AwardWallet] getConnectedUser error:', error);
-    throw new ChatSDKError('bad_request:api', 'Failed to fetch loyalty accounts');
+    throw new ChatSDKError(
+      'service_unavailable:api',
+      `Failed to fetch loyalty accounts: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
 
@@ -298,4 +387,25 @@ function parseBalanceUnit(kind: string): LoyaltyBalanceUnit {
     return 'credits';
   }
   return 'points';
+}
+
+// ---------------------------------------------------------------------------
+// Test-only helpers. These are not part of the public API surface and exist
+// purely so unit tests can assert on the internal proxy/dispatcher behavior
+// without reaching into module internals via reflection.
+// ---------------------------------------------------------------------------
+
+/** @internal — test only */
+export function __resetAwardWalletDispatcherCacheForTests(): void {
+  cachedDispatcher = undefined;
+}
+
+/** @internal — test only */
+export function __getAwardWalletDispatcherCacheForTests(): { url: string } | undefined {
+  return cachedDispatcher ? { url: cachedDispatcher.url } : undefined;
+}
+
+/** @internal — test only */
+export function __getProxyDispatcherForTests(): ProxyAgent | undefined {
+  return getProxyDispatcher();
 }

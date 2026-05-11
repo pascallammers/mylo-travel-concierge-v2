@@ -1,53 +1,22 @@
 /**
- * Amex Membership Rewards Transfer Ratios for DACH region (Germany, Austria, Switzerland).
+ * DACH region (Germany, Austria, Switzerland) transfer partners.
  *
- * IMPORTANT: These ratios differ significantly from US/UK markets where many partners offer 1:1 transfers.
+ * Currently sources: American Express Membership Rewards Germany.
+ *
+ * IMPORTANT: These ratios differ significantly from US/UK markets where many partners offer 1:1.
  * In DACH, the standard best ratio is 5:4 (80%), with some partners offering worse rates.
  *
  * Last updated: January 2026
  * Source: americanexpress.com/de-de/rewards/membership-rewards/travel/all
  */
 
-/**
- * Localized string with German and English translations.
- */
-export interface LocalizedString {
-  de: string;
-  en: string;
-}
-
-export interface AmexTransferPartner {
-  /** Display name of the loyalty program */
-  name: string;
-  /** Airline or hotel brand */
-  brand: string;
-  /** Points required from Amex side (numerator) */
-  amexPoints: number;
-  /** Miles/points received at partner (denominator) */
-  partnerMiles: number;
-  /** Effective transfer rate as percentage */
-  effectiveRate: number;
-  /** Minimum points required for transfer */
-  minTransfer: number;
-  /** Transfer increment (must transfer in multiples of this) */
-  transferIncrement: number;
-  /** Estimated transfer duration (localized) */
-  transferDuration: LocalizedString;
-  /** Alliance membership if applicable */
-  alliance?: 'Star Alliance' | 'Oneworld' | 'SkyTeam' | null;
-  /** Type of program */
-  type: 'airline' | 'hotel' | 'other';
-  /** Currency unit name (localized) */
-  currencyUnit: LocalizedString;
-  /** Notes about the program (localized) */
-  notes?: LocalizedString;
-}
+import type { PartnerMap } from './types';
 
 /**
- * All Amex Membership Rewards transfer partners available in Germany.
+ * Amex Membership Rewards transfer partners available in Germany.
  * Sorted by effective rate (best first).
  */
-export const AMEX_TRANSFER_PARTNERS_DACH: Record<string, AmexTransferPartner> = {
+export const AMEX_DACH_PARTNERS: PartnerMap = {
   radisson: {
     name: 'Radisson Rewards',
     brand: 'Radisson',
@@ -281,67 +250,3 @@ export const AMEX_TRANSFER_PARTNERS_DACH: Record<string, AmexTransferPartner> = 
     },
   },
 };
-
-/**
- * Calculate how many Amex MR points are needed for a target amount of partner miles.
- * @param partnerId - The partner ID from AMEX_TRANSFER_PARTNERS_DACH
- * @param targetMiles - Desired miles/points at the partner program
- * @returns Number of Amex MR points required
- */
-export function calculateRequiredAmexPoints(partnerId: string, targetMiles: number): number | null {
-  const partner = AMEX_TRANSFER_PARTNERS_DACH[partnerId];
-  if (!partner) return null;
-
-  return Math.ceil((targetMiles * partner.amexPoints) / partner.partnerMiles);
-}
-
-/**
- * Calculate how many partner miles you get from Amex MR points.
- * @param partnerId - The partner ID from AMEX_TRANSFER_PARTNERS_DACH
- * @param amexPoints - Number of Amex MR points to transfer
- * @returns Number of miles/points received at partner
- */
-export function calculatePartnerMiles(partnerId: string, amexPoints: number): number | null {
-  const partner = AMEX_TRANSFER_PARTNERS_DACH[partnerId];
-  if (!partner) return null;
-
-  return Math.floor((amexPoints * partner.partnerMiles) / partner.amexPoints);
-}
-
-/**
- * Get partners sorted by effective rate (best first).
- */
-export function getPartnersByEffectiveRate(): AmexTransferPartner[] {
-  return Object.values(AMEX_TRANSFER_PARTNERS_DACH).sort(
-    (a, b) => b.effectiveRate - a.effectiveRate
-  );
-}
-
-/**
- * Get airline partners only.
- */
-export function getAirlinePartners(): AmexTransferPartner[] {
-  return Object.values(AMEX_TRANSFER_PARTNERS_DACH).filter((p) => p.type === 'airline');
-}
-
-/**
- * Format transfer ratio as human-readable string.
- */
-export function formatTransferRatio(partner: AmexTransferPartner): string {
-  return `${partner.amexPoints}:${partner.partnerMiles} (${partner.effectiveRate}%)`;
-}
-
-/**
- * Supported locale type for AmexTransferPartner localized fields.
- */
-export type AmexLocale = 'de' | 'en';
-
-/**
- * Get the localized value from a LocalizedString.
- * @param value - The localized string object
- * @param locale - The desired locale ('de' or 'en')
- * @returns The string in the requested locale
- */
-export function getLocalizedValue(value: LocalizedString, locale: AmexLocale = 'de'): string {
-  return value[locale];
-}

@@ -10,10 +10,13 @@
     "lint": "eslint",
     "fix": "prettier --write .",
     "knip": "knip",
-    "test": "tsx --test \"lib/**/*.test.ts\"",
+    "test": "tsx --test \"lib/*.test.ts\" \"lib/admin/**/*.test.ts\" \"lib/api/**/*.test.ts\" \"lib/chat/*.test.ts\" \"lib/config/**/*.test.ts\" \"lib/data/**/*.test.ts\" \"lib/db/**/*.test.ts\" \"lib/deals/**/*.test.ts\" \"lib/mcp/**/*.test.ts\" \"lib/services/**/*.test.ts\" \"lib/tools/**/*.test.ts\" \"lib/utils/**/*.test.ts\" \"lib/xai/**/*.test.ts\"",
     "test:unit": "tsx --test \"lib/api/*.test.ts\" \"lib/db/**/*.test.ts\"",
     "test:integration": "tsx --test \"lib/tools/*.integration.test.ts\"",
-    "test:watch": "tsx --test --watch \"lib/**/*.test.ts\""
+    "test:watch": "tsx --test --watch \"lib/*.test.ts\" \"lib/admin/**/*.test.ts\" \"lib/api/**/*.test.ts\" \"lib/chat/*.test.ts\" \"lib/config/**/*.test.ts\" \"lib/data/**/*.test.ts\" \"lib/db/**/*.test.ts\" \"lib/deals/**/*.test.ts\" \"lib/mcp/**/*.test.ts\" \"lib/services/**/*.test.ts\" \"lib/tools/**/*.test.ts\" \"lib/utils/**/*.test.ts\" \"lib/xai/**/*.test.ts\"",
+    "eval": "tsx --env-file=.env.local --conditions=react-server lib/chat/__evals__/run.ts",
+    "eval:extract-real": "tsx --env-file=.env.local --conditions=react-server lib/chat/__evals__/extract-real-chats.ts",
+    "test:evals": "tsx --env-file=.env.local --conditions=react-server --test --test-force-exit \"lib/chat/__evals__/**/*.test.ts\""
   },
   "dependencies": {
     "@ai-sdk/anthropic": "2.0.18",

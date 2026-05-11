@@ -28,6 +28,11 @@ import { RepeatIcon, Copy01Icon } from '@hugeicons/core-free-icons';
 import { ChatMessage, CustomUIDataTypes, DataQueryCompletionPart, DataExtremeSearchPart, ChatTools } from '@/lib/types';
 import { UseChatHelpers } from '@ai-sdk/react';
 import { MyloLogoHeader } from '@/components/mylo-logo-header';
+import {
+  shouldRenderAssistantActivityLogo,
+  shouldShowFlightSearchOutputActivity,
+  shouldShowStepStartActivity,
+} from '@/lib/chat/assistant-activity';
 import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
 
@@ -264,6 +269,40 @@ const ComponentLoader = () => (
   </div>
 );
 
+const ActivityDots = () => (
+  <div className="flex space-x-2 ml-8 mt-2">
+    <div
+      className="w-2 h-2 rounded-full bg-muted-foreground dark:bg-muted-foreground animate-bounce"
+      style={{ animationDelay: '0ms' }}
+    />
+    <div
+      className="w-2 h-2 rounded-full bg-muted-foreground dark:bg-muted-foreground animate-bounce"
+      style={{ animationDelay: '150ms' }}
+    />
+    <div
+      className="w-2 h-2 rounded-full bg-muted-foreground dark:bg-muted-foreground animate-bounce"
+      style={{ animationDelay: '300ms' }}
+    />
+  </div>
+);
+
+const AssistantActivityIndicator = ({ showLogo }: { showLogo: boolean }) => (
+  <>
+    {showLogo && <MyloLogoHeader />}
+    <ActivityDots />
+  </>
+);
+
+const renderAssistantActivityIfUnowned = (parts: ChatMessage['parts'], partIndex: number) => {
+  const showLogo = shouldRenderAssistantActivityLogo(parts, partIndex);
+
+  if (!showLogo) {
+    return null;
+  }
+
+  return <AssistantActivityIndicator showLogo={showLogo} />;
+};
+
 // Error component for tool errors
 const ToolErrorDisplay = ({ errorText, toolName }: { errorText: string; toolName: string }) => (
   <div className="w-full my-4 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950">
@@ -432,21 +471,7 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
             key={`${messageIndex}-${partIndex}-loading`}
             className="flex flex-col min-h-[calc(100vh-18rem)] !m-0 !p-0"
           >
-            <MyloLogoHeader />
-            <div className="flex space-x-2 ml-8 mt-2">
-              <div
-                className="w-2 h-2 rounded-full bg-muted-foreground dark:bg-muted-foreground animate-bounce"
-                style={{ animationDelay: '0ms' }}
-              ></div>
-              <div
-                className="w-2 h-2 rounded-full bg-muted-foreground dark:bg-muted-foreground animate-bounce"
-                style={{ animationDelay: '150ms' }}
-              ></div>
-              <div
-                className="w-2 h-2 rounded-full bg-muted-foreground dark:bg-muted-foreground animate-bounce"
-                style={{ animationDelay: '300ms' }}
-              ></div>
-            </div>
+            <AssistantActivityIndicator showLogo={shouldRenderAssistantActivityLogo(parts, partIndex)} />
           </div>
         );
       }
@@ -635,6 +660,7 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
         return (
           <div key={`${messageIndex}-${partIndex}-step-start-logo`} className="!m-0 !p-0">
             <MyloLogoHeader />
+            {shouldShowStepStartActivity(status, parts, partIndex) && <ActivityDots />}
           </div>
         );
       }
@@ -2116,41 +2142,13 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
               case 'input-streaming':
                 return (
                   <React.Fragment key={`${messageIndex}-${partIndex}`}>
-                    <MyloLogoHeader />
-                    <div className="flex space-x-2 ml-8 mt-2">
-                      <div
-                        className="w-2 h-2 rounded-full bg-muted-foreground dark:bg-muted-foreground animate-bounce"
-                        style={{ animationDelay: '0ms' }}
-                      />
-                      <div
-                        className="w-2 h-2 rounded-full bg-muted-foreground dark:bg-muted-foreground animate-bounce"
-                        style={{ animationDelay: '150ms' }}
-                      />
-                      <div
-                        className="w-2 h-2 rounded-full bg-muted-foreground dark:bg-muted-foreground animate-bounce"
-                        style={{ animationDelay: '300ms' }}
-                      />
-                    </div>
+                    {renderAssistantActivityIfUnowned(parts, partIndex)}
                   </React.Fragment>
                 );
               case 'input-available':
                 return (
                   <React.Fragment key={`${messageIndex}-${partIndex}`}>
-                    <MyloLogoHeader />
-                    <div className="flex space-x-2 ml-8 mt-2">
-                      <div
-                        className="w-2 h-2 rounded-full bg-muted-foreground dark:bg-muted-foreground animate-bounce"
-                        style={{ animationDelay: '0ms' }}
-                      />
-                      <div
-                        className="w-2 h-2 rounded-full bg-muted-foreground dark:bg-muted-foreground animate-bounce"
-                        style={{ animationDelay: '150ms' }}
-                      />
-                      <div
-                        className="w-2 h-2 rounded-full bg-muted-foreground dark:bg-muted-foreground animate-bounce"
-                        style={{ animationDelay: '300ms' }}
-                      />
-                    </div>
+                    {renderAssistantActivityIfUnowned(parts, partIndex)}
                   </React.Fragment>
                 );
               case 'output-available':
@@ -2231,7 +2229,14 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
                   }
                 }
                 // Flight search results are rendered as text by the AI
-                // This state should not render anything special
+                // Keep activity visible until that text starts streaming.
+                if (shouldShowFlightSearchOutputActivity(status, parts, partIndex)) {
+                  return (
+                    <React.Fragment key={`${messageIndex}-${partIndex}`}>
+                      {renderAssistantActivityIfUnowned(parts, partIndex)}
+                    </React.Fragment>
+                  );
+                }
                 return null;
             }
             break;

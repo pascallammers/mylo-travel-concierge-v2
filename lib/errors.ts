@@ -19,7 +19,8 @@ export type ErrorType =
   | 'rate_limit'
   | 'upgrade_required'
   | 'model_restricted'
-  | 'offline';
+  | 'offline'
+  | 'service_unavailable';
 
 export type Surface = 'chat' | 'auth' | 'api' | 'stream' | 'database' | 'history' | 'model';
 
@@ -121,6 +122,8 @@ export function getMessageByErrorCode(errorCode: ErrorCode): string {
 
     case 'forbidden:api':
       return 'Access denied';
+    case 'service_unavailable:api':
+      return 'An upstream service is temporarily unavailable. Please try again in a moment.';
 
     default:
       return 'Something went wrong. Please try again later.';
@@ -144,6 +147,8 @@ function getStatusCodeByType(type: ErrorType) {
     case 'model_restricted':
       return 403;
     case 'offline':
+      return 503;
+    case 'service_unavailable':
       return 503;
     default:
       return 500;
@@ -212,6 +217,6 @@ export function getErrorActions(error: ChatSDKError): {
 export function getErrorIcon(error: ChatSDKError): 'warning' | 'error' | 'upgrade' | 'auth' {
   if (isSignInRequired(error)) return 'auth';
   if (isProRequired(error) || isRateLimited(error)) return 'upgrade';
-  if (error.type === 'offline') return 'warning';
+  if (error.type === 'offline' || error.type === 'service_unavailable') return 'warning';
   return 'error';
 }

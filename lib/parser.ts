@@ -84,10 +84,40 @@ export const markdownJoinerTransform =
   <TOOLS extends ToolSet>() =>
   () => {
     const joiner = new MarkdownJoiner();
+    let lastTextId: string | undefined;
+    let lastProviderMetadata: TextStreamPart<TOOLS> extends { providerMetadata?: infer P } ? P : never;
+
+    const flushBufferAs = (
+      controller: TransformStreamDefaultController<TextStreamPart<TOOLS>>,
+    ) => {
+      const remaining = joiner.flush();
+      // Only emit if we have an id to attach. Without an id, AI SDK's
+      // toUIMessageStream maps the chunk to UIMessageChunk with id=undefined,
+      // and the downstream consumer crashes on activeTextParts[undefined].text.
+      if (remaining && lastTextId) {
+        controller.enqueue({
+          type: 'text-delta',
+          id: lastTextId,
+          text: remaining,
+          ...(lastProviderMetadata ? { providerMetadata: lastProviderMetadata } : {}),
+        } as TextStreamPart<TOOLS>);
+      } else if (remaining) {
+        // Buffered content that we cannot safely emit (no active text-id).
+        // This indicates an upstream protocol violation (text-delta seen with
+        // no id, or buffer somehow non-empty without ever observing one).
+        // Emit a single warning so the silent-drop is observable in logs.
+        console.warn(
+          '[markdownJoinerTransform] dropping N chars from buffer at stream-end without active text-id',
+          { chars: remaining.length, sample: remaining.slice(0, 80) },
+        );
+      }
+    };
 
     return new TransformStream<TextStreamPart<TOOLS>, TextStreamPart<TOOLS>>({
       transform(chunk, controller) {
         if (chunk.type === 'text-delta') {
+          lastTextId = chunk.id;
+          lastProviderMetadata = chunk.providerMetadata as typeof lastProviderMetadata;
           const processedText = joiner.processText(chunk.text);
           if (processedText) {
             controller.enqueue({
@@ -95,18 +125,23 @@ export const markdownJoinerTransform =
               text: processedText,
             });
           }
+        } else if (chunk.type === 'text-end') {
+          // Flush any pending buffer BEFORE forwarding text-end. Once text-end
+          // is processed downstream, the active text part is deleted and any
+          // later text-delta with the same id will fail.
+          flushBufferAs(controller);
+          lastTextId = undefined;
+          lastProviderMetadata = undefined as typeof lastProviderMetadata;
+          controller.enqueue(chunk);
         } else {
           controller.enqueue(chunk);
         }
       },
       flush(controller) {
-        const remaining = joiner.flush();
-        if (remaining) {
-          controller.enqueue({
-            type: 'text-delta',
-            text: remaining,
-          } as TextStreamPart<TOOLS>);
-        }
+        // Stream ended without text-end (e.g. abort). Use the last seen id
+        // if available, otherwise drop the buffer rather than emit an
+        // id-less chunk that would crash the downstream consumer.
+        flushBufferAs(controller);
       },
     });
   };

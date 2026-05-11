@@ -26,7 +26,7 @@ export function LoyaltySettingsSection({ className }: SettingsSectionProps) {
   const searchParams = useSearchParams();
   const [showError, setShowError] = useState(false);
 
-  const { data, isLoading } = useQuery<{ connected: boolean }>({
+  const { data, isLoading } = useQuery<{ connected: boolean; status?: 'connected' | 'error' | 'disconnected' }>({
     queryKey: ['awardwallet', 'accounts'],
     queryFn: async () => {
       const res = await fetch('/api/awardwallet/accounts');
@@ -37,7 +37,7 @@ export function LoyaltySettingsSection({ className }: SettingsSectionProps) {
     retry: 1,
   });
 
-  const isConnected = data?.connected ?? false;
+  const isConnected = data?.status === 'connected' || data?.status === 'error' || (data?.connected ?? false);
 
   // Check for error from OAuth callback (hide once connected)
   useEffect(() => {

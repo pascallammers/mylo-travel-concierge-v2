@@ -271,7 +271,8 @@ const Messages: React.FC<MessagesProps> = ({
     ],
   );
 
-  // Check if we should show loading animation
+  // Check if we should show the standalone loading animation.
+  // Once an assistant message exists, its parts own the activity indicator.
   const shouldShowLoading = useMemo(() => {
     if (status === 'submitted') {
       return true;
@@ -283,10 +284,10 @@ const Messages: React.FC<MessagesProps> = ({
       if (lastMessage?.role === 'user') {
         return true;
       }
-      // Show loading if assistant message exists but has 0 or 1 parts (just starting)
+      // Show loading only if an assistant message exists without any parts yet.
       if (lastMessage?.role === 'assistant') {
         const partsCount = lastMessage.parts?.length || 0;
-        return partsCount <= 1;
+        return partsCount === 0;
       }
     }
 

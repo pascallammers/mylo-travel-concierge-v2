@@ -59,3 +59,9 @@ docs/*ThriveCart*.csv
 
 # worktrees
 .worktrees/
+.claude/worktrees/
+
+# local tool artifacts
+.claude/scheduled_tasks.lock
+.fallow/
+.playwright-mcp/

@@ -33,6 +33,8 @@ import {
   saveMessages,
   incrementExtremeSearchUsage,
   incrementMessageUsage,
+  recordToolCall,
+  updateToolCall,
   updateChatTitleById,
 } from '@/lib/db/queries';
 import { ChatSDKError } from '@/lib/errors';
@@ -69,6 +71,13 @@ import {
   extremeSearchTool,
   createConnectorsSearchTool,
   knowledgeBaseTool,
+  cppCalculatorTool,
+  transferPartnerOptimizerTool,
+  sweetSpotLookupTool,
+  skiplaggedFlightSearchTool,
+  kiwiFlightSearchTool,
+  trivagoHotelSearchTool,
+  ferryhopperSearchTool,
 } from '@/lib/tools';
 import { flightSearchTool } from '@/lib/tools/flight-search';
 import { getLoyaltyBalancesTool } from '@/lib/tools/loyalty-balances';
@@ -76,6 +85,11 @@ import { markdownJoinerTransform } from '@/lib/parser';
 import { ChatMessage } from '@/lib/types';
 import { getUserLoyaltyData } from '@/lib/db/queries/awardwallet';
 import { formatLoyaltyDataForPrompt } from '@/lib/utils/loyalty-prompt-formatter';
+import {
+  isFlightIntent,
+  extractTextFromMessage,
+  FLIGHT_TOOL_NAMES,
+} from '@/lib/chat/flight-intent-detector';
 
 let globalStreamContext: ResumableStreamContext | null = null;
 
@@ -201,9 +215,21 @@ export async function POST(req: Request) {
   const loyaltyDataPromise = user
     ? getUserLoyaltyData(user.id).catch((error) => {
         console.error('Failed to load loyalty data:', error);
-        return { connected: false, lastSyncedAt: null, accounts: [] };
+        return {
+          status: 'disconnected' as const,
+          connected: false,
+          lastSyncedAt: null,
+          lastError: null,
+          accounts: [],
+        };
       })
-    : Promise.resolve({ connected: false, lastSyncedAt: null, accounts: [] });
+    : Promise.resolve({
+        status: 'disconnected' as const,
+        connected: false,
+        lastSyncedAt: null,
+        lastError: null,
+        accounts: [],
+      });
 
   if (user) {
     const isProUser = user.isProUser;
@@ -504,6 +530,17 @@ export async function POST(req: Request) {
           greeting: greetingTool(timezone),
           knowledge_base: knowledgeBaseTool,
           get_loyalty_balances: getLoyaltyBalancesTool,
+          // Phase 1 tools (Lane E + Phase 1b). Registered unconditionally;
+          // exposure to the model is gated by groupTools.web in app/actions.ts,
+          // which checks ENABLE_PHASE_1_TOOLS. Keeping the registry stable here
+          // means a flag flip doesn't require a redeploy of this route.
+          cpp_calculator: cppCalculatorTool,
+          transfer_partner_optimizer: transferPartnerOptimizerTool,
+          sweet_spot_lookup: sweetSpotLookupTool,
+          skiplagged_flight_search: skiplaggedFlightSearchTool,
+          kiwi_flight_search: kiwiFlightSearchTool,
+          trivago_hotel_search: trivagoHotelSearchTool,
+          ferryhopper_search: ferryhopperSearchTool,
         };
 
         // Filter to only include active tools
@@ -555,6 +592,47 @@ export async function POST(req: Request) {
           (user ? `\n\n${loyaltyContext}` : ''),
         toolChoice: 'auto',
         tools: createToolRegistry(dataStream, searchProvider, user, selectedConnectors, timezone, activeTools),
+        // Deterministic flight-tool routing (Subagent C — code-level safety net).
+        // When the latest user message clearly signals a flight-search intent,
+        // we restrict the active tool space to flight tools and require a tool
+        // call. This is defense-in-depth on top of the system prompt's
+        // "call all flight tools in parallel" instruction.
+        //
+        // Only intervenes on the FIRST step (stepNumber === 0). Subsequent
+        // steps use default behaviour so the model can summarise / format
+        // results across all tools.
+        //
+        // For non-flight queries we return {} → all tools available, model decides.
+        prepareStep: ({ stepNumber, messages: stepMessages }) => {
+          if (stepNumber !== 0) return {};
+
+          const lastUser = [...stepMessages].reverse().find((m) => m.role === 'user');
+          const userText = extractTextFromMessage(lastUser);
+
+          if (!isFlightIntent(userText)) return {};
+
+          // Only enable the flight tools that are actually registered for this
+          // request — gating (e.g. ENABLE_PHASE_1_TOOLS) lives in
+          // app/actions.ts → groupTools, surfaced via `activeTools`.
+          const enabledFlightTools = FLIGHT_TOOL_NAMES.filter((t) =>
+            activeTools.includes(t as any),
+          );
+
+          // No flight tools registered for this group → fall back to default
+          // routing (better than forcing toolChoice: 'required' with an empty
+          // active set, which would error).
+          if (enabledFlightTools.length === 0) return {};
+
+          console.log(
+            '🎯 [prepareStep] Flight intent detected — restricting to:',
+            enabledFlightTools,
+          );
+
+          return {
+            activeTools: enabledFlightTools as any,
+            toolChoice: 'required' as const,
+          };
+        },
         experimental_repairToolCall: async ({ toolCall, tools, inputSchema, error }) => {
           if (NoSuchToolError.isInstance(error)) {
             return null;
@@ -616,9 +694,39 @@ export async function POST(req: Request) {
             console.log('Called Tool: ', event.chunk.toolName);
           }
         },
-        onStepFinish(event) {
+        onStepFinish: async (event) => {
           if (event.warnings) {
             console.log('Warnings: ', event.warnings);
+          }
+
+          if (event.toolCalls && event.toolCalls.length > 0 && id) {
+            await Promise.allSettled(
+              event.toolCalls.map(async (toolCall) => {
+                try {
+                  const recorded = await recordToolCall({
+                    chatId: id,
+                    toolName: toolCall.toolName,
+                    request: toolCall.input as unknown,
+                  });
+                  const matchingResult = event.toolResults?.find(
+                    (tr) => tr.toolCallId === toolCall.toolCallId,
+                  );
+                  await updateToolCall(recorded.id, {
+                    status: matchingResult ? 'succeeded' : 'failed',
+                    response: matchingResult?.output as unknown,
+                    error: matchingResult ? undefined : 'no tool result returned',
+                    startedAt: new Date(),
+                    finishedAt: new Date(),
+                  });
+                } catch (error) {
+                  console.warn(
+                    '[onStepFinish] tool_calls persistence failed for',
+                    toolCall.toolName,
+                    error instanceof Error ? error.message : error,
+                  );
+                }
+              }),
+            );
           }
         },
         onFinish: async (event) => {
@@ -734,12 +842,13 @@ export async function POST(req: Request) {
       }
     },
   });
-  // const streamContext = getStreamContext();
+  const streamContext = getStreamContext();
 
-  // if (streamContext) {
-  //   return new Response(
-  //     await streamContext.resumableStream(streamId, () => stream.pipeThrough(new JsonToSseTransformStream())),
-  //   );
-  // }
+  if (streamContext) {
+    return new Response(
+      await streamContext.resumableStream(streamId, () => stream.pipeThrough(new JsonToSseTransformStream())),
+    );
+  }
+
   return new Response(stream.pipeThrough(new JsonToSseTransformStream()));
 }
