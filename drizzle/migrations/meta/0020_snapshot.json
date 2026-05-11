@@ -1,6 +1,6 @@
 {
-  "id": "a29f20aa-6565-455c-bc08-de574d675303",
-  "prevId": "fc8147d6-f530-4cf7-89a3-fea1c1abfccf",
+  "id": "fc8147d6-f530-4cf7-89a3-fea1c1abfccf",
+  "prevId": "c984ab80-b9a8-47ee-9c44-59bccd10b8c2",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1041,18 +1041,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "stream_id": {
-          "name": "stream_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "original_model_id": {
           "name": "original_model_id",
           "type": "text",
@@ -1088,13 +1076,6 @@
           "type": "jsonb",
           "primaryKey": false,
           "notNull": true
-        },
-        "recovery_used": {
-          "name": "recovery_used",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
         }
       },
       "indexes": {
@@ -1109,27 +1090,6 @@
             },
             {
               "expression": "primary_succeeded",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "failover_events_created_at_recovery_used_idx": {
-          "name": "failover_events_created_at_recovery_used_idx",
-          "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "recovery_used",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
