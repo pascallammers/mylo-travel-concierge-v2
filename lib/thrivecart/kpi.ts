@@ -4,8 +4,13 @@ import {
   thriveCartImportState,
   subscription,
   user,
+  message,
+  chat,
 } from '@/lib/db/schema';
-import { eq, and, count, ne, desc } from 'drizzle-orm';
+import { eq, and, count, ne, desc, gte, lte, sql } from 'drizzle-orm';
+import { thrivecartConfig } from './config';
+import { calculateGrok43TokenCost } from '@/lib/admin/token-costs';
+import { isTrackedProductTransactionForProduct } from './kpi-product-filter';
 
 export const DATE_RANGES = ['this_month', 'last_month', 'this_year', 'last_year', 'all_time'] as const;
 export type DateRange = (typeof DATE_RANGES)[number];
@@ -16,6 +21,7 @@ export interface KPIData {
   subscriptions: SubscriptionKPIs;
   churn: ChurnKPIs;
   payments: PaymentKPIs;
+  aiUsage: AIUsageKPIs;
   growth: GrowthData;
   importState: ImportState;
 }
@@ -52,6 +58,16 @@ interface PaymentKPIs {
   refunds: number;
   refundAmount: number;
   paymentSuccessRate: number;
+}
+
+interface AIUsageKPIs {
+  totalTokens: number;
+  inputTokens: number;
+  cachedInputTokens: number;
+  outputTokens: number;
+  totalCostUsd: number;
+  previousPeriodCostUsd: number;
+  activeUsers: number;
 }
 
 interface GrowthData {
@@ -146,6 +162,13 @@ function isInPeriod(date: Date, start: Date, end: Date): boolean {
   return date >= start && date <= end;
 }
 
+function isTrackedProductTransaction(transaction: {
+  baseProduct: string | null;
+  itemId: string | null;
+}): boolean {
+  return isTrackedProductTransactionForProduct(transaction, thrivecartConfig.productId);
+}
+
 /**
  * Compute all KPIs from stored transaction and subscription data.
  * @param dateRange - The time period to compute KPIs for.
@@ -165,6 +188,8 @@ export async function computeKPIs(dateRange: DateRange = 'this_month'): Promise<
       transactionDate: thriveCartTransaction.transactionDate,
       customerEmail: thriveCartTransaction.customerEmail,
       orderId: thriveCartTransaction.orderId,
+      baseProduct: thriveCartTransaction.baseProduct,
+      itemId: thriveCartTransaction.itemId,
     })
     .from(thriveCartTransaction);
 
@@ -187,6 +212,10 @@ export async function computeKPIs(dateRange: DateRange = 'this_month'): Promise<
   const monthlyMap = new Map<string, { revenue: number; newPaidSubs: number; cancels: number }>();
 
   for (const txn of allTransactions) {
+    if (!isTrackedProductTransaction(txn)) {
+      continue;
+    }
+
     const email = txn.customerEmail.toLowerCase();
     const date = txn.transactionDate;
     const amount = txn.amount;
@@ -321,6 +350,11 @@ export async function computeKPIs(dateRange: DateRange = 'this_month'): Promise<
     ? Math.round((totalSuccessful / (totalSuccessful + periodFailed)) * 1000) / 10
     : 100;
 
+  const aiUsage = await computeAIUsage(bounds.start, bounds.end);
+  const previousAIUsage = dateRange === 'all_time'
+    ? { totalCostUsd: 0 }
+    : await computeAIUsage(bounds.previousStart, bounds.previousEnd);
+
   // --- Growth charts: last 12 months (always shown) ---
   const sortedMonthKeys = Array.from(monthlyMap.keys()).sort();
   const cumulativeSubscribers = new Map<string, number>();
@@ -410,6 +444,10 @@ export async function computeKPIs(dateRange: DateRange = 'this_month'): Promise<
       refundAmount: Math.round(periodRefundAmount / 100),
       paymentSuccessRate,
     },
+    aiUsage: {
+      ...aiUsage,
+      previousPeriodCostUsd: previousAIUsage.totalCostUsd,
+    },
     growth: {
       monthlyRevenue,
       monthlyChurn,
@@ -422,5 +460,35 @@ export async function computeKPIs(dateRange: DateRange = 'this_month'): Promise<
       dataFreshness,
       hoursStale,
     },
+  };
+}
+
+async function computeAIUsage(start: Date, end: Date): Promise<Omit<AIUsageKPIs, 'previousPeriodCostUsd'>> {
+  const [usage] = await db
+    .select({
+      inputTokens: sql<number>`COALESCE(SUM(${message.inputTokens}), 0)::int`,
+      cachedInputTokens: sql<number>`COALESCE(SUM(${message.cachedInputTokens}), 0)::int`,
+      outputTokens: sql<number>`COALESCE(SUM(${message.outputTokens}), 0)::int`,
+      totalTokens: sql<number>`COALESCE(SUM(${message.totalTokens}), 0)::int`,
+      activeUsers: sql<number>`COUNT(DISTINCT ${chat.userId})::int`,
+    })
+    .from(message)
+    .innerJoin(chat, eq(message.chatId, chat.id))
+    .where(and(gte(message.createdAt, start), lte(message.createdAt, end), gte(message.totalTokens, 1)));
+
+  const cost = calculateGrok43TokenCost({
+    inputTokens: usage?.inputTokens ?? 0,
+    cachedInputTokens: usage?.cachedInputTokens ?? 0,
+    outputTokens: usage?.outputTokens ?? 0,
+    totalTokens: usage?.totalTokens ?? 0,
+  });
+
+  return {
+    totalTokens: cost.totalTokens,
+    inputTokens: cost.inputTokens,
+    cachedInputTokens: cost.cachedInputTokens,
+    outputTokens: cost.outputTokens,
+    totalCostUsd: Math.round(cost.totalCostUsd * 100) / 100,
+    activeUsers: usage?.activeUsers ?? 0,
   };
 }

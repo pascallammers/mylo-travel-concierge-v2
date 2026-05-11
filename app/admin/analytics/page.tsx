@@ -4,16 +4,46 @@ import { useEffect, useMemo, useState } from 'react';
 import { StatsCard } from '@/components/admin/stats-card';
 import { TokenUsageChart } from '@/components/admin/token-usage-chart';
 import { ActivityChart } from '@/components/admin/activity-chart';
-import { Activity, Clock, Users } from 'lucide-react';
+import { FailoverCard, type FailoverAnalytics } from '@/components/admin/failover-card';
+import { Activity, Clock, DollarSign, TrendingUp, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface TokenAnalytics {
   totalTokens: number;
   totalCost: number;
-  topUsers: Array<{ email: string; tokens: number }>;
-  dailyUsage: Array<{ date: string; tokens: number }>;
+  totalCostUsd: number;
+  inputTokens: number;
+  cachedInputTokens: number;
+  outputTokens: number;
+  estimatedRevenueEur: number;
+  estimatedProfitEur: number;
+  trackedUsers: number;
+  revenuePerUserEur: number;
+  topUsers: Array<{ email: string; tokens: number; costUsd: number }>;
+  users: Array<{
+    userId: string;
+    email: string;
+    messageCount: number;
+    inputTokens: number;
+    cachedInputTokens: number;
+    billableInputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    costUsd: number;
+    revenueEur: number;
+    estimatedProfitEur: number;
+  }>;
+  dailyUsage: Array<{ date: string; tokens: number; totalTokens: number; costUsd: number }>;
+  pricing: {
+    inputUsdPerMillion: number;
+    cachedInputUsdPerMillion: number;
+    outputUsdPerMillion: number;
+    monthlyRevenuePerUserEur: number;
+    usdToEurRate: number;
+  };
 }
 
 interface ActivityAnalytics {
@@ -29,6 +59,18 @@ const RANGE_OPTIONS = [
   { label: '90 Tage', value: '90' },
 ];
 
+const usdFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  maximumFractionDigits: 2,
+});
+
+const eurFormatter = new Intl.NumberFormat('de-DE', {
+  style: 'currency',
+  currency: 'EUR',
+  maximumFractionDigits: 2,
+});
+
 /**
  * Admin analytics page showing token and activity metrics over a selectable period.
  * @returns React component rendering analytics dashboards.
@@ -37,6 +79,7 @@ export default function AnalyticsPage() {
   const [range, setRange] = useState('30');
   const [tokenAnalytics, setTokenAnalytics] = useState<TokenAnalytics | null>(null);
   const [activityAnalytics, setActivityAnalytics] = useState<ActivityAnalytics | null>(null);
+  const [failoverAnalytics, setFailoverAnalytics] = useState<FailoverAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,9 +90,13 @@ export default function AnalyticsPage() {
         setError(null);
 
         const qs = `?days=${range}`;
-        const [tokensRes, activityRes] = await Promise.all([
+        // Failover endpoint is allowed to fail (e.g. before migration 0020 has
+        // run on this environment) without taking down the rest of the
+        // dashboard. tokens/activity remain hard requirements.
+        const [tokensRes, activityRes, failoverRes] = await Promise.all([
           fetch(`/api/admin/analytics/tokens${qs}`),
           fetch(`/api/admin/analytics/activity${qs}`),
+          fetch('/api/admin/analytics/failover').catch(() => null),
         ]);
 
         if (!tokensRes.ok || !activityRes.ok) {
@@ -61,8 +108,18 @@ export default function AnalyticsPage() {
           activityRes.json(),
         ]);
 
+        let failoverData: FailoverAnalytics | null = null;
+        if (failoverRes && failoverRes.ok) {
+          try {
+            failoverData = await failoverRes.json();
+          } catch {
+            failoverData = null;
+          }
+        }
+
         setTokenAnalytics(tokensData);
         setActivityAnalytics(activityData);
+        setFailoverAnalytics(failoverData);
       } catch (err) {
         console.error('Error fetching analytics:', err);
         setError(err instanceof Error ? err.message : 'Unknown error');
@@ -78,6 +135,14 @@ export default function AnalyticsPage() {
   const chartActiveUsers = useMemo(
     () => activityAnalytics?.activeUsersByDay ?? [],
     [activityAnalytics],
+  );
+  const recentDailyUsage = useMemo(
+    () =>
+      (tokenAnalytics?.dailyUsage ?? [])
+        .slice()
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .slice(0, 30),
+    [tokenAnalytics],
   );
 
   return (
@@ -116,9 +181,9 @@ export default function AnalyticsPage() {
       )}
 
       {/* Summary cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         {loading ? (
-          [...Array(4)].map((_, i) => (
+          [...Array(5)].map((_, i) => (
             <Card key={i}>
               <CardHeader className="pb-2">
                 <Skeleton className="h-4 w-24" />
@@ -141,29 +206,38 @@ export default function AnalyticsPage() {
               />
               <StatsCard
                 title="API-Kosten"
-                value={`$${tokenAnalytics.totalCost.toFixed(2)}`}
-                description="Basispreis $0.002 / 1K Tokens"
+                value={usdFormatter.format(tokenAnalytics.totalCostUsd)}
+                description="Grok 4.3 Input/Cached/Output"
                 icon={Clock}
                 delay={100}
+              />
+              <StatsCard
+                title="Umsatz-Basis"
+                value={eurFormatter.format(tokenAnalytics.estimatedRevenueEur)}
+                description={`${eurFormatter.format(tokenAnalytics.revenuePerUserEur)} pro Nutzer im Zeitraum`}
+                icon={DollarSign}
+                delay={150}
+              />
+              <StatsCard
+                title="Profit-Schätzung"
+                value={eurFormatter.format(tokenAnalytics.estimatedProfitEur)}
+                description={`${tokenAnalytics.trackedUsers} Nutzer mit Verbrauch`}
+                icon={TrendingUp}
+                delay={200}
               />
               <StatsCard
                 title="Aktive Nutzer"
                 value={activityAnalytics.uniqueActiveUsers}
                 description="Interagiert im Zeitraum"
                 icon={Users}
-                delay={200}
-              />
-              <StatsCard
-                title="Ø Interaktionen"
-                value={activityAnalytics.avgInteractionsPerUser}
-                description="pro aktivem Nutzer"
-                icon={Activity}
                 delay={300}
               />
             </>
           )
         )}
       </div>
+
+      <FailoverCard data={failoverAnalytics} loading={loading} />
 
       {/* Charts */}
       <div className="grid gap-4 md:grid-cols-2">
@@ -191,28 +265,68 @@ export default function AnalyticsPage() {
 
       {/* Additional details */}
       {!loading && tokenAnalytics && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Tägliche Token-Nutzung</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {tokenAnalytics.dailyUsage.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Keine Daten im gewählten Zeitraum.</p>
-            ) : (
-              <div className="space-y-2 text-sm">
-                {tokenAnalytics.dailyUsage.map((entry) => (
-                  <div
-                    key={entry.date}
-                    className="flex items-center justify-between rounded-md border px-3 py-2"
-                  >
-                    <span>{new Date(entry.date).toLocaleDateString()}</span>
-                    <span className="font-medium">{entry.tokens.toLocaleString()} Tokens</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Nutzerkosten im Zeitraum</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {tokenAnalytics.users.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Keine Daten im gewählten Zeitraum.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nutzer</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead className="text-right">Input</TableHead>
+                      <TableHead className="text-right">Cached</TableHead>
+                      <TableHead className="text-right">Output</TableHead>
+                      <TableHead className="text-right">Kosten</TableHead>
+                      <TableHead className="text-right">Profit</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tokenAnalytics.users.map((entry) => (
+                      <TableRow key={entry.userId}>
+                        <TableCell className="max-w-[260px] truncate font-medium">{entry.email}</TableCell>
+                        <TableCell className="text-right">{entry.totalTokens.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">{entry.inputTokens.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">{entry.cachedInputTokens.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">{entry.outputTokens.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">{usdFormatter.format(entry.costUsd)}</TableCell>
+                        <TableCell className="text-right">{eurFormatter.format(entry.estimatedProfitEur)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Tägliche Token-Nutzung</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {recentDailyUsage.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Keine Daten im gewählten Zeitraum.</p>
+              ) : (
+                <div className="space-y-2 text-sm">
+                  {recentDailyUsage.map((entry) => (
+                    <div key={entry.date} className="rounded-md border px-3 py-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <span>{new Date(entry.date).toLocaleDateString()}</span>
+                        <span className="font-medium">{entry.totalTokens.toLocaleString()} Tokens</span>
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">{usdFormatter.format(entry.costUsd)}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );

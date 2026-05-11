@@ -1,7 +1,10 @@
 import { webSearchTool } from '@/lib/tools';
 import { xSearchTool } from '@/lib/tools/x-search';
 import { convertToModelMessages, generateText, stepCountIs } from 'ai';
-import { languageModel } from '@/ai/providers';
+import { languageModel, DEFAULT_MODEL } from '@/ai/providers';
+import { getStreamPolicy } from '@/ai/failover';
+import { persistFailoverMetadata, recordGatewayFailure } from '@/lib/observability/failover-recorder';
+import { after } from 'next/server';
 
 export const maxDuration = 800;
 
@@ -75,21 +78,38 @@ export async function POST(req: Request) {
         ? ['web_search' as const]
         : ['web_search' as const, 'x_search' as const];
 
-  const { text, steps } = await generateText({
-    model: languageModel,
-    system: systemPrompt,
-    stopWhen: stepCountIs(2),
-    messages: convertToModelMessages(messages),
-    temperature: 0,
-    experimental_activeTools: activeTools,
-    tools: {
-      web_search: webSearchTool(undefined, "exa"),
-      x_search: xSearchTool,
-    },
-  });
+  const chatPolicy = getStreamPolicy('chat');
+  let text: string;
+  let steps: unknown;
+  let providerMetadata: unknown;
+  try {
+    const result = await generateText({
+      model: languageModel,
+      ...(chatPolicy && { providerOptions: { gateway: chatPolicy } }),
+      system: systemPrompt,
+      stopWhen: stepCountIs(2),
+      messages: convertToModelMessages(messages),
+      temperature: 0,
+      experimental_activeTools: activeTools,
+      tools: {
+        web_search: webSearchTool(undefined, "exa"),
+        x_search: xSearchTool,
+      },
+    });
+    text = result.text;
+    steps = result.steps;
+    providerMetadata = result.providerMetadata;
+  } catch (error) {
+    // Total stream/handshake failure — gateway routing metadata isn't
+    // available, so record a synthetic event to keep the outage visible.
+    after(() => recordGatewayFailure(`xai/${DEFAULT_MODEL}`));
+    throw error;
+  }
 
   console.log('Text: ', text);
   console.log('Steps: ', steps);
+
+  after(() => persistFailoverMetadata(providerMetadata));
 
   return new Response(text);
 }

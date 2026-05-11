@@ -6,7 +6,7 @@ export type RouteEvalResult = {
   durationMs: number;
 };
 
-const DEFAULT_MODEL = 'grok-4-1-fast-non-reasoning';
+const DEFAULT_MODEL = 'grok-4.3';
 const TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 3;
 

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, json, varchar, integer, uuid, real, uniqueIndex, index } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, json, jsonb, varchar, integer, uuid, real, uniqueIndex, index } from 'drizzle-orm/pg-core';
 import { generateId } from 'ai';
 import { InferSelectModel } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
@@ -93,6 +93,7 @@ export const message = pgTable('message', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   model: text('model'),
   inputTokens: integer('input_tokens'),
+  cachedInputTokens: integer('cached_input_tokens'),
   outputTokens: integer('output_tokens'),
   totalTokens: integer('total_tokens'),
   completionTime: real('completion_time'),
@@ -371,6 +372,27 @@ export const toolCalls = pgTable('tool_calls', {
   startedAt: timestamp('started_at'),
   finishedAt: timestamp('finished_at'),
 });
+
+// AI Gateway failover observability events.
+export const failoverEvents = pgTable('failover_events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  chatId: text('chat_id').references(() => chat.id, { onDelete: 'set null' }),
+  streamId: text('stream_id'),
+  userId: text('user_id'),
+  originalModelId: text('original_model_id').notNull(),
+  finalProvider: text('final_provider').notNull(),
+  modelAttemptCount: integer('model_attempt_count').notNull(),
+  primarySucceeded: boolean('primary_succeeded').notNull(),
+  totalProviderAttemptCount: integer('total_provider_attempt_count').notNull(),
+  fallbackChain: jsonb('fallback_chain').$type<string[]>().notNull(),
+  recoveryUsed: boolean('recovery_used').notNull().default(false),
+}, (table) => [
+  index('failover_events_created_at_primary_succeeded_idx').on(table.createdAt, table.primarySucceeded),
+  index('failover_events_created_at_recovery_used_idx').on(table.createdAt, table.recoveryUsed),
+]);
+
+export type FailoverEventRow = InferSelectModel<typeof failoverEvents>;
 
 // Session state management table
 export interface SessionStateData {

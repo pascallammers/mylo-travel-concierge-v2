@@ -121,6 +121,7 @@ export function convertToUIMessages(messages: Message[]): ChatMessage[] {
         model: message.model ?? '',
         completionTime: message.completionTime,
         inputTokens: message.inputTokens,
+        cachedInputTokens: message.cachedInputTokens,
         outputTokens: message.outputTokens,
         totalTokens: message.totalTokens,
       },

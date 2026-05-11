@@ -45,8 +45,8 @@ import type { SuggestedQuestionHistoryMessage } from '@/lib/chat';
 // State management imports
 import { chatReducer, createInitialState } from '@/components/chat-state';
 import { useDataStream } from './data-stream-provider';
-import { DefaultChatTransport } from 'ai';
-import { ChatMessage } from '@/lib/types';
+import { DefaultChatTransport, type DataUIPart } from 'ai';
+import { ChatMessage, type CustomUIDataTypes } from '@/lib/types';
 
 interface ChatInterfaceProps {
   initialChatId?: string;
@@ -248,7 +248,10 @@ const ChatInterface = memo(
       }),
       experimental_throttle: 100,
       onData: (dataPart) => {
-        setDataStream((ds) => (ds ? [...ds, dataPart] : []));
+        // ai SDK 5.0.186 widens onData's dataPart with a `data-${string}`
+        // catch-all variant that doesn't fit our DataUIPart<CustomUIDataTypes>
+        // state. Backend only emits known variants, so cast is safe.
+        setDataStream((ds) => [...ds, dataPart as DataUIPart<CustomUIDataTypes>]);
       },
       onFinish: async ({ message }) => {
         // Refresh usage data after message completion for authenticated users

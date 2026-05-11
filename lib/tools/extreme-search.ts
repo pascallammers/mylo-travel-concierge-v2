@@ -4,6 +4,12 @@
 // ----> For each search query, search web and collect sources
 // ----> Use structured source collection to provide comprehensive research results
 // ----> Return all collected sources and research data to the user
+//
+// The xai('grok-4.3') call below uses @ai-sdk/xai directly (not the Vercel AI
+// Gateway) because xAI Live Search via `searchParameters` is not stably proxied
+// through the gateway (see vercel/ai#12827). The scira.languageModel(...) calls
+// in this same file DO go through the gateway via ai/providers.ts. Do not
+// migrate the direct xai() call until the issue is resolved.
 
 import Exa from 'exa-js';
 import { Daytona } from '@daytonaio/sdk';
@@ -593,12 +599,15 @@ ${JSON.stringify(plan)}
             const searchEndDate = endDate || new Date().toISOString().split('T')[0];
 
             const { text, sources } = await generateText({
-              model: xai('grok-4-fast-non-reasoning'),
+              model: xai('grok-4.3'),
               system: `You are a helpful assistant that searches for X posts and returns the results in a structured format. You will be given a search query and a list of X handles to search from. You will then search for the posts and return the results in a structured format. You will also cite the sources in the format [Source No.]. Go very deep in the search and return the most relevant results.`,
               messages: [{ role: 'user', content: query }],
-              maxOutputTokens: 10,
+              // See x-search.ts for the rationale on the bumped cap and 'low'
+              // reasoning effort with grok-4.3.
+              maxOutputTokens: 256,
               providerOptions: {
                 xai: {
+                  reasoningEffort: 'low',
                   searchParameters: {
                     mode: 'on',
                     fromDate: searchStartDate,

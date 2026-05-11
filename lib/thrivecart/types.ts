@@ -57,15 +57,15 @@ export interface ThriveCartPurchase {
 
 export interface ThriveCartWebhookPayload {
   event: ThriveCartEventType;
-  event_id?: number;
+  event_id?: string;
   mode: 'live' | 'test';
   thrivecart_account: string;
   thrivecart_secret: string;
   base_product: number;
-  order_id: number;
+  order_id: string;
   invoice_id: string;
   currency: string;
-  customer_id: number;
+  customer_id: string;
   customer_identifier?: string;
   customer: ThriveCartCustomer;
   order: ThriveCartOrder;
@@ -86,14 +86,14 @@ export type ThriveCartEventType =
 // --- API Response Types ---
 
 export interface ThriveCartApiCustomer {
-  id: number;
+  id: string;
   email: string;
   name: string;
   purchases: ThriveCartApiPurchase[];
 }
 
 export interface ThriveCartApiPurchase {
-  order_id: number;
+  order_id: string;
   product_id: number;
   product_name: string;
   status: string;
