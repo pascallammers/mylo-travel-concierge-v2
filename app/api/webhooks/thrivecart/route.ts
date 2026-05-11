@@ -40,13 +40,9 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Parse numeric fields
-      if (typeof payload.order_id === 'string') {
-        payload.order_id = Number(payload.order_id);
-      }
-      if (typeof payload.customer_id === 'string') {
-        payload.customer_id = Number(payload.customer_id);
-      }
+      // base_product is small and numeric. order_id / customer_id / event_id
+      // stay as strings — they're snowflake-style IDs that can exceed
+      // Number.MAX_SAFE_INTEGER and lose precision when coerced.
       if (typeof payload.base_product === 'string') {
         payload.base_product = Number(payload.base_product);
       }

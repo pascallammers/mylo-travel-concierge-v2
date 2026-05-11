@@ -12,7 +12,11 @@
 import type { ThriveCartPurchase, ThriveCartWebhookPayload } from './types';
 
 const NESTED_JSON_KEYS = ['customer', 'order', 'purchases', 'purchase_map'] as const;
-const NUMERIC_ID_KEYS = ['order_id', 'customer_id', 'base_product', 'event_id'] as const;
+// Only product identifiers stay numeric — they're small bounded values. Other
+// IDs (customer_id, order_id, event_id) can exceed Number.MAX_SAFE_INTEGER
+// (ThriveCart customer IDs are 18-digit snowflakes) and lose precision when
+// coerced via Number(), so they must remain strings end-to-end.
+const NUMERIC_ID_KEYS = ['base_product'] as const;
 
 /**
  * Normalize a raw ThriveCart webhook payload. Idempotent.

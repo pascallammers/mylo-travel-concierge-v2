@@ -66,14 +66,22 @@ const NEA_VIP_PAYLOAD: Record<string, unknown> = {
 };
 
 describe('normalizeThriveCartPayload', () => {
-  it('coerces string-typed numeric IDs to numbers', () => {
+  it('coerces only base_product to number — snowflake IDs stay strings', () => {
     const result = normalizeThriveCartPayload(REAL_MYLO_PAYLOAD_FROM_DB);
 
     assert.equal(typeof result.base_product, 'number');
     assert.equal(result.base_product, 5);
-    assert.equal(typeof result.order_id, 'number');
-    assert.equal(result.order_id, 41427460);
-    assert.equal(typeof result.event_id, 'number');
+    assert.equal(typeof result.order_id, 'string');
+    assert.equal(result.order_id, '41427460');
+    assert.equal(typeof result.event_id, 'string');
+    assert.equal(result.event_id, '1525404990');
+  });
+
+  it('preserves 18-digit customer_id exactly without precision loss', () => {
+    const result = normalizeThriveCartPayload(REAL_MYLO_PAYLOAD_FROM_DB);
+
+    assert.equal(typeof result.customer_id, 'string');
+    assert.equal(result.customer_id, '429583657948047782');
   });
 
   it('reconstructs purchases as objects when ThriveCart sends string array', () => {
