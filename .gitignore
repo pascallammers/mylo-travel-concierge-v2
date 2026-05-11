@@ -65,3 +65,4 @@ docs/*ThriveCart*.csv
 .claude/scheduled_tasks.lock
 .fallow/
 .playwright-mcp/
+.pnpm-store/
