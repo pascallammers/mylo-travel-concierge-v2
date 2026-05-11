@@ -2,6 +2,12 @@ import { dbUncached } from '@/lib/db';
 import { failoverEvents } from '@/lib/db/schema';
 import { type FailoverEvent, extractFailoverEvent } from '@/lib/observability/failover-metrics';
 
+interface PersistFailoverOptions {
+  recoveryUsed?: boolean;
+  streamId?: string | null;
+  userId?: string | null;
+}
+
 /**
  * Persists an extracted AI Gateway failover event without throwing to callers.
  *
@@ -11,9 +17,14 @@ import { type FailoverEvent, extractFailoverEvent } from '@/lib/observability/fa
  *
  * @param event - Narrow failover event extracted from provider metadata.
  * @param chatId - Optional chat id associated with the request.
- * @returns Promise that resolves after the best-effort write attempt.
+ * @param options - Optional recovery and request metadata.
+ * @returns Promise resolving true when a row was persisted.
  */
-export async function persistFailoverEvent(event: FailoverEvent, chatId?: string | null): Promise<void> {
+export async function persistFailoverEvent(
+  event: FailoverEvent,
+  chatId?: string | null,
+  options: PersistFailoverOptions = {},
+): Promise<boolean> {
   const baseValues = {
     originalModelId: event.originalModelId,
     finalProvider: event.finalProvider,
@@ -21,28 +32,32 @@ export async function persistFailoverEvent(event: FailoverEvent, chatId?: string
     primarySucceeded: event.primarySucceeded,
     totalProviderAttemptCount: event.totalProviderAttemptCount,
     fallbackChain: event.fallbackChain,
+    recoveryUsed: event.recoveryUsed ?? options.recoveryUsed ?? false,
+    streamId: event.streamId ?? options.streamId ?? null,
+    userId: event.userId ?? options.userId ?? null,
   };
 
   try {
     await dbUncached.insert(failoverEvents).values({ ...baseValues, chatId: chatId ?? null });
-    return;
+    return true;
   } catch (error) {
     if (chatId && isForeignKeyViolation(error)) {
       try {
         await dbUncached.insert(failoverEvents).values({ ...baseValues, chatId: null });
-        return;
+        return true;
       } catch (retryError) {
         console.warn(
           '[failover-observability] Failed to persist failover event after FK retry:',
           retryError instanceof Error ? retryError.message : retryError,
         );
-        return;
+        return false;
       }
     }
     console.warn(
       '[failover-observability] Failed to persist failover event:',
       error instanceof Error ? error.message : error,
     );
+    return false;
   }
 }
 
@@ -51,16 +66,21 @@ export async function persistFailoverEvent(event: FailoverEvent, chatId?: string
  *
  * @param providerMetadata - Raw AI SDK provider metadata.
  * @param chatId - Optional chat id associated with the request.
- * @returns Promise that resolves after the best-effort write attempt.
+ * @param options - Optional recovery and request metadata.
+ * @returns Promise resolving true when a row was persisted.
  */
-export async function persistFailoverMetadata(providerMetadata: unknown, chatId?: string | null): Promise<void> {
+export async function persistFailoverMetadata(
+  providerMetadata: unknown,
+  chatId?: string | null,
+  options: PersistFailoverOptions = {},
+): Promise<boolean> {
   const event = extractFailoverEvent(providerMetadata);
 
   if (!event) {
-    return;
+    return false;
   }
 
-  await persistFailoverEvent(event, chatId);
+  return await persistFailoverEvent(event, chatId, options);
 }
 
 /**
@@ -71,12 +91,14 @@ export async function persistFailoverMetadata(providerMetadata: unknown, chatId?
  *
  * @param originalModelId - The intended model id, e.g. 'xai/grok-4.3'.
  * @param chatId - Optional chat id associated with the request.
- * @returns Promise that resolves after the best-effort write attempt.
+ * @param options - Optional recovery and request metadata.
+ * @returns Promise resolving true when a row was persisted.
  */
 export async function recordGatewayFailure(
   originalModelId: string,
   chatId?: string | null,
-): Promise<void> {
+  options: PersistFailoverOptions = {},
+): Promise<boolean> {
   const syntheticEvent: FailoverEvent = {
     originalModelId,
     finalProvider: 'unknown',
@@ -84,8 +106,11 @@ export async function recordGatewayFailure(
     primarySucceeded: false,
     totalProviderAttemptCount: 0,
     fallbackChain: [originalModelId],
+    recoveryUsed: options.recoveryUsed ?? false,
+    streamId: options.streamId ?? null,
+    userId: options.userId ?? null,
   };
-  await persistFailoverEvent(syntheticEvent, chatId);
+  return await persistFailoverEvent(syntheticEvent, chatId, options);
 }
 
 function isForeignKeyViolation(error: unknown): boolean {

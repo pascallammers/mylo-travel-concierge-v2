@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ExternalLink, GitBranch, X } from 'lucide-react';
+import { AlertTriangle, ExternalLink, GitBranch, RotateCcw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -9,6 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 export interface FailoverAnalytics {
   failoverRate: number;
   totalRequests: number;
+  recoveryCount: number;
+  recoveryRate: number;
   providerBreakdown: Record<string, number>;
   attemptDepthHistogram: Record<number, number>;
   costEstimate: {
@@ -45,6 +47,7 @@ export function FailoverCard({ data, loading }: FailoverCardProps) {
   }, []);
 
   const ratePercent = ((data?.failoverRate ?? 0) * 100).toFixed(1);
+  const recoveryRatePercent = ((data?.recoveryRate ?? 0) * 100).toFixed(1);
   const severity = getRateSeverity(data?.failoverRate ?? 0);
   const providerRows = useMemo(
     () => Object.entries(data?.providerBreakdown ?? {}).sort((a, b) => b[1] - a[1]),
@@ -98,6 +101,16 @@ export function FailoverCard({ data, loading }: FailoverCardProps) {
               <span className={`rounded-md px-2.5 py-1 text-xs font-medium ${severity.badgeClass}`}>
                 {severity.label}
               </span>
+            </div>
+
+            <div className="rounded-md border bg-muted/40 px-3 py-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <RotateCcw className="h-4 w-4 text-primary" />
+                Synthese-Recovery
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {data.recoveryCount.toLocaleString()} Recoveries, letzte 24h · {recoveryRatePercent}% aller Gateway-Events
+              </p>
             </div>
 
             <div className={`rounded-md border px-3 py-3 ${spendExceeded ? 'border-amber-300 bg-amber-50 text-amber-950' : 'bg-muted/40'}`}>

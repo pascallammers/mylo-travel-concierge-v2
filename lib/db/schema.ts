@@ -378,14 +378,18 @@ export const failoverEvents = pgTable('failover_events', {
   id: uuid('id').primaryKey().defaultRandom(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   chatId: text('chat_id').references(() => chat.id, { onDelete: 'set null' }),
+  streamId: text('stream_id'),
+  userId: text('user_id'),
   originalModelId: text('original_model_id').notNull(),
   finalProvider: text('final_provider').notNull(),
   modelAttemptCount: integer('model_attempt_count').notNull(),
   primarySucceeded: boolean('primary_succeeded').notNull(),
   totalProviderAttemptCount: integer('total_provider_attempt_count').notNull(),
   fallbackChain: jsonb('fallback_chain').$type<string[]>().notNull(),
+  recoveryUsed: boolean('recovery_used').notNull().default(false),
 }, (table) => [
   index('failover_events_created_at_primary_succeeded_idx').on(table.createdAt, table.primarySucceeded),
+  index('failover_events_created_at_recovery_used_idx').on(table.createdAt, table.recoveryUsed),
 ]);
 
 export type FailoverEventRow = InferSelectModel<typeof failoverEvents>;

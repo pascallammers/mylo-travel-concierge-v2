@@ -5,6 +5,9 @@ export interface FailoverEvent {
   primarySucceeded: boolean;
   totalProviderAttemptCount: number;
   fallbackChain: string[];
+  recoveryUsed?: boolean;
+  streamId?: string | null;
+  userId?: string | null;
 }
 
 type UnknownRecord = Record<string, unknown>;

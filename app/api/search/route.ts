@@ -93,8 +93,19 @@ import {
   FLIGHT_TOOL_NAMES,
 } from '@/lib/chat/flight-intent-detector';
 import { persistFailoverMetadata, recordGatewayFailure } from '@/lib/observability/failover-recorder';
+import { ToolResultCache } from '@/lib/chat/tool-result-cache';
+import {
+  cacheSearchStepToolResults,
+  cacheSearchToolResultChunk,
+  handleSearchStreamCompletion,
+} from '@/lib/chat/search-recovery-glue';
+import {
+  resolveRecoveryLocale,
+  shouldForceSynthesisFailure,
+} from '@/lib/chat/stream-failure-recovery';
 
 let globalStreamContext: ResumableStreamContext | null = null;
+const toolResultCache = new ToolResultCache();
 
 // Database operations tracking
 const dbOperationTimings: { operation: string; time: number }[] = [];
@@ -189,6 +200,12 @@ export async function POST(req: Request) {
   console.log('🔍 [DB] Starting getCurrentUser()...');
   const user = await getCurrentUser();
   const streamId = 'stream-' + uuidv4();
+  const recoveryLocale = resolveRecoveryLocale(req.headers.get('referer'));
+  const forceSynthesisFailure = shouldForceSynthesisFailure(
+    req.headers,
+    process.env.NODE_ENV,
+    process.env.MYLO_FORCE_SYNTHESIS_FAILURE,
+  );
   const userCheckTime2 = (Date.now() - userCheckTime) / 1000;
   dbOperationTimings.push({ operation: 'getCurrentUser', time: userCheckTime2 });
   console.log(`⏱️  [DB] getCurrentUser() took: ${userCheckTime2.toFixed(2)}s`);
@@ -197,6 +214,7 @@ export async function POST(req: Request) {
     console.log('User not found');
   }
   let customInstructions: CustomInstructions | null = null;
+  let recoveryOutputWritten = false;
 
   console.log('--------------------------------');
   console.log('Custom Instructions Enabled:', isCustomInstructionsEnabled);
@@ -705,6 +723,7 @@ export async function POST(req: Request) {
           if (event.chunk.type === 'tool-call') {
             console.log('Called Tool: ', event.chunk.toolName);
           }
+          cacheSearchToolResultChunk(toolResultCache, streamId, event.chunk);
         },
         onStepFinish: async (event) => {
           if (event.warnings) {
@@ -740,6 +759,28 @@ export async function POST(req: Request) {
               }),
             );
           }
+
+          cacheSearchStepToolResults(toolResultCache, streamId, event.toolResults, event.toolCalls);
+
+          if (forceSynthesisFailure && event.toolResults && event.toolResults.length > 0) {
+            recoveryOutputWritten = await handleSearchStreamCompletion({
+              cache: toolResultCache,
+              streamId,
+              finishReason: 'error',
+              locale: recoveryLocale,
+              writer: dataStream,
+              recordRecoveryUsed: () => {
+                after(() =>
+                  recordGatewayFailure(`xai/${DEFAULT_MODEL}`, user ? id : null, {
+                    recoveryUsed: true,
+                    streamId,
+                    userId: user?.id ?? null,
+                  }),
+                );
+              },
+            });
+            throw new Error('[recovery-smoke-test] Forced synthesis failure after tool results');
+          }
         },
         onFinish: async (event) => {
           console.log('Fin reason: ', event.finishReason);
@@ -755,7 +796,40 @@ export async function POST(req: Request) {
           console.log('Usage: ', event.usage);
           console.log('Total Usage: ', event.totalUsage);
 
-          after(() => persistFailoverMetadata(event.providerMetadata, user ? id : null));
+          const recoveryUsed = await handleSearchStreamCompletion({
+            cache: toolResultCache,
+            streamId,
+            finishReason: event.finishReason,
+            locale: recoveryLocale,
+            writer: dataStream,
+            recordRecoveryUsed: () => {
+              after(async () => {
+                const persisted = await persistFailoverMetadata(event.providerMetadata, user ? id : null, {
+                  recoveryUsed: true,
+                  streamId,
+                  userId: user?.id ?? null,
+                });
+                if (!persisted) {
+                  await recordGatewayFailure(`xai/${DEFAULT_MODEL}`, user ? id : null, {
+                    recoveryUsed: true,
+                    streamId,
+                    userId: user?.id ?? null,
+                  });
+                }
+              });
+            },
+          });
+          recoveryOutputWritten = recoveryOutputWritten || recoveryUsed;
+
+          if (!recoveryUsed) {
+            after(() =>
+              persistFailoverMetadata(event.providerMetadata, user ? id : null, {
+                recoveryUsed: false,
+                streamId,
+                userId: user?.id ?? null,
+              }),
+            );
+          }
 
           if (user?.id && event.finishReason === 'stop') {
             after(async () => {
@@ -792,12 +866,37 @@ export async function POST(req: Request) {
           console.log(`Total request processing time: ${processingTime.toFixed(2)} seconds`);
           console.log('--------------------------------');
         },
-        onError(event) {
+        async onError(event) {
           console.log('Error: ', event.error);
-          // Synthetic failover event so total stream failures (handshake errors,
-          // network failures, full provider outages — exactly the cases where
-          // gateway routing metadata isn't available) stay visible.
-          after(() => recordGatewayFailure(`xai/${DEFAULT_MODEL}`, user ? id : null));
+          const recoveryUsed = await handleSearchStreamCompletion({
+            cache: toolResultCache,
+            streamId,
+            finishReason: 'error',
+            locale: recoveryLocale,
+            writer: dataStream,
+            recordRecoveryUsed: () => {
+              after(() =>
+                recordGatewayFailure(`xai/${DEFAULT_MODEL}`, user ? id : null, {
+                  recoveryUsed: true,
+                  streamId,
+                  userId: user?.id ?? null,
+                }),
+              );
+            },
+          });
+          recoveryOutputWritten = recoveryOutputWritten || recoveryUsed;
+          if (!recoveryUsed) {
+            // Synthetic failover event so total stream failures (handshake errors,
+            // network failures, full provider outages — exactly the cases where
+            // gateway routing metadata isn't available) stay visible.
+            after(() =>
+              recordGatewayFailure(`xai/${DEFAULT_MODEL}`, user ? id : null, {
+                recoveryUsed: false,
+                streamId,
+                userId: user?.id ?? null,
+              }),
+            );
+          }
           const requestEndTime = Date.now();
           const processingTime = (requestEndTime - requestStartTime) / 1000;
           console.log('--------------------------------');
@@ -831,6 +930,11 @@ export async function POST(req: Request) {
     },
     onError(error) {
       console.log('Error: ', error);
+      if (recoveryOutputWritten) {
+        return recoveryLocale === 'de'
+          ? 'Die Rohdaten wurden oben wiederhergestellt.'
+          : 'The raw results were recovered above.';
+      }
       if (error instanceof Error && error.message.includes('Rate Limit')) {
         return 'Oops, you have reached the rate limit! Please try again later.';
       }

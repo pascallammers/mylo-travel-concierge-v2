@@ -224,6 +224,8 @@ function createFailoverAlertPayload(
     text: `MYLO AI Gateway failover rate is ${failoverPercent}% over the last hour, above ${thresholdPercent}%.`,
     failoverRate: stats.failoverRate,
     totalRequests: stats.totalRequests,
+    recoveryCount: stats.recoveryCount,
+    recoveryRate: stats.recoveryRate,
     providerBreakdown: stats.providerBreakdown,
     attemptDepthHistogram: stats.attemptDepthHistogram,
     periodStart: start.toISOString(),

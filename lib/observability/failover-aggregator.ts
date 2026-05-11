@@ -7,6 +7,8 @@ export interface RecordedFailoverEvent extends FailoverEvent {
 export interface FailoverStats {
   failoverRate: number;
   totalRequests: number;
+  recoveryCount: number;
+  recoveryRate: number;
   providerBreakdown: Record<string, number>;
   attemptDepthHistogram: Record<number, number>;
 }
@@ -38,6 +40,7 @@ export function aggregateFailoverStats(
   const providerBreakdown: Record<string, number> = {};
   const attemptDepthHistogram: Record<number, number> = {};
   let failoverCount = 0;
+  let recoveryCount = 0;
 
   for (const event of eventsInPeriod) {
     providerBreakdown[event.finalProvider] = (providerBreakdown[event.finalProvider] ?? 0) + 1;
@@ -47,6 +50,9 @@ export function aggregateFailoverStats(
     if (!event.primarySucceeded) {
       failoverCount += 1;
     }
+    if (event.recoveryUsed === true) {
+      recoveryCount += 1;
+    }
   }
 
   const totalRequests = eventsInPeriod.length;
@@ -54,6 +60,8 @@ export function aggregateFailoverStats(
   return {
     failoverRate: totalRequests > 0 ? failoverCount / totalRequests : 0,
     totalRequests,
+    recoveryCount,
+    recoveryRate: totalRequests > 0 ? recoveryCount / totalRequests : 0,
     providerBreakdown,
     attemptDepthHistogram,
   };

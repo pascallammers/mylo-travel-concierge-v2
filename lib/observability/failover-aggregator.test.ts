@@ -12,6 +12,8 @@ describe('aggregateFailoverStats', () => {
     assert.deepEqual(aggregateFailoverStats([], period), {
       failoverRate: 0,
       totalRequests: 0,
+      recoveryCount: 0,
+      recoveryRate: 0,
       providerBreakdown: {},
       attemptDepthHistogram: {},
     });
@@ -84,6 +86,21 @@ describe('aggregateFailoverStats', () => {
       2: 1,
       3: 2,
     });
+  });
+
+  it('counts recovery usage separately from provider failover', () => {
+    const stats = aggregateFailoverStats(
+      [
+        event({ primarySucceeded: false, recoveryUsed: true }),
+        event({ primarySucceeded: false, recoveryUsed: false }),
+        event({ primarySucceeded: true, recoveryUsed: false }),
+      ],
+      period,
+    );
+
+    assert.equal(stats.recoveryCount, 1);
+    assert.equal(stats.recoveryRate, 1 / 3);
+    assert.equal(stats.failoverRate, 2 / 3);
   });
 });
 

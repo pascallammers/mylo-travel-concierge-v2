@@ -38,6 +38,9 @@ export async function GET(request: NextRequest) {
       primarySucceeded: row.primarySucceeded,
       totalProviderAttemptCount: row.totalProviderAttemptCount,
       fallbackChain: row.fallbackChain,
+      recoveryUsed: row.recoveryUsed,
+      streamId: row.streamId,
+      userId: row.userId,
     }));
     const stats = aggregateFailoverStats(events, { start, end: now });
     const costEstimate = estimateFallbackCost(events);

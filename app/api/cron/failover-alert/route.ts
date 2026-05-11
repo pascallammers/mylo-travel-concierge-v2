@@ -56,6 +56,9 @@ async function loadEvents(start: Date, end: Date): Promise<RecordedFailoverEvent
     primarySucceeded: row.primarySucceeded,
     totalProviderAttemptCount: row.totalProviderAttemptCount,
     fallbackChain: row.fallbackChain,
+    recoveryUsed: row.recoveryUsed,
+    streamId: row.streamId,
+    userId: row.userId,
   }));
 }
 
