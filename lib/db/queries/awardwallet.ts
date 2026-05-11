@@ -115,6 +115,14 @@ export async function updateConnectionStatus(
       updateData.errorMessage = null;
     }
 
+    // Mark the last attempt timestamp on errors so getSyncableConnections's
+    // 24h backoff window actually works. Without this, every cron run
+    // re-attempts every errored connection (lastSyncedAt stays old/null,
+    // never crosses the cutoff).
+    if (status === 'error') {
+      updateData.lastSyncedAt = new Date();
+    }
+
     const [updated] = await db
       .update(awardwalletConnections)
       .set(updateData)
