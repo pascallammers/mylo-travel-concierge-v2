@@ -40,6 +40,10 @@ const MarkdownRenderer = dynamic(
 );
 import { deleteTrailingMessages } from '@/app/actions';
 import { getErrorActions, getErrorIcon, isSignInRequired, isProRequired, isRateLimited } from '@/lib/errors';
+import {
+  sanitizeUserFacingStreamError,
+  shouldHideRawStreamErrorDetails,
+} from '@/lib/chat/user-facing-stream-error';
 import { saveMemoryFromChat, MemoryContext } from '@/lib/memory-actions';
 import { UserIcon } from '@phosphor-icons/react';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -98,14 +102,23 @@ const EnhancedErrorDisplay: React.FC<EnhancedErrorDisplayProps> = ({
     }
   }
 
+  const rawErrorMessage =
+    typeof error === 'string' ? error : (error as { message?: string }).message ?? '';
+
   // Get error details
   const errorIcon = getErrorIcon(parsedError as any);
   const errorMessage = isChatSDKError
     ? parsedError.message
+    : sanitizeUserFacingStreamError(rawErrorMessage);
+  const rawErrorCause = isChatSDKError
+    ? parsedError.cause
     : typeof error === 'string'
-      ? error
-      : (error as any).message || 'Something went wrong while processing your message';
-  const errorCause = isChatSDKError ? parsedError.cause : typeof error === 'string' ? undefined : (error as any).cause;
+      ? undefined
+      : (error as { cause?: unknown }).cause;
+  const errorCause =
+    rawErrorCause && !shouldHideRawStreamErrorDetails(String(rawErrorCause))
+      ? rawErrorCause
+      : undefined;
   const errorCode = isChatSDKError ? `${parsedError.type}:${parsedError.surface}` : null;
   const actions = isChatSDKError
     ? getErrorActions(parsedError as any)

@@ -94,6 +94,7 @@ import {
   FLIGHT_TOOL_NAMES,
 } from '@/lib/chat/flight-intent-detector';
 import { persistFailoverMetadata, recordGatewayFailure } from '@/lib/observability/failover-recorder';
+import { sanitizeUserFacingStreamError } from '@/lib/chat/user-facing-stream-error';
 import { ToolResultCache } from '@/lib/chat/tool-result-cache';
 import {
   cacheSearchStepToolResults,
@@ -942,7 +943,10 @@ export async function POST(req: Request) {
       if (error instanceof Error && error.message.includes('Rate Limit')) {
         return 'Oops, you have reached the rate limit! Please try again later.';
       }
-      return 'Oops, an error occurred!';
+      if (error instanceof Error) {
+        return sanitizeUserFacingStreamError(error.message);
+      }
+      return sanitizeUserFacingStreamError(String(error));
     },
     onFinish: async ({ messages }) => {
       console.log('onFinish', messages);

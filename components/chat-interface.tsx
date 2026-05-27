@@ -41,6 +41,7 @@ import { cn, SearchGroupId, invalidateChatsCache } from '@/lib/utils';
 import { DEFAULT_MODEL, requiresProSubscription } from '@/ai/providers';
 import { ConnectorProvider } from '@/lib/connectors';
 import type { SuggestedQuestionHistoryMessage } from '@/lib/chat';
+import { sanitizeUserFacingStreamError } from '@/lib/chat/user-facing-stream-error';
 
 // State management imports
 import { chatReducer, createInitialState } from '@/components/chat-state';
@@ -299,7 +300,9 @@ const ChatInterface = memo(
         } else {
           console.error('Chat error:', error.cause, error.message);
           toast.error('An error occurred.', {
-            description: `Oops! An error occurred while processing your request. ${error.cause || error.message}`,
+            description: sanitizeUserFacingStreamError(
+              typeof error.message === 'string' ? error.message : String(error),
+            ),
           });
         }
       },
