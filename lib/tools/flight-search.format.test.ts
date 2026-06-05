@@ -35,6 +35,7 @@ function makeAwardResult() {
       count: 1,
       flights: [
         {
+          program: 'aeroplan',
           airline: 'KLM',
           cabin: 'Economy',
           price: '18,750 miles + USD 328.33',
@@ -74,10 +75,16 @@ function makeCashResult() {
 
 describe('formatFlightResults', () => {
   describe('internal provider names', () => {
-    it('award table does not expose Seats.aero to end users', async () => {
+    it('award table exposes a mileage-program column, never the Seats.aero vendor', async () => {
       const out = await formatFlightResults(makeAwardResult(), baseParams, 'de');
       const headerLine = out.split('\n').find((l) => l.includes('Airline')) ?? '';
-      assert.doesNotMatch(headerLine, /Quelle|Source/i, 'award table must not expose a source column');
+      // The program (Source) is the bookable currency and MUST be shown...
+      assert.match(headerLine, /Programm/, 'award header must include a Programm column');
+      // ...resolved to the customer-facing brand name, not the raw slug.
+      assert.match(out, /Air Canada Aeroplan/, 'program slug must render as a display name');
+      assert.doesNotMatch(out, /aeroplan/, 'raw program slug must not leak');
+      // The data vendor itself stays hidden.
+      assert.doesNotMatch(headerLine, /Quelle|Source/i, 'award table must not expose a vendor source column');
       assert.doesNotMatch(out, /Seats\.aero/i);
     });
 

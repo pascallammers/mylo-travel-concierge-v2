@@ -11,6 +11,7 @@ import {
   buildGoogleFlightsUrl,
   buildSkyscannerUrl,
 } from '@/lib/utils/flight-search-links';
+import { getProgramDisplayName } from '@/lib/api/award-search/program-registry';
 
 // Booking-session creator is injected to keep the renderer free of the
 // server-env import graph. The tool entry-point passes the real
@@ -96,8 +97,8 @@ export const flightI18n = {
     en: (count: number) => `## Flights with Miles/Points (${count} results)\n`,
   },
   awardTableHeader: {
-    de: '| Nr. | Airline | Klasse | Preis | Abflug | Ankunft | Dauer | Stops | Sitze | Flugnummer |',
-    en: '| No. | Airline | Class | Price | Departure | Arrival | Duration | Stops | Seats | Flight No. |',
+    de: '| Nr. | Airline | Programm | Klasse | Preis | Abflug | Ankunft | Dauer | Stops | Sitze | Flugnummer |',
+    en: '| No. | Airline | Program | Class | Price | Departure | Arrival | Duration | Stops | Seats | Flight No. |',
   },
   cashHeader: {
     de: (count: number) => `## Flüge mit Barzahlung (${count} Ergebnisse)\n`,
@@ -210,15 +211,19 @@ export async function formatFlightResults(
   if (result.seats.count > 0) {
     sections.push(flightI18n.awardHeader[locale](result.seats.count));
     sections.push(flightI18n.awardTableHeader[locale]);
-    sections.push(`|-----|---------|--------|-------|--------|---------|-------|-------|-------|------------|`);
+    sections.push(`|-----|---------|----------|-------|--------|---------|-------|-------|-------|-------|------------|`);
 
     result.seats.flights.forEach((flight: any, idx: number) => {
       const departTime = formatTime(flight.outbound.departure.time);
       const arriveTime = formatTime(flight.outbound.arrival.time);
       const seats = flight.seatsLeft || '-';
+      // Resolve the seats.aero program slug to a customer-facing brand name.
+      // The slug ("aeroplan") is the bookable mileage currency; the operating
+      // carrier in `airline` ("LH") is shown separately.
+      const program = getProgramDisplayName(flight.program, locale);
 
       sections.push(
-        `| ${idx + 1} | ${flight.airline} | ${flight.cabin} | ${flight.price} | ${flight.outbound.departure.airport} ${departTime} | ${flight.outbound.arrival.airport} ${arriveTime} | ${flight.outbound.duration} | ${flight.outbound.stops} | ${seats} | ${flight.outbound.flightNumbers} |`,
+        `| ${idx + 1} | ${flight.airline} | ${program} | ${flight.cabin} | ${flight.price} | ${flight.outbound.departure.airport} ${departTime} | ${flight.outbound.arrival.airport} ${arriveTime} | ${flight.outbound.duration} | ${flight.outbound.stops} | ${seats} | ${flight.outbound.flightNumbers} |`,
       );
     });
     sections.push('');

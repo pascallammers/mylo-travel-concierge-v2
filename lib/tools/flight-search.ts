@@ -180,7 +180,11 @@ Examples of queries that should trigger this tool:
           departureDate: params.departDate,
           travelClass: params.cabin as TravelClass,
           flexibility: isFlexibleDateSearch ? 3 : params.flexibility,
-          maxResults: isFlexibleDateSearch ? 15 : 5, // More results for flexible search
+          // `take` is free on seats.aero (1 HTTP call = 1 budget unit regardless
+          // of take), and one call returns ~30 entries PER program. A small take
+          // surfaced only the first program ("nur Lufthansa"); pull a high page
+          // so program-grouping can keep every program. Flex spans 7 days.
+          maxResults: isFlexibleDateSearch ? 100 : 60,
         }).then((result) => {
           console.log('[Flight Search] Seats.aero SUCCESS:', result ? `${result.length} flights` : 'null');
           return result;
