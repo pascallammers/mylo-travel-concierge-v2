@@ -66,7 +66,10 @@ export const serverEnv = createEnv({
     // ThriveCart Integration
     THRIVECART_API_KEY: z.string().min(1),
     THRIVECART_SECRET_WORD: z.string().min(1),
-    THRIVECART_PRODUCT_ID: z.string().optional().default('5'),
+  /** Comma-separated ThriveCart product IDs that grant MYLO (standalone + upsell). */
+    THRIVECART_PRODUCT_IDS: z.string().optional().default('1,5'),
+    /** @deprecated Use THRIVECART_PRODUCT_IDS; still merged when set. */
+    THRIVECART_PRODUCT_ID: z.string().optional(),
     THRIVECART_ACCOUNT_ID: z.string().optional().default('never-economy-again'),
   },
   experimental__runtimeEnv: process.env,

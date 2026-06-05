@@ -1,15 +1,18 @@
 /**
- * Checks whether a stored transaction belongs to the selected ThriveCart product.
+ * Checks whether a stored transaction belongs to a MYLO ThriveCart product.
  * @param transaction - Stored ThriveCart product identifiers.
- * @param productId - Product id that should be counted for KPI reporting.
- * @returns True when the row belongs to the selected product.
+ * @param productIds - Product ids that should be counted for KPI reporting.
+ * @returns True when the row belongs to any selected product.
  */
 export function isTrackedProductTransactionForProduct(
   transaction: {
     baseProduct: string | null;
     itemId: string | null;
   },
-  productId: string,
+  productIds: string | readonly string[],
 ): boolean {
-  return transaction.baseProduct === productId || transaction.itemId === productId;
+  const ids = typeof productIds === 'string' ? [productIds] : productIds;
+  return ids.some(
+    (id) => transaction.baseProduct === id || transaction.itemId === id
+  );
 }

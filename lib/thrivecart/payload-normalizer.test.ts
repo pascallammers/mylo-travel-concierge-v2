@@ -5,7 +5,7 @@ import {
   normalizeThriveCartPayload,
 } from './payload-normalizer';
 
-const MYLO_PRODUCT_ID = 5;
+const MYLO_PRODUCT_IDS = [1, 5] as const;
 
 // Fixture captured from production thrivecart_webhook_log id=6lZnZloS952rutDi.
 // This is the real payload shape that produced the orphan-account bug.
@@ -144,7 +144,7 @@ describe('normalizeThriveCartPayload', () => {
 describe('isProductPurchase', () => {
   it('matches MYLO via base_product when purchases array is degenerate', () => {
     const normalized = normalizeThriveCartPayload(REAL_MYLO_PAYLOAD_FROM_DB);
-    assert.equal(isProductPurchase(normalized, MYLO_PRODUCT_ID), true);
+    assert.equal(isProductPurchase(normalized, MYLO_PRODUCT_IDS), true);
   });
 
   it('matches MYLO via purchases[].product_id', () => {
@@ -155,12 +155,26 @@ describe('isProductPurchase', () => {
       order: {},
     };
     const normalized = normalizeThriveCartPayload(payload);
-    assert.equal(isProductPurchase(normalized, MYLO_PRODUCT_ID), true);
+    assert.equal(isProductPurchase(normalized, MYLO_PRODUCT_IDS), true);
+  });
+
+  it('matches MYLO upsell product_id 1 in a bundle checkout', () => {
+    const payload = {
+      event: 'order.success',
+      base_product: '32',
+      purchases: [
+        { product_id: 32, product_name: 'NEA VIP', amount: 0 },
+        { product_id: 1, product_name: 'MYLO - Miles & Travel Concierge', amount: 4700 },
+      ],
+      order: {},
+    };
+    const normalized = normalizeThriveCartPayload(payload);
+    assert.equal(isProductPurchase(normalized, MYLO_PRODUCT_IDS), true);
   });
 
   it('rejects NEA VIP and other non-MYLO products', () => {
     const normalized = normalizeThriveCartPayload(NEA_VIP_PAYLOAD);
-    assert.equal(isProductPurchase(normalized, MYLO_PRODUCT_ID), false);
+    assert.equal(isProductPurchase(normalized, MYLO_PRODUCT_IDS), false);
   });
 
   it('rejects when both base_product and purchases miss the target', () => {
@@ -171,11 +185,11 @@ describe('isProductPurchase', () => {
       order: {},
     };
     const normalized = normalizeThriveCartPayload(payload);
-    assert.equal(isProductPurchase(normalized, MYLO_PRODUCT_ID), false);
+    assert.equal(isProductPurchase(normalized, MYLO_PRODUCT_IDS), false);
   });
 
   it('handles empty / missing fields without throwing', () => {
     const normalized = normalizeThriveCartPayload({ event: 'order.success' });
-    assert.equal(isProductPurchase(normalized, MYLO_PRODUCT_ID), false);
+    assert.equal(isProductPurchase(normalized, MYLO_PRODUCT_IDS), false);
   });
 });

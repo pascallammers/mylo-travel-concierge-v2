@@ -2,7 +2,7 @@
  * ThriveCart Reconciliation Script
  *
  * Queries every active MYLO user against the ThriveCart API.
- * Users without an active MYLO subscription (product ID 5) get:
+ * Users without an active MYLO subscription (product IDs 1 and 5) get:
  *   1. Subscription copied to archive_subscription
  *   2. Subscription status set to 'canceled'
  *   3. User set to is_active=false, activation_status='suspended'
@@ -16,10 +16,11 @@
 import { config } from 'dotenv';
 config({ path: '.env.local' });
 import { neon } from '@neondatabase/serverless';
+import { parseMyloProductIds } from '../lib/thrivecart/mylo-product-ids';
 
 const DATABASE_URL = process.env.DATABASE_URL!;
 const THRIVECART_API_KEY = process.env.THRIVECART_API_KEY!;
-const MYLO_PRODUCT_ID = Number(process.env.THRIVECART_PRODUCT_ID || '5');
+const MYLO_PRODUCT_IDS = parseMyloProductIds().map(String);
 const RATE_LIMIT_MS = 1200; // ~50 req/min (safe margin under 60/min limit)
 
 const isDryRun = process.argv.includes('--dry-run');
@@ -76,7 +77,7 @@ async function hasActiveMYLOSub(email: string): Promise<boolean> {
   const subscriptions: ThriveCartSubscription[] = data.subscriptions || [];
 
   return subscriptions.some(
-    (s) => s.status === 'active' && String(s.item_id) === String(MYLO_PRODUCT_ID)
+    (s) => s.status === 'active' && MYLO_PRODUCT_IDS.includes(String(s.item_id))
   );
 }
 

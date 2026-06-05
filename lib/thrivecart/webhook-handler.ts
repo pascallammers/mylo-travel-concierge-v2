@@ -7,7 +7,7 @@ import {
   thrivecartWebhookLog,
   thriveCartTransaction,
 } from '@/lib/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { sendWelcomeEmail, sendFailedPaymentAdminAlert } from '@/lib/email';
@@ -26,7 +26,12 @@ import type { ThriveCartWebhookPayload, WebhookProcessingResult } from './types'
 import { generateId } from 'ai';
 import { logAdminActivity } from '@/lib/admin/activity-logger';
 import { thrivecartConfig } from './config';
-import { isProductPurchase, normalizeThriveCartPayload } from './payload-normalizer';
+import {
+  findMyloPurchase,
+  isProductPurchase,
+  normalizeThriveCartPayload,
+} from './payload-normalizer';
+import { deriveSubscriptionWindowFromPayload } from './subscription-window';
 
 /**
  * Process a ThriveCart webhook event.
@@ -40,7 +45,7 @@ export async function processWebhookEvent(
   const eventType = payload.event;
   const orderId = String(payload.order_id || '');
   const eventId = payload.event_id ? String(payload.event_id) : null;
-  const myloProductId = Number(thrivecartConfig.productId);
+  const myloProductIds = thrivecartConfig.productIds;
 
   if (!email) {
     return { success: false, action: 'rejected', error: 'No customer email in payload' };
@@ -59,7 +64,7 @@ export async function processWebhookEvent(
     }
   }
 
-  if (isProductScopedEvent(eventType) && !isProductPurchase(payload, myloProductId)) {
+  if (isProductScopedEvent(eventType) && !isProductPurchase(payload, myloProductIds)) {
     const result = { success: true, action: 'skipped_non_mylo_product' };
 
     await db.insert(thrivecartWebhookLog).values({
@@ -157,16 +162,18 @@ export async function handleOrderSuccess(
   const customerId = String(customer_id);
 
   // Only process MYLO product purchases (product_id from config, default 5)
-  const myloProductId = Number(thrivecartConfig.productId);
-  if (!isProductPurchase(payload, myloProductId)) {
-    console.log(`[ThriveCart] Order ${orderId} is not a MYLO product (base_product: ${payload.base_product}, expected: ${myloProductId}), skipping user creation.`);
+  const myloProductIds = thrivecartConfig.productIds;
+  if (!isProductPurchase(payload, myloProductIds)) {
+    console.log(
+      `[ThriveCart] Order ${orderId} is not a MYLO product (base_product: ${payload.base_product}, expected one of: ${myloProductIds.join(',')}), skipping user creation.`
+    );
     return {
       success: true,
       action: 'skipped_non_mylo_product',
     };
   }
 
-  const myloPurchase = purchases?.find((p) => Number(p.product_id) === myloProductId);
+  const myloPurchase = findMyloPurchase(payload, myloProductIds) ?? purchases?.[0];
   const amount = Number(myloPurchase?.amount || order?.total || 0);
 
   // Check if user already exists
@@ -248,10 +255,18 @@ export async function handleOrderSuccess(
     updatedAt: now,
   });
 
+  const purchaseWindow = deriveSubscriptionWindowFromPayload(payload, myloProductIds);
   const subId = await createSubscription(userId, {
-    amount, currency, orderId, customerId,
+    amount,
+    currency,
+    orderId,
+    customerId,
     productName: myloPurchase?.product_name,
     subscriptionId: myloPurchase?.subscription?.id,
+    periodStart: purchaseWindow.periodStart,
+    periodEnd: purchaseWindow.periodEnd,
+    startedAt: purchaseWindow.startedAt,
+    lastPaymentDate: purchaseWindow.periodStart,
   });
 
   // Record initial payment
@@ -298,8 +313,7 @@ async function handleSubscriptionPayment(
     await reactivateUser(foundUser.id);
   }
 
-  const myloProductId = Number(thrivecartConfig.productId);
-  const myloPurchase = payload.purchases?.find((p) => Number(p.product_id) === myloProductId);
+  const myloPurchase = findMyloPurchase(payload, thrivecartConfig.productIds);
   const eventId = payload.event_id ? String(payload.event_id) : crypto.randomBytes(8).toString('hex');
   await recordPayment(foundUser.id, {
     orderId: eventId,
@@ -370,8 +384,7 @@ async function handleRefund(
   });
 
   // Record the refund payment with negative amount
-  const myloProductIdRefund = Number(thrivecartConfig.productId);
-  const myloPurchase = payload.purchases?.find((p) => Number(p.product_id) === myloProductIdRefund);
+  const myloPurchase = findMyloPurchase(payload, thrivecartConfig.productIds);
   const eventId = payload.event_id ? String(payload.event_id) : crypto.randomBytes(8).toString('hex');
   await recordPayment(foundUser.id, {
     orderId: eventId,
@@ -475,12 +488,20 @@ async function createSubscription(
     customerId: string;
     productName?: string;
     subscriptionId?: string;
+    periodStart?: Date;
+    periodEnd?: Date;
+    startedAt?: Date;
+    lastPaymentDate?: Date;
   }
 ): Promise<string> {
   const subId = crypto.randomBytes(16).toString('hex');
   const now = new Date();
-  const periodEnd = new Date(now);
-  periodEnd.setMonth(periodEnd.getMonth() + 1);
+  const periodStart = opts.periodStart ?? now;
+  const periodEnd = opts.periodEnd ?? new Date(periodStart.getTime());
+  if (!opts.periodEnd) {
+    periodEnd.setMonth(periodEnd.getMonth() + 1);
+  }
+  const lastPayment = opts.lastPaymentDate ?? now;
 
   await db.insert(subscription).values({
     id: subId,
@@ -489,10 +510,10 @@ async function createSubscription(
     amount: opts.amount, // ThriveCart sends amount in cents, store as-is
     currency: opts.currency || 'EUR',
     recurringInterval: 'month',
-    currentPeriodStart: now,
+    currentPeriodStart: periodStart,
     currentPeriodEnd: periodEnd,
-    startedAt: now,
-    createdAt: now,
+    startedAt: opts.startedAt ?? periodStart,
+    createdAt: periodStart,
     customerId: opts.customerId || userId,
     productId: 'mylo-subscription',
     checkoutId: opts.orderId || crypto.randomBytes(8).toString('hex'),
@@ -500,7 +521,7 @@ async function createSubscription(
     thrivecardSubscriptionId: opts.subscriptionId || opts.orderId || null,
     planType: 'standard',
     planName: opts.productName || 'MYLO Miles & Travel Concierge',
-    lastPaymentDate: now,
+    lastPaymentDate: lastPayment,
     nextPaymentDate: periodEnd,
   });
 
@@ -552,6 +573,8 @@ async function recordTransaction(
   const eventId = payload.event_id ? String(payload.event_id) : null;
   if (!eventId) return;
 
+  const myloLine = findMyloPurchase(payload, thrivecartConfig.productIds);
+
   try {
     await db
       .insert(thriveCartTransaction)
@@ -562,7 +585,7 @@ async function recordTransaction(
         transactionDate: new Date(),
         transactionType,
         itemType: 'product',
-        itemId: String(payload.base_product || ''),
+        itemId: String(myloLine?.product_id ?? payload.base_product ?? ''),
         amount,
         currency: payload.currency?.toUpperCase() || 'EUR',
         orderId: payload.order_id ? String(payload.order_id) : null,
@@ -578,4 +601,122 @@ async function recordTransaction(
   } catch (error) {
     console.error('[ThriveCart] Failed to record transaction:', error);
   }
+}
+
+/**
+ * Link a ThriveCart order.success to an existing user (no duplicate account).
+ * Updates manual/incomplete subscriptions, records payment + KPI transaction.
+ *
+ * @param payload - Normalized ThriveCart order.success payload.
+ * @param email - Customer email (lowercase).
+ * @returns Processing result with backfill action name.
+ */
+export async function backfillOrderSuccessForExistingUser(
+  payload: ThriveCartWebhookPayload,
+  email: string
+): Promise<WebhookProcessingResult> {
+  if (!isProductPurchase(payload, thrivecartConfig.productIds)) {
+    return { success: false, action: 'backfill_not_mylo', error: 'Not a MYLO purchase' };
+  }
+
+  const foundUser = await findUserByEmail(email);
+  if (!foundUser) {
+    return { success: false, action: 'backfill_no_user', error: `User not found: ${email}` };
+  }
+
+  const myloPurchase = findMyloPurchase(payload, thrivecartConfig.productIds);
+  const orderId = String(payload.order_id);
+  const customerId = String(payload.customer_id || '');
+  const amount = Number(myloPurchase?.amount || payload.order?.total || 0);
+  const currency = payload.currency || 'EUR';
+
+  let sub = await findUserSubscription(foundUser.id);
+  const now = new Date();
+  const defaultPeriodEnd = new Date(now);
+  defaultPeriodEnd.setMonth(defaultPeriodEnd.getMonth() + 1);
+
+  if (!sub) {
+    const subId = await createSubscription(foundUser.id, {
+      amount,
+      currency,
+      orderId,
+      customerId,
+      productName: myloPurchase?.product_name,
+      subscriptionId: myloPurchase?.subscription?.id,
+    });
+    const createdSub = await findUserSubscription(foundUser.id);
+    if (!createdSub) {
+      return {
+        success: false,
+        action: 'backfill_subscription_missing',
+        error: `Subscription not found after create for ${email}`,
+      };
+    }
+    sub = createdSub;
+  } else {
+    const isManualLink =
+      sub.checkoutId.startsWith('admin_created') ||
+      sub.productId === 'manual_access' ||
+      !sub.thrivecardCustomerId;
+
+    if (isManualLink) {
+      const periodEnd =
+        sub.currentPeriodEnd > defaultPeriodEnd ? sub.currentPeriodEnd : defaultPeriodEnd;
+
+      await db
+        .update(subscription)
+        .set({
+          checkoutId: orderId,
+          customerId: customerId || sub.customerId,
+          thrivecardCustomerId: customerId || null,
+          thrivecardSubscriptionId:
+            myloPurchase?.subscription?.id || orderId || sub.thrivecardSubscriptionId,
+          productId: 'mylo-subscription',
+          planType: 'standard',
+          planName: myloPurchase?.product_name || sub.planName || 'MYLO Miles & Travel Concierge',
+          amount: amount > 0 ? amount : sub.amount,
+          currency,
+          recurringInterval: 'month',
+          status: 'active',
+          currentPeriodEnd: periodEnd,
+          nextPaymentDate: periodEnd,
+          modifiedAt: now,
+        })
+        .where(eq(subscription.id, sub.id));
+
+      sub = (await findUserSubscription(foundUser.id)) ?? sub;
+    }
+  }
+
+  const existingPayment = await db.query.payment.findFirst({
+    where: and(eq(payment.userId, foundUser.id), eq(payment.thrivecardPaymentId, orderId)),
+  });
+
+  if (!existingPayment) {
+    await recordPayment(foundUser.id, {
+      orderId,
+      customerId,
+      amount,
+      currency,
+      event: 'initial_purchase',
+      productName: myloPurchase?.product_name,
+    });
+  }
+
+  await recordTransaction(payload, 'charge', amount);
+
+  await logAdminActivity(foundUser.id, 'webhook.backfill_order_success', null, {
+    email,
+    orderId,
+    customerId,
+    myloProductId: myloPurchase?.product_id ?? null,
+    subscriptionId: sub.id,
+  });
+
+  return {
+    success: true,
+    action: 'backfill_order_success_linked',
+    userId: foundUser.id,
+    subscriptionId: sub.id,
+  };
 }

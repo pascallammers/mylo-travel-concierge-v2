@@ -109,7 +109,8 @@ export async function runFullSync(): Promise<SyncResult> {
 
         const tcCustomer = tcResult.data;
         const tcPurchase = tcCustomer.purchases?.find(
-          (p) => p.product_id === Number(thrivecartConfig.productId) && p.subscription
+          (p) =>
+            thrivecartConfig.productIds.includes(Number(p.product_id)) && p.subscription
         );
 
         if (!tcPurchase?.subscription) {

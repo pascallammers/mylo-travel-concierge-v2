@@ -10,6 +10,7 @@
  */
 
 import type { ThriveCartPurchase, ThriveCartWebhookPayload } from './types';
+import { isMyloProductId, parseMyloProductIds } from './mylo-product-ids';
 
 const NESTED_JSON_KEYS = ['customer', 'order', 'purchases', 'purchase_map'] as const;
 // Only product identifiers stay numeric — they're small bounded values. Other
@@ -113,18 +114,48 @@ function chargeToPurchase(charge: Record<string, unknown>): ThriveCartPurchase {
 }
 
 /**
- * True if the normalized payload represents a purchase of the given product.
- * Matches `base_product` OR any `purchases[].product_id`.
+ * First MYLO line item in a normalized payload (standalone or upsell).
+ *
+ * @param payload - Normalized ThriveCart webhook payload.
+ * @param productIds - MYLO product IDs to match (defaults to configured list).
+ * @returns Matching purchase line or undefined.
+ */
+export function findMyloPurchase(
+  payload: ThriveCartWebhookPayload,
+  productIds: readonly number[] = parseMyloProductIds()
+): ThriveCartPurchase | undefined {
+  const purchases = Array.isArray(payload.purchases) ? payload.purchases : [];
+  return purchases.find((p) => {
+    if (!p || typeof p !== 'object') return false;
+    return isMyloProductId(
+      (p as { product_id?: number | string }).product_id,
+      productIds
+    );
+  });
+}
+
+/**
+ * True if the normalized payload represents a purchase of a MYLO product.
+ * Matches `base_product` OR any `purchases[].product_id` against the given id(s).
+ *
+ * @param payload - Normalized ThriveCart webhook payload.
+ * @param productId - Single id or list of ThriveCart product ids (defaults to configured MYLO ids).
+ * @returns True when any configured MYLO product is present.
  */
 export function isProductPurchase(
   payload: ThriveCartWebhookPayload,
-  productId: number
+  productId: number | readonly number[] = parseMyloProductIds()
 ): boolean {
-  if (Number(payload.base_product) === productId) return true;
+  const productIds = Array.isArray(productId) ? productId : [productId];
+
+  if (isMyloProductId(payload.base_product, productIds)) return true;
 
   const purchases = Array.isArray(payload.purchases) ? payload.purchases : [];
   return purchases.some((p) => {
     if (!p || typeof p !== 'object') return false;
-    return Number((p as { product_id?: number | string }).product_id) === productId;
+    return isMyloProductId(
+      (p as { product_id?: number | string }).product_id,
+      productIds
+    );
   });
 }
