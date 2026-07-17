@@ -9,7 +9,13 @@ import { generateId } from 'ai';
 const PER_PAGE = 100;
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 3000;
-const MYLO_PRODUCT_ID = thrivecartConfig.productId; // "5"
+const MYLO_PRODUCT_ID_STRINGS = thrivecartConfig.productIds.map(String);
+
+function isMyloApiTransaction(txn: ThriveCartApiTransaction): boolean {
+  const base = txn.base_product != null ? String(txn.base_product) : '';
+  const item = txn.item_id != null ? String(txn.item_id) : '';
+  return MYLO_PRODUCT_ID_STRINGS.some((id) => id === base || id === item);
+}
 
 interface ImportResult {
   totalFetched: number;
@@ -101,9 +107,7 @@ export async function runFullTransactionImport(): Promise<ImportResult> {
       }
 
       // Filter to MYLO product only, then batch-insert (skip duplicates)
-      const myloTransactions = transactions.filter(
-        (txn) => String(txn.base_product) === MYLO_PRODUCT_ID
-      );
+      const myloTransactions = transactions.filter(isMyloApiTransaction);
 
       if (myloTransactions.length > 0) {
         try {
@@ -201,9 +205,7 @@ export async function runIncrementalSync(): Promise<ImportResult> {
       if (transactions.length === 0) break;
 
       // Filter to MYLO product only
-      const myloTransactions = transactions.filter(
-        (txn) => String(txn.base_product) === MYLO_PRODUCT_ID
-      );
+      const myloTransactions = transactions.filter(isMyloApiTransaction);
       result.totalSkipped += transactions.length - myloTransactions.length;
 
       let newInPage = 0;

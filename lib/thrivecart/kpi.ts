@@ -166,7 +166,10 @@ function isTrackedProductTransaction(transaction: {
   baseProduct: string | null;
   itemId: string | null;
 }): boolean {
-  return isTrackedProductTransactionForProduct(transaction, thrivecartConfig.productId);
+  return isTrackedProductTransactionForProduct(
+    transaction,
+    thrivecartConfig.productIds.map(String)
+  );
 }
 
 /**

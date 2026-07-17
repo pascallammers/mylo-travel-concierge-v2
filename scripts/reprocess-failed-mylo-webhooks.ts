@@ -30,10 +30,11 @@ import {
   isProductPurchase,
   normalizeThriveCartPayload,
 } from '../lib/thrivecart/payload-normalizer';
+import { parseMyloProductIds } from '../lib/thrivecart/mylo-product-ids';
 import type { ThriveCartWebhookPayload } from '../lib/thrivecart/types';
 
 const DATABASE_URL = process.env.DATABASE_URL!;
-const MYLO_PRODUCT_ID = Number(process.env.THRIVECART_PRODUCT_ID || '5');
+const MYLO_PRODUCT_IDS = parseMyloProductIds();
 
 const isDryRun = process.argv.includes('--dry-run');
 const includePartial = process.argv.includes('--include-partial');
@@ -75,7 +76,6 @@ async function findOrphanedMyloWebhooks(): Promise<OrphanCandidate[]> {
     FROM thrivecart_webhook_log w
     LEFT JOIN "user" u ON LOWER(u.email) = LOWER(w.customer_email)
     WHERE w.event_type = 'order.success'
-      AND w.payload->>'base_product' = ${String(MYLO_PRODUCT_ID)}
       AND w.result = 'success'
       AND (w.action IS NULL OR w.action = 'skipped_non_mylo_product')
     ORDER BY w.processed_at;
@@ -101,7 +101,7 @@ async function main(): Promise<void> {
     processed++;
 
     const normalized = normalizeThriveCartPayload(c.payload);
-    const isMylo = isProductPurchase(normalized, MYLO_PRODUCT_ID);
+    const isMylo = isProductPurchase(normalized, MYLO_PRODUCT_IDS);
 
     const status = c.has_user && c.has_subscription && c.has_payment
       ? 'COMPLETE'
