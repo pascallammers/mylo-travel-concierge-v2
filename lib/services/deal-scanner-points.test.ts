@@ -13,6 +13,7 @@ function createSeatsFlight(overrides: Partial<SeatsAeroFlight> = {}): SeatsAeroF
     id: 'award-1',
     price: '48,000 miles + EUR 87.40',
     pricePerPerson: '48,000 miles + EUR 87.40',
+    program: 'lufthansa',
     airline: 'Lufthansa',
     cabin: 'Business',
     tags: [],

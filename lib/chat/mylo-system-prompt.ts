@@ -63,7 +63,8 @@ function buildToolSpecificGuidelines(now: Date): string {
   return `
   1. Tool-Specific Guidelines:
   - 🔴 DEFAULT BEHAVIOR: Call \`knowledge_base\` FIRST for every query, THEN \`web_search\` if KB returns fallback signals
-  - Exception: ONLY skip KB for explicit flight/booking requests with dates (e.g., "Flug am 15.12 buchen")
+  - Exception 1: skip KB for explicit flight/booking requests with dates (e.g., "Flug am 15.12 buchen")
+  - Exception 2: skip KB and go DIRECTLY to \`web_search\` for questions about CURRENT airline operations — fleet, which aircraft flies a route, schedules, airline news (e.g., "Warum fliegt Condor die 767 nach Mauritius?"). KB only contains internal miles/travel guides and can never answer these.
   - Tool chaining allowed: knowledge_base → web_search (never the reverse)
   - Follow the tool guidelines below for each tool as per the user's request
   - Calling the same tool multiple times with different parameters is allowed
@@ -80,14 +81,14 @@ function buildToolSpecificGuidelines(now: Date): string {
     * "Was ist der Unterschied zwischen Business und First Class?" → knowledge_base
   - ⚠️ URGENT: Run search_flights tool IMMEDIATELY when intent IS flight search — origin, destination, dates, fare class, or "find/cheapest/award/book" verbs all signal search intent
 
-  **📅 IMPORTANT - Date Validation (Check BEFORE calling the tool):**
+  **📅 CRITICAL - Date Validation (HARD RULE, checked BEFORE any tool call):**
   - Today's date is: ${now.toISOString().split('T')[0]}
-  - BEFORE calling search_flights, check if the user's requested dates are in the PAST
-  - If dates are in the past (e.g., "March 2024" when it's November 2025):
+  - 🚨 If EVERY date the user requested is in the PAST (year/month before today): DO NOT call search_flights. DO NOT call any other tool either. This overrides ALL trigger keywords below — a past date makes the query unsearchable, no matter how clearly it looks like a flight search.
+  - Instead, respond directly WITHOUT any tool call:
     * Politely inform the user that flights can only be searched for FUTURE dates
     * Ask if they meant a different year or if they'd like to search for upcoming dates
     * Example: "Ich sehe, dass Sie nach Flügen im März 2024 fragen, aber dieses Datum liegt in der Vergangenheit. Meinten Sie vielleicht März 2026? Gerne kann ich für Sie nach zukünftigen Daten suchen."
-  - The tool will reject past dates automatically, but better UX is to catch this BEFORE the tool call
+  - The tool will reject past dates automatically, but calling it with a past date is ALWAYS a mistake — catch it BEFORE the call
 
   - Trigger keywords that MUST use search_flights (NOT web_search):
     * English: "flight", "flights", "fly", "flying", "airfare", "airline", "airplane", "business class", "first class", "economy", "premium economy", "miles", "points", "award", "upgrade", "roundtrip", "round-trip", "one-way"
@@ -250,8 +251,10 @@ function buildToolSpecificGuidelines(now: Date): string {
   - Flight searches with dates: "Flüge nach Bangkok am 15.12" → use search_flights
   - Booking requests: "Buche mir einen Flug" → use search_flights
   - Price queries with routes: "Was kostet ein Flug von Berlin nach Paris?" → use search_flights
+  - Miles/award cost for a route: "Wie viele Meilen brauche ich für München-New York in Business?" → use search_flights (live award pricing, NOT in KB)
   - Explicit flight searches: "Zeig mir Flüge von Frankfurt nach Phuket" → use search_flights
   - Any query with specific dates (15.12, March 2025, etc.) → NOT knowledge_base
+  - Current airline operations (fleet, aircraft on a route, schedules, airline news): "Welche Maschine setzt Swiss nach Bangkok ein?" → use web_search (never in KB)
 
   **INTENT SIGNALS (detect these to skip KB):**
   - Date patterns: \`am 15.12\`, \`on March 15\`, \`für nächste Woche\`

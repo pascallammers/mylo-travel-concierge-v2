@@ -1,4 +1,6 @@
 import { isRetryableError, sleep } from '@/lib/utils/tool-error-response';
+import { parseAwardResponse, type AwardFlight } from './award-search/parser';
+import { groupByProgram } from './award-search/program-grouping';
 
 const SEATSAERO_BASE_URL = 'https://seats.aero/partnerapi';
 const MAX_RETRIES = 2;
@@ -31,15 +33,22 @@ export interface SeatsAeroSearchParams {
 /**
  * Formatted flight result from Seats.aero.
  *
- * The Seats.aero provider IS surfaced to end users — the renderer in
- * lib/tools/flight-search.ts adds a "Source: Seats.aero" column per row
- * to satisfy the per-row source-attribution requirement of the
- * NO-HALLUCINATION rule (lib/chat/mylo-system-prompt.ts).
+ * `program` is the mileage PROGRAM slug from seats.aero `Source` (aeroplan,
+ * lufthansa, united, ...) — the bookable loyalty currency. `airline` is the
+ * operating metal (LH, LX). Keeping them distinct is the "MYLO zeigt nur
+ * Lufthansa" fix: previously `airline` held the carrier and the program was
+ * thrown away, collapsing every program to its carrier. The renderer resolves
+ * `program` to a localized display name via the program-registry.
+ *
+ * The Seats.aero provider itself is never surfaced to end users.
  */
 export interface SeatsAeroFlight {
   id: string;
   price: string;
   pricePerPerson: string;
+  /** Mileage program slug (seats.aero Source), e.g. "aeroplan". */
+  program: string;
+  /** Operating carriers (metal), e.g. "LH, LX". */
   airline: string;
   cabin: string;
   tags: string[];
@@ -121,14 +130,16 @@ async function executeSeatsAeroSearch(
     endDate.setDate(endDate.getDate() + flex);
   }
 
-  // Build search URL
+  // Build search URL. `take` is free (1 HTTP call = 1 budget unit regardless of
+  // take), so we pull a high page to capture EVERY program — one call returns
+  // ~30 entries per program, and a small take would only surface the first one.
   const searchUrl = new URL(`${SEATSAERO_BASE_URL}/search`);
   searchUrl.searchParams.set('origin_airport', params.origin);
   searchUrl.searchParams.set('destination_airport', params.destination);
   searchUrl.searchParams.set('cabin', apiValue);
   searchUrl.searchParams.set('start_date', formatDate(startDate));
   searchUrl.searchParams.set('end_date', formatDate(endDate));
-  searchUrl.searchParams.set('take', String(params.maxResults || 10));
+  searchUrl.searchParams.set('take', String(params.maxResults || 100));
   searchUrl.searchParams.set('include_trips', 'true');
 
   console.log('[Seats.aero] Searching:', searchUrl.toString());
@@ -149,132 +160,95 @@ async function executeSeatsAeroSearch(
 
   const data = await response.json();
 
-  // Process results
-  const entries = Array.isArray(data.data) ? data.data : [];
-  console.log(`[Seats.aero] Found ${entries.length} results`);
+  // Parse raw JSON -> AwardFlight[] (reads Source as the program), then keep
+  // only the requested cabin and collapse to the cheapest-per-program slice.
+  const parsed = parseAwardResponse(data);
+  console.log(`[Seats.aero] Parsed ${parsed.length} trips`);
 
-  // Extract and process all trips from all availability entries
-  const allTrips: SeatsAeroFlight[] = [];
+  const cabinFiltered = filterByCabin(parsed, apiValue);
+  const grouped = groupByProgram(cabinFiltered);
 
-  for (const entry of entries) {
-    const trips = entry.AvailabilityTrips || [];
+  const flights = grouped.map((flight) =>
+    awardFlightToSeatsAero(flight, params, cabin)
+  );
 
-    // Filter trips by cabin class
-    const cabinTrips = trips.filter(
-      (trip: any) => trip.Cabin === CLASS_MAP[params.travelClass].apiValue
-    );
-
-    // Convert each trip to our format
-    for (const trip of cabinTrips) {
-      const flight = formatTripToFlight(trip, entry, cabin);
-      if (flight) allTrips.push(flight);
-    }
-  }
-
-  // Sort by miles and limit results
-  const sorted = allTrips
-    .sort((a, b) => (a.miles || 0) - (b.miles || 0))
-    .slice(0, params.maxResults || 10);
-
-  console.log(`[Seats.aero] Returning ${sorted.length} flights`);
-  return sorted;
+  console.log(
+    `[Seats.aero] Returning ${flights.length} flights across ${new Set(flights.map((f) => f.program)).size} programs`
+  );
+  return flights;
 }
 
 /**
- * Format trip data from AvailabilityTrips array to our SeatsAeroFlight format
- * @param trip - Trip from AvailabilityTrips array
- * @param entry - Parent availability entry
- * @param cabinName - Human-readable cabin name
- * @returns Formatted flight or null
+ * Tolerant cabin filter. seats.aero reports lowercase cabins ("business"); the
+ * old code did a strict exact match. We compare case-insensitively and allow a
+ * prefix match (so "premium economy" satisfies a "premium" request) and log
+ * how many trips were dropped for visibility.
  */
-function formatTripToFlight(
-  trip: any,
-  entry: any,
+function filterByCabin(flights: AwardFlight[], apiValue: string): AwardFlight[] {
+  const wanted = apiValue.toLowerCase();
+  const kept = flights.filter((f) => {
+    const c = (f.cabin || '').toLowerCase();
+    return c === wanted || c.startsWith(wanted);
+  });
+
+  const dropped = flights.length - kept.length;
+  if (dropped > 0) {
+    console.log(`[Seats.aero] Dropped ${dropped} trip(s) not matching cabin "${wanted}"`);
+  }
+  return kept;
+}
+
+/**
+ * Map a parsed AwardFlight to the renderer's SeatsAeroFlight shape. Airports
+ * come from the search params (the searched route), duration is derived from
+ * the ISO timestamps.
+ */
+function awardFlightToSeatsAero(
+  flight: AwardFlight,
+  params: SeatsAeroSearchParams,
   cabinName: string
-): SeatsAeroFlight | null {
-  try {
-    // Extract miles and taxes from new API format
-    const miles = trip.MileageCost || 0;
-    const taxAmount = trip.TotalTaxes || 0;
-    const taxCurrency = trip.TaxesCurrency || 'EUR';
+): SeatsAeroFlight {
+  const { amount, currency } = flight.taxes;
+  const priceStr = `${flight.miles.toLocaleString()} miles + ${currency} ${amount.toFixed(2)}`;
 
-    // Format price string
-    const priceStr = `${miles.toLocaleString()} miles + ${taxCurrency} ${(taxAmount / 100).toFixed(2)}`;
-
-    // Parse departure and arrival times
-    const departTime = trip.DepartsAt ? new Date(trip.DepartsAt).toISOString() : '';
-    const arriveTime = trip.ArrivesAt ? new Date(trip.ArrivesAt).toISOString() : '';
-    
-    // Calculate duration in readable format
-    const durationMins = trip.TotalDuration || 0;
-    const hours = Math.floor(durationMins / 60);
-    const mins = durationMins % 60;
-    const durationStr = `${hours}h ${mins}m`;
-
-    return {
-      id: trip.ID,
-      price: priceStr,
-      pricePerPerson: priceStr,
-      airline: trip.Carriers?.split(',')[0]?.trim() || 'Unknown',
-      cabin: cabinName,
-      tags: [],
-      totalStops: trip.Stops || 0,
-      miles: miles,
-      taxes: { amount: taxAmount / 100, currency: taxCurrency },
-      seatsLeft: trip.RemainingSeats || null,
-      bookingLinks: {},
-      outbound: {
-        departure: {
-          airport: trip.OriginAirport || '',
-          time: departTime,
-        },
-        arrival: {
-          airport: trip.DestinationAirport || '',
-          time: arriveTime,
-        },
-        duration: durationStr,
-        stops: trip.Stops === 0 ? 'Nonstop' : `${trip.Stops} stop${trip.Stops > 1 ? 's' : ''}`,
-        flightNumbers: trip.FlightNumbers || '',
-      },
-    };
-  } catch (error) {
-    console.warn(`[Seats.aero] Error formatting trip:`, error);
-    return null;
-  }
+  return {
+    id: flight.id,
+    price: priceStr,
+    pricePerPerson: priceStr,
+    program: flight.program,
+    airline: flight.operatingCarriers,
+    cabin: cabinName,
+    tags: [],
+    totalStops: flight.stops,
+    miles: flight.miles,
+    taxes: { amount, currency },
+    seatsLeft: flight.remainingSeats,
+    bookingLinks: {},
+    outbound: {
+      departure: { airport: params.origin, time: flight.departsAt },
+      arrival: { airport: params.destination, time: flight.arrivesAt },
+      duration: formatDuration(flight.departsAt, flight.arrivesAt),
+      stops:
+        flight.stops === 0
+          ? 'Nonstop'
+          : `${flight.stops} stop${flight.stops > 1 ? 's' : ''}`,
+      flightNumbers: flight.flightNumbers,
+    },
+  };
 }
 
 /**
- * Check if flight has availability in specified cabin
- * @param entry - Search result entry
- * @param key - Cabin class key
- * @returns True if available
+ * Format the elapsed time between two ISO timestamps as "Xh Ym".
  */
-function hasAvailability(entry: any, key: string): boolean {
-  const available = entry[`${key.toLowerCase()}Available`];
-  const seats = entry[`${key.toLowerCase()}Seats`];
-  return Boolean(available || (seats && seats > 0));
-}
+function formatDuration(departsAt: string, arrivesAt: string): string {
+  const dep = new Date(departsAt).getTime();
+  const arr = new Date(arrivesAt).getTime();
+  if (isNaN(dep) || isNaN(arr) || arr < dep) return '';
 
-/**
- * Extract miles cost from entry
- * @param entry - Search result entry
- * @param key - Cabin class key
- * @returns Miles required or Infinity if not available
- */
-function getMiles(entry: any, key: string): number {
-  const miles = entry[`${key.toLowerCase()}Miles`];
-  return typeof miles === 'number' ? miles : Infinity;
-}
-
-/**
- * Get seats left in cabin
- * @param entry - Search result entry
- * @param key - Cabin class key
- * @returns Number of seats or null
- */
-function getSeatsLeft(entry: any, key: string): number | null {
-  const seats = entry[`${key.toLowerCase()}Seats`];
-  return typeof seats === 'number' ? seats : null;
+  const totalMins = Math.round((arr - dep) / 60000);
+  const hours = Math.floor(totalMins / 60);
+  const mins = totalMins % 60;
+  return `${hours}h ${mins}m`;
 }
 
 /**
@@ -284,51 +258,4 @@ function getSeatsLeft(entry: any, key: string): number | null {
  */
 function formatDate(date: Date): string {
   return date.toISOString().split('T')[0];
-}
-
-/**
- * Format flight segment information
- * @param trip - Trip data from API
- * @returns Formatted segment
- */
-function formatSegment(trip: any): SeatsAeroFlight['outbound'] {
-  const first = trip.segments?.[0] || {};
-  const last = trip.segments?.[trip.segments.length - 1] || {};
-
-  return {
-    departure: {
-      airport: first.origin || 'N/A',
-      time: first.departureTime || 'N/A',
-    },
-    arrival: {
-      airport: last.destination || 'N/A',
-      time: last.arrivalTime || 'N/A',
-    },
-    duration: trip.duration || 'N/A',
-    stops:
-      trip.segments?.length > 1 ? `${trip.segments.length - 1} stop(s)` : 'Nonstop',
-    flightNumbers:
-      trip.segments?.map((s: any) => s.flightNumber).join(', ') || 'N/A',
-  };
-}
-
-/**
- * Extract tags from trip (e.g., "Direct", "Best Value")
- * @param trip - Trip data from API
- * @returns Array of tags
- */
-function extractTags(trip: any): string[] {
-  const tags: string[] = [];
-  if (trip.segments?.length === 1) tags.push('Direct');
-  if (trip.bestValue) tags.push('Best Value');
-  return tags;
-}
-
-/**
- * Extract booking links from trip
- * @param trip - Trip data from API
- * @returns Booking links object
- */
-function extractBookingLinks(trip: any): Record<string, string> {
-  return trip.bookingLinks || {};
 }
