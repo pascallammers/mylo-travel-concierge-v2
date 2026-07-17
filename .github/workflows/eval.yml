@@ -20,7 +20,10 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # Node >=21 needed: `node --test` only supports glob patterns
+          # (used by pnpm test:evals) from 21 onward — on 20 the glob is
+          # treated as a literal path and the run fails with "Could not find".
+          node-version: '22'
           cache: 'pnpm'
 
       - run: pnpm install --frozen-lockfile
