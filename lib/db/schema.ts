@@ -482,6 +482,9 @@ export const adminActivityAction = [
   'webhook.refund_processed',
   'webhook.cancellation_processed',
   'webhook.reactivation_processed',
+  'webhook.backfill_order_success',
+  'support.provision_from_thrivecart',
+  'support.recovery_grace_extension',
 ] as const;
 export type AdminActivityAction = (typeof adminActivityAction)[number];
 
