@@ -224,14 +224,24 @@ describe('formatFlightResults', () => {
         ...makeRoundtripAwardResult(),
         seats: { count: 0, flights: [], error: true },
         cash: { count: 0, flights: [] },
+        searchLinkParams: {
+          origin: 'FRA',
+          destination: 'JFK',
+          departDate: '2026-06-15',
+          returnDate: '2026-06-22',
+          cabin: 'ECONOMY',
+          passengers: 1,
+        },
       };
       const out = await formatFlightResults(result, rtParams, 'de');
       assert.match(out, /Award-Verfügbarkeit.*Hinflug.*konnte.*nicht geladen/i);
       assert.doesNotMatch(out, /Hinflug.*keine Award-Verfügbarkeit/i);
+      assert.match(out, /Meilen\/Punkte-Flüge konnten nicht geladen werden/i);
 
       const enOut = await formatFlightResults(result, rtParams, 'en');
       assert.match(enOut, /outbound.*could not be loaded/i);
       assert.doesNotMatch(enOut, /No award availability.*outbound/i);
+      assert.match(enOut, /Miles\/points flights could not be loaded/i);
     });
 
     it('localizes the leg headings (en)', async () => {

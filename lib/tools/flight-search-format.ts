@@ -229,13 +229,14 @@ export async function formatFlightResults(
 ): Promise<string> {
   const sections: string[] = [];
   const partialFailures: string[] = [];
+  const returnAwardCount = result.seatsReturn?.count ?? 0;
 
   // Track partial failures for user notification.
   // result shape: { seats: {...}, cash: {...} }. cash = Duffel; seats = Seats.aero.
   // (Earlier versions had a third Amadeus provider — replaced by Duffel; the
   // partial-failure check still referenced the removed result.amadeus and
   // crashed formatFlightResults whenever search_flights ran.)
-  if (result.seats.error && result.cash.count > 0) {
+  if (result.seats.error && (result.cash.count > 0 || returnAwardCount > 0)) {
     partialFailures.push(flightI18n.awardFlightsLabel[locale]);
   }
   if (result.cash.error && result.seats.count > 0) {
@@ -266,7 +267,6 @@ export async function formatFlightResults(
   }
 
   // Award Flights Section
-  const returnAwardCount = result.seatsReturn?.count ?? 0;
   if (result.seats.count > 0 || returnAwardCount > 0) {
     if (returnAwardCount > 0) {
       // Return-leg awards came back — one table per leg. Prices are still per
@@ -342,7 +342,7 @@ export async function formatFlightResults(
   }
 
   // Add partial failure notice if some providers failed
-  if (partialFailures.length > 0 && (result.seats.count > 0 || result.cash.count > 0)) {
+  if (partialFailures.length > 0 && (result.seats.count > 0 || result.cash.count > 0 || returnAwardCount > 0)) {
     const failedTypes = partialFailures.join(flightI18n.andConnector[locale]);
     sections.push(flightI18n.partialFailureNote[locale](failedTypes));
 
