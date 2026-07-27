@@ -492,6 +492,10 @@ export async function searchDuffelFlexibleDates(
 
     const batchResults = await Promise.allSettled(promises);
 
+    if (signal?.aborted) {
+      throw abortError(signal);
+    }
+
     // Extract successful results
     batchResults.forEach((result) => {
       if (result.status === 'fulfilled') {

@@ -167,4 +167,28 @@ describe('searchSeatsAero (MUC->MIA regression)', () => {
 
     assert.strictEqual(receivedSignal, controller.signal);
   });
+
+  it('stops retry backoff immediately when the request is cancelled', async () => {
+    const controller = new AbortController();
+    global.fetch = mock.fn(async () => ({
+      ok: false,
+      status: 500,
+      statusText: 'Internal Server Error',
+    })) as unknown as typeof fetch;
+
+    const startedAt = Date.now();
+    const search = searchSeatsAero({
+      origin: 'MUC',
+      destination: 'MIA',
+      departureDate: '2026-09-01',
+      travelClass: 'BUSINESS',
+    }, controller.signal);
+    setTimeout(() => controller.abort(new DOMException('Request cancelled', 'AbortError')), 20);
+
+    await assert.rejects(search, { name: 'AbortError' });
+    assert.ok(
+      Date.now() - startedAt < 500,
+      'cancellation should not wait for the one-second retry delay',
+    );
+  });
 });

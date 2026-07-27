@@ -25,7 +25,14 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/comp
 import { ShareButton } from '@/components/share';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { RepeatIcon, Copy01Icon } from '@hugeicons/core-free-icons';
-import { ChatMessage, CustomUIDataTypes, DataQueryCompletionPart, DataExtremeSearchPart, ChatTools } from '@/lib/types';
+import {
+  ChatMessage,
+  CustomUIDataTypes,
+  DataQueryCompletionPart,
+  DataExtremeSearchPart,
+  ChatTools,
+  type FlexibleDateFlight,
+} from '@/lib/types';
 import { UseChatHelpers } from '@ai-sdk/react';
 import { MyloLogoHeader } from '@/components/mylo-logo-header';
 import {
@@ -321,15 +328,20 @@ const ToolErrorDisplay = ({ errorText, toolName }: { errorText: string; toolName
 );
 
 // Compact flight card for flexible date results
-const FlexibleDateFlightCard = ({ flight }: { flight: any }) => {
+const FlexibleDateFlightCard = ({ flight }: { flight: FlexibleDateFlight }) => {
   // Determine if this is a Seats.aero (award) or Duffel (cash) flight
   const isAward = flight.source === 'seats.aero';
+  const awardPrice = typeof flight.price === 'string' ? flight.price : undefined;
+  const cashPrice =
+    typeof flight.price === 'object' && flight.price !== null
+      ? flight.price
+      : undefined;
 
   // Format price display
   const priceDisplay = isAward
-    ? flight.price || 'N/A'
-    : flight.price?.total
-      ? `${flight.price.total} ${flight.price.currency || 'EUR'}`
+    ? awardPrice || 'N/A'
+    : cashPrice?.total
+      ? `${cashPrice.total} ${cashPrice.currency || 'EUR'}`
       : 'N/A';
 
   // Format departure info
@@ -2179,6 +2191,9 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
 
                     // Check for flexible date results
                     if (parsed.type === 'flexible_date_results') {
+                      const awardFlights: FlexibleDateFlight[] = parsed.awardFlights ?? [];
+                      const cashFlights: FlexibleDateFlight[] = parsed.cashFlights ?? [];
+                      const legacyFlights: FlexibleDateFlight[] = parsed.flights ?? [];
                       return (
                         <div key={`${messageIndex}-${partIndex}-tool`} className="space-y-4">
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -2188,17 +2203,42 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
                               {new Date(parsed.dateRange.end).toLocaleDateString('de-DE')}
                             </span>
                           </div>
-                          <div className="space-y-3">
-                            {parsed.flights.map((flight: any, idx: number) => (
-                              <FlexibleDateFlightCard
-                                key={flight.id || `flight-${idx}`}
-                                flight={flight}
-                              />
-                            ))}
-                          </div>
-                          {parsed.flights.length === 10 && (
+                          {awardFlights.length > 0 && (
+                            <div className="space-y-3">
+                              <h4 className="text-sm font-medium">Flüge mit Meilen/Punkten</h4>
+                              {awardFlights.map((flight, idx) => (
+                                <FlexibleDateFlightCard
+                                  key={flight.id || `award-flight-${idx}`}
+                                  flight={flight}
+                                />
+                              ))}
+                            </div>
+                          )}
+                          {cashFlights.length > 0 && (
+                            <div className="space-y-3">
+                              <h4 className="text-sm font-medium">Flüge mit Barzahlung</h4>
+                              {cashFlights.map((flight, idx) => (
+                                <FlexibleDateFlightCard
+                                  key={flight.id || `cash-flight-${idx}`}
+                                  flight={flight}
+                                />
+                              ))}
+                            </div>
+                          )}
+                          {legacyFlights.length > 0 && (
+                            <div className="space-y-3">
+                              {legacyFlights.map((flight, idx) => (
+                                <FlexibleDateFlightCard
+                                  key={flight.id || `flight-${idx}`}
+                                  flight={flight}
+                                />
+                              ))}
+                            </div>
+                          )}
+                          {(parsed.awardFlightsTruncated === true ||
+                            parsed.cashFlightsTruncated === true) && (
                             <p className="text-xs text-muted-foreground text-center">
-                              Top 10 Ergebnisse angezeigt (sortiert nach Preis)
+                              Top 5 Ergebnisse pro Kategorie angezeigt (sortiert nach Preis)
                             </p>
                           )}
                         </div>

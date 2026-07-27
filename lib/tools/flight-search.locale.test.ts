@@ -160,6 +160,16 @@ beforeEach(() => {
 });
 
 describe('flight-search locale resolution', () => {
+  it('rejects impossible calendar dates in the public input schema', () => {
+    const parsed = flightSearchTool.inputSchema.safeParse({
+      ...baseParams,
+      departDate: '2026-02-30',
+      returnDate: '2026-13-01',
+    });
+
+    assert.strictEqual(parsed.success, false);
+  });
+
   it('returns English validation errors when experimental_context.locale is "en"', async () => {
     await assert.rejects(
       () => flightSearchTool.execute!(pastParams, callOptions('en')) as Promise<unknown>,

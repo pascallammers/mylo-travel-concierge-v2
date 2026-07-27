@@ -6,6 +6,31 @@ const SEATSAERO_BASE_URL = 'https://seats.aero/partnerapi';
 const MAX_RETRIES = 2;
 const BASE_DELAY_MS = 1000;
 
+function waitForRetryDelay(
+  delayMs: number,
+  signal?: AbortSignal,
+): Promise<void> {
+  if (!signal) return sleep(delayMs);
+  if (signal.aborted) {
+    return Promise.reject(
+      signal.reason ?? new DOMException('Operation aborted', 'AbortError'),
+    );
+  }
+
+  return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, delayMs);
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', onAbort);
+      reject(signal.reason ?? new DOMException('Operation aborted', 'AbortError'));
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
 /**
  * Cabin class mapping for Seats.aero API
  */
@@ -101,7 +126,7 @@ export async function searchSeatsAero(
         console.log(
           `[Seats.aero] Attempt ${attempt + 1}/${MAX_RETRIES + 1} failed, retrying in ${delay}ms...`
         );
-        await sleep(delay);
+        await waitForRetryDelay(delay, signal);
       } else {
         // Don't retry - either max retries reached or non-retryable error
         console.error(

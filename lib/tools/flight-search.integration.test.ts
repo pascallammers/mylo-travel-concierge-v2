@@ -87,10 +87,11 @@ type ExecuteOptions = Parameters<
   NonNullable<ReturnType<typeof createFlightSearchTool>['execute']>
 >[1];
 
-function executeOptions(): ExecuteOptions {
+function executeOptions(abortSignal?: AbortSignal): ExecuteOptions {
   return {
     toolCallId: 'integration-test',
     messages: [],
+    abortSignal,
     experimental_context: {
       chatId: 'chat-1',
       userId: 'user-1',
@@ -175,5 +176,67 @@ describe('flight-search tool factory integration', () => {
       },
       pending_flight_request: null,
     });
+  });
+
+  it('does not log a cancelled request as a failed product search', async () => {
+    const controller = new AbortController();
+    const cancellation = new DOMException('Request cancelled', 'AbortError');
+    let failedSearchLogs = 0;
+    const tool = createFlightSearchTool(dependencies({
+      searchSeatsAero: async () => {
+        throw cancellation;
+      },
+      searchDuffel: async () => {
+        throw cancellation;
+      },
+      logFailedSearch: async () => {
+        failedSearchLogs += 1;
+      },
+    }));
+
+    controller.abort(cancellation);
+
+    await assert.rejects(
+      () => tool.execute!(params, executeOptions(controller.signal)) as Promise<unknown>,
+      cancellation,
+    );
+    assert.strictEqual(failedSearchLogs, 0);
+  });
+
+  it('keeps award results when cheaper cash fares fill the shared result limit', async () => {
+    const awards = [
+      { ...awardFlight, id: 'award-15k', price: '15,000 miles' },
+      { ...awardFlight, id: 'award-45k', price: '45,000 miles' },
+      { ...awardFlight, id: 'award-90k', price: '90,000 miles' },
+    ];
+    const cash = Array.from({ length: 10 }, (_, index) => ({
+      ...cashFlight,
+      id: `cash-${index}`,
+      price: {
+        ...cashFlight.price,
+        total: String(350 + index),
+      },
+      searchedDate: futureDate,
+    }));
+    const tool = createFlightSearchTool(dependencies({
+      searchSeatsAero: async () => awards,
+      searchDuffelFlexibleDates: async () => cash,
+    }));
+
+    const rawResult = await tool.execute!(
+      { ...params, flexibility: 2 },
+      executeOptions(),
+    );
+    assert.ok(typeof rawResult === 'string');
+    const result = JSON.parse(rawResult) as {
+      awardFlights?: unknown[];
+      flights?: Array<{ source?: string }>;
+    };
+    const retainedAwards =
+      result.awardFlights ??
+      result.flights?.filter((flight) => flight.source === 'seats.aero') ??
+      [];
+
+    assert.strictEqual(retainedAwards.length, 3);
   });
 });
