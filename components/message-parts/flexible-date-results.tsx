@@ -13,6 +13,38 @@ interface FlexibleDateResultsProps {
   data: FlexibleDateResultData;
 }
 
+/**
+ * Identify award results, including persisted legacy entries without a source.
+ *
+ * @param flight - Flexible-date flight to classify.
+ * @returns True when the flight uses an award price.
+ */
+export function isFlexibleAwardFlight(flight: FlexibleDateFlight): boolean {
+  return (
+    flight.source === 'seats.aero' ||
+    (flight.source !== 'duffel' && typeof flight.price === 'string')
+  );
+}
+
+/**
+ * Format a calendar date for the flexible-date result UI.
+ *
+ * @param value - ISO calendar date.
+ * @param locale - Result locale.
+ * @param options - Additional display options.
+ * @returns Localized calendar date.
+ */
+export function formatFlexibleCalendarDate(
+  value: string,
+  locale: 'de' | 'en',
+  options: Intl.DateTimeFormatOptions = {},
+): string {
+  return new Date(value).toLocaleDateString(
+    locale === 'en' ? 'en-US' : 'de-DE',
+    { ...options, timeZone: 'UTC' },
+  );
+}
+
 function formatTime(value: string | undefined, locale: 'de' | 'en'): string {
   if (!value) return 'N/A';
   return new Date(value).toLocaleTimeString(
@@ -28,9 +60,7 @@ function FlexibleDateFlightCard({
   flight: FlexibleDateFlight;
   locale: 'de' | 'en';
 }) {
-  const isAward =
-    flight.source === 'seats.aero' ||
-    (flight.source !== 'duffel' && typeof flight.price === 'string');
+  const isAward = isFlexibleAwardFlight(flight);
   const awardPrice = typeof flight.price === 'string' ? flight.price : undefined;
   const cashPrice =
     typeof flight.price === 'object' && flight.price !== null
@@ -59,7 +89,6 @@ function FlexibleDateFlightCard({
   );
   const airline = flight.airline || 'Unknown';
   const duration = isAward ? flight.outbound?.duration : flight.duration;
-  const dateLocale = locale === 'en' ? 'en-US' : 'de-DE';
 
   return (
     <div className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
@@ -67,7 +96,7 @@ function FlexibleDateFlightCard({
         <div className="min-w-0 flex-1">
           {flight.searchedDate && (
             <p className="mb-1 text-sm font-medium text-primary">
-              {new Date(flight.searchedDate).toLocaleDateString(dateLocale, {
+              {formatFlexibleCalendarDate(flight.searchedDate, locale, {
                 weekday: 'short',
                 day: '2-digit',
                 month: 'short',
@@ -130,7 +159,6 @@ export function FlexibleDateResults({ data }: FlexibleDateResultsProps) {
     cashFlights: 'Flüge mit Barzahlung',
     truncated: 'Top 5 Ergebnisse pro Kategorie angezeigt (sortiert nach Preis)',
   };
-  const dateLocale = locale === 'en' ? 'en-US' : 'de-DE';
   const renderGroup = (
     flights: FlexibleDateFlight[],
     keyPrefix: string,
@@ -149,9 +177,9 @@ export function FlexibleDateResults({ data }: FlexibleDateResultsProps) {
         <Calendar className="h-4 w-4" />
         <span>
           {labels.dateRangePrefix}{' '}
-          {new Date(data.dateRange.start).toLocaleDateString(dateLocale)}{' '}
+          {formatFlexibleCalendarDate(data.dateRange.start, locale)}{' '}
           {labels.dateRangeSeparator}{' '}
-          {new Date(data.dateRange.end).toLocaleDateString(dateLocale)}
+          {formatFlexibleCalendarDate(data.dateRange.end, locale)}
         </span>
       </div>
       {awardFlights.length > 0 && (
