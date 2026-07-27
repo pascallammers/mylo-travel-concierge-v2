@@ -1,6 +1,7 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 
+import { applyAwardFilters } from '@/lib/api/award-search/award-filters';
 import type { SeatsAeroFlight } from '@/lib/api/seats-aero-client';
 import { filterFlightSearchAwards } from './flight-search-award-filters';
 
@@ -40,6 +41,7 @@ describe('filterFlightSearchAwards', () => {
       input,
       { loyaltyPrograms: ['Aeroplan'], maxTaxes: 300 },
       'de',
+      applyAwardFilters,
     );
 
     assert.deepStrictEqual(

@@ -122,7 +122,7 @@ function displayNameMatchesNeedle(displayName: string, needle: string): boolean 
 function normalizeProgramName(value: string): string {
   return value
     .toLowerCase()
-    .replace(/&/g, 'and')
+    .replace(/\s*&\s*/g, ' and ')
     .replace(/\s+/g, ' ')
     .trim();
 }

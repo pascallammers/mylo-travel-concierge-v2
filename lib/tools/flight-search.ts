@@ -14,6 +14,7 @@ import { logFailedSearch } from '@/lib/db/queries/failed-search';
 import { flightI18n, formatFlightResults, type FlightLocale } from './flight-search-format';
 import { filterFlightSearchAwards } from './flight-search-award-filters';
 import { flightSearchInputSchema } from './flight-search-schema';
+import { applyAwardFilters } from '@/lib/api/award-search/award-filters';
 
 // Re-export for legacy callers and tests that import these from flight-search.
 export { flightI18n, formatFlightResults };
@@ -190,6 +191,7 @@ Examples of queries that should trigger this tool:
         seatsResult ?? [],
         params,
         locale,
+        applyAwardFilters,
       );
       const filteredSeats = seatsResult === null ? null : filteredSeatsFlights;
 

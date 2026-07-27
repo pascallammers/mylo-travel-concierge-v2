@@ -23,4 +23,38 @@ describe('flightSearchTool input schema', () => {
       true,
     );
   });
+
+  it('applies defaults while preserving valid loyaltyPrograms and nonStop', () => {
+    const defaults = flightSearchInputSchema.parse(validSearch);
+    assert.strictEqual(defaults.passengers, 1);
+    assert.strictEqual(defaults.awardOnly, false);
+    assert.strictEqual(defaults.flexibility, 0);
+    assert.strictEqual(defaults.nonStop, false);
+    assert.strictEqual(defaults.loyaltyPrograms, undefined);
+
+    const custom = flightSearchInputSchema.parse({
+      ...validSearch,
+      loyaltyPrograms: ['Aeroplan', 'Miles & More'],
+      nonStop: true,
+    });
+    assert.deepStrictEqual(custom.loyaltyPrograms, ['Aeroplan', 'Miles & More']);
+    assert.strictEqual(custom.nonStop, true);
+  });
+
+  it('rejects invalid loyaltyPrograms and nonStop field types', () => {
+    assert.strictEqual(
+      flightSearchInputSchema.safeParse({
+        ...validSearch,
+        loyaltyPrograms: 'Aeroplan',
+      }).success,
+      false,
+    );
+    assert.strictEqual(
+      flightSearchInputSchema.safeParse({
+        ...validSearch,
+        nonStop: 'true',
+      }).success,
+      false,
+    );
+  });
 });

@@ -64,6 +64,7 @@ describe('resolveProgramSlugs', () => {
     // The model may hand back the customer-facing name it just saw in the table.
     const { matched } = resolveProgramSlugs(['Lufthansa Miles & More']);
     assert.deepStrictEqual(matched, ['lufthansa']);
+    assert.deepStrictEqual(resolveProgramSlugs(['Miles&More']).matched, ['lufthansa']);
   });
 
   it('resolves a well-known brand keyword the user is likely to type', () => {
