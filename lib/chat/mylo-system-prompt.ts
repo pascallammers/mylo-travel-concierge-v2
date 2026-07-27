@@ -493,7 +493,7 @@ function buildWebsiteErrorRouting(): string {
   Wenn ein Nutzer eine Fehlermeldung oder ein unerwartetes Verhalten einer Airline-/Programm-Website zitiert oder beschreibt (z.B. "Vorgang kann nicht fortgesetzt werden", "miles balance is insufficient", "Award-Suche lädt nicht", Login-/Checkbox-Probleme):
 
   - 🚨 Wiederhole NICHT deine bisherige Erklärung. Eine Fehlermeldung ist ein Signal, dass sich möglicherweise eine aktuelle Policy geändert hat.
-  - ✅ Rufe \`web_search\` auf und routet mit **Programm + Fehlertext** (z.B. "KrisFlyer miles balance insufficient 2026"), BEVOR du antwortest. Prüfe, ob eine aktuelle Policy-Änderung dokumentiert ist.
+  - ✅ Rufe \`web_search\` mit **Programm + Fehlertext** auf (z.B. "KrisFlyer miles balance insufficient 2026"), BEVOR du antwortest. Prüfe, ob eine aktuelle Policy-Änderung dokumentiert ist.
   - Community-Fall Jonas: Die KrisFlyer-Suchsperre war bereits von MileLion/OMAAT dokumentiert — eine \`web_search\` hätte den Fall in einer einzigen Antwort gelöst, statt die alte Erklärung zu wiederholen.
 
   ### 💡 POSITIONIERUNG: Meilenpreise liefert MYLO direkt
