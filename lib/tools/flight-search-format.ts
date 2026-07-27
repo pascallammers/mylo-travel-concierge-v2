@@ -107,6 +107,25 @@ export const flightI18n = {
     de: '_**Hinweis:** Die Meilenpreise gelten pro Strecke (nur Hinflug). Der Rückflug ist darin nicht enthalten._\n',
     en: '_**Note:** Mileage prices are per direction (outbound only). The return flight is not included._\n',
   },
+  // When the return-leg award search succeeded, both legs get their own table
+  // and the notice switches to per-leg wording — the outbound-only text above
+  // would then be wrong (MYLO-21 Ausbau).
+  awardPerLegNotice: {
+    de: '_**Hinweis:** Die Meilenpreise gelten jeweils pro Strecke._\n',
+    en: '_**Note:** Mileage prices apply per leg._\n',
+  },
+  awardOutboundLegHeader: {
+    de: (count: number) => `### Hinflug (${count} Ergebnisse)`,
+    en: (count: number) => `### Outbound (${count} results)`,
+  },
+  awardReturnLegHeader: {
+    de: (count: number) => `### Rückflug (${count} Ergebnisse)`,
+    en: (count: number) => `### Return (${count} results)`,
+  },
+  awardNoOutboundAvailability: {
+    de: '_Für den Hinflug wurde keine Award-Verfügbarkeit gefunden._',
+    en: '_No award availability was found for the outbound leg._',
+  },
   cashHeader: {
     de: (count: number) => `## Flüge mit Barzahlung (${count} Ergebnisse)\n`,
     en: (count: number) => `## Flights with Cash (${count} results)\n`,
@@ -157,6 +176,34 @@ function formatTime(timeStr: string): string {
   } catch {
     return timeStr;
   }
+}
+
+/**
+ * Render one award table (header + rows) for a list of SeatsAeroFlight-shaped
+ * results. Used for the outbound leg and — on roundtrip searches — the return
+ * leg (MYLO-21).
+ */
+function renderAwardTable(flights: any[], locale: FlightLocale): string[] {
+  const rows: string[] = [
+    flightI18n.awardTableHeader[locale],
+    `|-----|---------|----------|-------|--------|---------|-------|-------|-------|-------|------------|`,
+  ];
+
+  flights.forEach((flight: any, idx: number) => {
+    const departTime = formatTime(flight.outbound.departure.time);
+    const arriveTime = formatTime(flight.outbound.arrival.time);
+    const seats = flight.seatsLeft || '-';
+    // Resolve the seats.aero program slug to a customer-facing brand name.
+    // The slug ("aeroplan") is the bookable mileage currency; the operating
+    // carrier in `airline` ("LH") is shown separately.
+    const program = getProgramDisplayName(flight.program, locale);
+
+    rows.push(
+      `| ${idx + 1} | ${flight.airline} | ${program} | ${flight.cabin} | ${flight.price} | ${flight.outbound.departure.airport} ${departTime} | ${flight.outbound.arrival.airport} ${arriveTime} | ${flight.outbound.duration} | ${flight.outbound.stops} | ${seats} | ${flight.outbound.flightNumbers} |`,
+    );
+  });
+
+  return rows;
 }
 
 /**
@@ -215,29 +262,33 @@ export async function formatFlightResults(
   }
 
   // Award Flights Section
-  if (result.seats.count > 0) {
-    sections.push(flightI18n.awardHeader[locale](result.seats.count));
-    // Roundtrip search: award table only holds the outbound leg — flag it so the
-    // per-direction miles price is not read as the round-trip total (MYLO-21).
-    if (params.returnDate) {
-      sections.push(flightI18n.awardOneWayNotice[locale]);
+  const returnAwardCount = result.seatsReturn?.count ?? 0;
+  if (result.seats.count > 0 || returnAwardCount > 0) {
+    if (returnAwardCount > 0) {
+      // Return-leg awards came back — one table per leg. Prices are still per
+      // direction, so the notice keeps saying so, but the outbound-only
+      // wording would now be wrong (MYLO-21 Ausbau).
+      sections.push(flightI18n.awardHeader[locale](result.seats.count + returnAwardCount));
+      sections.push(flightI18n.awardPerLegNotice[locale]);
+      sections.push(flightI18n.awardOutboundLegHeader[locale](result.seats.count));
+      if (result.seats.count > 0) {
+        sections.push(...renderAwardTable(result.seats.flights, locale));
+      } else {
+        sections.push(flightI18n.awardNoOutboundAvailability[locale]);
+      }
+      sections.push('');
+      sections.push(flightI18n.awardReturnLegHeader[locale](returnAwardCount));
+      sections.push(...renderAwardTable(result.seatsReturn.flights, locale));
+    } else {
+      sections.push(flightI18n.awardHeader[locale](result.seats.count));
+      // Roundtrip search whose award results only hold the outbound leg — flag
+      // it so the per-direction miles price is not read as the round-trip
+      // total (MYLO-21).
+      if (params.returnDate) {
+        sections.push(flightI18n.awardOneWayNotice[locale]);
+      }
+      sections.push(...renderAwardTable(result.seats.flights, locale));
     }
-    sections.push(flightI18n.awardTableHeader[locale]);
-    sections.push(`|-----|---------|----------|-------|--------|---------|-------|-------|-------|-------|------------|`);
-
-    result.seats.flights.forEach((flight: any, idx: number) => {
-      const departTime = formatTime(flight.outbound.departure.time);
-      const arriveTime = formatTime(flight.outbound.arrival.time);
-      const seats = flight.seatsLeft || '-';
-      // Resolve the seats.aero program slug to a customer-facing brand name.
-      // The slug ("aeroplan") is the bookable mileage currency; the operating
-      // carrier in `airline` ("LH") is shown separately.
-      const program = getProgramDisplayName(flight.program, locale);
-
-      sections.push(
-        `| ${idx + 1} | ${flight.airline} | ${program} | ${flight.cabin} | ${flight.price} | ${flight.outbound.departure.airport} ${departTime} | ${flight.outbound.arrival.airport} ${arriveTime} | ${flight.outbound.duration} | ${flight.outbound.stops} | ${seats} | ${flight.outbound.flightNumbers} |`,
-      );
-    });
     sections.push('');
   }
 
@@ -298,7 +349,7 @@ export async function formatFlightResults(
   }
 
   // Safety fallback (no-results path is normally handled upstream)
-  if (result.seats.count === 0 && result.cash.count === 0) {
+  if (result.seats.count === 0 && result.cash.count === 0 && returnAwardCount === 0) {
     sections.push(flightI18n.noResultsFallback[locale](params.origin, params.destination, params.departDate, params.cabin));
   }
 

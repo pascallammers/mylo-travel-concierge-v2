@@ -150,6 +150,82 @@ describe('formatFlightResults', () => {
     });
   });
 
+  describe('roundtrip return award table (MYLO-21 Ausbau)', () => {
+    const rtParams = { ...baseParams, returnDate: '2026-06-22' };
+
+    function makeRoundtripAwardResult() {
+      return {
+        ...makeAwardResult(),
+        seatsReturn: {
+          count: 1,
+          error: false,
+          flights: [
+            {
+              program: 'united',
+              airline: 'UA',
+              cabin: 'Economy',
+              price: '30,000 miles + USD 5.60',
+              seatsLeft: 4,
+              outbound: {
+                departure: { airport: 'JFK', time: '2026-06-22T18:00:00.000Z' },
+                arrival: { airport: 'FRA', time: '2026-06-23T07:30:00.000Z' },
+                duration: '7h 30m',
+                stops: 'Nonstop',
+                flightNumbers: 'UA960',
+              },
+            },
+          ],
+        },
+      };
+    }
+
+    it('renders return awards as their own table with a Programm column (de)', async () => {
+      const out = await formatFlightResults(makeRoundtripAwardResult(), rtParams, 'de');
+      assert.match(out, /### Hinflug \(1 Ergebnisse\)/, 'outbound leg gets its own heading');
+      assert.match(out, /### Rückflug \(1 Ergebnisse\)/, 'return leg gets its own heading');
+      // Both leg tables carry the Programm column (acceptance criterion).
+      const programHeaders = out.split('\n').filter((l) => l.includes('| Programm |'));
+      assert.strictEqual(programHeaders.length, 2, 'both leg tables need a Programm column');
+      // The return row resolves its own program and route.
+      assert.match(out, /United MileagePlus/, 'return program renders as display name');
+      assert.match(out, /UA960/, 'return flight number appears');
+    });
+
+    it('swaps the one-way notice for a per-leg notice when return awards exist', async () => {
+      const out = await formatFlightResults(makeRoundtripAwardResult(), rtParams, 'de');
+      assert.match(out, /jeweils pro Strecke/i, 'per-leg pricing must still be flagged');
+      assert.doesNotMatch(out, /nicht enthalten/i, 'outbound-only wording would be wrong here');
+    });
+
+    it('keeps the outbound-only notice when the return search found nothing', async () => {
+      const result = {
+        ...makeAwardResult(),
+        seatsReturn: { count: 0, error: false, flights: [] },
+      };
+      const out = await formatFlightResults(result, rtParams, 'de');
+      assert.match(out, /pro Strecke \(nur Hinflug\)/i, 'must keep the outbound-only notice');
+      assert.doesNotMatch(out, /### Rückflug/, 'no empty return table');
+    });
+
+    it('renders the return table even when the outbound leg has no award availability', async () => {
+      const result = {
+        ...makeRoundtripAwardResult(),
+        seats: { count: 0, flights: [], error: false },
+        cash: { count: 0, flights: [] },
+      };
+      const out = await formatFlightResults(result, rtParams, 'de');
+      assert.match(out, /### Rückflug \(1 Ergebnisse\)/);
+      assert.match(out, /Hinflug.*keine Award-Verfügbarkeit/i, 'outbound leg absence is stated, not silent');
+      assert.doesNotMatch(out, /keine Flüge für Ihre Suche gefunden/i, 'no-results fallback must not fire');
+    });
+
+    it('localizes the leg headings (en)', async () => {
+      const out = await formatFlightResults(makeRoundtripAwardResult(), rtParams, 'en');
+      assert.match(out, /### Outbound \(1 results\)/);
+      assert.match(out, /### Return \(1 results\)/);
+    });
+  });
+
   describe('happy-path with injected booking-session creator', () => {
     it('renders the [Buchen] link when the creator returns a real booking URL', async () => {
       const creator = async () => ({ url: 'https://booking.example.com/abc123' });
