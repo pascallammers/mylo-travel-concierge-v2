@@ -231,6 +231,13 @@ function renderTransferSources(
  * disabled), the row emits an explicit "Direct booking unavailable" hint
  * instead of leaving silent space the LLM will pad with a fabricated link
  * (Test 1 produced [Duffel API](https://duffel.com)).
+ *
+ * @param result - Combined award and cash provider results.
+ * @param params - Original flight-search parameters used for links and labels.
+ * @param locale - Locale for customer-facing output.
+ * @param createBookingSession - Optional Duffel booking-link creator.
+ * @param transferHintDependencies - Optional transfer-source resolver and ratio formatter.
+ * @returns LLM-facing Markdown for the complete flight-search response.
  */
 export async function formatFlightResults(
   result: any,
