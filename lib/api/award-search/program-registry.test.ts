@@ -106,4 +106,20 @@ describe('getProgramBookingUrl', () => {
     assert.strictEqual(getProgramBookingUrl('madeupprogram', ctx), null);
     assert.strictEqual(getProgramBookingUrl('', ctx), null);
   });
+
+  it('encodes reserved characters in deeplink query parameters', () => {
+    const maliciousCtx = {
+      origin: 'FRA&evil=1',
+      destination: 'JFK) [Weiter](https://evil.example)',
+      departDate: '2026-06-15&hack=1',
+    };
+    const url = getProgramBookingUrl('united', maliciousCtx);
+    assert.ok(url);
+    assert.match(url!, /^https:\/\/www\.united\.com\//);
+    assert.doesNotMatch(url!, /\[Weiter\]/, 'markdown link syntax must not survive in the URL');
+    assert.match(url!, /f=FRA%26evil%3D1/);
+    assert.match(url!, /t=JFK%29\+/);
+    assert.match(url!, /%5BWeiter%5D%28https%3A%2F%2Fevil\.example%29/);
+    assert.match(url!, /d=2026-06-15%26hack%3D1/);
+  });
 });

@@ -58,15 +58,21 @@ export interface AwardBookingContext {
   departDate: string;
 }
 
+/** Encode a query-parameter value, including parens that would break Markdown link targets. */
+const queryValue = (value: string): string => {
+  const encoded = new URLSearchParams({ _: value }).toString();
+  return encoded.slice(2);
+};
+
 const PROGRAM_DEEPLINKS: Record<string, (ctx: AwardBookingContext) => string> = {
   aeroplan: ({ origin, destination, departDate }) =>
-    `https://www.aircanada.com/aeroplan/redeem/availability/outbound?org0=${origin}&dest0=${destination}&departureDate0=${departDate}&tripType=O&ADT=1&YTH=0&CHD=0&INF=0&marketCode=INT`,
+    `https://www.aircanada.com/aeroplan/redeem/availability/outbound?org0=${queryValue(origin)}&dest0=${queryValue(destination)}&departureDate0=${queryValue(departDate)}&tripType=O&ADT=1&YTH=0&CHD=0&INF=0&marketCode=INT`,
   alaska: ({ origin, destination, departDate }) =>
-    `https://www.alaskaair.com/search/results?A=1&O=${origin}&D=${destination}&OD=${departDate}&RT=false&ShoppingMethod=onlineaward`,
+    `https://www.alaskaair.com/search/results?A=1&O=${queryValue(origin)}&D=${queryValue(destination)}&OD=${queryValue(departDate)}&RT=false&ShoppingMethod=onlineaward`,
   jetblue: ({ origin, destination, departDate }) =>
-    `https://www.jetblue.com/booking/flights?from=${origin}&to=${destination}&depart=${departDate}&adults=1&usePoints=true`,
+    `https://www.jetblue.com/booking/flights?from=${queryValue(origin)}&to=${queryValue(destination)}&depart=${queryValue(departDate)}&adults=1&usePoints=true`,
   united: ({ origin, destination, departDate }) =>
-    `https://www.united.com/en/us/fsr/choose-flights?f=${origin}&t=${destination}&d=${departDate}&tt=1&at=1&px=1&taxng=1&idx=1`,
+    `https://www.united.com/en/us/fsr/choose-flights?f=${queryValue(origin)}&t=${queryValue(destination)}&d=${queryValue(departDate)}&tt=1&at=1&px=1&taxng=1&idx=1`,
 };
 
 // Award-search entry page per program, used when the website offers no
@@ -98,6 +104,10 @@ const PROGRAM_SEARCH_PAGES: Record<string, string> = {
 /**
  * Booking URL for an award row: a prefilled deeplink where the program's
  * website supports one, otherwise the program's award-search page.
+ *
+ * @param slug Program slug from the award-search provider.
+ * @param ctx Route and departure-date context for supported deeplinks.
+ * @returns A program booking URL, or `null` for an unknown program.
  */
 export function getProgramBookingUrl(
   slug: string,

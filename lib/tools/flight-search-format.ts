@@ -11,10 +11,6 @@ import {
   buildGoogleFlightsUrl,
   buildSkyscannerUrl,
 } from '@/lib/utils/flight-search-links';
-import {
-  getProgramBookingUrl,
-  getProgramDisplayName,
-} from '@/lib/api/award-search/program-registry';
 
 // Booking-session creator is injected to keep the renderer free of the
 // server-env import graph. The tool entry-point passes the real
@@ -28,6 +24,24 @@ export type BookingSessionCreator = (params: {
 }) => Promise<{ url: string }>;
 
 export type FlightLocale = 'de' | 'en';
+
+/** Route/date context passed to award-program booking URL resolvers. */
+export type AwardBookingContext = {
+  origin: string;
+  destination: string;
+  /** YYYY-MM-DD */
+  departDate: string;
+};
+
+/** Injected award-program resolvers keep the renderer free of the registry import graph. */
+export type AwardProgramResolvers = {
+  getProgramDisplayName: (slug: string, locale: FlightLocale) => string;
+  getProgramBookingUrl: (slug: string, ctx: AwardBookingContext) => string | null;
+};
+
+export type FormatFlightResultsDeps = AwardProgramResolvers & {
+  createBookingSession?: BookingSessionCreator;
+};
 
 export const flightI18n = {
   pastDepartDate: {
@@ -171,8 +185,9 @@ export async function formatFlightResults(
   result: any,
   params: any,
   locale: FlightLocale = 'de',
-  createBookingSession?: BookingSessionCreator,
+  deps: FormatFlightResultsDeps,
 ): Promise<string> {
+  const { createBookingSession, getProgramDisplayName, getProgramBookingUrl } = deps;
   const sections: string[] = [];
   const partialFailures: string[] = [];
 

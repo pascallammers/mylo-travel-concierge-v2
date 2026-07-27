@@ -18,7 +18,16 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 
+import {
+  getProgramBookingUrl,
+  getProgramDisplayName,
+} from '@/lib/api/award-search/program-registry';
 import { formatFlightResults } from './flight-search-format';
+
+const awardProgramDeps = {
+  getProgramDisplayName,
+  getProgramBookingUrl,
+};
 
 const baseParams = {
   origin: 'FRA',
@@ -76,7 +85,7 @@ function makeCashResult() {
 describe('formatFlightResults', () => {
   describe('internal provider names', () => {
     it('award table exposes a mileage-program column, never the Seats.aero vendor', async () => {
-      const out = await formatFlightResults(makeAwardResult(), baseParams, 'de');
+      const out = await formatFlightResults(makeAwardResult(), baseParams, 'de', awardProgramDeps);
       const headerLine = out.split('\n').find((l) => l.includes('Airline')) ?? '';
       // The program (Source) is the bookable currency and MUST be shown...
       assert.match(headerLine, /Programm/, 'award header must include a Programm column');
@@ -92,7 +101,7 @@ describe('formatFlightResults', () => {
     });
 
     it('cash table does not expose Duffel to end users', async () => {
-      const out = await formatFlightResults(makeCashResult(), baseParams, 'de');
+      const out = await formatFlightResults(makeCashResult(), baseParams, 'de', awardProgramDeps);
       const cashSection = out.split('## ').find((s) => /Cash|Barzahlung/i.test(s)) ?? '';
       const headerLine = cashSection.split('\n').find((l) => l.includes('Airline')) ?? '';
       assert.doesNotMatch(headerLine, /Quelle|Source/i, 'cash table must not expose a source column');
@@ -102,14 +111,14 @@ describe('formatFlightResults', () => {
 
   describe('null Duffel booking URL hint', () => {
     it('emits an explicit "Direct booking unavailable" / "keine Direktbuchung" hint when no booking session', async () => {
-      const out = await formatFlightResults(makeCashResult(), baseParams, 'en');
+      const out = await formatFlightResults(makeCashResult(), baseParams, 'en', awardProgramDeps);
       // Direct-booking hint must appear somewhere in the rendered output so the
       // LLM has no gap to pad with a fabricated link.
       assert.match(out, /direct booking unavailable|keine direktbuchung/i);
     });
 
     it('does NOT contain the corporate https://duffel.com URL (only real booking-session URLs)', async () => {
-      const out = await formatFlightResults(makeCashResult(), baseParams, 'de');
+      const out = await formatFlightResults(makeCashResult(), baseParams, 'de', awardProgramDeps);
       assert.doesNotMatch(out, /https:\/\/duffel\.com(?:[\s)]|$)/, 'corporate duffel.com link must never appear');
       assert.doesNotMatch(out, /\[Duffel API\]/, 'fabricated [Duffel API] label must never appear');
     });
@@ -118,7 +127,10 @@ describe('formatFlightResults', () => {
       const failingCreator = async () => {
         throw new Error('Duffel Payments not enabled');
       };
-      const out = await formatFlightResults(makeCashResult(), baseParams, 'de', failingCreator);
+      const out = await formatFlightResults(makeCashResult(), baseParams, 'de', {
+        ...awardProgramDeps,
+        createBookingSession: failingCreator,
+      });
       assert.match(out, /keine direktbuchung/i);
       assert.doesNotMatch(out, /\[Buchen\]/);
     });
@@ -126,7 +138,7 @@ describe('formatFlightResults', () => {
 
   describe('award booking links (MYLO-16)', () => {
     it('award table header ends with a Buchen column and a matching separator', async () => {
-      const out = await formatFlightResults(makeAwardResult(), baseParams, 'de');
+      const out = await formatFlightResults(makeAwardResult(), baseParams, 'de', awardProgramDeps);
       const lines = out.split('\n');
       const headerIdx = lines.findIndex((l) => l.includes('Programm'));
       const headerLine = lines[headerIdx] ?? '';
@@ -140,18 +152,21 @@ describe('formatFlightResults', () => {
     });
 
     it('each award row links to the mileage program booking page for the searched route/date', async () => {
-      const out = await formatFlightResults(makeAwardResult(), baseParams, 'de');
+      const params = { ...baseParams, departDate: '2026-06-10' };
+      const out = await formatFlightResults(makeAwardResult(), params, 'de', awardProgramDeps);
       // aeroplan supports a prefilled deeplink: route + flight date must be in it.
+      // params.departDate differs from the flight date so a fallback would fail.
       assert.match(
         out,
         /\[Buchen\]\(https:\/\/www\.aircanada\.com\/aeroplan\/redeem\/availability\/outbound\?org0=FRA&dest0=JFK&departureDate0=2026-06-15[^)]*\)/,
         'award row must carry the aeroplan deeplink with route and date prefilled',
       );
+      assert.doesNotMatch(out, /departureDate0=2026-06-10/, 'deeplink must use the flight date, not params.departDate');
       assert.doesNotMatch(out, /seats\.aero/i, 'no booking link may point at seats.aero');
     });
 
     it('renders the en locale with a Book column and label', async () => {
-      const out = await formatFlightResults(makeAwardResult(), baseParams, 'en');
+      const out = await formatFlightResults(makeAwardResult(), baseParams, 'en', awardProgramDeps);
       const headerLine = out.split('\n').find((l) => l.includes('Program')) ?? '';
       assert.match(headerLine, /\| Book \|$/);
       assert.match(out, /\[Book\]\(https:\/\/www\.aircanada\.com\//);
@@ -160,7 +175,7 @@ describe('formatFlightResults', () => {
     it('renders a dash instead of a fabricated link for an unknown program', async () => {
       const result = makeAwardResult();
       result.seats.flights[0].program = 'madeupprogram';
-      const out = await formatFlightResults(result, baseParams, 'de');
+      const out = await formatFlightResults(result, baseParams, 'de', awardProgramDeps);
       assert.doesNotMatch(out, /\[Buchen\]/, 'unknown program must not get a booking link');
       assert.match(out, /\| - \|$/m, 'unknown program row must end with a dash cell');
     });
@@ -169,7 +184,10 @@ describe('formatFlightResults', () => {
   describe('happy-path with injected booking-session creator', () => {
     it('renders the [Buchen] link when the creator returns a real booking URL', async () => {
       const creator = async () => ({ url: 'https://booking.example.com/abc123' });
-      const out = await formatFlightResults(makeCashResult(), baseParams, 'de', creator);
+      const out = await formatFlightResults(makeCashResult(), baseParams, 'de', {
+        ...awardProgramDeps,
+        createBookingSession: creator,
+      });
       assert.match(out, /\[Buchen\]\(https:\/\/booking\.example\.com\/abc123\)/);
       assert.doesNotMatch(out, /keine direktbuchung/i);
     });
