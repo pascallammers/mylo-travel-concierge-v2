@@ -14,6 +14,7 @@ import { formatGracefulFlightError, formatFlightErrorWithAlternatives, Alternati
 import { logFailedSearch } from '@/lib/db/queries/failed-search';
 import {
   getProgramBookingUrl,
+  getProgramCaveat,
   getProgramDisplayName,
 } from '@/lib/api/award-search/program-registry';
 import { flightI18n, formatFlightResults, type FlightLocale } from './flight-search-format';
@@ -543,6 +544,7 @@ Examples of queries that should trigger this tool:
         createBookingSession: createDuffelBookingSession,
         getProgramDisplayName,
         getProgramBookingUrl,
+        getProgramCaveat,
       });
     } catch (error) {
       console.error('[Flight Search] ❌ Error:', error);

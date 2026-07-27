@@ -13,6 +13,7 @@ import { describe, it, mock } from 'node:test';
 
 import {
   getProgramBookingUrl,
+  getProgramCaveat,
   getProgramDisplayName,
   KNOWN_PROGRAM_SLUGS,
 } from './program-registry';
@@ -54,6 +55,42 @@ describe('getProgramDisplayName', () => {
     } finally {
       warn.mock.restore();
     }
+  });
+});
+
+describe('getProgramCaveat', () => {
+  it('returns the KrisFlyer search-lock caveat incl. workarounds for singapore (de)', () => {
+    const caveat = getProgramCaveat('singapore', 'de');
+    assert.ok(caveat, 'singapore must have a caveat');
+    // The July 2026 lock: no award search below ~1,000 miles balance.
+    assert.match(caveat!, /1\.000 Meilen/);
+    assert.match(caveat!, /Award-Suche/i);
+    // All three known workarounds must be mentioned.
+    assert.match(caveat!, /Marriott Bonvoy/);
+    assert.match(caveat!, /App/);
+    assert.match(caveat!, /[Tt]elefon/);
+  });
+
+  it('returns the login + Classic-Rewards-checkbox caveat for emirates (de)', () => {
+    const caveat = getProgramCaveat('emirates', 'de');
+    assert.ok(caveat, 'emirates must have a caveat');
+    assert.match(caveat!, /eingeloggt/i);
+    assert.match(caveat!, /Classic Rewards/);
+    assert.match(caveat!, /Search partner flights only/);
+    assert.match(caveat!, /finden Sie/);
+    assert.doesNotMatch(caveat!, /findest du/i);
+  });
+
+  it('serves the en locale for both caveat programs', () => {
+    assert.match(getProgramCaveat('singapore', 'en')!, /1,000 miles/);
+    assert.match(getProgramCaveat('emirates', 'en')!, /Classic Rewards/);
+  });
+
+  it('returns null for programs without known website caveats', () => {
+    assert.strictEqual(getProgramCaveat('lufthansa', 'de'), null);
+    assert.strictEqual(getProgramCaveat('aeroplan', 'en'), null);
+    assert.strictEqual(getProgramCaveat('madeupprogram', 'de'), null);
+    assert.strictEqual(getProgramCaveat('', 'de'), null);
   });
 });
 

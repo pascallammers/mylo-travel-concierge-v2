@@ -147,6 +147,28 @@ describe('buildMyloWebSystemPrompt', () => {
     });
   });
 
+  describe('AIRLINE_WEBSITE_CAVEATS section (MYLO-17)', () => {
+    it('includes an Airline-Website-Hürden section', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      assert.match(prompt, /Airline-Website-Hürden/);
+    });
+
+    it('covers the KrisFlyer 1.000-miles search lock with all three workarounds', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      assert.match(prompt, /KrisFlyer/);
+      assert.match(prompt, /1\.000 Meilen/);
+      assert.match(prompt, /Marriott Bonvoy/);
+      assert.match(prompt, /App/);
+      assert.match(prompt, /[Tt]elefon/);
+    });
+
+    it('covers the Emirates login + Classic-Rewards checkbox and partner-award search', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      assert.match(prompt, /Classic Rewards/);
+      assert.match(prompt, /Search partner flights only/);
+    });
+  });
+
   describe('RESPONSE_AND_CITATIONS section', () => {
     it('makes citations mandatory and inline', () => {
       const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
