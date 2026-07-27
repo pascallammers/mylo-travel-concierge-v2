@@ -100,6 +100,13 @@ export const flightI18n = {
     de: '| Nr. | Airline | Programm | Klasse | Preis | Abflug | Ankunft | Dauer | Stops | Sitze | Flugnummer |',
     en: '| No. | Airline | Program | Class | Price | Departure | Arrival | Duration | Stops | Seats | Flight No. |',
   },
+  // Roundtrip searches currently query seats.aero for the outbound leg only, so
+  // the miles price shown is per-direction, not the round-trip total. Without
+  // this flag users mistake the outbound award for the whole trip (MYLO-21).
+  awardOneWayNotice: {
+    de: '_**Hinweis:** Die Meilenpreise gelten pro Strecke (nur Hinflug). Der Rückflug ist darin nicht enthalten._\n',
+    en: '_**Note:** Mileage prices are per direction (outbound only). The return flight is not included._\n',
+  },
   cashHeader: {
     de: (count: number) => `## Flüge mit Barzahlung (${count} Ergebnisse)\n`,
     en: (count: number) => `## Flights with Cash (${count} results)\n`,
@@ -210,6 +217,11 @@ export async function formatFlightResults(
   // Award Flights Section
   if (result.seats.count > 0) {
     sections.push(flightI18n.awardHeader[locale](result.seats.count));
+    // Roundtrip search: award table only holds the outbound leg — flag it so the
+    // per-direction miles price is not read as the round-trip total (MYLO-21).
+    if (params.returnDate) {
+      sections.push(flightI18n.awardOneWayNotice[locale]);
+    }
     sections.push(flightI18n.awardTableHeader[locale]);
     sections.push(`|-----|---------|----------|-------|--------|---------|-------|-------|-------|-------|------------|`);
 

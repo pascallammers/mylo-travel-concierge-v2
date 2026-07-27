@@ -121,6 +121,35 @@ describe('formatFlightResults', () => {
     });
   });
 
+  describe('roundtrip award one-way notice (MYLO-21)', () => {
+    it('flags award prices as per-direction/outbound-only when a returnDate is set (de)', async () => {
+      const params = { ...baseParams, returnDate: '2026-06-22' };
+      const out = await formatFlightResults(makeAwardResult(), params, 'de');
+      // Award results silently show only the outbound leg for roundtrip
+      // searches — the user must be told the miles price is not the round-trip
+      // total.
+      assert.match(out, /pro Strecke/i, 'must flag miles price as per-direction');
+      assert.match(out, /Hinflug/i, 'must name the outbound leg');
+    });
+
+    it('flags award prices as per-direction/outbound-only when a returnDate is set (en)', async () => {
+      const params = { ...baseParams, returnDate: '2026-06-22' };
+      const out = await formatFlightResults(makeAwardResult(), params, 'en');
+      assert.match(out, /per direction|outbound/i, 'must flag miles price as per-direction');
+    });
+
+    it('does NOT show the one-way notice for a one-way search (no returnDate)', async () => {
+      const out = await formatFlightResults(makeAwardResult(), baseParams, 'de');
+      assert.doesNotMatch(out, /pro Strecke/i, 'one-way search must not show the roundtrip notice');
+    });
+
+    it('does NOT show the notice when a returnDate is set but there are no award results', async () => {
+      const params = { ...baseParams, returnDate: '2026-06-22' };
+      const out = await formatFlightResults(makeCashResult(), params, 'de');
+      assert.doesNotMatch(out, /pro Strecke/i, 'notice belongs to the award table only');
+    });
+  });
+
   describe('happy-path with injected booking-session creator', () => {
     it('renders the [Buchen] link when the creator returns a real booking URL', async () => {
       const creator = async () => ({ url: 'https://booking.example.com/abc123' });
