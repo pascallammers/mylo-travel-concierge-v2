@@ -18,7 +18,7 @@ async function main(): Promise<void> {
   const fixtures: EvalFixture[] = [...realChats, ...edgeCases];
   const tools = buildMockToolRegistry();
   const model = getEvalModel();
-  const modelName = process.env.EVAL_MODEL ?? 'grok-4.3';
+  const modelName = process.env.EVAL_MODEL ?? 'grok-4.5';
 
   const results: EvalRunResult[] = [];
 
