@@ -331,12 +331,17 @@ const ToolErrorDisplay = ({ errorText, toolName }: { errorText: string; toolName
 const FlexibleDateFlightCard = ({ flight }: { flight: FlexibleDateFlight }) => {
   // Determine if this is a Seats.aero (award) or Duffel (cash) flight
   const isAward = flight.source === 'seats.aero';
+  const awardPrice = typeof flight.price === 'string' ? flight.price : undefined;
+  const cashPrice =
+    typeof flight.price === 'object' && flight.price !== null
+      ? flight.price
+      : undefined;
 
   // Format price display
   const priceDisplay = isAward
-    ? flight.price || 'N/A'
-    : flight.price?.total
-      ? `${flight.price.total} ${flight.price.currency || 'EUR'}`
+    ? awardPrice || 'N/A'
+    : cashPrice?.total
+      ? `${cashPrice.total} ${cashPrice.currency || 'EUR'}`
       : 'N/A';
 
   // Format departure info

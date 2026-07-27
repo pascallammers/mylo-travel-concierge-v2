@@ -240,9 +240,20 @@ export interface FlexibleDateResponse {
 }
 
 export interface FlexibleDateFlight {
-  // Base flight fields from DuffelFlight/SeatsAeroFlight plus:
   id?: string;
+  source?: 'seats.aero' | 'duffel';
+  airline?: string;
+  origin?: string;
+  destination?: string;
   price?: string | { total?: string; currency?: string };
+  outbound?: {
+    departure?: { airport?: string; time?: string; date?: string };
+    arrival?: { airport?: string; time?: string };
+    duration?: string;
+  };
+  departure?: { airport?: string; time?: string };
+  arrival?: { airport?: string; time?: string };
+  duration?: string;
   searchedDate: string;
   dateOffset: number; // -3 to +3
   dateLabel: string; // "3 Tage frueher" or "2 Tage spaeter"
