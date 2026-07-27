@@ -18,6 +18,7 @@ import {
   getProgramDisplayName,
 } from '@/lib/api/award-search/program-registry';
 import { flightI18n, formatFlightResults, type FlightLocale } from './flight-search-format';
+import { buildFlexibleDateResults } from './flexible-date-results';
 
 // Re-export for legacy callers and tests that import these from flight-search.
 export { flightI18n, formatFlightResults };
@@ -402,96 +403,13 @@ Examples of queries that should trigger this tool:
       if (isFlexibleDateSearch && (hasSeats || hasDuffel)) {
         console.log('[Flight Search] Processing flexible date results');
 
-        // Merge all results
-        const allFlights: any[] = [];
+        const flexibleResults = buildFlexibleDateResults(seatsResult, duffelResult, params, locale);
 
-        // Add Seats.aero results with searchedDate from their departure info
-        if (seatsResult) {
-          seatsResult.forEach((flight: any) => {
-            allFlights.push({
-              ...flight,
-              source: 'seats.aero',
-              searchedDate: flight.outbound?.departure?.date || flight.departureDate || params.departDate,
-            });
-          });
-        }
+        console.log(
+          `[Flight Search] Returning ${flexibleResults.awardFlights.length} award + ${flexibleResults.cashFlights.length} cash flexible date results`,
+        );
 
-        // Add Duffel results (already have searchedDate from flexible search)
-        if (duffelResult) {
-          duffelResult.forEach((flight: any) => {
-            allFlights.push({
-              ...flight,
-              source: 'duffel',
-              searchedDate: flight.searchedDate || flight.departure?.time?.split('T')[0] || params.departDate,
-            });
-          });
-        }
-
-        console.log(`[Flight Search] Merged ${allFlights.length} flexible date flights`);
-
-        // Add date metadata to each flight
-        const flightsWithDateLabels = allFlights.map(flight => {
-          const searchedDate = flight.searchedDate || params.departDate;
-          const originalDate = new Date(params.departDate);
-          const flightDate = new Date(searchedDate);
-          const daysDiff = Math.round((flightDate.getTime() - originalDate.getTime()) / (1000 * 60 * 60 * 24));
-
-          let dateLabel: string;
-          if (daysDiff === 0) {
-            dateLabel = flightI18n.dateLabel.original[locale];
-          } else if (daysDiff < 0) {
-            dateLabel = flightI18n.dateLabel.earlier[locale](Math.abs(daysDiff));
-          } else {
-            dateLabel = flightI18n.dateLabel.later[locale](daysDiff);
-          }
-
-          return {
-            ...flight,
-            searchedDate,
-            dateOffset: daysDiff,
-            dateLabel,
-          };
-        });
-
-        // Sort by price (lowest first) - per CONTEXT.md "Preis-Badge zeigt guenstigere Tage"
-        flightsWithDateLabels.sort((a, b) => {
-          // For Seats.aero, price is a string like "15,000 Miles"
-          // For Duffel, price is an object { total: "123.45", currency: "EUR" }
-          const getPriceValue = (flight: any): number => {
-            if (flight.source === 'duffel' && flight.price?.total) {
-              return parseFloat(flight.price.total);
-            }
-            if (flight.source === 'seats.aero' && flight.price) {
-              // Extract numeric value from "15,000 Miles" format
-              const match = String(flight.price).replace(/,/g, '').match(/[\d.]+/);
-              return match ? parseFloat(match[0]) : 999999;
-            }
-            return 999999;
-          };
-
-          return getPriceValue(a) - getPriceValue(b);
-        });
-
-        // Limit to top 10 per CONTEXT.md
-        const top10 = flightsWithDateLabels.slice(0, 10);
-
-        console.log(`[Flight Search] Returning top ${top10.length} flexible date results`);
-
-        // Calculate date range for display
-        const startDate = new Date(params.departDate);
-        startDate.setDate(startDate.getDate() - 3);
-        const endDate = new Date(params.departDate);
-        endDate.setDate(endDate.getDate() + 3);
-
-        return JSON.stringify({
-          type: 'flexible_date_results',
-          flights: top10,
-          originalDate: params.departDate,
-          dateRange: {
-            start: startDate.toISOString().split('T')[0],
-            end: endDate.toISOString().split('T')[0],
-          },
-        });
+        return JSON.stringify(flexibleResults);
       }
 
       const result = {
