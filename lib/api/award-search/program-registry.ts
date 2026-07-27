@@ -50,6 +50,55 @@ const PROGRAM_NAMES: Record<string, LocalizedProgramName> = {
 /** All seats.aero source slugs the registry maps by name. */
 export const KNOWN_PROGRAM_SLUGS: string[] = Object.keys(PROGRAM_NAMES);
 
+/**
+ * Map free-text loyalty-program inputs (from the model's `loyaltyPrograms`
+ * argument) to seats.aero source slugs. The model may hand back a bare slug
+ * ("aeroplan"), the full brand name it saw in the table ("Lufthansa Miles &
+ * More"), or a bare brand keyword ("KrisFlyer"). We match case-insensitively
+ * against each program's slug and its localized display names, both as an exact
+ * match and as a substring of the display name, so a brand keyword resolves
+ * without an exhaustive alias table.
+ *
+ * Unmatched inputs are returned separately rather than dropped, so the caller
+ * can tell the user which program request could not be honored instead of
+ * silently ignoring it. Matches preserve first-seen order and are deduplicated.
+ */
+export function resolveProgramSlugs(
+  inputs: string[],
+): { matched: string[]; unmatched: string[] } {
+  const matched: string[] = [];
+  const unmatched: string[] = [];
+
+  for (const raw of inputs) {
+    const needle = normalizeProgramName(raw);
+    if (!needle) continue;
+
+    const slug =
+      KNOWN_PROGRAM_SLUGS.find((s) => s === needle || needle.includes(s)) ??
+      KNOWN_PROGRAM_SLUGS.find((s) => {
+        const name = normalizeProgramName(PROGRAM_NAMES[s].en);
+        return needle.length >= 3 && name.includes(needle);
+      });
+
+    if (!slug) {
+      if (!unmatched.includes(raw)) unmatched.push(raw);
+    } else if (!matched.includes(slug)) {
+      matched.push(slug);
+    }
+  }
+
+  return { matched, unmatched };
+}
+
+/** Lowercase, collapse whitespace and unify "&"/"and" for tolerant matching. */
+function normalizeProgramName(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function getProgramDisplayName(slug: string, locale: TransferLocale): string {
   // A missing slug must never crash the renderer (which formats both award AND
   // cash tables in one call); degrade to an empty label.

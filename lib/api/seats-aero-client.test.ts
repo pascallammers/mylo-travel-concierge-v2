@@ -130,6 +130,35 @@ describe('searchSeatsAero (MUC->MIA regression)', () => {
     }
   });
 
+  it('passes only_direct_flights to the API when onlyDirectFlights is set', async () => {
+    mockFetchReturning(mucMiaThreePrograms());
+
+    await searchSeatsAero({
+      origin: 'MUC',
+      destination: 'MIA',
+      departureDate: '2026-09-01',
+      travelClass: 'BUSINESS',
+      onlyDirectFlights: true,
+    });
+
+    const calledUrl = new URL((global.fetch as any).mock.calls[0].arguments[0]);
+    assert.strictEqual(calledUrl.searchParams.get('only_direct_flights'), 'true');
+  });
+
+  it('omits only_direct_flights by default (API default = all connections)', async () => {
+    mockFetchReturning(mucMiaThreePrograms());
+
+    await searchSeatsAero({
+      origin: 'MUC',
+      destination: 'MIA',
+      departureDate: '2026-09-01',
+      travelClass: 'BUSINESS',
+    });
+
+    const calledUrl = new URL((global.fetch as any).mock.calls[0].arguments[0]);
+    assert.strictEqual(calledUrl.searchParams.get('only_direct_flights'), null);
+  });
+
   it('keeps operating carriers separate from the program', async () => {
     mockFetchReturning(mucMiaThreePrograms());
 

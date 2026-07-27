@@ -11,7 +11,7 @@
 import assert from 'node:assert';
 import { describe, it, mock } from 'node:test';
 
-import { getProgramDisplayName, KNOWN_PROGRAM_SLUGS } from './program-registry';
+import { getProgramDisplayName, KNOWN_PROGRAM_SLUGS, resolveProgramSlugs } from './program-registry';
 
 describe('getProgramDisplayName', () => {
   it('maps the three MUC->MIA regression programs to brand names', () => {
@@ -50,5 +50,41 @@ describe('getProgramDisplayName', () => {
     } finally {
       warn.mock.restore();
     }
+  });
+});
+
+describe('resolveProgramSlugs', () => {
+  it('resolves an exact slug regardless of case', () => {
+    const { matched, unmatched } = resolveProgramSlugs(['Aeroplan']);
+    assert.deepStrictEqual(matched, ['aeroplan']);
+    assert.deepStrictEqual(unmatched, []);
+  });
+
+  it('resolves the seats.aero source slug from a brand display name', () => {
+    // The model may hand back the customer-facing name it just saw in the table.
+    const { matched } = resolveProgramSlugs(['Lufthansa Miles & More']);
+    assert.deepStrictEqual(matched, ['lufthansa']);
+  });
+
+  it('resolves a well-known brand keyword the user is likely to type', () => {
+    // "such nur bei Aeroplan" / "nur mit Miles & More" — a bare brand word.
+    assert.deepStrictEqual(resolveProgramSlugs(['aeroplan']).matched, ['aeroplan']);
+    assert.deepStrictEqual(resolveProgramSlugs(['KrisFlyer']).matched, ['singapore']);
+  });
+
+  it('reports inputs it cannot map instead of silently dropping them', () => {
+    const { matched, unmatched } = resolveProgramSlugs(['aeroplan', 'Nonexistent Program']);
+    assert.deepStrictEqual(matched, ['aeroplan']);
+    assert.deepStrictEqual(unmatched, ['Nonexistent Program']);
+  });
+
+  it('deduplicates when two inputs resolve to the same program', () => {
+    const { matched } = resolveProgramSlugs(['aeroplan', 'Air Canada Aeroplan']);
+    assert.deepStrictEqual(matched, ['aeroplan']);
+  });
+
+  it('returns empty arrays for empty or blank input', () => {
+    assert.deepStrictEqual(resolveProgramSlugs([]), { matched: [], unmatched: [] });
+    assert.deepStrictEqual(resolveProgramSlugs(['  ']), { matched: [], unmatched: [] });
   });
 });

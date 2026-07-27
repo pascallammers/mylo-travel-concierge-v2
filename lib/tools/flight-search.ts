@@ -13,6 +13,7 @@ import { createDuffelBookingSession } from '@/lib/utils/duffel-links';
 import { formatGracefulFlightError, formatFlightErrorWithAlternatives, AlternativeAirport } from '@/lib/utils/tool-error-response';
 import { logFailedSearch } from '@/lib/db/queries/failed-search';
 import { flightI18n, formatFlightResults, type FlightLocale } from './flight-search-format';
+import { applyAwardFilters } from '@/lib/api/award-search/award-filters';
 
 // Re-export for legacy callers and tests that import these from flight-search.
 export { flightI18n, formatFlightResults };
@@ -81,7 +82,7 @@ Examples of queries that should trigger this tool:
     loyaltyPrograms: z
       .array(z.string())
       .optional()
-      .describe('Preferred loyalty programs for award bookings'),
+      .describe('Loyalty programs to filter award results to (e.g. "Aeroplan", "Miles & More"). Award flights from other programs are hidden. If the requested program has no availability, all programs are returned together with a note.'),
     flexibility: z
       .number()
       .int()
@@ -89,11 +90,11 @@ Examples of queries that should trigger this tool:
       .max(3)
       .default(0)
       .describe('Date flexibility in days (0-3)'),
-    nonStop: z.boolean().default(false).describe('Search only non-stop flights'),
+    nonStop: z.boolean().default(false).describe('Search only non-stop flights (applied to both award and cash searches)'),
     maxTaxes: z
       .number()
       .optional()
-      .describe('Maximum taxes/fees for award flights (in USD)'),
+      .describe('Maximum taxes/fees for award flights, compared against USD/EUR tax amounts. Award flights with taxes in other currencies are kept and flagged in a note instead of being silently dropped.'),
   }),
 
   execute: async (params, { abortSignal, experimental_context }) => {
@@ -185,6 +186,7 @@ Examples of queries that should trigger this tool:
           // surfaced only the first program ("nur Lufthansa"); pull a high page
           // so program-grouping can keep every program. Flex spans 7 days.
           maxResults: isFlexibleDateSearch ? 100 : 60,
+          onlyDirectFlights: params.nonStop,
         }).then((result) => {
           console.log('[Flight Search] Seats.aero SUCCESS:', result ? `${result.length} flights` : 'null');
           return result;
@@ -228,6 +230,20 @@ Examples of queries that should trigger this tool:
                 return null;
               }),
       ]);
+
+      // Make loyaltyPrograms/maxTaxes effective (MYLO-19). Raw counts keep
+      // driving the provider-failure/no-results flow below (a filter emptying
+      // the list is not a provider outage); rendering uses the filtered slice
+      // and the notes explain any fallback or skipped comparison.
+      const { flights: filteredSeatsFlights, notes: awardFilterNotes } = applyAwardFilters(
+        seatsResult ?? [],
+        {
+          loyaltyPrograms: params.loyaltyPrograms ?? undefined,
+          maxTaxes: params.maxTaxes,
+          locale,
+        },
+      );
+      const filteredSeats = seatsResult === null ? null : filteredSeatsFlights;
 
       // 3. Check if we have results and track provider failures
       const hasSeats = seatsResult && seatsResult.length > 0;
@@ -401,8 +417,8 @@ Examples of queries that should trigger this tool:
         const allFlights: any[] = [];
 
         // Add Seats.aero results with searchedDate from their departure info
-        if (seatsResult) {
-          seatsResult.forEach((flight: any) => {
+        if (filteredSeats) {
+          filteredSeats.forEach((flight: any) => {
             allFlights.push({
               ...flight,
               source: 'seats.aero',
@@ -486,13 +502,14 @@ Examples of queries that should trigger this tool:
             start: startDate.toISOString().split('T')[0],
             end: endDate.toISOString().split('T')[0],
           },
+          ...(awardFilterNotes.length > 0 ? { notes: awardFilterNotes } : {}),
         });
       }
 
       const result = {
         seats: {
-          flights: seatsResult || [],
-          count: seatsResult?.length || 0,
+          flights: filteredSeats || [],
+          count: filteredSeats?.length || 0,
           error: seatsError,
         },
         cash: {
@@ -535,7 +552,10 @@ Examples of queries that should trigger this tool:
 
       // Format response for LLM (inject real booking-session creator;
       // flight-search-format keeps the renderer free of the server env graph)
-      return await formatFlightResults(result, params, locale, createDuffelBookingSession);
+      const formatted = await formatFlightResults(result, params, locale, createDuffelBookingSession);
+      return awardFilterNotes.length > 0
+        ? `${formatted}\n\n${awardFilterNotes.map((note) => `- ${note}`).join('\n')}`
+        : formatted;
     } catch (error) {
       console.error('[Flight Search] ❌ Error:', error);
 
