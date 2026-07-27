@@ -25,7 +25,14 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/comp
 import { ShareButton } from '@/components/share';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { RepeatIcon, Copy01Icon } from '@hugeicons/core-free-icons';
-import { ChatMessage, CustomUIDataTypes, DataQueryCompletionPart, DataExtremeSearchPart, ChatTools } from '@/lib/types';
+import {
+  ChatMessage,
+  CustomUIDataTypes,
+  DataQueryCompletionPart,
+  DataExtremeSearchPart,
+  ChatTools,
+  type FlexibleDateFlight,
+} from '@/lib/types';
 import { UseChatHelpers } from '@ai-sdk/react';
 import { MyloLogoHeader } from '@/components/mylo-logo-header';
 import {
@@ -2182,9 +2189,9 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
                       // Awards (miles) and cash (EUR) arrive as separately
                       // sorted and capped groups (MYLO-20). Older persisted
                       // messages still carry one mixed `flights` array.
-                      const awardFlights: any[] = parsed.awardFlights ?? [];
-                      const cashFlights: any[] = parsed.cashFlights ?? [];
-                      const legacyFlights: any[] = parsed.flights ?? [];
+                      const awardFlights: FlexibleDateFlight[] = parsed.awardFlights ?? [];
+                      const cashFlights: FlexibleDateFlight[] = parsed.cashFlights ?? [];
+                      const legacyFlights: FlexibleDateFlight[] = parsed.flights ?? [];
                       return (
                         <div key={`${messageIndex}-${partIndex}-tool`} className="space-y-4">
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -2197,7 +2204,7 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
                           {awardFlights.length > 0 && (
                             <div className="space-y-3">
                               <h4 className="text-sm font-medium">Flüge mit Meilen/Punkten</h4>
-                              {awardFlights.map((flight: any, idx: number) => (
+                              {awardFlights.map((flight, idx) => (
                                 <FlexibleDateFlightCard
                                   key={flight.id || `award-flight-${idx}`}
                                   flight={flight}
@@ -2208,7 +2215,7 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
                           {cashFlights.length > 0 && (
                             <div className="space-y-3">
                               <h4 className="text-sm font-medium">Flüge mit Barzahlung</h4>
-                              {cashFlights.map((flight: any, idx: number) => (
+                              {cashFlights.map((flight, idx) => (
                                 <FlexibleDateFlightCard
                                   key={flight.id || `cash-flight-${idx}`}
                                   flight={flight}
@@ -2218,7 +2225,7 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
                           )}
                           {legacyFlights.length > 0 && (
                             <div className="space-y-3">
-                              {legacyFlights.map((flight: any, idx: number) => (
+                              {legacyFlights.map((flight, idx) => (
                                 <FlexibleDateFlightCard
                                   key={flight.id || `flight-${idx}`}
                                   flight={flight}
@@ -2226,7 +2233,8 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
                               ))}
                             </div>
                           )}
-                          {(awardFlights.length === 5 || cashFlights.length === 5) && (
+                          {(parsed.awardFlightsTruncated === true ||
+                            parsed.cashFlightsTruncated === true) && (
                             <p className="text-xs text-muted-foreground text-center">
                               Top 5 Ergebnisse pro Kategorie angezeigt (sortiert nach Preis)
                             </p>

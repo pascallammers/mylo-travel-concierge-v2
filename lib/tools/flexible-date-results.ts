@@ -6,13 +6,41 @@
  */
 
 import { flightI18n, type FlightLocale } from './flight-search-format';
+import type {
+  FlexibleDateFlight,
+  FlexibleDateResultsResponse,
+} from '@/lib/types';
+import type { SeatsAeroFlight } from '@/lib/api/seats-aero-client';
+import type { DuffelFlight } from '@/lib/api/duffel-client';
 
 const MAX_AWARD_RESULTS = 5;
 const MAX_CASH_RESULTS = 5;
 
 const UNPRICED = Number.MAX_SAFE_INTEGER;
 
-function milesValue(flight: any): number {
+interface AwardFlexibleDateInput
+  extends Partial<Omit<SeatsAeroFlight, 'outbound'>> {
+  departureDate?: string;
+  outbound?: {
+    departure?: Partial<SeatsAeroFlight['outbound']['departure']> & {
+      date?: string;
+    };
+    arrival?: Partial<SeatsAeroFlight['outbound']['arrival']>;
+    duration?: string;
+    stops?: string;
+    flightNumbers?: string;
+  };
+}
+
+interface CashFlexibleDateInput
+  extends Partial<Omit<DuffelFlight, 'price' | 'departure' | 'arrival'>> {
+  price?: Partial<DuffelFlight['price']>;
+  searchedDate?: string;
+  departure?: Partial<DuffelFlight['departure']>;
+  arrival?: Partial<DuffelFlight['arrival']>;
+}
+
+function milesValue(flight: AwardFlexibleDateInput): number {
   if (!flight.price) return UNPRICED;
   // Seats.aero prices are strings like "15,000 Miles" or "18,750 miles + USD 328.33"
   const match = String(flight.price)
@@ -21,16 +49,30 @@ function milesValue(flight: any): number {
   return match ? parseFloat(match[0]) : UNPRICED;
 }
 
-function cashValue(flight: any): number {
+function cashValue(flight: CashFlexibleDateInput): number {
   // Duffel prices are objects like { total: "414.76", currency: "EUR" }
-  const total = parseFloat(flight.price?.total);
+  const total = parseFloat(flight.price?.total ?? '');
   return Number.isFinite(total) ? total : UNPRICED;
 }
 
-function withDateMetadata(flight: any, searchedDate: string, originalDate: string, locale: FlightLocale) {
-  const daysDiff = Math.round(
-    (new Date(searchedDate).getTime() - new Date(originalDate).getTime()) / (1000 * 60 * 60 * 24),
-  );
+type FlexibleDateMetadata = Pick<
+  FlexibleDateFlight,
+  'searchedDate' | 'dateOffset' | 'dateLabel'
+>;
+
+function withDateMetadata<T extends object>(
+  flight: T,
+  searchedDate: string,
+  originalDate: string,
+  locale: FlightLocale,
+): T & FlexibleDateMetadata {
+  const searchedTimestamp = new Date(searchedDate).getTime();
+  const originalTimestamp = new Date(originalDate).getTime();
+  const hasValidSearchedDate = Number.isFinite(searchedTimestamp);
+  const daysDiff =
+    hasValidSearchedDate && Number.isFinite(originalTimestamp)
+      ? Math.round((searchedTimestamp - originalTimestamp) / (1000 * 60 * 60 * 24))
+      : 0;
 
   let dateLabel: string;
   if (daysDiff === 0) {
@@ -41,21 +83,37 @@ function withDateMetadata(flight: any, searchedDate: string, originalDate: strin
     dateLabel = flightI18n.dateLabel.later[locale](daysDiff);
   }
 
-  return { ...flight, searchedDate, dateOffset: daysDiff, dateLabel };
+  return {
+    ...flight,
+    searchedDate: hasValidSearchedDate ? searchedDate : originalDate,
+    dateOffset: daysDiff,
+    dateLabel,
+  };
 }
 
 function shiftDate(isoDate: string, days: number): string {
   const date = new Date(isoDate);
-  date.setDate(date.getDate() + days);
+  date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().split('T')[0];
 }
 
+/**
+ * Build independently sorted and capped award/cash flexible-date groups.
+ *
+ * @param seatsFlights - Award results returned by seats.aero.
+ * @param duffelFlights - Cash results returned by Duffel.
+ * @param params - Original flight-search departure date.
+ * @param locale - Locale used for relative date labels.
+ * @returns Structured flexible-date results with explicit truncation metadata.
+ */
 export function buildFlexibleDateResults(
-  seatsFlights: any[] | null,
-  duffelFlights: any[] | null,
+  seatsFlights: AwardFlexibleDateInput[] | null,
+  duffelFlights: CashFlexibleDateInput[] | null,
   params: { departDate: string },
   locale: FlightLocale,
-) {
+): FlexibleDateResultsResponse {
+  const awardFlightsTruncated = (seatsFlights?.length ?? 0) > MAX_AWARD_RESULTS;
+  const cashFlightsTruncated = (duffelFlights?.length ?? 0) > MAX_CASH_RESULTS;
   const awardFlights = (seatsFlights ?? [])
     .map((flight) =>
       withDateMetadata(
@@ -84,6 +142,8 @@ export function buildFlexibleDateResults(
     type: 'flexible_date_results' as const,
     awardFlights,
     cashFlights,
+    awardFlightsTruncated,
+    cashFlightsTruncated,
     originalDate: params.departDate,
     dateRange: {
       start: shiftDate(params.departDate, -3),

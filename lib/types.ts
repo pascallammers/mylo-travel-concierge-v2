@@ -241,6 +241,8 @@ export interface FlexibleDateResponse {
 
 export interface FlexibleDateFlight {
   // Base flight fields from DuffelFlight/SeatsAeroFlight plus:
+  id?: string;
+  price?: string | { total?: string; currency?: string };
   searchedDate: string;
   dateOffset: number; // -3 to +3
   dateLabel: string; // "3 Tage frueher" or "2 Tage spaeter"
@@ -253,6 +255,8 @@ export interface FlexibleDateResultsResponse {
   // the two price units never compete in one numeric sort (MYLO-20).
   awardFlights: FlexibleDateFlight[];
   cashFlights: FlexibleDateFlight[];
+  awardFlightsTruncated: boolean;
+  cashFlightsTruncated: boolean;
   originalDate: string;
   dateRange: { start: string; end: string };
 }

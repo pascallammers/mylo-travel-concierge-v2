@@ -73,7 +73,9 @@ describe('buildFlexibleDateResults', () => {
 
     assert.strictEqual(result.cashFlights.length, 5);
     assert.deepStrictEqual(
-      result.cashFlights.map((f) => f.price.total),
+      result.cashFlights.map((f) =>
+        typeof f.price === 'object' && f.price !== null ? f.price.total : undefined,
+      ),
       ['389.00', '399.99', '402.10', '414.76', '650.00'],
     );
   });
@@ -138,6 +140,49 @@ describe('buildFlexibleDateResults', () => {
     assert.strictEqual(result.awardFlights[0].searchedDate, '2026-08-15');
     assert.strictEqual(result.awardFlights[0].dateOffset, 0);
     assert.strictEqual(result.awardFlights[0].dateLabel, 'Originaldatum');
+  });
+
+  it('falls back to the original date when searchedDate is invalid', () => {
+    const cash = [makeCashFlight({ searchedDate: 'not-a-date' })];
+
+    const result = buildFlexibleDateResults(null, cash, params, 'de');
+    const [flight] = result.cashFlights;
+
+    assert.strictEqual(flight.searchedDate, params.departDate);
+    assert.strictEqual(flight.dateOffset, 0);
+    assert.strictEqual(flight.dateLabel, 'Originaldatum');
+    assert.doesNotMatch(flight.dateLabel, /NaN/);
+  });
+
+  it('reports truncation explicitly instead of inferring it from exactly five results', () => {
+    const exactlyFive = Array.from({ length: 5 }, () => makeAwardFlight());
+    const sixCash = Array.from({ length: 6 }, () => makeCashFlight());
+
+    const complete = buildFlexibleDateResults(exactlyFive, null, params, 'de');
+    const truncated = buildFlexibleDateResults(null, sixCash, params, 'de');
+
+    assert.strictEqual(complete.awardFlightsTruncated, false);
+    assert.strictEqual(complete.cashFlightsTruncated, false);
+    assert.strictEqual(truncated.awardFlightsTruncated, false);
+    assert.strictEqual(truncated.cashFlightsTruncated, true);
+  });
+
+  it('keeps the date range stable across the Europe/Berlin DST transition', () => {
+    const originalTimezone = process.env.TZ;
+    process.env.TZ = 'Europe/Berlin';
+    try {
+      const result = buildFlexibleDateResults(null, null, { departDate: '2024-03-31' }, 'de');
+      assert.deepStrictEqual(result.dateRange, {
+        start: '2024-03-28',
+        end: '2024-04-03',
+      });
+    } finally {
+      if (originalTimezone === undefined) {
+        delete process.env.TZ;
+      } else {
+        process.env.TZ = originalTimezone;
+      }
+    }
   });
 
   it('sorts award flights by miles ascending and caps the group at 5', () => {
