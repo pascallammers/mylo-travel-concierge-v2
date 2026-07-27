@@ -19,6 +19,7 @@ import { AMEX_US_PARTNERS } from './us-amex';
 import { BILT_PARTNERS } from './us-bilt';
 import { CAPITAL_ONE_PARTNERS } from './us-capital-one';
 import { CITI_PARTNERS } from './us-citi';
+import { createAwardProgramSourceResolver, type AwardProgramTransferSource } from './award-program-sources';
 
 // ============================================
 // Re-exports: types
@@ -44,6 +45,62 @@ export { AMEX_US_PARTNERS } from './us-amex';
 export { BILT_PARTNERS } from './us-bilt';
 export { CAPITAL_ONE_PARTNERS } from './us-capital-one';
 export { CITI_PARTNERS } from './us-citi';
+
+// ============================================
+// Re-exports: award-program transfer sources (MYLO-22)
+// ============================================
+
+export {
+  createAwardProgramSourceResolver,
+  type AwardProgramTransferSource,
+  type AwardProgramSourceProgram,
+  type SourceProgramId,
+} from './award-program-sources';
+
+const SOURCE_PROGRAMS = [
+  {
+    id: 'amex_dach',
+    label: { de: 'Amex Membership Rewards (DACH)', en: 'Amex Membership Rewards (DACH)' },
+    partners: AMEX_DACH_PARTNERS,
+  },
+  {
+    id: 'amex_us',
+    label: { de: 'Amex Membership Rewards (US)', en: 'Amex Membership Rewards (US)' },
+    partners: AMEX_US_PARTNERS,
+  },
+  {
+    id: 'chase_ur',
+    label: { de: 'Chase Ultimate Rewards', en: 'Chase Ultimate Rewards' },
+    partners: CHASE_PARTNERS,
+  },
+  {
+    id: 'bilt',
+    label: { de: 'Bilt Rewards', en: 'Bilt Rewards' },
+    partners: BILT_PARTNERS,
+  },
+  {
+    id: 'capital_one',
+    label: { de: 'Capital One Miles', en: 'Capital One Miles' },
+    partners: CAPITAL_ONE_PARTNERS,
+  },
+  {
+    id: 'citi_ty',
+    label: { de: 'Citi ThankYou Points', en: 'Citi ThankYou Points' },
+    partners: CITI_PARTNERS,
+  },
+] as const;
+
+const resolveAwardProgramSources = createAwardProgramSourceResolver(SOURCE_PROGRAMS);
+
+/**
+ * List card programs that transfer into a seats.aero award program.
+ *
+ * @param slug - seats.aero award-program slug.
+ * @returns Matching transfer sources ordered by effective rate.
+ */
+export function getTransferSourcesForAwardProgram(slug: string): AwardProgramTransferSource[] {
+  return resolveAwardProgramSources(slug);
+}
 
 // ============================================
 // Re-exports: helpers

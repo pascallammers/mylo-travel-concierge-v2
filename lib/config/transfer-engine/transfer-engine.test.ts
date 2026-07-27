@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  getTransferSourcesForAwardProgram,
   formatAmexDachTransferOptions,
   findDachTransferPartner,
   TRANSFER_PARTNERS,
@@ -245,6 +246,52 @@ describe('Backward compatibility re-exports', () => {
     const airlines = getDachAirlinePartners();
     for (const p of airlines) {
       assert.equal(p.type, 'airline');
+    }
+  });
+});
+
+// ============================================
+// Award-program transfer sources (MYLO-22)
+// ============================================
+
+describe('getTransferSourcesForAwardProgram', () => {
+  it('resolves flyingblue to transfer sources whose ratios come from the partner maps', () => {
+    const sources = getTransferSourcesForAwardProgram('flyingblue');
+
+    const dach = sources.find((s) => s.sourceProgramId === 'amex_dach');
+    assert.ok(dach, 'DACH Amex must be listed as a Flying Blue source');
+    // Known-good ratio from americanexpress.com/de-de (5 MR -> 4 miles), NOT
+    // recomputed here — the entry must be the exact config object.
+    assert.equal(dach.partner, TRANSFER_PARTNERS.dach.amex.flyingBlue);
+    assert.equal(dach.partner.amexPoints, 5);
+    assert.equal(dach.partner.partnerMiles, 4);
+    assert.equal(dach.sourceProgramLabel.de, 'Amex Membership Rewards (DACH)');
+
+    const chase = sources.find((s) => s.sourceProgramId === 'chase_ur');
+    assert.ok(chase, 'Chase UR must be listed as a Flying Blue source');
+    assert.equal(chase.partner, TRANSFER_PARTNERS.us.chase.flyingBlue);
+  });
+
+  it('resolves lufthansa to the indirect DACH PAYBACK route', () => {
+    const sources = getTransferSourcesForAwardProgram('lufthansa');
+    const dach = sources.find((s) => s.sourceProgramId === 'amex_dach');
+    assert.ok(dach, 'Miles & More is reachable in DACH via PAYBACK');
+    assert.equal(dach.partner, TRANSFER_PARTNERS.dach.amex.payback);
+  });
+
+  it('returns an empty list for award programs no card program transfers to', () => {
+    assert.deepEqual(getTransferSourcesForAwardProgram('smiles'), []);
+    assert.deepEqual(getTransferSourcesForAwardProgram(''), []);
+    assert.deepEqual(getTransferSourcesForAwardProgram('unknown-slug'), []);
+  });
+
+  it('sorts sources by effective rate, best first', () => {
+    const sources = getTransferSourcesForAwardProgram('flyingblue');
+    for (let i = 1; i < sources.length; i++) {
+      assert.ok(
+        sources[i - 1].partner.effectiveRate >= sources[i].partner.effectiveRate,
+        'sources must be ordered best-rate-first',
+      );
     }
   });
 });

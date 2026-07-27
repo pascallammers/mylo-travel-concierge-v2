@@ -11,6 +11,10 @@ import {
   buildGoogleFlightsUrl,
   buildSkyscannerUrl,
 } from '@/lib/utils/flight-search-links';
+import type {
+  AwardProgramTransferSource,
+  TransferPartner,
+} from '@/lib/config/transfer-engine';
 
 // Booking-session creator is injected to keep the renderer free of the
 // server-env import graph. The tool entry-point passes the real
@@ -41,8 +45,16 @@ export type AwardProgramResolvers = {
   getProgramCaveat: (slug: string, locale: FlightLocale) => string | null;
 };
 
+export interface TransferHintDependencies {
+  getTransferSourcesForAwardProgram: (
+    slug: string,
+  ) => AwardProgramTransferSource[];
+  formatTransferRatio: (partner: TransferPartner) => string;
+}
+
 export type FormatFlightResultsDeps = AwardProgramResolvers & {
   createBookingSession?: BookingSessionCreator;
+  transferHints?: TransferHintDependencies;
 };
 
 export const flightI18n = {
@@ -167,6 +179,11 @@ export const flightI18n = {
     en: (types: string) =>
       `\n---\n\n_**Note:** ${types} could not be loaded. For more options you can use the following links:_\n`,
   },
+  transferHintIntro: {
+    de: '_**Hinweis:** Diese Meilen musst du noch nicht haben — der Transfer von Kreditkarten- oder Hotelpunkten ist erst bei der Buchung nötig._',
+    en: "_**Note:** You don't need to have these miles yet — transferring credit-card or hotel points is only necessary when you book._",
+  },
+  transferHintVia: { de: 'über', en: 'via' },
   awardFlightsLabel: { de: 'Meilen/Punkte-Flüge', en: 'Miles/points flights' },
   cashFlightsLabel: { de: 'Cash-Flüge', en: 'Cash flights' },
   noResultsFallback: {
@@ -245,6 +262,58 @@ function renderAwardTable(
 }
 
 /**
+ * Render transfer sources for every distinct award program.
+ *
+ * @param flights - Award flights from all rendered legs.
+ * @param locale - Locale for labels and program names.
+ * @param getProgramDisplayName - Injected program-name resolver.
+ * @param dependencies - Transfer-engine helpers.
+ * @returns Markdown list lines.
+ */
+function renderTransferSources(
+  flights: ReadonlyArray<{ program?: string }>,
+  locale: FlightLocale,
+  getProgramDisplayName: AwardProgramResolvers['getProgramDisplayName'],
+  dependencies?: TransferHintDependencies,
+): string[] {
+  if (!dependencies) return [];
+
+  const slugs = [
+    ...new Set(
+      flights
+        .map(({ program }) => program)
+        .filter((program): program is string => Boolean(program)),
+    ),
+  ];
+
+  return slugs.flatMap((slug) => {
+    const sources = dependencies.getTransferSourcesForAwardProgram(slug);
+    if (sources.length === 0) return [];
+
+    const dach = sources.filter(
+      ({ sourceProgramId }) => sourceProgramId === 'amex_dach',
+    );
+    const others = sources.filter(
+      ({ sourceProgramId }) => sourceProgramId !== 'amex_dach',
+    );
+    const renderedSources = [...dach, ...others]
+      .slice(0, 3)
+      .map(({ sourceProgramLabel, partner }) => {
+        const via =
+          partner.type === 'other'
+            ? ` ${flightI18n.transferHintVia[locale]} ${partner.name}`
+            : '';
+        return `${sourceProgramLabel[locale]}${via} ${dependencies.formatTransferRatio(partner)}`;
+      })
+      .join(', ');
+
+    return [
+      `- **${getProgramDisplayName(slug, locale)}**: ${renderedSources}`,
+    ];
+  });
+}
+
+/**
  * Format flight results for LLM response.
  *
  * Internal provider names ("Seats.aero" / "Duffel") must never be rendered to
@@ -254,6 +323,12 @@ function renderAwardTable(
  * disabled), the row emits an explicit "Direct booking unavailable" hint
  * instead of leaving silent space the LLM will pad with a fabricated link
  * (Test 1 produced [Duffel API](https://duffel.com)).
+ *
+ * @param result - Combined award and cash search results.
+ * @param params - Original flight-search parameters.
+ * @param locale - Output locale.
+ * @param deps - Injected booking, program, caveat, and transfer resolvers.
+ * @returns LLM-facing Markdown.
  */
 export async function formatFlightResults(
   result: any,
@@ -266,6 +341,7 @@ export async function formatFlightResults(
     getProgramDisplayName,
     getProgramBookingUrl,
     getProgramCaveat,
+    transferHints,
   } = deps;
   const sections: string[] = [];
   const partialFailures: string[] = [];
@@ -370,6 +446,21 @@ export async function formatFlightResults(
       sections.push(...caveatLines);
       sections.push('');
     }
+
+    const awardFlights = [
+      ...result.seats.flights,
+      ...(result.seatsReturn?.flights ?? []),
+    ];
+    sections.push(flightI18n.transferHintIntro[locale]);
+    sections.push(
+      ...renderTransferSources(
+        awardFlights,
+        locale,
+        getProgramDisplayName,
+        transferHints,
+      ),
+    );
+    sections.push('');
   }
 
   // Cash Flights Section

@@ -23,12 +23,24 @@ import {
   getProgramCaveat,
   getProgramDisplayName,
 } from '@/lib/api/award-search/program-registry';
+import {
+  formatTransferRatio,
+  getTransferSourcesForAwardProgram,
+} from '@/lib/config/transfer-engine';
 import { formatFlightResults } from './flight-search-format';
 
 const awardProgramDeps = {
   getProgramDisplayName,
   getProgramBookingUrl,
   getProgramCaveat,
+};
+
+const awardProgramDepsWithTransfers = {
+  ...awardProgramDeps,
+  transferHints: {
+    formatTransferRatio,
+    getTransferSourcesForAwardProgram,
+  },
 };
 
 const baseParams = {
@@ -265,6 +277,149 @@ describe('formatFlightResults', () => {
       );
       assert.match(out, /1,000 miles/);
       assert.doesNotMatch(out, /1\.000 Meilen/);
+    });
+  });
+
+  describe('transfer hint under the award table (MYLO-22)', () => {
+    it('explains that miles can be transferred at booking time', async () => {
+      const deOut = await formatFlightResults(
+        makeAwardResult(),
+        baseParams,
+        'de',
+        awardProgramDepsWithTransfers,
+      );
+      assert.match(deOut, /noch nicht haben/i);
+      assert.match(deOut, /Transfer.*Buchung/i);
+
+      const enOut = await formatFlightResults(
+        makeAwardResult(),
+        baseParams,
+        'en',
+        awardProgramDepsWithTransfers,
+      );
+      assert.match(enOut, /don't need to have these miles yet/i);
+      assert.match(enOut, /only necessary when you book/i);
+    });
+
+    it('does not show the hint for cash-only results', async () => {
+      const out = await formatFlightResults(
+        makeCashResult(),
+        baseParams,
+        'de',
+        awardProgramDepsWithTransfers,
+      );
+      assert.doesNotMatch(out, /noch nicht haben/i);
+    });
+
+    it('pins DACH first and caps each program at three sources', async () => {
+      const result = makeAwardResult();
+      result.seats.count = 2;
+      result.seats.flights.push({
+        ...result.seats.flights[0],
+        program: 'flyingblue',
+      });
+      const out = await formatFlightResults(
+        result,
+        baseParams,
+        'de',
+        awardProgramDepsWithTransfers,
+      );
+      const line =
+        out.split('\n').find((entry) => entry.startsWith('- **Flying Blue')) ??
+        '';
+      assert.match(line, /Amex Membership Rewards \(DACH\) 5:4/);
+      assert.match(line, /Amex Membership Rewards \(US\) 1:1/);
+      assert.ok(
+        line.indexOf('Amex Membership Rewards (DACH)') <
+          line.indexOf('Amex Membership Rewards (US)'),
+      );
+      assert.doesNotMatch(line, /Bilt|Capital One|Citi/);
+    });
+
+    it('deduplicates programs and omits unknown transfer routes', async () => {
+      const duplicateResult = makeAwardResult();
+      duplicateResult.seats.count = 2;
+      duplicateResult.seats.flights.push({
+        ...duplicateResult.seats.flights[0],
+      });
+      const duplicateOut = await formatFlightResults(
+        duplicateResult,
+        baseParams,
+        'de',
+        awardProgramDepsWithTransfers,
+      );
+      assert.strictEqual(
+        duplicateOut
+          .split('\n')
+          .filter((line) => line.startsWith('- **Air Canada Aeroplan')).length,
+        1,
+      );
+
+      const unsupportedResult = makeAwardResult();
+      unsupportedResult.seats.flights[0].program = 'smiles';
+      const unsupportedOut = await formatFlightResults(
+        unsupportedResult,
+        baseParams,
+        'de',
+        awardProgramDepsWithTransfers,
+      );
+      assert.match(unsupportedOut, /noch nicht haben/i);
+      assert.doesNotMatch(unsupportedOut, /^- \*\*GOL Smiles/m);
+    });
+
+    it('marks the indirect Miles & More route via PAYBACK in both locales', async () => {
+      const result = makeAwardResult();
+      result.seats.flights[0].program = 'lufthansa';
+      const deOut = await formatFlightResults(
+        result,
+        baseParams,
+        'de',
+        awardProgramDepsWithTransfers,
+      );
+      assert.match(deOut, /Lufthansa Miles & More.*über PAYBACK/);
+
+      const enOut = await formatFlightResults(
+        result,
+        baseParams,
+        'en',
+        awardProgramDepsWithTransfers,
+      );
+      assert.match(enOut, /Lufthansa Miles & More.*via PAYBACK/);
+    });
+
+    it('includes return-leg programs in the transfer sources', async () => {
+      const result = {
+        ...makeAwardResult(),
+        seatsReturn: {
+          count: 1,
+          error: false,
+          flights: [
+            {
+              ...makeAwardResult().seats.flights[0],
+              program: 'flyingblue',
+              outbound: {
+                ...makeAwardResult().seats.flights[0].outbound,
+                departure: {
+                  airport: 'JFK',
+                  time: '2026-06-22T18:00:00.000Z',
+                },
+                arrival: {
+                  airport: 'FRA',
+                  time: '2026-06-23T07:30:00.000Z',
+                },
+              },
+            },
+          ],
+        },
+      };
+      const out = await formatFlightResults(
+        result,
+        { ...baseParams, returnDate: '2026-06-22' },
+        'de',
+        awardProgramDepsWithTransfers,
+      );
+      assert.match(out, /^- \*\*Air Canada Aeroplan\*\*:/m);
+      assert.match(out, /^- \*\*Flying Blue \(Air France\/KLM\)\*\*:/m);
     });
   });
 
