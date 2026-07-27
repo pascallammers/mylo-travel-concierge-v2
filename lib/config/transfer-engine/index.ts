@@ -46,6 +46,16 @@ export { CAPITAL_ONE_PARTNERS } from './us-capital-one';
 export { CITI_PARTNERS } from './us-citi';
 
 // ============================================
+// Re-exports: award-program transfer sources (MYLO-22)
+// ============================================
+
+export {
+  getTransferSourcesForAwardProgram,
+  type AwardProgramTransferSource,
+  type SourceProgramId,
+} from './award-program-sources';
+
+// ============================================
 // Re-exports: helpers
 // ============================================
 
