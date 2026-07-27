@@ -147,7 +147,7 @@ const PROGRAM_CAVEATS: Record<string, LocalizedProgramCaveat> = {
     en: 'The KrisFlyer website blocks award search when your balance is below roughly 1,000 miles ("miles balance is insufficient"). Workarounds: transfer 3,000 Marriott Bonvoy points for 1,000 miles (3:1), use the SIA mobile app, or book by phone.',
   },
   emirates: {
-    de: 'Emirates zeigt Meilenpreise nur eingeloggt und mit aktivierter "Classic Rewards"-Checkbox. Partner-Awards findest du nur über die Advanced Search mit "Search partner flights only".',
+    de: 'Emirates zeigt Meilenpreise nur eingeloggt und mit aktivierter "Classic Rewards"-Checkbox. Partner-Awards finden Sie nur über die Advanced Search mit "Search partner flights only".',
     en: 'Emirates only shows mileage prices when you are logged in with the "Classic Rewards" checkbox ticked. Partner awards only appear via Advanced Search with "Search partner flights only".',
   },
 };
@@ -155,6 +155,10 @@ const PROGRAM_CAVEATS: Record<string, LocalizedProgramCaveat> = {
 /**
  * Known website hurdle for a program, or null when booking on the program's
  * site works without surprises. Localized, customer-facing text.
+ *
+ * @param slug Program slug from the award-search provider.
+ * @param locale Locale for the customer-facing caveat.
+ * @returns A localized caveat, or `null` when no hurdle is known.
  */
 export function getProgramCaveat(
   slug: string,

@@ -77,6 +77,8 @@ describe('getProgramCaveat', () => {
     assert.match(caveat!, /eingeloggt/i);
     assert.match(caveat!, /Classic Rewards/);
     assert.match(caveat!, /Search partner flights only/);
+    assert.match(caveat!, /finden Sie/);
+    assert.doesNotMatch(caveat!, /findest du/i);
   });
 
   it('serves the en locale for both caveat programs', () => {
