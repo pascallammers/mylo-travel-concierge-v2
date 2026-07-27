@@ -3,7 +3,7 @@ import { describe, it } from 'node:test';
 import {
   formatFlexibleCalendarDate,
   isFlexibleAwardFlight,
-} from './flexible-date-results';
+} from '@/components/message-parts/flexible-date-results';
 
 describe('flexible-date result rendering helpers', () => {
   it('keeps ISO calendar dates stable west of UTC', () => {
