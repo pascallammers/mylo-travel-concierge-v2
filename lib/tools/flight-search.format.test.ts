@@ -216,12 +216,36 @@ describe('formatFlightResults', () => {
     });
 
     it('renders the English hint and transfer-source labels', async () => {
-      const out = await formatTestResult(makeAwardResult(), 'en');
+      const result = makeAwardResult();
+      result.seats.count = 2;
+      result.seats.flights.push({
+        ...result.seats.flights[0],
+        program: 'flyingblue',
+        airline: 'KLM',
+      });
+      const out = await formatTestResult(result, 'en');
 
       assert.match(out, /don't need to have these miles yet/i);
       assert.match(out, /only necessary when you book/i);
       assert.match(out, /^- \*\*Air Canada Aeroplan\*\*:/m);
       assert.match(out, /Amex Membership Rewards \(US\) 1:1/);
+
+      const flyingBlueLine = out.split('\n').find((l) => l.startsWith('- **Flying Blue')) ?? '';
+      assert.match(flyingBlueLine, /Amex Membership Rewards \(DACH\) 5:4/);
+      assert.match(flyingBlueLine, /Amex Membership Rewards \(US\) 1:1/);
+      assert.ok(
+        flyingBlueLine.indexOf('Amex Membership Rewards (DACH)') <
+          flyingBlueLine.indexOf('Amex Membership Rewards (US)'),
+        'DACH source must be pinned before the US source in English output',
+      );
+    });
+
+    it('marks the indirect Miles & More route via PAYBACK for lufthansa awards (en)', async () => {
+      const result = makeAwardResult();
+      result.seats.flights[0].program = 'lufthansa';
+      const out = await formatTestResult(result, 'en');
+      const line = out.split('\n').find((l) => l.startsWith('- **Lufthansa Miles & More')) ?? '';
+      assert.match(line, /via PAYBACK/, 'indirect route must be visible in English output');
     });
   });
 
