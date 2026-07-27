@@ -131,7 +131,7 @@ Examples of queries that should trigger this tool:
       console.log('[Flight Search] 🔄 Calling Duffel with:', { origin, destination, departDate: params.departDate, returnDate: params.returnDate, cabin: params.cabin, isFlexible: isFlexibleDateSearch });
 
       // 2. Parallel API calls
-      const [seatsResult, duffelResult] = await Promise.all([
+      const [seatsResult, duffelResult, seatsReturnResult] = await Promise.all([
         // Seats.aero: Award flights (use flexibility: 3 for flexible date search)
         searchSeatsAero({
           origin,
@@ -187,9 +187,32 @@ Examples of queries that should trigger this tool:
                 console.error('[Flight Search] Duffel FAILED:', err.message, err);
                 return null;
               }),
+
+        // Return-leg award search (MYLO-21): seats.aero has no returnDate
+        // concept, so a roundtrip needs a second one-way search
+        // destination→origin on the return date. Costs one extra API call per
+        // roundtrip search; skipped for flexible-date searches, whose special
+        // response path renders no return table.
+        params.returnDate && !isFlexibleDateSearch
+          ? searchSeatsAero({
+              origin: destination,
+              destination: origin,
+              departureDate: params.returnDate,
+              travelClass: params.cabin as TravelClass,
+              flexibility: params.flexibility,
+              maxResults: 60,
+              onlyDirectFlights: params.nonStop,
+            }).then((result) => {
+              console.log('[Flight Search] Seats.aero return leg SUCCESS:', result ? `${result.length} flights` : 'null');
+              return result;
+            }).catch((err) => {
+              console.error('[Flight Search] Seats.aero return leg FAILED:', err.message, err);
+              return null;
+            })
+          : Promise.resolve(null),
       ]);
 
-      const { flights: filteredSeatsFlights, notes: awardFilterNotes } =
+      const { flights: filteredSeatsFlights, notes: outboundAwardFilterNotes } =
         filterFlightSearchAwards(
           seatsResult ?? [],
           params,
@@ -197,14 +220,33 @@ Examples of queries that should trigger this tool:
           applyAwardFilters,
         );
       const filteredSeats = seatsResult === null ? null : filteredSeatsFlights;
+      const { flights: filteredSeatsReturnFlights, notes: returnAwardFilterNotes } =
+        filterFlightSearchAwards(
+          seatsReturnResult ?? [],
+          params,
+          locale,
+          applyAwardFilters,
+        );
+      const filteredSeatsReturn =
+        seatsReturnResult === null ? null : filteredSeatsReturnFlights;
+      const awardFilterNotes = [
+        ...new Set([
+          ...outboundAwardFilterNotes,
+          ...returnAwardFilterNotes,
+        ]),
+      ];
 
       // 3. Check if we have results and track provider failures
       const hasSeats = seatsResult && seatsResult.length > 0;
       const hasDuffel = duffelResult && duffelResult.length > 0;
-      
+      const hasSeatsReturn = seatsReturnResult && seatsReturnResult.length > 0;
+
       // Track which providers failed (null means error, empty array means no results)
       const seatsError = seatsResult === null;
       const duffelError = duffelResult === null;
+      // Only a real roundtrip search can have a return-leg error; the skipped
+      // Promise.resolve(null) above is not a failure.
+      const seatsReturnError = Boolean(params.returnDate && !isFlexibleDateSearch) && seatsReturnResult === null;
 
       // Build search params for fallback links
       const searchLinkParams: FlightSearchLinkParams = {
@@ -217,7 +259,7 @@ Examples of queries that should trigger this tool:
       };
 
       // Handle complete failure (no results from any provider)
-      if (!hasSeats && !hasDuffel) {
+      if (!hasSeats && !hasDuffel && !hasSeatsReturn) {
         // Determine error type based on what failed
         const errorType = seatsError || duffelError ? 'provider_unavailable' : 'no_results';
 
@@ -388,6 +430,11 @@ Examples of queries that should trigger this tool:
           flights: filteredSeats || [],
           count: filteredSeats?.length || 0,
           error: seatsError,
+        },
+        seatsReturn: {
+          flights: filteredSeatsReturn || [],
+          count: filteredSeatsReturn?.length || 0,
+          error: seatsReturnError,
         },
         cash: {
           flights: duffelResult || [],

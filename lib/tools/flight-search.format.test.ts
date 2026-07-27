@@ -268,6 +268,147 @@ describe('formatFlightResults', () => {
     });
   });
 
+  describe('roundtrip award rendering (MYLO-21)', () => {
+    const roundtripParams = {
+      ...baseParams,
+      returnDate: '2026-06-22',
+    };
+
+    function makeRoundtripAwardResult() {
+      return {
+        ...makeAwardResult(),
+        seatsReturn: {
+          count: 1,
+          error: false,
+          flights: [
+            {
+              program: 'united',
+              airline: 'UA',
+              cabin: 'Economy',
+              price: '30,000 miles + USD 5.60',
+              seatsLeft: 4,
+              outbound: {
+                departure: {
+                  airport: 'JFK',
+                  time: '2026-06-22T18:00:00.000Z',
+                },
+                arrival: {
+                  airport: 'FRA',
+                  time: '2026-06-23T07:30:00.000Z',
+                },
+                duration: '7h 30m',
+                stops: 'Nonstop',
+                flightNumbers: 'UA960',
+              },
+            },
+          ],
+        },
+      };
+    }
+
+    it('flags outbound-only mileage prices for roundtrips without return awards', async () => {
+      const out = await formatFlightResults(
+        makeAwardResult(),
+        roundtripParams,
+        'de',
+        awardProgramDeps,
+      );
+      assert.match(out, /pro Strecke \(nur Hinflug\)/i);
+      assert.match(out, /Rückflug.*nicht enthalten/i);
+    });
+
+    it('does not show the outbound-only notice for a one-way search', async () => {
+      const out = await formatFlightResults(
+        makeAwardResult(),
+        baseParams,
+        'de',
+        awardProgramDeps,
+      );
+      assert.doesNotMatch(out, /pro Strecke \(nur Hinflug\)/i);
+    });
+
+    it('renders both award legs with booking links and localized headings', async () => {
+      const result = makeRoundtripAwardResult();
+      const out = await formatFlightResults(
+        result,
+        roundtripParams,
+        'de',
+        awardProgramDeps,
+      );
+      assert.match(out, /### Hinflug \(1 Ergebnisse\)/);
+      assert.match(out, /### Rückflug \(1 Ergebnisse\)/);
+      assert.match(out, /United MileagePlus/);
+      assert.match(out, /UA960/);
+      assert.match(out, /\[Buchen\]\(https:\/\/www\.united\.com\//);
+      assert.strictEqual(
+        out.split('\n').filter((line) => line.includes('| Programm |')).length,
+        2,
+      );
+
+      const enOut = await formatFlightResults(
+        result,
+        roundtripParams,
+        'en',
+        awardProgramDeps,
+      );
+      assert.match(enOut, /### Outbound \(1 results\)/);
+      assert.match(enOut, /### Return \(1 results\)/);
+    });
+
+    it('uses per-leg wording once return awards are available', async () => {
+      const out = await formatFlightResults(
+        makeRoundtripAwardResult(),
+        roundtripParams,
+        'de',
+        awardProgramDeps,
+      );
+      assert.match(out, /jeweils pro Strecke/i);
+      assert.doesNotMatch(out, /nicht enthalten/i);
+    });
+
+    it('keeps the return table when outbound awards are unavailable', async () => {
+      const result = {
+        ...makeRoundtripAwardResult(),
+        seats: { count: 0, flights: [], error: false },
+        cash: { count: 0, flights: [] },
+      };
+      const out = await formatFlightResults(
+        result,
+        roundtripParams,
+        'de',
+        awardProgramDeps,
+      );
+      assert.match(out, /Hinflug.*keine Award-Verfügbarkeit/i);
+      assert.match(out, /### Rückflug \(1 Ergebnisse\)/);
+      assert.doesNotMatch(out, /keine Flüge für Ihre Suche gefunden/i);
+    });
+
+    it('distinguishes an outbound provider error from no availability', async () => {
+      const result = {
+        ...makeRoundtripAwardResult(),
+        seats: { count: 0, flights: [], error: true },
+        cash: { count: 0, flights: [] },
+        searchLinkParams: {
+          origin: 'FRA',
+          destination: 'JFK',
+          departDate: '2026-06-15',
+          returnDate: '2026-06-22',
+          cabin: 'ECONOMY',
+          passengers: 1,
+        },
+      };
+      const out = await formatFlightResults(
+        result,
+        roundtripParams,
+        'de',
+        awardProgramDeps,
+      );
+      assert.match(out, /Award-Verfügbarkeit.*Hinflug.*nicht geladen/i);
+      assert.doesNotMatch(out, /Hinflug.*keine Award-Verfügbarkeit/i);
+      assert.match(out, /Meilen\/Punkte-Flüge konnten nicht geladen werden/i);
+    });
+  });
+
   describe('happy-path with injected booking-session creator', () => {
     it('renders the [Buchen] link when the creator returns a real booking URL', async () => {
       const creator = async () => ({ url: 'https://booking.example.com/abc123' });
