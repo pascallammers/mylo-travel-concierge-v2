@@ -56,6 +56,13 @@ const filterI18n = {
   },
 } as const;
 
+/**
+ * Apply loyalty-program and tax filters while preserving user-facing notes.
+ *
+ * @param flights - Award flights returned by seats.aero.
+ * @param options - Requested programs, tax ceiling, and response locale.
+ * @returns Filtered flights plus explanatory notes for fallbacks or exclusions.
+ */
 export function applyAwardFilters(
   flights: SeatsAeroFlight[],
   options: AwardFilterOptions,

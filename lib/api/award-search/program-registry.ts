@@ -62,6 +62,9 @@ export const KNOWN_PROGRAM_SLUGS: string[] = Object.keys(PROGRAM_NAMES);
  * Unmatched inputs are returned separately rather than dropped, so the caller
  * can tell the user which program request could not be honored instead of
  * silently ignoring it. Matches preserve first-seen order and are deduplicated.
+ *
+ * @param inputs - Free-text loyalty-program names or seats.aero slugs.
+ * @returns Matched source slugs and the original inputs that could not be mapped.
  */
 export function resolveProgramSlugs(
   inputs: string[],
@@ -73,8 +76,9 @@ export function resolveProgramSlugs(
     const needle = normalizeProgramName(raw);
     if (!needle) continue;
 
+    const tokens = needle.split(/[^a-z0-9]+/).filter(Boolean);
     const slug =
-      KNOWN_PROGRAM_SLUGS.find((s) => s === needle || needle.includes(s)) ??
+      KNOWN_PROGRAM_SLUGS.find((s) => s === needle || tokens.includes(s)) ??
       KNOWN_PROGRAM_SLUGS.find((s) => {
         const name = normalizeProgramName(PROGRAM_NAMES[s].en);
         return needle.length >= 3 && name.includes(needle);

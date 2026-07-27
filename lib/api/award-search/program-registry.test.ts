@@ -70,6 +70,14 @@ describe('resolveProgramSlugs', () => {
     // "such nur bei Aeroplan" / "nur mit Miles & More" — a bare brand word.
     assert.deepStrictEqual(resolveProgramSlugs(['aeroplan']).matched, ['aeroplan']);
     assert.deepStrictEqual(resolveProgramSlugs(['KrisFlyer']).matched, ['singapore']);
+    assert.deepStrictEqual(resolveProgramSlugs(['use United rewards']).matched, ['united']);
+  });
+
+  it('does not resolve a slug that only occurs inside an unrelated word', () => {
+    assert.deepStrictEqual(resolveProgramSlugs(['disunited rewards']), {
+      matched: [],
+      unmatched: ['disunited rewards'],
+    });
   });
 
   it('reports inputs it cannot map instead of silently dropping them', () => {

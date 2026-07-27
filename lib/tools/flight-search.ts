@@ -1,5 +1,4 @@
 import { tool } from 'ai';
-import { z } from 'zod';
 import { searchSeatsAero, TravelClass } from '@/lib/api/seats-aero-client';
 import { searchDuffel, searchDuffelFlexibleDates, mapCabinClass, getNearbyAirports, NearbyAirport } from '@/lib/api/duffel-client';
 import { mergeSessionState } from '@/lib/db/queries';
@@ -13,7 +12,8 @@ import { createDuffelBookingSession } from '@/lib/utils/duffel-links';
 import { formatGracefulFlightError, formatFlightErrorWithAlternatives, AlternativeAirport } from '@/lib/utils/tool-error-response';
 import { logFailedSearch } from '@/lib/db/queries/failed-search';
 import { flightI18n, formatFlightResults, type FlightLocale } from './flight-search-format';
-import { applyAwardFilters } from '@/lib/api/award-search/award-filters';
+import { filterFlightSearchAwards } from './flight-search-award-filters';
+import { flightSearchInputSchema } from './flight-search-schema';
 
 // Re-export for legacy callers and tests that import these from flight-search.
 export { flightI18n, formatFlightResults };
@@ -46,56 +46,7 @@ Examples of queries that should trigger this tool:
 - "Show me the cheapest flights to Bangkok"
 - "Find award flights from Berlin to New York"`,
 
-  inputSchema: z.object({
-    origin: z
-      .string()
-      .min(3)
-      .describe('Origin city or airport (e.g., "Frankfurt", "Berlin", "FRA", or "New York"). City names will be auto-converted to airport codes.'),
-    destination: z
-      .string()
-      .min(3)
-      .describe('Destination city or airport (e.g., "Phuket", "Tokyo", "JFK", or "Bangkok"). City names will be auto-converted to airport codes.'),
-    departDate: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .describe('Departure date in YYYY-MM-DD format'),
-    returnDate: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .optional()
-      .nullable()
-      .describe('Return date in YYYY-MM-DD format (optional for round trip)'),
-    cabin: z
-      .enum(['ECONOMY', 'PREMIUM_ECONOMY', 'BUSINESS', 'FIRST'])
-      .describe('Cabin class'),
-    passengers: z
-      .number()
-      .int()
-      .min(1)
-      .max(9)
-      .default(1)
-      .describe('Number of passengers'),
-    awardOnly: z
-      .boolean()
-      .default(false)
-      .describe('Set to false (default) to search BOTH award and cash flights. Set to true ONLY when user explicitly asks for miles/points flights only.'),
-    loyaltyPrograms: z
-      .array(z.string())
-      .optional()
-      .describe('Loyalty programs to filter award results to (e.g. "Aeroplan", "Miles & More"). Award flights from other programs are hidden. If the requested program has no availability, all programs are returned together with a note.'),
-    flexibility: z
-      .number()
-      .int()
-      .min(0)
-      .max(3)
-      .default(0)
-      .describe('Date flexibility in days (0-3)'),
-    nonStop: z.boolean().default(false).describe('Search only non-stop flights (applied to both award and cash searches)'),
-    maxTaxes: z
-      .number()
-      .optional()
-      .describe('Maximum taxes/fees for award flights, compared against USD/EUR tax amounts. Award flights with taxes in other currencies are kept and flagged in a note instead of being silently dropped.'),
-  }),
+  inputSchema: flightSearchInputSchema,
 
   execute: async (params, { abortSignal, experimental_context }) => {
     // Per-request context injected by streamText({ experimental_context }) in
@@ -235,13 +186,10 @@ Examples of queries that should trigger this tool:
       // driving the provider-failure/no-results flow below (a filter emptying
       // the list is not a provider outage); rendering uses the filtered slice
       // and the notes explain any fallback or skipped comparison.
-      const { flights: filteredSeatsFlights, notes: awardFilterNotes } = applyAwardFilters(
+      const { flights: filteredSeatsFlights, notes: awardFilterNotes } = filterFlightSearchAwards(
         seatsResult ?? [],
-        {
-          loyaltyPrograms: params.loyaltyPrograms ?? undefined,
-          maxTaxes: params.maxTaxes,
-          locale,
-        },
+        params,
+        locale,
       );
       const filteredSeats = seatsResult === null ? null : filteredSeatsFlights;
 
