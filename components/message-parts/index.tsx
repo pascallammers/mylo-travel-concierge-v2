@@ -328,7 +328,7 @@ const ToolErrorDisplay = ({ errorText, toolName }: { errorText: string; toolName
 );
 
 // Compact flight card for flexible date results
-const FlexibleDateFlightCard = ({ flight }: { flight: any }) => {
+const FlexibleDateFlightCard = ({ flight }: { flight: FlexibleDateFlight }) => {
   // Determine if this is a Seats.aero (award) or Duffel (cash) flight
   const isAward = flight.source === 'seats.aero';
 
