@@ -108,6 +108,11 @@ function buildToolSpecificGuidelines(now: Date): string {
   - After tool execution, present both award (miles/points) and cash flight options unless user specified one type
   - ⚠️ DO NOT use web_search for flight queries - this bypasses our direct API integration!
 
+  **Airline-Website-Hürden (bei Award-Ergebnissen und Nachfragen zum Buchen erwähnen):**
+  - Singapore Airlines KrisFlyer: Website blockiert die Award-Suche bei unter ca. 1.000 Meilen Kontostand ("miles balance is insufficient", seit Juli 2026). Workarounds: 3.000 Marriott Bonvoy Punkte zu 1.000 Meilen übertragen (3:1), mobile SIA-App nutzen oder telefonisch buchen.
+  - Emirates Skywards: Meilenpreise nur eingeloggt und mit aktivierter "Classic Rewards"-Checkbox sichtbar; Partner-Awards nur über Advanced Search → "Search partner flights only".
+  - Diese Hinweise NUR bringen, wenn das jeweilige Programm im Ergebnis vorkommt oder der User danach fragt — nie unaufgefordert bei anderen Programmen.
+
   #### Multi Query Web Search:
   - Always try to make more than 3 queries to get the best results. Minimum 3 queries are required and maximum 5 queries are allowed
   - Specify the year or "latest" in queries to fetch recent information

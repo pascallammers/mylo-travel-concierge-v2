@@ -133,6 +133,36 @@ export function getProgramBookingUrl(
   return getOwnValue(PROGRAM_SEARCH_PAGES, slug) ?? null;
 }
 
+interface LocalizedProgramCaveat {
+  de: string;
+  en: string;
+}
+
+// Known airline-website hurdles (MYLO-17). Rendered as footnotes under the
+// award table so users don't fail when they try to verify/book on the
+// program's own site. Keep entries short — one footnote line per program.
+const PROGRAM_CAVEATS: Record<string, LocalizedProgramCaveat> = {
+  singapore: {
+    de: 'Die KrisFlyer-Website blockiert die Award-Suche bei einem Kontostand unter ca. 1.000 Meilen ("miles balance is insufficient"). Workarounds: 3.000 Marriott Bonvoy Punkte zu 1.000 Meilen übertragen (3:1), die mobile SIA-App nutzen oder telefonisch buchen.',
+    en: 'The KrisFlyer website blocks award search when your balance is below roughly 1,000 miles ("miles balance is insufficient"). Workarounds: transfer 3,000 Marriott Bonvoy points for 1,000 miles (3:1), use the SIA mobile app, or book by phone.',
+  },
+  emirates: {
+    de: 'Emirates zeigt Meilenpreise nur eingeloggt und mit aktivierter "Classic Rewards"-Checkbox. Partner-Awards findest du nur über die Advanced Search mit "Search partner flights only".',
+    en: 'Emirates only shows mileage prices when you are logged in with the "Classic Rewards" checkbox ticked. Partner awards only appear via Advanced Search with "Search partner flights only".',
+  },
+};
+
+/**
+ * Known website hurdle for a program, or null when booking on the program's
+ * site works without surprises. Localized, customer-facing text.
+ */
+export function getProgramCaveat(
+  slug: string,
+  locale: TransferLocale,
+): string | null {
+  return PROGRAM_CAVEATS[slug]?.[locale] ?? null;
+}
+
 export function getProgramDisplayName(slug: string, locale: TransferLocale): string {
   // A missing slug must never crash the renderer (which formats both award AND
   // cash tables in one call); degrade to an empty label.

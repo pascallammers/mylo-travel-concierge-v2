@@ -20,6 +20,7 @@ import { describe, it } from 'node:test';
 
 import {
   getProgramBookingUrl,
+  getProgramCaveat,
   getProgramDisplayName,
 } from '@/lib/api/award-search/program-registry';
 import { formatFlightResults } from './flight-search-format';
@@ -27,6 +28,7 @@ import { formatFlightResults } from './flight-search-format';
 const awardProgramDeps = {
   getProgramDisplayName,
   getProgramBookingUrl,
+  getProgramCaveat,
 };
 
 const baseParams = {
@@ -169,6 +171,7 @@ describe('formatFlightResults', () => {
       let receivedCabin: string | undefined;
       const out = await formatFlightResults(makeAwardResult(), baseParams, 'de', {
         getProgramDisplayName,
+        getProgramCaveat,
         getProgramBookingUrl: (_slug, ctx) => {
           receivedCabin = ctx.cabin;
           return 'https://booking.example.com/award';
@@ -192,6 +195,76 @@ describe('formatFlightResults', () => {
       const out = await formatFlightResults(result, baseParams, 'de', awardProgramDeps);
       assert.doesNotMatch(out, /\[Buchen\]/, 'unknown program must not get a booking link');
       assert.match(out, /\| - \|$/m, 'unknown program row must end with a dash cell');
+    });
+  });
+
+  describe('program caveat footnotes (MYLO-17)', () => {
+    function makeAwardResultWithPrograms(programs: string[]) {
+      const base = makeAwardResult();
+      const template = base.seats.flights[0];
+      return {
+        ...base,
+        seats: {
+          count: programs.length,
+          flights: programs.map((program) => ({ ...template, program })),
+        },
+      };
+    }
+
+    it('renders the KrisFlyer search-lock footnote when a singapore row is present', async () => {
+      const out = await formatFlightResults(
+        makeAwardResultWithPrograms(['singapore', 'aeroplan']),
+        baseParams,
+        'de',
+        awardProgramDeps,
+      );
+      assert.match(out, /Singapore Airlines KrisFlyer.*1\.000 Meilen/s);
+      assert.match(out, /Marriott Bonvoy/);
+      // Footnote must come AFTER the award table rows, not inside them.
+      const lastRowIdx = out.lastIndexOf('| KL1816');
+      assert.ok(out.indexOf('Marriott Bonvoy') > lastRowIdx, 'caveat must render below the table');
+    });
+
+    it('renders the Emirates login/checkbox footnote when an emirates row is present', async () => {
+      const out = await formatFlightResults(
+        makeAwardResultWithPrograms(['emirates']),
+        baseParams,
+        'de',
+        awardProgramDeps,
+      );
+      assert.match(out, /Classic Rewards/);
+      assert.match(out, /Search partner flights only/);
+    });
+
+    it('renders each program caveat only once even with multiple rows of that program', async () => {
+      const out = await formatFlightResults(
+        makeAwardResultWithPrograms(['singapore', 'singapore', 'singapore']),
+        baseParams,
+        'de',
+        awardProgramDeps,
+      );
+      assert.strictEqual(out.match(/Marriott Bonvoy/g)?.length, 1, 'caveat must render exactly once');
+    });
+
+    it('leaves results without caveat programs unchanged (no footnote block)', async () => {
+      const out = await formatFlightResults(
+        makeAwardResultWithPrograms(['aeroplan', 'lufthansa']),
+        baseParams,
+        'de',
+        awardProgramDeps,
+      );
+      assert.doesNotMatch(out, /KrisFlyer-Website|Classic Rewards|Marriott Bonvoy/);
+    });
+
+    it('localizes the footnote in the en locale', async () => {
+      const out = await formatFlightResults(
+        makeAwardResultWithPrograms(['singapore']),
+        baseParams,
+        'en',
+        awardProgramDeps,
+      );
+      assert.match(out, /1,000 miles/);
+      assert.doesNotMatch(out, /1\.000 Meilen/);
     });
   });
 

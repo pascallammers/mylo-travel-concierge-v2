@@ -38,6 +38,7 @@ export type AwardBookingContext = {
 export type AwardProgramResolvers = {
   getProgramDisplayName: (slug: string, locale: FlightLocale) => string;
   getProgramBookingUrl: (slug: string, ctx: AwardBookingContext) => string | null;
+  getProgramCaveat: (slug: string, locale: FlightLocale) => string | null;
 };
 
 export type FormatFlightResultsDeps = AwardProgramResolvers & {
@@ -188,7 +189,12 @@ export async function formatFlightResults(
   locale: FlightLocale = 'de',
   deps: FormatFlightResultsDeps,
 ): Promise<string> {
-  const { createBookingSession, getProgramDisplayName, getProgramBookingUrl } = deps;
+  const {
+    createBookingSession,
+    getProgramDisplayName,
+    getProgramBookingUrl,
+    getProgramCaveat,
+  } = deps;
   const sections: string[] = [];
   const partialFailures: string[] = [];
 
@@ -263,6 +269,22 @@ export async function formatFlightResults(
       );
     });
     sections.push('');
+
+    // Website-hurdle footnotes (MYLO-17): only for programs that actually
+    // appear in the result, one line per program, below the award table.
+    const caveatPrograms = [
+      ...new Set<string>(result.seats.flights.map((f: any) => f.program)),
+    ];
+    const caveatLines = caveatPrograms.flatMap((slug) => {
+      const caveat = getProgramCaveat(slug, locale);
+      return caveat
+        ? [`_⚠️ **${getProgramDisplayName(slug, locale)}:** ${caveat}_`]
+        : [];
+    });
+    if (caveatLines.length > 0) {
+      sections.push(...caveatLines);
+      sections.push('');
+    }
   }
 
   // Cash Flights Section
