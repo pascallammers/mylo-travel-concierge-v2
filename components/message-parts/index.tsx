@@ -2179,6 +2179,12 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
 
                     // Check for flexible date results
                     if (parsed.type === 'flexible_date_results') {
+                      // Awards (miles) and cash (EUR) arrive as separately
+                      // sorted and capped groups (MYLO-20). Older persisted
+                      // messages still carry one mixed `flights` array.
+                      const awardFlights: any[] = parsed.awardFlights ?? [];
+                      const cashFlights: any[] = parsed.cashFlights ?? [];
+                      const legacyFlights: any[] = parsed.flights ?? [];
                       return (
                         <div key={`${messageIndex}-${partIndex}-tool`} className="space-y-4">
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -2188,17 +2194,41 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
                               {new Date(parsed.dateRange.end).toLocaleDateString('de-DE')}
                             </span>
                           </div>
-                          <div className="space-y-3">
-                            {parsed.flights.map((flight: any, idx: number) => (
-                              <FlexibleDateFlightCard
-                                key={flight.id || `flight-${idx}`}
-                                flight={flight}
-                              />
-                            ))}
-                          </div>
-                          {parsed.flights.length === 10 && (
+                          {awardFlights.length > 0 && (
+                            <div className="space-y-3">
+                              <h4 className="text-sm font-medium">Flüge mit Meilen/Punkten</h4>
+                              {awardFlights.map((flight: any, idx: number) => (
+                                <FlexibleDateFlightCard
+                                  key={flight.id || `award-flight-${idx}`}
+                                  flight={flight}
+                                />
+                              ))}
+                            </div>
+                          )}
+                          {cashFlights.length > 0 && (
+                            <div className="space-y-3">
+                              <h4 className="text-sm font-medium">Flüge mit Barzahlung</h4>
+                              {cashFlights.map((flight: any, idx: number) => (
+                                <FlexibleDateFlightCard
+                                  key={flight.id || `cash-flight-${idx}`}
+                                  flight={flight}
+                                />
+                              ))}
+                            </div>
+                          )}
+                          {legacyFlights.length > 0 && (
+                            <div className="space-y-3">
+                              {legacyFlights.map((flight: any, idx: number) => (
+                                <FlexibleDateFlightCard
+                                  key={flight.id || `flight-${idx}`}
+                                  flight={flight}
+                                />
+                              ))}
+                            </div>
+                          )}
+                          {(awardFlights.length === 5 || cashFlights.length === 5) && (
                             <p className="text-xs text-muted-foreground text-center">
-                              Top 10 Ergebnisse angezeigt (sortiert nach Preis)
+                              Top 5 Ergebnisse pro Kategorie angezeigt (sortiert nach Preis)
                             </p>
                           )}
                         </div>
