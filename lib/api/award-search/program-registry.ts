@@ -55,9 +55,8 @@ export const KNOWN_PROGRAM_SLUGS: string[] = Object.keys(PROGRAM_NAMES);
  * argument) to seats.aero source slugs. The model may hand back a bare slug
  * ("aeroplan"), the full brand name it saw in the table ("Lufthansa Miles &
  * More"), or a bare brand keyword ("KrisFlyer"). We match case-insensitively
- * against each program's slug and its localized display names, both as an exact
- * match and as a substring of the display name, so a brand keyword resolves
- * without an exhaustive alias table.
+ * against each program's slug, slug tokens, and localized display-name tokens
+ * or multi-word phrases, so a brand keyword resolves without an alias table.
  *
  * Unmatched inputs are returned separately rather than dropped, so the caller
  * can tell the user which program request could not be honored instead of
@@ -97,6 +96,10 @@ export function resolveProgramSlugs(
  * Match a normalized needle against a program display name using token or
  * consecutive phrase equality — avoids substring false positives like "lan"
  * inside "aeroplan" or "united" inside "disunited".
+ *
+ * @param displayName - Localized program brand name.
+ * @param needle - Normalized user input to match.
+ * @returns True when the needle equals a name token or consecutive phrase.
  */
 function displayNameMatchesNeedle(displayName: string, needle: string): boolean {
   if (needle.length < 3) return false;
@@ -118,7 +121,12 @@ function displayNameMatchesNeedle(displayName: string, needle: string): boolean 
   return false;
 }
 
-/** Lowercase, collapse whitespace and unify "&"/"and" for tolerant matching. */
+/**
+ * Lowercase, collapse whitespace and unify "&"/"and" for tolerant matching.
+ *
+ * @param value - Raw program name or slug input.
+ * @returns Normalized string for case-insensitive comparison.
+ */
 function normalizeProgramName(value: string): string {
   return value
     .toLowerCase()
@@ -127,6 +135,13 @@ function normalizeProgramName(value: string): string {
     .trim();
 }
 
+/**
+ * Resolve a seats.aero source slug to a customer-facing program label.
+ *
+ * @param slug - seats.aero `Source` value (e.g. `aeroplan`, `lufthansa`).
+ * @param locale - Response locale for the display name.
+ * @returns Localized brand name, or a Title-Cased fallback for unknown slugs.
+ */
 export function getProgramDisplayName(slug: string, locale: TransferLocale): string {
   // A missing slug must never crash the renderer (which formats both award AND
   // cash tables in one call); degrade to an empty label.

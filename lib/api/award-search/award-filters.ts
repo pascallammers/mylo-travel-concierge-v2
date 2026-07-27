@@ -11,15 +11,20 @@
 import type { SeatsAeroFlight } from '../seats-aero-client';
 import { getProgramDisplayName, resolveProgramSlugs } from './program-registry';
 
+/** Locale used for user-facing award-filter notes. */
 export type AwardFilterLocale = 'de' | 'en';
 
+/** Options for post-search award filtering (MYLO-19). */
 export interface AwardFilterOptions {
+  /** Free-text loyalty-program names to filter results to. */
   loyaltyPrograms?: string[];
   /** Maximum taxes/fees; compared against USD/EUR tax amounts only. */
   maxTaxes?: number;
+  /** Locale for explanatory filter notes appended to the response. */
   locale: AwardFilterLocale;
 }
 
+/** Result of applying award filters to a seats.aero flight list. */
 export interface AwardFilterResult {
   flights: SeatsAeroFlight[];
   /** User-facing hints (requested program empty, incomparable currency, ...). */

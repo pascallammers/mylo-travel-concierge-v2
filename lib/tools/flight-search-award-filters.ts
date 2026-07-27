@@ -5,8 +5,11 @@ import type {
 } from '@/lib/api/award-search/award-filters';
 import type { SeatsAeroFlight } from '@/lib/api/seats-aero-client';
 
+/** Award-filter fields exposed by the flight-search tool schema. */
 export interface FlightSearchAwardFilterParams {
+  /** Loyalty programs to restrict award results to. */
   loyaltyPrograms?: string[];
+  /** Maximum comparable taxes/fees (USD/EUR only). */
   maxTaxes?: number;
 }
 
