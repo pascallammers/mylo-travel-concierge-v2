@@ -156,14 +156,16 @@ describe('buildFlexibleDateResults', () => {
 
   it('reports truncation explicitly instead of inferring it from exactly five results', () => {
     const exactlyFive = Array.from({ length: 5 }, () => makeAwardFlight());
+    const exactlyFiveCash = Array.from({ length: 5 }, () => makeCashFlight());
+    const sixAwards = Array.from({ length: 6 }, () => makeAwardFlight());
     const sixCash = Array.from({ length: 6 }, () => makeCashFlight());
 
-    const complete = buildFlexibleDateResults(exactlyFive, null, params, 'de');
-    const truncated = buildFlexibleDateResults(null, sixCash, params, 'de');
+    const complete = buildFlexibleDateResults(exactlyFive, exactlyFiveCash, params, 'de');
+    const truncated = buildFlexibleDateResults(sixAwards, sixCash, params, 'de');
 
     assert.strictEqual(complete.awardFlightsTruncated, false);
     assert.strictEqual(complete.cashFlightsTruncated, false);
-    assert.strictEqual(truncated.awardFlightsTruncated, false);
+    assert.strictEqual(truncated.awardFlightsTruncated, true);
     assert.strictEqual(truncated.cashFlightsTruncated, true);
   });
 
