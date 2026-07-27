@@ -169,6 +169,41 @@ describe('buildMyloWebSystemPrompt', () => {
     });
   });
 
+  describe('WEBSITE_ERROR_ROUTING section (MYLO-18)', () => {
+    it('routes airline/program website error messages to web_search instead of repeating', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      // Community-Fall Jonas: KrisFlyer-Sperre war bereits dokumentiert;
+      // eine web_search hätte den Fall in einer Antwort gelöst, statt die
+      // bisherige Erklärung zu wiederholen.
+      assert.match(prompt, /Fehlermeldung/i);
+      assert.match(prompt, /(routet|route|nutze|rufe|call).*web_search/i);
+    });
+
+    it('instructs to search with program name plus the error text before answering', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      assert.match(prompt, /Programm.*\+.*Fehlertext/i);
+    });
+
+    it('positions MYLO as delivering miles prices directly (airline website only for final booking)', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      // "ich will nur schauen, wie viele Meilen es kostet" → MYLO liefert die
+      // Meilenpreise direkt, die Airline-Website erst zur finalen Buchung.
+      assert.match(prompt, /Meilenpreise?.*direkt/i);
+      assert.match(prompt, /(finale|final).*Buchung/i);
+    });
+
+    it('adds a KB-skip exception for quoted website error messages (English tool guidelines)', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      assert.match(prompt, /error message or unexpected behavior of an airline\/program website/i);
+      assert.match(prompt, /web_search.*program name \+ error text/i);
+    });
+
+    it('forbids repeating the previous explanation instead of searching', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      assert.match(prompt, /(NEVER|do not) repeat your previous explanation/i);
+    });
+  });
+
   describe('RESPONSE_AND_CITATIONS section', () => {
     it('makes citations mandatory and inline', () => {
       const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
