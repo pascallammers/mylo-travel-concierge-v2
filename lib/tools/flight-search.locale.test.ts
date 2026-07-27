@@ -10,72 +10,74 @@
  * - kein locale im Kontext → 'de' (Rückwärtskompatibilität)
  * - Flex-Suche triggert ausschließlich über params.flexibility > 0
  *
- * Braucht --experimental-test-module-mocks (im test-Script gesetzt).
- * SKIP_ENV_VALIDATION muss vor dem dynamischen Import gesetzt sein, weil der
- * Tool-Entry-Point den Server-Env-Graphen zieht.
+ * Der Test verwendet den dependency-injizierten Tool-Factory-Seam und lädt
+ * deshalb weder Provider-SDKs noch den Server-Env-Graphen.
  */
 
 import assert from 'node:assert';
-import { beforeEach, describe, it, mock } from 'node:test';
+import { beforeEach, describe, it } from 'node:test';
+import type {
+  SeatsAeroFlight,
+  SeatsAeroSearchParams,
+} from '@/lib/api/seats-aero-client';
+import type { DuffelSearchParams } from '@/lib/api/duffel-client';
+import {
+  createFlightSearchTool,
+  type FlightSearchToolDependencies,
+} from './flight-search-tool';
 
-process.env.SKIP_ENV_VALIDATION = '1';
+interface DuffelFlexibleCall {
+  params: DuffelSearchParams;
+  days: number;
+}
 
 const calls = {
-  seatsAero: [] as any[],
-  duffel: [] as any[],
-  duffelFlexible: [] as any[],
+  seatsAero: [] as SeatsAeroSearchParams[],
+  duffel: [] as DuffelSearchParams[],
+  duffelFlexible: [] as DuffelFlexibleCall[],
 };
 
-let seatsAeroResult: any[] = [];
+let seatsAeroResult: SeatsAeroFlight[] = [];
 
-mock.module('@/lib/api/seats-aero-client', {
-  namedExports: {
-    searchSeatsAero: async (params: any) => {
-      calls.seatsAero.push(params);
-      return seatsAeroResult;
-    },
+const dependencies: FlightSearchToolDependencies = {
+  searchSeatsAero: async (params) => {
+    calls.seatsAero.push(params);
+    return seatsAeroResult;
   },
-});
-mock.module('@/lib/api/duffel-client', {
-  namedExports: {
-    searchDuffel: async (params: any) => {
-      calls.duffel.push(params);
-      return [];
-    },
-    searchDuffelFlexibleDates: async (params: any, days: number) => {
-      calls.duffelFlexible.push({ params, days });
-      return [];
-    },
-    mapCabinClass: (cabin: string) => cabin.toLowerCase(),
-    getNearbyAirports: async () => [],
+  searchDuffel: async (params) => {
+    calls.duffel.push(params);
+    return [];
   },
-});
-mock.module('@/lib/db/queries', {
-  namedExports: {
-    mergeSessionState: async () => {},
+  searchDuffelFlexibleDates: async (params, days = 3) => {
+    calls.duffelFlexible.push({ params, days });
+    return [];
   },
-});
-mock.module('@/lib/db/queries/failed-search', {
-  namedExports: {
-    logFailedSearch: async () => {},
+  mapCabinClass: (cabin) => {
+    switch (cabin) {
+      case 'PREMIUM_ECONOMY':
+        return 'premium_economy';
+      case 'BUSINESS':
+        return 'business';
+      case 'FIRST':
+        return 'first';
+      default:
+        return 'economy';
+    }
   },
-});
-mock.module('@/lib/utils/airport-codes', {
-  namedExports: {
-    resolveIATACode: async (input: string) => input.toUpperCase(),
-    resolveAirportCodesWithLLM: async () => ({
-      origin: { code: 'FRA', name: 'Frankfurt Airport' },
-      destination: { code: 'JFK', name: 'John F. Kennedy International' },
-    }),
-  },
-});
-mock.module('@/lib/utils/duffel-links', {
-  namedExports: {
-    createDuffelBookingSession: async () => ({ url: 'https://links.duffel.com/test' }),
-  },
-});
+  getNearbyAirports: async () => [],
+  mergeSessionState: async () => {},
+  resolveIATACode: async (input) => input.toUpperCase(),
+  resolveAirportCodesWithLLM: async () => ({
+    origin: { code: 'FRA', name: 'Frankfurt Airport' },
+    destination: { code: 'JFK', name: 'John F. Kennedy International' },
+  }),
+  createDuffelBookingSession: async () => ({
+    url: 'https://links.duffel.com/test',
+  }),
+  logFailedSearch: async () => {},
+};
 
-const { flightSearchTool } = await import('./flight-search');
+const flightSearchTool = createFlightSearchTool(dependencies);
 
 const futureDate = (() => {
   const d = new Date();
@@ -99,10 +101,16 @@ const pastParams = { ...baseParams, departDate: '2020-01-01' };
 
 function makeAwardFlight() {
   return {
+    id: 'award-1',
     program: 'aeroplan',
     airline: 'KLM',
     cabin: 'Business',
     price: '70,000 miles + USD 328.33',
+    pricePerPerson: '70,000 miles + USD 328.33',
+    tags: [],
+    totalStops: 0,
+    miles: 70_000,
+    taxes: { amount: 328.33, currency: 'USD' },
     seatsLeft: 4,
     outbound: {
       departure: { airport: 'FRA', time: `${futureDate}T12:15:00.000Z` },
@@ -111,8 +119,12 @@ function makeAwardFlight() {
       stops: 'Nonstop',
       flightNumbers: 'KL1816',
     },
-  };
+  } satisfies SeatsAeroFlight;
 }
+
+type ExecuteCallOptions = Parameters<
+  NonNullable<typeof flightSearchTool.execute>
+>[1];
 
 function callOptions(locale?: string) {
   return {
@@ -123,7 +135,7 @@ function callOptions(locale?: string) {
       userId: 'user-1',
       ...(locale ? { locale } : {}),
     },
-  } as any;
+  } as ExecuteCallOptions;
 }
 
 beforeEach(() => {
@@ -165,6 +177,17 @@ describe('flight-search locale resolution', () => {
     );
   });
 
+  it('falls back to German when the context carries an unknown locale', async () => {
+    await assert.rejects(
+      () => flightSearchTool.execute!(pastParams, callOptions('fr')) as Promise<unknown>,
+      (error: Error) => {
+        assert.match(error.message, /liegt in der Vergangenheit/);
+        assert.doesNotMatch(error.message, /is in the past/);
+        return true;
+      },
+    );
+  });
+
   it('renders English result tables when locale is "en"', async () => {
     seatsAeroResult = [makeAwardFlight()];
 
@@ -187,20 +210,35 @@ describe('flight-search locale resolution', () => {
 
 describe('flight-search flexible-date trigger', () => {
   it('triggers the flexible search path solely via params.flexibility > 0', async () => {
-    await flightSearchTool.execute!({ ...baseParams, flexibility: 2 }, callOptions());
+    const result = await flightSearchTool.execute!(
+      { ...baseParams, flexibility: 2 },
+      callOptions(),
+    );
 
     assert.strictEqual(calls.seatsAero.length, 1);
     assert.strictEqual(calls.seatsAero[0].flexibility, 3, 'flexible search widens Seats.aero to 3 days');
     assert.strictEqual(calls.duffelFlexible.length, 1, 'flexible search uses searchDuffelFlexibleDates');
     assert.strictEqual(calls.duffel.length, 0);
+    assert.ok(typeof result === 'string');
+    assert.doesNotMatch(
+      result,
+      /"type":"no_results_offer_flexible"/,
+      'a completed flexible search must not offer the same fallback again',
+    );
   });
 
   it('runs a normal search when flexibility is 0', async () => {
-    await flightSearchTool.execute!(baseParams, callOptions());
+    const result = await flightSearchTool.execute!(baseParams, callOptions());
 
     assert.strictEqual(calls.seatsAero.length, 1);
     assert.strictEqual(calls.seatsAero[0].flexibility, 0);
     assert.strictEqual(calls.duffel.length, 1, 'non-flexible search uses searchDuffel');
     assert.strictEqual(calls.duffelFlexible.length, 0);
+    assert.ok(typeof result === 'string');
+    assert.match(
+      result,
+      /"type":"no_results_offer_flexible"/,
+      'a normal no-results search must offer the flexible-date retry',
+    );
   });
 });
