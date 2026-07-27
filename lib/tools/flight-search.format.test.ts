@@ -134,6 +134,54 @@ describe('formatFlightResults', () => {
       const out = await formatFlightResults(makeCashResult(), baseParams, 'de');
       assert.doesNotMatch(out, /noch nicht (haben|besitzen)/i, 'hint belongs to the award table only');
     });
+
+    it('lists per-program transfer sources with the config ratios, DACH pinned first, capped at 3', async () => {
+      const result = makeAwardResult();
+      result.seats.count = 2;
+      result.seats.flights.push({
+        ...result.seats.flights[0],
+        program: 'flyingblue',
+        airline: 'KLM',
+      });
+      const out = await formatFlightResults(result, baseParams, 'de');
+
+      const flyingBlueLine = out.split('\n').find((l) => l.startsWith('- **Flying Blue')) ?? '';
+      // 5:4 is the published Amex DACH ratio (americanexpress.com/de-de) — the
+      // DACH source is pinned first even though US programs transfer 1:1.
+      assert.match(flyingBlueLine, /Amex Membership Rewards \(DACH\) 5:4/);
+      assert.match(flyingBlueLine, /Amex Membership Rewards \(US\) 1:1/);
+      // "Most important" means top 3 — Flying Blue has 6 sources; the tail
+      // (Bilt, Capital One, Citi) must be cut on this line.
+      assert.doesNotMatch(flyingBlueLine, /Bilt|Capital One|Citi/);
+
+      const aeroplanLine = out.split('\n').find((l) => l.startsWith('- **Air Canada Aeroplan')) ?? '';
+      assert.match(aeroplanLine, /Amex Membership Rewards \(US\) 1:1/);
+    });
+
+    it('renders one source line per program even when several rows share the program', async () => {
+      const result = makeAwardResult();
+      result.seats.count = 2;
+      result.seats.flights.push({ ...result.seats.flights[0] });
+      const out = await formatFlightResults(result, baseParams, 'de');
+      const aeroplanLines = out.split('\n').filter((l) => l.startsWith('- **Air Canada Aeroplan'));
+      assert.equal(aeroplanLines.length, 1, 'duplicate programs must be deduped in the hint');
+    });
+
+    it('omits the source line for programs no card transfers to, but keeps the principle hint', async () => {
+      const result = makeAwardResult();
+      result.seats.flights[0].program = 'smiles';
+      const out = await formatFlightResults(result, baseParams, 'de');
+      assert.match(out, /noch nicht (haben|besitzen)/i);
+      assert.doesNotMatch(out, /^- \*\*GOL Smiles/m, 'no fabricated transfer route for GOL Smiles');
+    });
+
+    it('marks the indirect Miles & More route via PAYBACK for lufthansa awards', async () => {
+      const result = makeAwardResult();
+      result.seats.flights[0].program = 'lufthansa';
+      const out = await formatFlightResults(result, baseParams, 'de');
+      const line = out.split('\n').find((l) => l.startsWith('- **Lufthansa Miles & More')) ?? '';
+      assert.match(line, /über PAYBACK/, 'indirect route must be visible, not shown as a direct transfer');
+    });
   });
 
   describe('happy-path with injected booking-session creator', () => {

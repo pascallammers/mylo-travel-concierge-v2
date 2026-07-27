@@ -12,6 +12,10 @@ import {
   buildSkyscannerUrl,
 } from '@/lib/utils/flight-search-links';
 import { getProgramDisplayName } from '@/lib/api/award-search/program-registry';
+import {
+  formatTransferRatio,
+  getTransferSourcesForAwardProgram,
+} from '@/lib/config/transfer-engine';
 
 // Booking-session creator is injected to keep the renderer free of the
 // server-env import graph. The tool entry-point passes the real
@@ -131,6 +135,7 @@ export const flightI18n = {
     de: '_**Hinweis:** Diese Meilen musst du noch nicht haben — der Transfer von Kreditkarten- oder Hotelpunkten ist erst bei der Buchung nötig._',
     en: "_**Note:** You don't need to have these miles yet — transferring credit-card or hotel points is only necessary when you book._",
   },
+  transferHintVia: { de: 'über', en: 'via' },
   awardFlightsLabel: { de: 'Meilen/Punkte-Flüge', en: 'Miles/points flights' },
   cashFlightsLabel: { de: 'Cash-Flüge', en: 'Cash flights' },
   noResultsFallback: {
@@ -158,6 +163,43 @@ function formatTime(timeStr: string): string {
   } catch {
     return timeStr;
   }
+}
+
+/**
+ * Render "- **<Program>**: <source> <ratio>, ..." lines for every distinct
+ * award program in the results that a card program transfers into (MYLO-22).
+ *
+ * Sources come straight from the transfer-engine config. The DACH Amex source
+ * is pinned first (MYLO's home market) even though US programs often transfer
+ * at a better rate; the rest follow best-rate-first, capped at 3 in total.
+ * Partner entries typed 'other' are indirect routes (PAYBACK -> Miles & More)
+ * and get a "via <partner>" marker so they don't read as direct transfers.
+ */
+function renderTransferSources(flights: any[], locale: FlightLocale): string[] {
+  const slugs = [...new Set(flights.map((f: any) => f.program).filter(Boolean))];
+  const lines: string[] = [];
+
+  for (const slug of slugs) {
+    const sources = getTransferSourcesForAwardProgram(slug);
+    if (sources.length === 0) continue;
+
+    const dach = sources.filter((s) => s.sourceProgramId === 'amex_dach');
+    const others = sources.filter((s) => s.sourceProgramId !== 'amex_dach');
+    const rendered = [...dach, ...others]
+      .slice(0, 3)
+      .map((s) => {
+        const via =
+          s.partner.type === 'other'
+            ? ` ${flightI18n.transferHintVia[locale]} ${s.partner.name}`
+            : '';
+        return `${s.sourceProgramLabel[locale]}${via} ${formatTransferRatio(s.partner)}`;
+      })
+      .join(', ');
+
+    lines.push(`- **${getProgramDisplayName(slug, locale)}**: ${rendered}`);
+  }
+
+  return lines;
 }
 
 /**
@@ -236,6 +278,7 @@ export async function formatFlightResults(
     });
     sections.push('');
     sections.push(flightI18n.transferHintIntro[locale]);
+    sections.push(...renderTransferSources(result.seats.flights, locale));
     sections.push('');
   }
 
