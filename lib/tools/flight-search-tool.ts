@@ -447,7 +447,7 @@ Examples of queries that should trigger this tool:
             allFlights.push({
               ...flight,
               source: 'duffel',
-              searchedDate: 'searchedDate' in flight
+              searchedDate: 'searchedDate' in flight && typeof flight.searchedDate === 'string'
                 ? flight.searchedDate
                 : flight.departure.time.split('T')[0] || params.departDate,
             });
