@@ -613,8 +613,9 @@ export async function POST(req: Request) {
         // Per-request context for tools. AI SDK v5 reads this on each tool's
         // execute(input, { experimental_context }). The previous chatId
         // extraction via messages[0].chatId never worked — that property
-        // doesn't exist on conversation messages.
-        experimental_context: { chatId: id, userId: user?.id },
+        // doesn't exist on conversation messages. locale comes from the
+        // [locale] route segment (via referer) so tools can localize output.
+        experimental_context: { chatId: id, userId: user?.id, locale: recoveryLocale },
         system:
           instructions +
           (customInstructions && (isCustomInstructionsEnabled ?? true)

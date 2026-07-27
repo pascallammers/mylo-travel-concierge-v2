@@ -101,7 +101,7 @@ Examples of queries that should trigger this tool:
     // app/api/search/route.ts. chatId is required for session-state tracking
     // and failed-search logging; tool_calls persistence itself lives in the
     // route's onStepFinish (centralized in commit 7e0305b).
-    const ctx = (experimental_context ?? {}) as { chatId?: string; userId?: string };
+    const ctx = (experimental_context ?? {}) as { chatId?: string; userId?: string; locale?: string };
     const chatId = ctx.chatId;
     const userId = ctx.userId ?? 'anonymous';
 
@@ -110,9 +110,10 @@ Examples of queries that should trigger this tool:
     // Validate dates are not in the past
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Reset to midnight for fair comparison
-    
-    // Detect locale from system prompt / message context (default: 'de' for backward compatibility)
-    const locale: FlightLocale = 'de';
+
+    // Locale comes from the [locale] route segment via experimental_context
+    // (default: 'de' for backward compatibility)
+    const locale: FlightLocale = ctx.locale === 'en' ? 'en' : 'de';
 
     const departDate = new Date(params.departDate);
     if (departDate < today) {
@@ -165,8 +166,10 @@ Examples of queries that should trigger this tool:
     console.log(`[Flight Search] Suche Fluege: ${originDisplay} -> ${destinationDisplay}`);
 
     try {
-      // Detect flexible date search from query text (user clicked "Mit flexiblen Daten suchen")
-      const isFlexibleDateSearch = fullQuery.includes('flexiblen Daten') || (params.flexibility && params.flexibility > 0);
+      // Flexible date search triggers via the flexibility param (the LLM sets
+      // it when the user asks for flexible dates, e.g. via the
+      // "Mit flexiblen Daten suchen" button message).
+      const isFlexibleDateSearch = params.flexibility > 0;
 
       console.log('[Flight Search] 🔄 Calling Seats.aero with:', { origin, destination, departDate: params.departDate, cabin: params.cabin, isFlexible: isFlexibleDateSearch });
       console.log('[Flight Search] 🔄 Calling Duffel with:', { origin, destination, departDate: params.departDate, returnDate: params.returnDate, cabin: params.cabin, isFlexible: isFlexibleDateSearch });
@@ -279,10 +282,7 @@ Examples of queries that should trigger this tool:
           console.log('[Flight Search] No results found, checking fallback chain...');
 
           // Check if this is already a flexible date search (avoid infinite loop)
-          // Detect via query text or flexibility param
-          const isFlexibleSearch = fullQuery.includes('flexiblen Daten') || (params.flexibility && params.flexibility > 0);
-
-          if (!isFlexibleSearch) {
+          if (!isFlexibleDateSearch) {
             // STEP 1: First attempt - Offer flexible date search to user
             console.log('[Flight Search] Returning flexible date offer to user');
 
