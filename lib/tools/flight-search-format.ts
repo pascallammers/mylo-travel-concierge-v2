@@ -11,7 +11,6 @@ import {
   buildGoogleFlightsUrl,
   buildSkyscannerUrl,
 } from '@/lib/utils/flight-search-links';
-import { getProgramDisplayName } from '@/lib/api/award-search/program-registry';
 
 // Booking-session creator is injected to keep the renderer free of the
 // server-env import graph. The tool entry-point passes the real
@@ -25,6 +24,26 @@ export type BookingSessionCreator = (params: {
 }) => Promise<{ url: string }>;
 
 export type FlightLocale = 'de' | 'en';
+
+/** Route/date/cabin context passed to award-program booking URL resolvers. */
+export type AwardBookingContext = {
+  origin: string;
+  destination: string;
+  /** YYYY-MM-DD */
+  departDate: string;
+  cabin: string;
+};
+
+/** Injected award-program resolvers keep the renderer free of the registry import graph. */
+export type AwardProgramResolvers = {
+  getProgramDisplayName: (slug: string, locale: FlightLocale) => string;
+  getProgramBookingUrl: (slug: string, ctx: AwardBookingContext) => string | null;
+  getProgramCaveat: (slug: string, locale: FlightLocale) => string | null;
+};
+
+export type FormatFlightResultsDeps = AwardProgramResolvers & {
+  createBookingSession?: BookingSessionCreator;
+};
 
 export const flightI18n = {
   pastDepartDate: {
@@ -97,19 +116,13 @@ export const flightI18n = {
     en: (count: number) => `## Flights with Miles/Points (${count} results)\n`,
   },
   awardTableHeader: {
-    de: '| Nr. | Airline | Programm | Klasse | Preis | Abflug | Ankunft | Dauer | Stops | Sitze | Flugnummer |',
-    en: '| No. | Airline | Program | Class | Price | Departure | Arrival | Duration | Stops | Seats | Flight No. |',
+    de: '| Nr. | Airline | Programm | Klasse | Preis | Abflug | Ankunft | Dauer | Stops | Sitze | Flugnummer | Buchen |',
+    en: '| No. | Airline | Program | Class | Price | Departure | Arrival | Duration | Stops | Seats | Flight No. | Book |',
   },
-  // Roundtrip searches currently query seats.aero for the outbound leg only, so
-  // the miles price shown is per-direction, not the round-trip total. Without
-  // this flag users mistake the outbound award for the whole trip (MYLO-21).
   awardOneWayNotice: {
     de: '_**Hinweis:** Die Meilenpreise gelten pro Strecke (nur Hinflug). Der Rückflug ist darin nicht enthalten._\n',
     en: '_**Note:** Mileage prices are per direction (outbound only). The return flight is not included._\n',
   },
-  // When the return-leg award search succeeded, both legs get their own table
-  // and the notice switches to per-leg wording — the outbound-only text above
-  // would then be wrong (MYLO-21 Ausbau).
   awardPerLegNotice: {
     de: '_**Hinweis:** Die Meilenpreise gelten jeweils pro Strecke._\n',
     en: '_**Note:** Mileage prices apply per leg._\n',
@@ -130,6 +143,7 @@ export const flightI18n = {
     de: '_Die Award-Verfügbarkeit für den Hinflug konnte wegen einer vorübergehend nicht erreichbaren Datenquelle nicht geladen werden._',
     en: '_Award availability for the outbound leg could not be loaded because a data source is temporarily unavailable._',
   },
+  bookLinkLabel: { de: 'Buchen', en: 'Book' },
   cashHeader: {
     de: (count: number) => `## Flüge mit Barzahlung (${count} Ergebnisse)\n`,
     en: (count: number) => `## Flights with Cash (${count} results)\n`,
@@ -183,27 +197,47 @@ function formatTime(timeStr: string): string {
 }
 
 /**
- * Render one award table (header + rows) for a list of SeatsAeroFlight-shaped
- * results. Used for the outbound leg and — on roundtrip searches — the return
- * leg (MYLO-21).
+ * Render an award table with booking links for one direction.
+ *
+ * @param flights - Award flights for a single direction.
+ * @param locale - Locale for labels and program names.
+ * @param params - Search parameters used as a date fallback.
+ * @param resolvers - Injected program-name and booking-link resolvers.
+ * @returns Markdown table lines.
  */
-function renderAwardTable(flights: any[], locale: FlightLocale): string[] {
-  const rows: string[] = [
+function renderAwardTable(
+  flights: any[],
+  locale: FlightLocale,
+  params: any,
+  resolvers: Pick<
+    AwardProgramResolvers,
+    'getProgramDisplayName' | 'getProgramBookingUrl'
+  >,
+): string[] {
+  const rows = [
     flightI18n.awardTableHeader[locale],
-    `|-----|---------|----------|-------|--------|---------|-------|-------|-------|-------|------------|`,
+    '|-----|---------|----------|-------|--------|---------|-------|-------|-------|-------|------------|--------|',
   ];
 
-  flights.forEach((flight: any, idx: number) => {
+  flights.forEach((flight: any, index: number) => {
     const departTime = formatTime(flight.outbound.departure.time);
     const arriveTime = formatTime(flight.outbound.arrival.time);
     const seats = flight.seatsLeft || '-';
-    // Resolve the seats.aero program slug to a customer-facing brand name.
-    // The slug ("aeroplan") is the bookable mileage currency; the operating
-    // carrier in `airline` ("LH") is shown separately.
-    const program = getProgramDisplayName(flight.program, locale);
+    const program = resolvers.getProgramDisplayName(flight.program, locale);
+    const flightDate =
+      (flight.outbound.departure.time || '').split('T')[0] || params.departDate;
+    const bookingUrl = resolvers.getProgramBookingUrl(flight.program, {
+      origin: flight.outbound.departure.airport,
+      destination: flight.outbound.arrival.airport,
+      departDate: flightDate,
+      cabin: flight.cabin,
+    });
+    const bookCell = bookingUrl
+      ? `[${flightI18n.bookLinkLabel[locale]}](${bookingUrl})`
+      : '-';
 
     rows.push(
-      `| ${idx + 1} | ${flight.airline} | ${program} | ${flight.cabin} | ${flight.price} | ${flight.outbound.departure.airport} ${departTime} | ${flight.outbound.arrival.airport} ${arriveTime} | ${flight.outbound.duration} | ${flight.outbound.stops} | ${seats} | ${flight.outbound.flightNumbers} |`,
+      `| ${index + 1} | ${flight.airline} | ${program} | ${flight.cabin} | ${flight.price} | ${flight.outbound.departure.airport} ${departTime} | ${flight.outbound.arrival.airport} ${arriveTime} | ${flight.outbound.duration} | ${flight.outbound.stops} | ${seats} | ${flight.outbound.flightNumbers} | ${bookCell} |`,
     );
   });
 
@@ -225,8 +259,14 @@ export async function formatFlightResults(
   result: any,
   params: any,
   locale: FlightLocale = 'de',
-  createBookingSession?: BookingSessionCreator,
+  deps: FormatFlightResultsDeps,
 ): Promise<string> {
+  const {
+    createBookingSession,
+    getProgramDisplayName,
+    getProgramBookingUrl,
+    getProgramCaveat,
+  } = deps;
   const sections: string[] = [];
   const partialFailures: string[] = [];
   const returnAwardCount = result.seatsReturn?.count ?? 0;
@@ -239,7 +279,7 @@ export async function formatFlightResults(
   if (result.seats.error && (result.cash.count > 0 || returnAwardCount > 0)) {
     partialFailures.push(flightI18n.awardFlightsLabel[locale]);
   }
-  if (result.cash.error && result.seats.count > 0) {
+  if (result.cash.error && (result.seats.count > 0 || returnAwardCount > 0)) {
     partialFailures.push(flightI18n.cashFlightsLabel[locale]);
   }
 
@@ -268,34 +308,68 @@ export async function formatFlightResults(
 
   // Award Flights Section
   if (result.seats.count > 0 || returnAwardCount > 0) {
+    sections.push(
+      flightI18n.awardHeader[locale](result.seats.count + returnAwardCount),
+    );
+
     if (returnAwardCount > 0) {
-      // Return-leg awards came back — one table per leg. Prices are still per
-      // direction, so the notice keeps saying so, but the outbound-only
-      // wording would now be wrong (MYLO-21 Ausbau).
-      sections.push(flightI18n.awardHeader[locale](result.seats.count + returnAwardCount));
       sections.push(flightI18n.awardPerLegNotice[locale]);
       sections.push(flightI18n.awardOutboundLegHeader[locale](result.seats.count));
       if (result.seats.count > 0) {
-        sections.push(...renderAwardTable(result.seats.flights, locale));
-      } else if (result.seats.error) {
-        sections.push(flightI18n.awardOutboundProviderUnavailable[locale]);
+        sections.push(
+          ...renderAwardTable(result.seats.flights, locale, params, {
+            getProgramDisplayName,
+            getProgramBookingUrl,
+          }),
+        );
       } else {
-        sections.push(flightI18n.awardNoOutboundAvailability[locale]);
+        sections.push(
+          result.seats.error
+            ? flightI18n.awardOutboundProviderUnavailable[locale]
+            : flightI18n.awardNoOutboundAvailability[locale],
+        );
       }
       sections.push('');
       sections.push(flightI18n.awardReturnLegHeader[locale](returnAwardCount));
-      sections.push(...renderAwardTable(result.seatsReturn.flights, locale));
+      sections.push(
+        ...renderAwardTable(result.seatsReturn.flights, locale, params, {
+          getProgramDisplayName,
+          getProgramBookingUrl,
+        }),
+      );
     } else {
-      sections.push(flightI18n.awardHeader[locale](result.seats.count));
-      // Roundtrip search whose award results only hold the outbound leg — flag
-      // it so the per-direction miles price is not read as the round-trip
-      // total (MYLO-21).
       if (params.returnDate) {
         sections.push(flightI18n.awardOneWayNotice[locale]);
       }
-      sections.push(...renderAwardTable(result.seats.flights, locale));
+      sections.push(
+        ...renderAwardTable(result.seats.flights, locale, params, {
+          getProgramDisplayName,
+          getProgramBookingUrl,
+        }),
+      );
     }
     sections.push('');
+
+    // Website-hurdle footnotes (MYLO-17): only for programs that actually
+    // appear in the result, one line per program, below the award table.
+    const caveatPrograms = [
+      ...new Set<string>(
+        [
+          ...result.seats.flights,
+          ...(result.seatsReturn?.flights ?? []),
+        ].map((flight: any) => flight.program),
+      ),
+    ];
+    const caveatLines = caveatPrograms.flatMap((slug) => {
+      const caveat = getProgramCaveat(slug, locale);
+      return caveat
+        ? [`_⚠️ **${getProgramDisplayName(slug, locale)}:** ${caveat}_`]
+        : [];
+    });
+    if (caveatLines.length > 0) {
+      sections.push(...caveatLines);
+      sections.push('');
+    }
   }
 
   // Cash Flights Section
@@ -342,7 +416,10 @@ export async function formatFlightResults(
   }
 
   // Add partial failure notice if some providers failed
-  if (partialFailures.length > 0 && (result.seats.count > 0 || result.cash.count > 0 || returnAwardCount > 0)) {
+  if (
+    partialFailures.length > 0 &&
+    (result.seats.count > 0 || result.cash.count > 0 || returnAwardCount > 0)
+  ) {
     const failedTypes = partialFailures.join(flightI18n.andConnector[locale]);
     sections.push(flightI18n.partialFailureNote[locale](failedTypes));
 
@@ -355,7 +432,11 @@ export async function formatFlightResults(
   }
 
   // Safety fallback (no-results path is normally handled upstream)
-  if (result.seats.count === 0 && result.cash.count === 0 && returnAwardCount === 0) {
+  if (
+    result.seats.count === 0 &&
+    result.cash.count === 0 &&
+    returnAwardCount === 0
+  ) {
     sections.push(flightI18n.noResultsFallback[locale](params.origin, params.destination, params.departDate, params.cabin));
   }
 

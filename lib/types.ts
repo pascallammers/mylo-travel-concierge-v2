@@ -239,15 +239,35 @@ export interface FlexibleDateResponse {
   };
 }
 
+export interface FlexibleDateFlight {
+  id?: string;
+  source?: 'seats.aero' | 'duffel';
+  airline?: string;
+  origin?: string;
+  destination?: string;
+  price?: string | { total?: string; currency?: string };
+  outbound?: {
+    departure?: { airport?: string; time?: string; date?: string };
+    arrival?: { airport?: string; time?: string };
+    duration?: string;
+  };
+  departure?: { airport?: string; time?: string };
+  arrival?: { airport?: string; time?: string };
+  duration?: string;
+  searchedDate: string;
+  dateOffset: number; // -3 to +3
+  dateLabel: string; // "3 Tage frueher" or "2 Tage spaeter"
+  [key: string]: unknown; // Allow pass-through of other flight properties
+}
+
 export interface FlexibleDateResultsResponse {
   type: 'flexible_date_results';
-  flights: Array<{
-    // Base flight fields from DuffelFlight/SeatsAeroFlight plus:
-    searchedDate: string;
-    dateOffset: number; // -3 to +3
-    dateLabel: string;  // "3 Tage frueher" or "2 Tage spaeter"
-    [key: string]: unknown; // Allow pass-through of other flight properties
-  }>;
+  // Awards (miles) and cash (EUR) are sorted and capped as separate groups so
+  // the two price units never compete in one numeric sort (MYLO-20).
+  awardFlights: FlexibleDateFlight[];
+  cashFlights: FlexibleDateFlight[];
+  awardFlightsTruncated: boolean;
+  cashFlightsTruncated: boolean;
   originalDate: string;
   dateRange: { start: string; end: string };
 }

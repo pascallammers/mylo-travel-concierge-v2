@@ -1,6 +1,6 @@
 import { tool } from 'ai';
-import { z } from 'zod';
 import { searchSeatsAero, TravelClass } from '@/lib/api/seats-aero-client';
+import { applyAwardFilters } from '@/lib/api/award-search/award-filters';
 import { searchDuffel, searchDuffelFlexibleDates, mapCabinClass, getNearbyAirports, NearbyAirport } from '@/lib/api/duffel-client';
 import { mergeSessionState } from '@/lib/db/queries';
 import { resolveIATACode, resolveAirportCodesWithLLM, type AirportResolutionResult } from '@/lib/utils/airport-codes';
@@ -12,7 +12,15 @@ import {
 import { createDuffelBookingSession } from '@/lib/utils/duffel-links';
 import { formatGracefulFlightError, formatFlightErrorWithAlternatives, AlternativeAirport } from '@/lib/utils/tool-error-response';
 import { logFailedSearch } from '@/lib/db/queries/failed-search';
+import {
+  getProgramBookingUrl,
+  getProgramCaveat,
+  getProgramDisplayName,
+} from '@/lib/api/award-search/program-registry';
 import { flightI18n, formatFlightResults, type FlightLocale } from './flight-search-format';
+import { filterFlightSearchAwards } from './flight-search-award-filters';
+import { flightSearchInputSchema } from './flight-search-schema';
+import { buildFlexibleDateResults } from './flexible-date-results';
 
 // Re-export for legacy callers and tests that import these from flight-search.
 export { flightI18n, formatFlightResults };
@@ -45,56 +53,7 @@ Examples of queries that should trigger this tool:
 - "Show me the cheapest flights to Bangkok"
 - "Find award flights from Berlin to New York"`,
 
-  inputSchema: z.object({
-    origin: z
-      .string()
-      .min(3)
-      .describe('Origin city or airport (e.g., "Frankfurt", "Berlin", "FRA", or "New York"). City names will be auto-converted to airport codes.'),
-    destination: z
-      .string()
-      .min(3)
-      .describe('Destination city or airport (e.g., "Phuket", "Tokyo", "JFK", or "Bangkok"). City names will be auto-converted to airport codes.'),
-    departDate: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .describe('Departure date in YYYY-MM-DD format'),
-    returnDate: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .optional()
-      .nullable()
-      .describe('Return date in YYYY-MM-DD format (optional for round trip)'),
-    cabin: z
-      .enum(['ECONOMY', 'PREMIUM_ECONOMY', 'BUSINESS', 'FIRST'])
-      .describe('Cabin class'),
-    passengers: z
-      .number()
-      .int()
-      .min(1)
-      .max(9)
-      .default(1)
-      .describe('Number of passengers'),
-    awardOnly: z
-      .boolean()
-      .default(false)
-      .describe('Set to false (default) to search BOTH award and cash flights. Set to true ONLY when user explicitly asks for miles/points flights only.'),
-    loyaltyPrograms: z
-      .array(z.string())
-      .optional()
-      .describe('Preferred loyalty programs for award bookings'),
-    flexibility: z
-      .number()
-      .int()
-      .min(0)
-      .max(3)
-      .default(0)
-      .describe('Date flexibility in days (0-3)'),
-    nonStop: z.boolean().default(false).describe('Search only non-stop flights'),
-    maxTaxes: z
-      .number()
-      .optional()
-      .describe('Maximum taxes/fees for award flights (in USD)'),
-  }),
+  inputSchema: flightSearchInputSchema,
 
   execute: async (params, { abortSignal, experimental_context }) => {
     // Per-request context injected by streamText({ experimental_context }) in
@@ -185,6 +144,7 @@ Examples of queries that should trigger this tool:
           // surfaced only the first program ("nur Lufthansa"); pull a high page
           // so program-grouping can keep every program. Flex spans 7 days.
           maxResults: isFlexibleDateSearch ? 100 : 60,
+          onlyDirectFlights: params.nonStop,
         }).then((result) => {
           console.log('[Flight Search] Seats.aero SUCCESS:', result ? `${result.length} flights` : 'null');
           return result;
@@ -241,6 +201,7 @@ Examples of queries that should trigger this tool:
               travelClass: params.cabin as TravelClass,
               flexibility: params.flexibility,
               maxResults: 60,
+              onlyDirectFlights: params.nonStop,
             }).then((result) => {
               console.log('[Flight Search] Seats.aero return leg SUCCESS:', result ? `${result.length} flights` : 'null');
               return result;
@@ -250,6 +211,30 @@ Examples of queries that should trigger this tool:
             })
           : Promise.resolve(null),
       ]);
+
+      const { flights: filteredSeatsFlights, notes: outboundAwardFilterNotes } =
+        filterFlightSearchAwards(
+          seatsResult ?? [],
+          params,
+          locale,
+          applyAwardFilters,
+        );
+      const filteredSeats = seatsResult === null ? null : filteredSeatsFlights;
+      const { flights: filteredSeatsReturnFlights, notes: returnAwardFilterNotes } =
+        filterFlightSearchAwards(
+          seatsReturnResult ?? [],
+          params,
+          locale,
+          applyAwardFilters,
+        );
+      const filteredSeatsReturn =
+        seatsReturnResult === null ? null : filteredSeatsReturnFlights;
+      const awardFilterNotes = [
+        ...new Set([
+          ...outboundAwardFilterNotes,
+          ...returnAwardFilterNotes,
+        ]),
+      ];
 
       // 3. Check if we have results and track provider failures
       const hasSeats = seatsResult && seatsResult.length > 0;
@@ -423,107 +408,32 @@ Examples of queries that should trigger this tool:
       if (isFlexibleDateSearch && (hasSeats || hasDuffel)) {
         console.log('[Flight Search] Processing flexible date results');
 
-        // Merge all results
-        const allFlights: any[] = [];
+        const flexibleResults = buildFlexibleDateResults(
+          filteredSeats,
+          duffelResult,
+          params,
+          locale,
+        );
 
-        // Add Seats.aero results with searchedDate from their departure info
-        if (seatsResult) {
-          seatsResult.forEach((flight: any) => {
-            allFlights.push({
-              ...flight,
-              source: 'seats.aero',
-              searchedDate: flight.outbound?.departure?.date || flight.departureDate || params.departDate,
-            });
-          });
-        }
-
-        // Add Duffel results (already have searchedDate from flexible search)
-        if (duffelResult) {
-          duffelResult.forEach((flight: any) => {
-            allFlights.push({
-              ...flight,
-              source: 'duffel',
-              searchedDate: flight.searchedDate || flight.departure?.time?.split('T')[0] || params.departDate,
-            });
-          });
-        }
-
-        console.log(`[Flight Search] Merged ${allFlights.length} flexible date flights`);
-
-        // Add date metadata to each flight
-        const flightsWithDateLabels = allFlights.map(flight => {
-          const searchedDate = flight.searchedDate || params.departDate;
-          const originalDate = new Date(params.departDate);
-          const flightDate = new Date(searchedDate);
-          const daysDiff = Math.round((flightDate.getTime() - originalDate.getTime()) / (1000 * 60 * 60 * 24));
-
-          let dateLabel: string;
-          if (daysDiff === 0) {
-            dateLabel = flightI18n.dateLabel.original[locale];
-          } else if (daysDiff < 0) {
-            dateLabel = flightI18n.dateLabel.earlier[locale](Math.abs(daysDiff));
-          } else {
-            dateLabel = flightI18n.dateLabel.later[locale](daysDiff);
-          }
-
-          return {
-            ...flight,
-            searchedDate,
-            dateOffset: daysDiff,
-            dateLabel,
-          };
-        });
-
-        // Sort by price (lowest first) - per CONTEXT.md "Preis-Badge zeigt guenstigere Tage"
-        flightsWithDateLabels.sort((a, b) => {
-          // For Seats.aero, price is a string like "15,000 Miles"
-          // For Duffel, price is an object { total: "123.45", currency: "EUR" }
-          const getPriceValue = (flight: any): number => {
-            if (flight.source === 'duffel' && flight.price?.total) {
-              return parseFloat(flight.price.total);
-            }
-            if (flight.source === 'seats.aero' && flight.price) {
-              // Extract numeric value from "15,000 Miles" format
-              const match = String(flight.price).replace(/,/g, '').match(/[\d.]+/);
-              return match ? parseFloat(match[0]) : 999999;
-            }
-            return 999999;
-          };
-
-          return getPriceValue(a) - getPriceValue(b);
-        });
-
-        // Limit to top 10 per CONTEXT.md
-        const top10 = flightsWithDateLabels.slice(0, 10);
-
-        console.log(`[Flight Search] Returning top ${top10.length} flexible date results`);
-
-        // Calculate date range for display
-        const startDate = new Date(params.departDate);
-        startDate.setDate(startDate.getDate() - 3);
-        const endDate = new Date(params.departDate);
-        endDate.setDate(endDate.getDate() + 3);
+        console.log(
+          `[Flight Search] Returning ${flexibleResults.awardFlights.length} award + ${flexibleResults.cashFlights.length} cash flexible date results`,
+        );
 
         return JSON.stringify({
-          type: 'flexible_date_results',
-          flights: top10,
-          originalDate: params.departDate,
-          dateRange: {
-            start: startDate.toISOString().split('T')[0],
-            end: endDate.toISOString().split('T')[0],
-          },
+          ...flexibleResults,
+          ...(awardFilterNotes.length > 0 ? { notes: awardFilterNotes } : {}),
         });
       }
 
       const result = {
         seats: {
-          flights: seatsResult || [],
-          count: seatsResult?.length || 0,
+          flights: filteredSeats || [],
+          count: filteredSeats?.length || 0,
           error: seatsError,
         },
         seatsReturn: {
-          flights: seatsReturnResult || [],
-          count: seatsReturnResult?.length || 0,
+          flights: filteredSeatsReturn || [],
+          count: filteredSeatsReturn?.length || 0,
           error: seatsReturnError,
         },
         cash: {
@@ -566,7 +476,15 @@ Examples of queries that should trigger this tool:
 
       // Format response for LLM (inject real booking-session creator;
       // flight-search-format keeps the renderer free of the server env graph)
-      return await formatFlightResults(result, params, locale, createDuffelBookingSession);
+      const formatted = await formatFlightResults(result, params, locale, {
+        createBookingSession: createDuffelBookingSession,
+        getProgramDisplayName,
+        getProgramBookingUrl,
+        getProgramCaveat,
+      });
+      return awardFilterNotes.length > 0
+        ? `${formatted}\n\n${awardFilterNotes.map((note) => `- ${note}`).join('\n')}`
+        : formatted;
     } catch (error) {
       console.error('[Flight Search] ❌ Error:', error);
 
