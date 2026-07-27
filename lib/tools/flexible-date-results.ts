@@ -117,7 +117,7 @@ export function buildFlexibleDateResults(
   const awardFlights = (seatsFlights ?? [])
     .map((flight) =>
       withDateMetadata(
-        { ...flight, source: 'seats.aero' },
+        { ...flight, source: 'seats.aero' as const },
         flight.outbound?.departure?.date || flight.departureDate || params.departDate,
         params.departDate,
         locale,
@@ -129,7 +129,7 @@ export function buildFlexibleDateResults(
   const cashFlights = (duffelFlights ?? [])
     .map((flight) =>
       withDateMetadata(
-        { ...flight, source: 'duffel' },
+        { ...flight, source: 'duffel' as const },
         flight.searchedDate || flight.departure?.time?.split('T')[0] || params.departDate,
         params.departDate,
         locale,
