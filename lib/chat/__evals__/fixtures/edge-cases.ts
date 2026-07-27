@@ -74,4 +74,16 @@ export const edgeCases: EvalFixture[] = [
       'System prompt: "near <location>" triggers nearby_places_search. Language-mixing must not break routing.',
     now: FIXED_NOW,
   },
+  {
+    id: 'edge-008-airline-website-error',
+    source: 'edge',
+    description:
+      'User reports an airline-website error message (KrisFlyer scenario) → web_search, not KB or repeated explanation',
+    userQuery:
+      'Bei Singapore Airlines kommt die Meldung, dass mein Meilenguthaben für die Flugsuche nicht ausreicht. Was mache ich falsch?',
+    expectedTool: 'web_search',
+    reason:
+      'System prompt (WEBSITE_ERROR_ROUTING + KB-skip Exception 3): quoted/described error messages of an airline/program website must route DIRECTLY to web_search with program + error text — recent policy changes (e.g. the KrisFlyer award-search block, community case Jonas) are documented on miles blogs first. Must NOT route to knowledge_base or answer without searching.',
+    now: FIXED_NOW,
+  },
 ];

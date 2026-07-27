@@ -5,6 +5,16 @@ import {
   searchDuffelFlexibleDates,
 } from '@/lib/api/duffel-client';
 import { searchSeatsAero } from '@/lib/api/seats-aero-client';
+import { applyAwardFilters } from '@/lib/api/award-search/award-filters';
+import {
+  getProgramBookingUrl,
+  getProgramCaveat,
+  getProgramDisplayName,
+} from '@/lib/api/award-search/program-registry';
+import {
+  formatTransferRatio,
+  getTransferSourcesForAwardProgram,
+} from '@/lib/config/transfer-engine';
 import { mergeSessionState } from '@/lib/db/queries';
 import { logFailedSearch } from '@/lib/db/queries/failed-search';
 import {
@@ -35,4 +45,10 @@ export const flightSearchTool = createFlightSearchTool({
   resolveAirportCodesWithLLM,
   createDuffelBookingSession,
   logFailedSearch,
+  applyAwardFilters,
+  getProgramDisplayName,
+  getProgramBookingUrl,
+  getProgramCaveat,
+  formatTransferRatio,
+  getTransferSourcesForAwardProgram,
 });

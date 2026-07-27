@@ -147,6 +147,63 @@ describe('buildMyloWebSystemPrompt', () => {
     });
   });
 
+  describe('AIRLINE_WEBSITE_CAVEATS section (MYLO-17)', () => {
+    it('includes an Airline-Website-Hürden section', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      assert.match(prompt, /Airline-Website-Hürden/);
+    });
+
+    it('covers the KrisFlyer 1.000-miles search lock with all three workarounds', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      assert.match(prompt, /KrisFlyer/);
+      assert.match(prompt, /1\.000 Meilen/);
+      assert.match(prompt, /Marriott Bonvoy/);
+      assert.match(prompt, /App/);
+      assert.match(prompt, /[Tt]elefon/);
+    });
+
+    it('covers the Emirates login + Classic-Rewards checkbox and partner-award search', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      assert.match(prompt, /Classic Rewards/);
+      assert.match(prompt, /Search partner flights only/);
+    });
+  });
+
+  describe('WEBSITE_ERROR_ROUTING section (MYLO-18)', () => {
+    it('routes airline/program website error messages to web_search instead of repeating', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      // Community-Fall Jonas: KrisFlyer-Sperre war bereits dokumentiert;
+      // eine web_search hätte den Fall in einer Antwort gelöst, statt die
+      // bisherige Erklärung zu wiederholen.
+      assert.match(prompt, /Fehlermeldung/i);
+      assert.match(prompt, /(routet|route|nutze|rufe|call).*web_search/i);
+    });
+
+    it('instructs to search with program name plus the error text before answering', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      assert.match(prompt, /Programm.*\+.*Fehlertext/i);
+    });
+
+    it('positions MYLO as delivering miles prices directly (airline website only for final booking)', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      // "ich will nur schauen, wie viele Meilen es kostet" → MYLO liefert die
+      // Meilenpreise direkt, die Airline-Website erst zur finalen Buchung.
+      assert.match(prompt, /Meilenpreise?.*direkt/i);
+      assert.match(prompt, /(finale|final).*Buchung/i);
+    });
+
+    it('adds a KB-skip exception for quoted website error messages (English tool guidelines)', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      assert.match(prompt, /error message or unexpected behavior of an airline\/program website/i);
+      assert.match(prompt, /web_search.*program name \+ error text/i);
+    });
+
+    it('forbids repeating the previous explanation instead of searching', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      assert.match(prompt, /(NEVER|do not) repeat your previous explanation/i);
+    });
+  });
+
   describe('RESPONSE_AND_CITATIONS section', () => {
     it('makes citations mandatory and inline', () => {
       const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });

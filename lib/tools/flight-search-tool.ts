@@ -1,5 +1,4 @@
 import { tool } from 'ai';
-import { z } from 'zod';
 import type { TravelClass } from '@/lib/api/seats-aero-client';
 import type { NearbyAirport } from '@/lib/api/duffel-client';
 import type {
@@ -14,6 +13,8 @@ import { formatGracefulFlightError, formatFlightErrorWithAlternatives, Alternati
 import { flightI18n, formatFlightResults, type FlightLocale } from './flight-search-format';
 import type { FlightSearchToolDependencies } from './flight-search-dependencies';
 import { buildFlexibleDateResults } from './flexible-date-results';
+import { filterFlightSearchAwards } from './flight-search-award-filters';
+import { flightSearchInputSchema } from './flight-search-schema';
 
 // Re-export for legacy callers and tests that import these from flight-search.
 export { flightI18n, formatFlightResults };
@@ -24,16 +25,6 @@ function formatLocalDate(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
-}
-
-function isValidCalendarDate(value: string): boolean {
-  const [year, month, day] = value.split('-').map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return (
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day
-  );
 }
 
 /**
@@ -56,6 +47,12 @@ export function createFlightSearchTool(
     resolveAirportCodesWithLLM,
     createDuffelBookingSession,
     logFailedSearch,
+    applyAwardFilters,
+    getProgramDisplayName,
+    getProgramBookingUrl,
+    getProgramCaveat,
+    formatTransferRatio,
+    getTransferSourcesForAwardProgram,
   } = dependencies;
 
   return tool({
@@ -82,58 +79,7 @@ Examples of queries that should trigger this tool:
 - "Show me the cheapest flights to Bangkok"
 - "Find award flights from Berlin to New York"`,
 
-  inputSchema: z.object({
-    origin: z
-      .string()
-      .min(3)
-      .describe('Origin city or airport (e.g., "Frankfurt", "Berlin", "FRA", or "New York"). City names will be auto-converted to airport codes.'),
-    destination: z
-      .string()
-      .min(3)
-      .describe('Destination city or airport (e.g., "Phuket", "Tokyo", "JFK", or "Bangkok"). City names will be auto-converted to airport codes.'),
-    departDate: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .refine(isValidCalendarDate, 'Departure date must be a valid calendar date')
-      .describe('Departure date in YYYY-MM-DD format'),
-    returnDate: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .refine(isValidCalendarDate, 'Return date must be a valid calendar date')
-      .optional()
-      .nullable()
-      .describe('Return date in YYYY-MM-DD format (optional for round trip)'),
-    cabin: z
-      .enum(['ECONOMY', 'PREMIUM_ECONOMY', 'BUSINESS', 'FIRST'])
-      .describe('Cabin class'),
-    passengers: z
-      .number()
-      .int()
-      .min(1)
-      .max(9)
-      .default(1)
-      .describe('Number of passengers'),
-    awardOnly: z
-      .boolean()
-      .default(false)
-      .describe('Set to false (default) to search BOTH award and cash flights. Set to true ONLY when user explicitly asks for miles/points flights only.'),
-    loyaltyPrograms: z
-      .array(z.string())
-      .optional()
-      .describe('Preferred loyalty programs for award bookings'),
-    flexibility: z
-      .number()
-      .int()
-      .min(0)
-      .max(3)
-      .default(0)
-      .describe('Date flexibility in days (0-3)'),
-    nonStop: z.boolean().default(false).describe('Search only non-stop flights'),
-    maxTaxes: z
-      .number()
-      .optional()
-      .describe('Maximum taxes/fees for award flights (in USD)'),
-  }),
+  inputSchema: flightSearchInputSchema,
 
   execute: async (params, { abortSignal, experimental_context }) => {
     // Per-request context injected by streamText({ experimental_context }) in
@@ -211,7 +157,7 @@ Examples of queries that should trigger this tool:
       console.log('[Flight Search] 🔄 Calling Duffel with:', { origin, destination, departDate: params.departDate, returnDate: params.returnDate, cabin: params.cabin, isFlexible: isFlexibleDateSearch });
 
       // 2. Parallel API calls
-      const [seatsResult, duffelResult] = await Promise.all([
+      const [seatsResult, duffelResult, seatsReturnResult] = await Promise.all([
         // Seats.aero: Award flights (use flexibility: 3 for flexible date search)
         searchSeatsAero({
           origin,
@@ -224,6 +170,7 @@ Examples of queries that should trigger this tool:
           // surfaced only the first program ("nur Lufthansa"); pull a high page
           // so program-grouping can keep every program. Flex spans 7 days.
           maxResults: isFlexibleDateSearch ? 100 : 60,
+          onlyDirectFlights: params.nonStop,
         }, abortSignal).then((result) => {
           console.log('[Flight Search] Seats.aero SUCCESS:', result ? `${result.length} flights` : 'null');
           return result;
@@ -269,15 +216,65 @@ Examples of queries that should trigger this tool:
                 console.error('[Flight Search] Duffel FAILED:', err.message, err);
                 return null;
               }),
+
+        // Seats.aero exposes one-way searches, so roundtrips need a second
+        // request for the return leg. Flexible-date results use their dedicated
+        // response shape and intentionally skip this extra API call.
+        params.returnDate && !isFlexibleDateSearch
+          ? searchSeatsAero({
+              origin: destination,
+              destination: origin,
+              departureDate: params.returnDate,
+              travelClass: params.cabin as TravelClass,
+              flexibility: params.flexibility,
+              maxResults: 60,
+              onlyDirectFlights: params.nonStop,
+            }, abortSignal).then((result) => {
+              console.log('[Flight Search] Seats.aero return leg SUCCESS:', result ? `${result.length} flights` : 'null');
+              return result;
+            }).catch((err) => {
+              if (abortSignal?.aborted) throw err;
+              console.error('[Flight Search] Seats.aero return leg FAILED:', err.message, err);
+              return null;
+            })
+          : Promise.resolve(null),
       ]);
+
+      const { flights: filteredSeatsFlights, notes: outboundAwardFilterNotes } =
+        filterFlightSearchAwards(
+          seatsResult ?? [],
+          params,
+          locale,
+          applyAwardFilters,
+        );
+      const filteredSeats = seatsResult === null ? null : filteredSeatsFlights;
+      const { flights: filteredSeatsReturnFlights, notes: returnAwardFilterNotes } =
+        filterFlightSearchAwards(
+          seatsReturnResult ?? [],
+          params,
+          locale,
+          applyAwardFilters,
+        );
+      const filteredSeatsReturn =
+        seatsReturnResult === null ? null : filteredSeatsReturnFlights;
+      const awardFilterNotes = [
+        ...new Set([
+          ...outboundAwardFilterNotes,
+          ...returnAwardFilterNotes,
+        ]),
+      ];
 
       // 3. Check if we have results and track provider failures
       const hasSeats = seatsResult && seatsResult.length > 0;
       const hasDuffel = duffelResult && duffelResult.length > 0;
+      const hasSeatsReturn = seatsReturnResult && seatsReturnResult.length > 0;
 
       // Track which providers failed (null means error, empty array means no results)
       const seatsError = seatsResult === null;
       const duffelError = !params.awardOnly && duffelResult === null;
+      const seatsReturnError =
+        Boolean(params.returnDate && !isFlexibleDateSearch) &&
+        seatsReturnResult === null;
 
       // Build search params for fallback links
       const searchLinkParams: FlightSearchLinkParams = {
@@ -290,7 +287,7 @@ Examples of queries that should trigger this tool:
       };
 
       // Handle complete failure (no results from any provider)
-      if (!hasSeats && !hasDuffel) {
+      if (!hasSeats && !hasDuffel && !hasSeatsReturn) {
         // Determine error type based on what failed
         const errorType = seatsError || duffelError ? 'provider_unavailable' : 'no_results';
 
@@ -435,22 +432,34 @@ Examples of queries that should trigger this tool:
       // Process flexible date results - return special response type for UI rendering
       if (isFlexibleDateSearch && (hasSeats || hasDuffel)) {
         console.log('[Flight Search] Processing flexible date results');
-        return JSON.stringify(
-          buildFlexibleDateResults(
-            seatsResult,
-            duffelResult,
-            params,
-            locale,
-            flightI18n,
-          ),
+        const flexibleResults = buildFlexibleDateResults(
+          filteredSeats,
+          duffelResult,
+          params,
+          locale,
+          flightI18n,
         );
+
+        console.log(
+          `[Flight Search] Returning ${flexibleResults.awardFlights.length} award + ${flexibleResults.cashFlights.length} cash flexible date results`,
+        );
+
+        return JSON.stringify({
+          ...flexibleResults,
+          ...(awardFilterNotes.length > 0 ? { notes: awardFilterNotes } : {}),
+        });
       }
 
       const result = {
         seats: {
-          flights: seatsResult || [],
-          count: seatsResult?.length || 0,
+          flights: filteredSeats || [],
+          count: filteredSeats?.length || 0,
           error: seatsError,
+        },
+        seatsReturn: {
+          flights: filteredSeatsReturn || [],
+          count: filteredSeatsReturn?.length || 0,
+          error: seatsReturnError,
         },
         cash: {
           flights: duffelResult || [],
@@ -492,7 +501,19 @@ Examples of queries that should trigger this tool:
 
       // Format response for LLM (inject real booking-session creator;
       // flight-search-format keeps the renderer free of the server env graph)
-      return await formatFlightResults(result, params, locale, createDuffelBookingSession);
+      const formatted = await formatFlightResults(result, params, locale, {
+        createBookingSession: createDuffelBookingSession,
+        getProgramDisplayName,
+        getProgramBookingUrl,
+        getProgramCaveat,
+        transferHints: {
+          formatTransferRatio,
+          getTransferSourcesForAwardProgram,
+        },
+      });
+      return awardFilterNotes.length > 0
+        ? `${formatted}\n\n${awardFilterNotes.map((note) => `- ${note}`).join('\n')}`
+        : formatted;
     } catch (error) {
       console.error('[Flight Search] ❌ Error:', error);
 

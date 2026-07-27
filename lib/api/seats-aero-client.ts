@@ -53,6 +53,8 @@ export interface SeatsAeroSearchParams {
   travelClass: TravelClass;
   flexibility?: number;
   maxResults?: number;
+  /** Ask seats.aero for direct flights only (API param only_direct_flights). */
+  onlyDirectFlights?: boolean;
 }
 
 /**
@@ -173,6 +175,9 @@ async function executeSeatsAeroSearch(
   searchUrl.searchParams.set('end_date', formatDate(endDate));
   searchUrl.searchParams.set('take', String(params.maxResults || 100));
   searchUrl.searchParams.set('include_trips', 'true');
+  if (params.onlyDirectFlights) {
+    searchUrl.searchParams.set('only_direct_flights', 'true');
+  }
 
   console.log('[Seats.aero] Searching:', searchUrl.toString());
 

@@ -68,10 +68,18 @@ function mucMiaThreePrograms() {
 }
 
 function mockFetchReturning(payload: unknown) {
-  global.fetch = mock.fn(async () => ({
+  const fetchMock = mock.fn(async (_url: string | URL) => ({
     ok: true,
     json: async () => payload,
-  })) as unknown as typeof fetch;
+  }));
+  global.fetch = fetchMock as unknown as typeof fetch;
+  return fetchMock;
+}
+
+function firstRequestedUrl(fetchMock: ReturnType<typeof mockFetchReturning>): URL {
+  const firstCall = fetchMock.mock.calls[0];
+  assert.ok(firstCall, 'expected fetch to be called');
+  return new URL(String(firstCall.arguments[0]));
 }
 
 describe('searchSeatsAero (MUC->MIA regression)', () => {
@@ -128,6 +136,35 @@ describe('searchSeatsAero (MUC->MIA regression)', () => {
         `program "${f.program}" is not a known seats.aero source`,
       );
     }
+  });
+
+  it('passes only_direct_flights to the API when onlyDirectFlights is set', async () => {
+    const fetchMock = mockFetchReturning(mucMiaThreePrograms());
+
+    await searchSeatsAero({
+      origin: 'MUC',
+      destination: 'MIA',
+      departureDate: '2026-09-01',
+      travelClass: 'BUSINESS',
+      onlyDirectFlights: true,
+    });
+
+    const calledUrl = firstRequestedUrl(fetchMock);
+    assert.strictEqual(calledUrl.searchParams.get('only_direct_flights'), 'true');
+  });
+
+  it('omits only_direct_flights by default (API default = all connections)', async () => {
+    const fetchMock = mockFetchReturning(mucMiaThreePrograms());
+
+    await searchSeatsAero({
+      origin: 'MUC',
+      destination: 'MIA',
+      departureDate: '2026-09-01',
+      travelClass: 'BUSINESS',
+    });
+
+    const calledUrl = firstRequestedUrl(fetchMock);
+    assert.strictEqual(calledUrl.searchParams.get('only_direct_flights'), null);
   });
 
   it('keeps operating carriers separate from the program', async () => {
