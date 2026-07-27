@@ -17,6 +17,10 @@ import {
   getProgramCaveat,
   getProgramDisplayName,
 } from '@/lib/api/award-search/program-registry';
+import {
+  formatTransferRatio,
+  getTransferSourcesForAwardProgram,
+} from '@/lib/config/transfer-engine';
 import { flightI18n, formatFlightResults, type FlightLocale } from './flight-search-format';
 import { filterFlightSearchAwards } from './flight-search-award-filters';
 import { flightSearchInputSchema } from './flight-search-schema';
@@ -481,6 +485,10 @@ Examples of queries that should trigger this tool:
         getProgramDisplayName,
         getProgramBookingUrl,
         getProgramCaveat,
+        transferHints: {
+          formatTransferRatio,
+          getTransferSourcesForAwardProgram,
+        },
       });
       return awardFilterNotes.length > 0
         ? `${formatted}\n\n${awardFilterNotes.map((note) => `- ${note}`).join('\n')}`
