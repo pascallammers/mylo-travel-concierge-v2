@@ -255,15 +255,21 @@ export interface FlexibleDateFlight {
   arrival?: { airport?: string; time?: string };
   duration?: string;
   searchedDate: string;
-  dateOffset: number; // -3 to +3
-  dateLabel: string; // "3 Tage frueher" or "2 Tage spaeter"
-  [key: string]: unknown; // Allow pass-through of other flight properties
+  dateOffset: number;
+  dateLabel: string;
+  [key: string]: unknown;
 }
 
 export interface FlexibleDateResultsResponse {
   type: 'flexible_date_results';
-  // Awards (miles) and cash (EUR) are sorted and capped as separate groups so
-  // the two price units never compete in one numeric sort (MYLO-20).
+  locale: 'de' | 'en';
+  labels: {
+    dateRangePrefix: string;
+    dateRangeSeparator: string;
+    awardFlights: string;
+    cashFlights: string;
+    truncated: string;
+  };
   awardFlights: FlexibleDateFlight[];
   cashFlights: FlexibleDateFlight[];
   awardFlightsTruncated: boolean;

@@ -1,5 +1,15 @@
 import { z } from 'zod';
 
+function isValidCalendarDate(value: string): boolean {
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
 /** Shared input contract used by the flight-search tool and schema tests. */
 export const flightSearchInputSchema = z.object({
   origin: z
@@ -13,10 +23,12 @@ export const flightSearchInputSchema = z.object({
   departDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .refine(isValidCalendarDate, 'Departure date must be a valid calendar date')
     .describe('Departure date in YYYY-MM-DD format'),
   returnDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .refine(isValidCalendarDate, 'Return date must be a valid calendar date')
     .optional()
     .nullable()
     .describe('Return date in YYYY-MM-DD format (optional for round trip)'),

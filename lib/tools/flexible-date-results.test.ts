@@ -12,8 +12,24 @@ import assert from 'node:assert';
 import { describe, it } from 'node:test';
 
 import { buildFlexibleDateResults } from './flexible-date-results';
+import { flightI18n } from './flight-search-format';
 
 const params = { departDate: '2026-08-15' };
+
+function buildResults(
+  seatsFlights: Parameters<typeof buildFlexibleDateResults>[0],
+  duffelFlights: Parameters<typeof buildFlexibleDateResults>[1],
+  searchParams: Parameters<typeof buildFlexibleDateResults>[2],
+  locale: Parameters<typeof buildFlexibleDateResults>[3],
+) {
+  return buildFlexibleDateResults(
+    seatsFlights,
+    duffelFlights,
+    searchParams,
+    locale,
+    flightI18n,
+  );
+}
 
 function makeAwardFlight(overrides: Record<string, unknown> = {}) {
   return {
@@ -42,8 +58,6 @@ function makeCashFlight(overrides: Record<string, unknown> = {}) {
 
 describe('buildFlexibleDateResults', () => {
   it('keeps award flights in the response even when every cash fare is numerically cheaper (MYLO-20)', () => {
-    // The bug scenario: 15,000 miles used to compete against 400 EUR in one
-    // numeric sort, so cash always won the shared top-10 cap.
     const awards = [
       makeAwardFlight({ price: '45,000 Miles' }),
       makeAwardFlight({ price: '15,000 Miles' }),
@@ -53,10 +67,35 @@ describe('buildFlexibleDateResults', () => {
       makeCashFlight({ price: { total: (350 + i).toFixed(2), currency: 'EUR' } }),
     );
 
-    const result = buildFlexibleDateResults(awards, cash, params, 'de');
+    const result = buildResults(awards, cash, params, 'de');
 
     assert.strictEqual(result.awardFlights.length, 3);
     assert.strictEqual(result.cashFlights.length, 5);
+  });
+
+  it('carries English UI labels for an English flexible-date search', () => {
+    const result = buildResults(
+      [makeAwardFlight()],
+      [makeCashFlight()],
+      params,
+      'en',
+    ) as ReturnType<typeof buildFlexibleDateResults> & {
+      labels?: {
+        dateRangePrefix: string;
+        dateRangeSeparator: string;
+        awardFlights: string;
+        cashFlights: string;
+        truncated: string;
+      };
+    };
+
+    assert.deepStrictEqual(result.labels, {
+      dateRangePrefix: 'Results from',
+      dateRangeSeparator: 'to',
+      awardFlights: 'Flights with Miles/Points',
+      cashFlights: 'Flights with Cash',
+      truncated: 'Top 5 results per category shown (sorted by price)',
+    });
   });
 
   it('sorts cash flights by EUR ascending and caps the group at 5', () => {
@@ -69,39 +108,44 @@ describe('buildFlexibleDateResults', () => {
       makeCashFlight({ price: { total: '399.99', currency: 'EUR' } }),
     ];
 
-    const result = buildFlexibleDateResults(null, cash, params, 'de');
+    const result = buildResults(null, cash, params, 'de');
 
     assert.strictEqual(result.cashFlights.length, 5);
     assert.deepStrictEqual(
-      result.cashFlights.map((f) =>
-        typeof f.price === 'object' && f.price !== null ? f.price.total : undefined,
+      result.cashFlights.map((flight) =>
+        typeof flight.price === 'object' && flight.price !== null
+          ? flight.price.total
+          : undefined,
       ),
       ['389.00', '399.99', '402.10', '414.76', '650.00'],
     );
   });
 
-  it('sorts award prices with taxes ("18,750 miles + USD 328.33") by their miles component', () => {
+  it('sorts award prices with taxes by their miles component', () => {
     const awards = [
       makeAwardFlight({ price: '45,000 Miles' }),
       makeAwardFlight({ price: '18,750 miles + USD 328.33' }),
     ];
 
-    const result = buildFlexibleDateResults(awards, null, params, 'de');
+    const result = buildResults(awards, null, params, 'de');
 
     assert.deepStrictEqual(
-      result.awardFlights.map((f) => f.price),
+      result.awardFlights.map((flight) => flight.price),
       ['18,750 miles + USD 328.33', '45,000 Miles'],
     );
   });
 
   it('sorts flights without a parseable price to the end of their group', () => {
-    const awards = [makeAwardFlight({ price: 'Preis auf Anfrage' }), makeAwardFlight({ price: '45,000 Miles' })];
+    const awards = [
+      makeAwardFlight({ price: 'Preis auf Anfrage' }),
+      makeAwardFlight({ price: '45,000 Miles' }),
+    ];
     const cash = [
       makeCashFlight({ price: undefined }),
       makeCashFlight({ price: { total: '414.76', currency: 'EUR' } }),
     ];
 
-    const result = buildFlexibleDateResults(awards, cash, params, 'de');
+    const result = buildResults(awards, cash, params, 'de');
 
     assert.strictEqual(result.awardFlights[0].price, '45,000 Miles');
     assert.deepStrictEqual(result.cashFlights[1].price, undefined);
@@ -116,10 +160,13 @@ describe('buildFlexibleDateResults', () => {
     ];
     const cash = [makeCashFlight({ searchedDate: '2026-08-16' })];
 
-    const result = buildFlexibleDateResults(awards, cash, params, 'de');
+    const result = buildResults(awards, cash, params, 'de');
 
     assert.strictEqual(result.originalDate, '2026-08-15');
-    assert.deepStrictEqual(result.dateRange, { start: '2026-08-12', end: '2026-08-18' });
+    assert.deepStrictEqual(result.dateRange, {
+      start: '2026-08-12',
+      end: '2026-08-18',
+    });
 
     const [award] = result.awardFlights;
     assert.strictEqual(award.searchedDate, '2026-08-13');
@@ -132,10 +179,32 @@ describe('buildFlexibleDateResults', () => {
     assert.strictEqual(cashFlight.dateLabel, '1 Tag spaeter');
   });
 
-  it('falls back to the original departure date when a flight has no date info', () => {
-    const awards = [makeAwardFlight({ outbound: { departure: { airport: 'FRA' } } })];
+  it('uses English labels for earlier, original, and later dates', () => {
+    const awards = [
+      makeAwardFlight({
+        outbound: { departure: { airport: 'FRA', date: '2026-08-13' } },
+      }),
+      makeAwardFlight({
+        outbound: { departure: { airport: 'FRA', date: '2026-08-15' } },
+      }),
+    ];
+    const cash = [makeCashFlight({ searchedDate: '2026-08-16' })];
 
-    const result = buildFlexibleDateResults(awards, null, params, 'de');
+    const result = buildResults(awards, cash, params, 'en');
+
+    assert.deepStrictEqual(
+      result.awardFlights.map((flight) => flight.dateLabel),
+      ['2 days earlier', 'Original date'],
+    );
+    assert.strictEqual(result.cashFlights[0].dateLabel, '1 day later');
+  });
+
+  it('falls back to the original departure date when a flight has no date info', () => {
+    const awards = [
+      makeAwardFlight({ outbound: { departure: { airport: 'FRA' } } }),
+    ];
+
+    const result = buildResults(awards, null, params, 'de');
 
     assert.strictEqual(result.awardFlights[0].searchedDate, '2026-08-15');
     assert.strictEqual(result.awardFlights[0].dateOffset, 0);
@@ -145,7 +214,7 @@ describe('buildFlexibleDateResults', () => {
   it('falls back to the original date when searchedDate is invalid', () => {
     const cash = [makeCashFlight({ searchedDate: 'not-a-date' })];
 
-    const result = buildFlexibleDateResults(null, cash, params, 'de');
+    const result = buildResults(null, cash, params, 'de');
     const [flight] = result.cashFlights;
 
     assert.strictEqual(flight.searchedDate, params.departDate);
@@ -160,8 +229,8 @@ describe('buildFlexibleDateResults', () => {
     const sixAwards = Array.from({ length: 6 }, () => makeAwardFlight());
     const sixCash = Array.from({ length: 6 }, () => makeCashFlight());
 
-    const complete = buildFlexibleDateResults(exactlyFive, exactlyFiveCash, params, 'de');
-    const truncated = buildFlexibleDateResults(sixAwards, sixCash, params, 'de');
+    const complete = buildResults(exactlyFive, exactlyFiveCash, params, 'de');
+    const truncated = buildResults(sixAwards, sixCash, params, 'de');
 
     assert.strictEqual(complete.awardFlightsTruncated, false);
     assert.strictEqual(complete.cashFlightsTruncated, false);
@@ -173,7 +242,12 @@ describe('buildFlexibleDateResults', () => {
     const originalTimezone = process.env.TZ;
     process.env.TZ = 'Europe/Berlin';
     try {
-      const result = buildFlexibleDateResults(null, null, { departDate: '2024-03-31' }, 'de');
+      const result = buildResults(
+        null,
+        null,
+        { departDate: '2024-03-31' },
+        'de',
+      );
       assert.deepStrictEqual(result.dateRange, {
         start: '2024-03-28',
         end: '2024-04-03',
@@ -198,12 +272,12 @@ describe('buildFlexibleDateResults', () => {
       makeAwardFlight({ price: '75,000 Miles' }),
     ];
 
-    const result = buildFlexibleDateResults(awards, null, params, 'de');
+    const result = buildResults(awards, null, params, 'de');
 
     assert.strictEqual(result.type, 'flexible_date_results');
     assert.strictEqual(result.awardFlights.length, 5);
     assert.deepStrictEqual(
-      result.awardFlights.map((f) => f.price),
+      result.awardFlights.map((flight) => flight.price),
       ['15,000 Miles', '20,000 Miles', '30,000 Miles', '45,000 Miles', '60,000 Miles'],
     );
   });

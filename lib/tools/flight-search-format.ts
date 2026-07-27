@@ -123,6 +123,22 @@ export const flightI18n = {
       en: (n: number) => `${n} ${n === 1 ? 'day' : 'days'} later`,
     },
   },
+  flexibleResultLabels: {
+    de: {
+      dateRangePrefix: 'Ergebnisse vom',
+      dateRangeSeparator: 'bis',
+      awardFlights: 'Flüge mit Meilen/Punkten',
+      cashFlights: 'Flüge mit Barzahlung',
+      truncated: 'Top 5 Ergebnisse pro Kategorie angezeigt (sortiert nach Preis)',
+    },
+    en: {
+      dateRangePrefix: 'Results from',
+      dateRangeSeparator: 'to',
+      awardFlights: 'Flights with Miles/Points',
+      cashFlights: 'Flights with Cash',
+      truncated: 'Top 5 results per category shown (sorted by price)',
+    },
+  },
   awardHeader: {
     de: (count: number) => `## Flüge mit Meilen/Punkten (${count} Ergebnisse)\n`,
     en: (count: number) => `## Flights with Miles/Points (${count} results)\n`,

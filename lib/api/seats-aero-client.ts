@@ -6,6 +6,31 @@ const SEATSAERO_BASE_URL = 'https://seats.aero/partnerapi';
 const MAX_RETRIES = 2;
 const BASE_DELAY_MS = 1000;
 
+function waitForRetryDelay(
+  delayMs: number,
+  signal?: AbortSignal,
+): Promise<void> {
+  if (!signal) return sleep(delayMs);
+  if (signal.aborted) {
+    return Promise.reject(
+      signal.reason ?? new DOMException('Operation aborted', 'AbortError'),
+    );
+  }
+
+  return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, delayMs);
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', onAbort);
+      reject(signal.reason ?? new DOMException('Operation aborted', 'AbortError'));
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
 // Short-lived TTL cache for search results (MYLO-23). The seats.aero daily
 // quota is shared between chat search and the deal scanner, so a repeated
 // identical route+dates+cabin lookup within the TTL must not burn a second
@@ -139,16 +164,28 @@ export interface SeatsAeroFlight {
  * Includes automatic retry with exponential backoff for transient errors
  *
  * @param params - Search parameters
+ * @param signal - Optional request cancellation signal
  * @returns List of available award flights
  */
 export async function searchSeatsAero(
-  params: SeatsAeroSearchParams
+  params: SeatsAeroSearchParams,
+  signal?: AbortSignal
 ): Promise<SeatsAeroFlight[]> {
   const cacheKey = searchCacheKey(params);
   const cached = getCachedSearch(cacheKey);
   if (cached) {
     console.log(`[Seats.aero] Cache hit for ${cacheKey}, skipping API call`);
     return cached;
+  }
+
+  // An abort signal belongs to one caller. Sharing its provider request would
+  // let one cancelled chat abort another caller's identical search. Abortable
+  // requests therefore keep their own in-flight operation, while successful
+  // results still populate the shared completed-result cache.
+  if (signal) {
+    const flights = await executeSeatsAeroSearchWithRetry(params, signal);
+    setCachedSearch(cacheKey, flights);
+    return cloneSearchResults(flights);
   }
 
   const inFlight = inFlightSearches.get(cacheKey);
@@ -173,14 +210,19 @@ export async function searchSeatsAero(
 
 async function executeSeatsAeroSearchWithRetry(
   params: SeatsAeroSearchParams,
+  signal?: AbortSignal,
 ): Promise<SeatsAeroFlight[]> {
   let lastError: Error | undefined;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      return await executeSeatsAeroSearch(params);
+      return await executeSeatsAeroSearch(params, signal);
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
+
+      if (signal?.aborted) {
+        throw lastError;
+      }
 
       // Check if we should retry
       const shouldRetry = attempt < MAX_RETRIES && isRetryableError(error);
@@ -190,7 +232,7 @@ async function executeSeatsAeroSearchWithRetry(
         console.log(
           `[Seats.aero] Attempt ${attempt + 1}/${MAX_RETRIES + 1} failed, retrying in ${delay}ms...`
         );
-        await sleep(delay);
+        await waitForRetryDelay(delay, signal);
       } else {
         // Don't retry - either max retries reached or non-retryable error
         console.error(
@@ -210,7 +252,8 @@ async function executeSeatsAeroSearchWithRetry(
  * Separated from retry logic for clarity
  */
 async function executeSeatsAeroSearch(
-  params: SeatsAeroSearchParams
+  params: SeatsAeroSearchParams,
+  signal?: AbortSignal
 ): Promise<SeatsAeroFlight[]> {
   const { cabin, apiValue } = CLASS_MAP[params.travelClass];
   const flex = Math.min(params.flexibility || 0, 3);
@@ -247,6 +290,7 @@ async function executeSeatsAeroSearch(
 
   // API Call
   const response = await fetch(searchUrl.toString(), {
+    signal,
     headers: {
       'Partner-Authorization': process.env.SEATSAERO_API_KEY || '',
       'Content-Type': 'application/json',

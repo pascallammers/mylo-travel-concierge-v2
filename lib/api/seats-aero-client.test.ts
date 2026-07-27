@@ -183,6 +183,52 @@ describe('searchSeatsAero (MUC->MIA regression)', () => {
     assert.strictEqual(lufthansa!.airline, 'LH, LX', 'airline column shows operating metal');
     assert.strictEqual(lufthansa!.program, 'lufthansa', 'program column shows the mileage program');
   });
+
+  it('forwards the abort signal to the provider fetch', async () => {
+    const controller = new AbortController();
+    let receivedSignal: AbortSignal | null | undefined;
+    global.fetch = mock.fn(async (_input, init) => {
+      receivedSignal = init?.signal;
+      return {
+        ok: true,
+        json: async () => mucMiaThreePrograms(),
+      } as Response;
+    }) as typeof fetch;
+
+    await searchSeatsAero({
+      origin: 'MUC',
+      destination: 'MIA',
+      departureDate: '2026-09-01',
+      travelClass: 'BUSINESS',
+      maxResults: 100,
+    }, controller.signal);
+
+    assert.strictEqual(receivedSignal, controller.signal);
+  });
+
+  it('stops retry backoff immediately when the request is cancelled', async () => {
+    const controller = new AbortController();
+    global.fetch = mock.fn(async () => ({
+      ok: false,
+      status: 500,
+      statusText: 'Internal Server Error',
+    })) as unknown as typeof fetch;
+
+    const startedAt = Date.now();
+    const search = searchSeatsAero({
+      origin: 'MUC',
+      destination: 'MIA',
+      departureDate: '2026-09-01',
+      travelClass: 'BUSINESS',
+    }, controller.signal);
+    setTimeout(() => controller.abort(new DOMException('Request cancelled', 'AbortError')), 20);
+
+    await assert.rejects(search, { name: 'AbortError' });
+    assert.ok(
+      Date.now() - startedAt < 500,
+      'cancellation should not wait for the one-second retry delay',
+    );
+  });
 });
 
 describe('searchSeatsAero (API efficiency, MYLO-23)', () => {
@@ -251,6 +297,41 @@ describe('searchSeatsAero (API efficiency, MYLO-23)', () => {
 
     assert.deepStrictEqual(second, first);
     assert.notStrictEqual(second, first, 'concurrent callers must receive independent result arrays');
+  });
+
+  it('does not let one abortable caller cancel another identical search', async () => {
+    const firstController = new AbortController();
+    const secondController = new AbortController();
+    let invocation = 0;
+    const fetchMock = mock.fn((_url: string | URL, init?: RequestInit) => {
+      invocation += 1;
+      if (invocation === 1) {
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener(
+            'abort',
+            () => reject(init.signal?.reason),
+            { once: true },
+          );
+        });
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify(mucMiaThreePrograms()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const first = searchSeatsAero(mucMiaParams, firstController.signal);
+    const second = searchSeatsAero(mucMiaParams, secondController.signal);
+    firstController.abort(new DOMException('First caller cancelled', 'AbortError'));
+
+    await assert.rejects(first, { name: 'AbortError' });
+    const secondResult = await second;
+
+    assert.strictEqual(fetchMock.mock.callCount(), 2);
+    assert.ok(secondResult.length > 0, 'the independent caller must still succeed');
   });
 
   it('does not share cache entries across different search parameters', async () => {

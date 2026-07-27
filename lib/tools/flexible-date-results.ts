@@ -5,7 +5,7 @@
  * separate groups so the two price units never compete numerically.
  */
 
-import { flightI18n, type FlightLocale } from './flight-search-format';
+import type { FlightLocale } from './flight-search-format';
 import type {
   FlexibleDateFlight,
   FlexibleDateResultsResponse,
@@ -15,7 +15,6 @@ import type { DuffelFlight } from '@/lib/api/duffel-client';
 
 const MAX_AWARD_RESULTS = 5;
 const MAX_CASH_RESULTS = 5;
-
 const UNPRICED = Number.MAX_SAFE_INTEGER;
 
 interface AwardFlexibleDateInput
@@ -40,9 +39,20 @@ interface CashFlexibleDateInput
   arrival?: Partial<DuffelFlight['arrival']>;
 }
 
+export interface FlexibleDateResultI18n {
+  dateLabel: {
+    original: Record<FlightLocale, string>;
+    earlier: Record<FlightLocale, (days: number) => string>;
+    later: Record<FlightLocale, (days: number) => string>;
+  };
+  flexibleResultLabels: Record<
+    FlightLocale,
+    FlexibleDateResultsResponse['labels']
+  >;
+}
+
 function milesValue(flight: AwardFlexibleDateInput): number {
   if (!flight.price) return UNPRICED;
-  // Seats.aero prices are strings like "15,000 Miles" or "18,750 miles + USD 328.33"
   const match = String(flight.price)
     .replace(/,/g, '')
     .match(/[\d.]+/);
@@ -50,7 +60,6 @@ function milesValue(flight: AwardFlexibleDateInput): number {
 }
 
 function cashValue(flight: CashFlexibleDateInput): number {
-  // Duffel prices are objects like { total: "414.76", currency: "EUR" }
   const total = parseFloat(flight.price?.total ?? '');
   return Number.isFinite(total) ? total : UNPRICED;
 }
@@ -65,6 +74,7 @@ function withDateMetadata<T extends object>(
   searchedDate: string,
   originalDate: string,
   locale: FlightLocale,
+  i18n: FlexibleDateResultI18n,
 ): T & FlexibleDateMetadata {
   const searchedTimestamp = new Date(searchedDate).getTime();
   const originalTimestamp = new Date(originalDate).getTime();
@@ -76,11 +86,11 @@ function withDateMetadata<T extends object>(
 
   let dateLabel: string;
   if (daysDiff === 0) {
-    dateLabel = flightI18n.dateLabel.original[locale];
+    dateLabel = i18n.dateLabel.original[locale];
   } else if (daysDiff < 0) {
-    dateLabel = flightI18n.dateLabel.earlier[locale](Math.abs(daysDiff));
+    dateLabel = i18n.dateLabel.earlier[locale](Math.abs(daysDiff));
   } else {
-    dateLabel = flightI18n.dateLabel.later[locale](daysDiff);
+    dateLabel = i18n.dateLabel.later[locale](daysDiff);
   }
 
   return {
@@ -104,6 +114,7 @@ function shiftDate(isoDate: string, days: number): string {
  * @param duffelFlights - Cash results returned by Duffel.
  * @param params - Original flight-search departure date.
  * @param locale - Locale used for relative date labels.
+ * @param i18n - Injected label formatters for the selected locale.
  * @returns Structured flexible-date results with explicit truncation metadata.
  */
 export function buildFlexibleDateResults(
@@ -111,6 +122,7 @@ export function buildFlexibleDateResults(
   duffelFlights: CashFlexibleDateInput[] | null,
   params: { departDate: string },
   locale: FlightLocale,
+  i18n: FlexibleDateResultI18n,
 ): FlexibleDateResultsResponse {
   const awardFlightsTruncated = (seatsFlights?.length ?? 0) > MAX_AWARD_RESULTS;
   const cashFlightsTruncated = (duffelFlights?.length ?? 0) > MAX_CASH_RESULTS;
@@ -121,6 +133,7 @@ export function buildFlexibleDateResults(
         flight.outbound?.departure?.date || flight.departureDate || params.departDate,
         params.departDate,
         locale,
+        i18n,
       ),
     )
     .sort((a, b) => milesValue(a) - milesValue(b))
@@ -133,13 +146,16 @@ export function buildFlexibleDateResults(
         flight.searchedDate || flight.departure?.time?.split('T')[0] || params.departDate,
         params.departDate,
         locale,
+        i18n,
       ),
     )
     .sort((a, b) => cashValue(a) - cashValue(b))
     .slice(0, MAX_CASH_RESULTS);
 
   return {
-    type: 'flexible_date_results' as const,
+    type: 'flexible_date_results',
+    locale,
+    labels: i18n.flexibleResultLabels[locale],
     awardFlights,
     cashFlights,
     awardFlightsTruncated,
