@@ -19,7 +19,7 @@ import { AMEX_US_PARTNERS } from './us-amex';
 import { BILT_PARTNERS } from './us-bilt';
 import { CAPITAL_ONE_PARTNERS } from './us-capital-one';
 import { CITI_PARTNERS } from './us-citi';
-import { createAwardProgramSourceResolver } from './award-program-sources';
+import { createAwardProgramSourceResolver, type AwardProgramTransferSource } from './award-program-sources';
 
 // ============================================
 // Re-exports: types
@@ -98,7 +98,7 @@ const resolveAwardProgramSources = createAwardProgramSourceResolver(SOURCE_PROGR
  * @param slug - seats.aero award-program slug.
  * @returns Matching transfer sources ordered by effective rate.
  */
-export function getTransferSourcesForAwardProgram(slug: string) {
+export function getTransferSourcesForAwardProgram(slug: string): AwardProgramTransferSource[] {
   return resolveAwardProgramSources(slug);
 }
 

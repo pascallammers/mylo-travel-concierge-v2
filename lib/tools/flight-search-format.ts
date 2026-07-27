@@ -222,7 +222,7 @@ function renderTransferSources(
 }
 
 /**
- * Format flight results for LLM response.
+ * Format flight-search results as LLM-facing markdown.
  *
  * Internal provider names ("Seats.aero" / "Duffel") must never be rendered to
  * end users. The section heading gives the user-facing category instead.
@@ -232,12 +232,18 @@ function renderTransferSources(
  * instead of leaving silent space the LLM will pad with a fabricated link
  * (Test 1 produced [Duffel API](https://duffel.com)).
  *
- * @param result - Combined award and cash provider results.
- * @param params - Original flight-search parameters used for links and labels.
- * @param locale - Locale for customer-facing output.
- * @param createBookingSession - Optional Duffel booking-link creator.
- * @param transferHintDependencies - Optional transfer-source resolver and ratio formatter.
- * @returns LLM-facing Markdown for the complete flight-search response.
+ * Award results include a transfer hint below the table (MYLO-22): a principle
+ * line plus per-program source lines when `transferHintDependencies` is provided.
+ *
+ * @param result - Combined seats.aero award and Duffel cash search payload.
+ * @param params - Original search parameters (route, dates, cabin, passengers).
+ * @param locale - Output language for table headers and hints.
+ * @param createBookingSession - Optional Duffel booking-session creator; when
+ *   omitted or failing, cash rows show a direct-booking-unavailable hint.
+ * @param transferHintDependencies - Transfer-engine helpers used to render
+ *   award-program transfer sources under the award table; when omitted, only
+ *   the principle hint is shown without per-program source lines.
+ * @returns Markdown string for the LLM response.
  */
 export async function formatFlightResults(
   result: any,
