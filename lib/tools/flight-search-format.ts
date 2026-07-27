@@ -11,7 +11,6 @@ import {
   buildGoogleFlightsUrl,
   buildSkyscannerUrl,
 } from '@/lib/utils/flight-search-links';
-import { getProgramDisplayName } from '@/lib/api/award-search/program-registry';
 import type {
   AwardProgramTransferSource,
   TransferPartner,
@@ -30,12 +29,33 @@ export type BookingSessionCreator = (params: {
 
 export type FlightLocale = 'de' | 'en';
 
+/** Route/date/cabin context passed to award-program booking URL resolvers. */
+export type AwardBookingContext = {
+  origin: string;
+  destination: string;
+  /** YYYY-MM-DD */
+  departDate: string;
+  cabin: string;
+};
+
+/** Injected award-program resolvers keep the renderer free of the registry import graph. */
+export type AwardProgramResolvers = {
+  getProgramDisplayName: (slug: string, locale: FlightLocale) => string;
+  getProgramBookingUrl: (slug: string, ctx: AwardBookingContext) => string | null;
+  getProgramCaveat: (slug: string, locale: FlightLocale) => string | null;
+};
+
 export interface TransferHintDependencies {
   getTransferSourcesForAwardProgram: (
     slug: string,
   ) => AwardProgramTransferSource[];
   formatTransferRatio: (partner: TransferPartner) => string;
 }
+
+export type FormatFlightResultsDeps = AwardProgramResolvers & {
+  createBookingSession?: BookingSessionCreator;
+  transferHints?: TransferHintDependencies;
+};
 
 export const flightI18n = {
   pastDepartDate: {
@@ -108,9 +128,34 @@ export const flightI18n = {
     en: (count: number) => `## Flights with Miles/Points (${count} results)\n`,
   },
   awardTableHeader: {
-    de: '| Nr. | Airline | Programm | Klasse | Preis | Abflug | Ankunft | Dauer | Stops | Sitze | Flugnummer |',
-    en: '| No. | Airline | Program | Class | Price | Departure | Arrival | Duration | Stops | Seats | Flight No. |',
+    de: '| Nr. | Airline | Programm | Klasse | Preis | Abflug | Ankunft | Dauer | Stops | Sitze | Flugnummer | Buchen |',
+    en: '| No. | Airline | Program | Class | Price | Departure | Arrival | Duration | Stops | Seats | Flight No. | Book |',
   },
+  awardOneWayNotice: {
+    de: '_**Hinweis:** Die Meilenpreise gelten pro Strecke (nur Hinflug). Der Rückflug ist darin nicht enthalten._\n',
+    en: '_**Note:** Mileage prices are per direction (outbound only). The return flight is not included._\n',
+  },
+  awardPerLegNotice: {
+    de: '_**Hinweis:** Die Meilenpreise gelten jeweils pro Strecke._\n',
+    en: '_**Note:** Mileage prices apply per leg._\n',
+  },
+  awardOutboundLegHeader: {
+    de: (count: number) => `### Hinflug (${count} Ergebnisse)`,
+    en: (count: number) => `### Outbound (${count} results)`,
+  },
+  awardReturnLegHeader: {
+    de: (count: number) => `### Rückflug (${count} Ergebnisse)`,
+    en: (count: number) => `### Return (${count} results)`,
+  },
+  awardNoOutboundAvailability: {
+    de: '_Für den Hinflug wurde keine Award-Verfügbarkeit gefunden._',
+    en: '_No award availability was found for the outbound leg._',
+  },
+  awardOutboundProviderUnavailable: {
+    de: '_Die Award-Verfügbarkeit für den Hinflug konnte wegen einer vorübergehend nicht erreichbaren Datenquelle nicht geladen werden._',
+    en: '_Award availability for the outbound leg could not be loaded because a data source is temporarily unavailable._',
+  },
+  bookLinkLabel: { de: 'Buchen', en: 'Book' },
   cashHeader: {
     de: (count: number) => `## Flüge mit Barzahlung (${count} Ergebnisse)\n`,
     en: (count: number) => `## Flights with Cash (${count} results)\n`,
@@ -134,10 +179,6 @@ export const flightI18n = {
     en: (types: string) =>
       `\n---\n\n_**Note:** ${types} could not be loaded. For more options you can use the following links:_\n`,
   },
-  // The community "Jonas" case: users read the miles column as a balance they
-  // must already own and dismiss award options entirely. The hint states the
-  // opposite — miles are usually sourced via credit-card/hotel-points transfer
-  // when booking (MYLO-22).
   transferHintIntro: {
     de: '_**Hinweis:** Diese Meilen musst du noch nicht haben — der Transfer von Kreditkarten- oder Hotelpunkten ist erst bei der Buchung nötig._',
     en: "_**Note:** You don't need to have these miles yet — transferring credit-card or hotel points is only necessary when you book._",
@@ -173,18 +214,66 @@ function formatTime(timeStr: string): string {
 }
 
 /**
- * Render "- **<Program>**: <source> <ratio>, ..." lines for every distinct
- * award program in the results that a card program transfers into (MYLO-22).
+ * Render an award table with booking links for one direction.
  *
- * Sources come straight from the transfer-engine config. The DACH Amex source
- * is pinned first (MYLO's home market) even though US programs often transfer
- * at a better rate; the rest follow best-rate-first, capped at 3 in total.
- * Partner entries typed 'other' are indirect routes (PAYBACK -> Miles & More)
- * and get a "via <partner>" marker so they don't read as direct transfers.
+ * @param flights - Award flights for a single direction.
+ * @param locale - Locale for labels and program names.
+ * @param params - Search parameters used as a date fallback.
+ * @param resolvers - Injected program-name and booking-link resolvers.
+ * @returns Markdown table lines.
+ */
+function renderAwardTable(
+  flights: any[],
+  locale: FlightLocale,
+  params: any,
+  resolvers: Pick<
+    AwardProgramResolvers,
+    'getProgramDisplayName' | 'getProgramBookingUrl'
+  >,
+): string[] {
+  const rows = [
+    flightI18n.awardTableHeader[locale],
+    '|-----|---------|----------|-------|--------|---------|-------|-------|-------|-------|------------|--------|',
+  ];
+
+  flights.forEach((flight: any, index: number) => {
+    const departTime = formatTime(flight.outbound.departure.time);
+    const arriveTime = formatTime(flight.outbound.arrival.time);
+    const seats = flight.seatsLeft || '-';
+    const program = resolvers.getProgramDisplayName(flight.program, locale);
+    const flightDate =
+      (flight.outbound.departure.time || '').split('T')[0] || params.departDate;
+    const bookingUrl = resolvers.getProgramBookingUrl(flight.program, {
+      origin: flight.outbound.departure.airport,
+      destination: flight.outbound.arrival.airport,
+      departDate: flightDate,
+      cabin: flight.cabin,
+    });
+    const bookCell = bookingUrl
+      ? `[${flightI18n.bookLinkLabel[locale]}](${bookingUrl})`
+      : '-';
+
+    rows.push(
+      `| ${index + 1} | ${flight.airline} | ${program} | ${flight.cabin} | ${flight.price} | ${flight.outbound.departure.airport} ${departTime} | ${flight.outbound.arrival.airport} ${arriveTime} | ${flight.outbound.duration} | ${flight.outbound.stops} | ${seats} | ${flight.outbound.flightNumbers} | ${bookCell} |`,
+    );
+  });
+
+  return rows;
+}
+
+/**
+ * Render transfer sources for every distinct award program.
+ *
+ * @param flights - Award flights from all rendered legs.
+ * @param locale - Locale for labels and program names.
+ * @param getProgramDisplayName - Injected program-name resolver.
+ * @param dependencies - Transfer-engine helpers.
+ * @returns Markdown list lines.
  */
 function renderTransferSources(
   flights: ReadonlyArray<{ program?: string }>,
   locale: FlightLocale,
+  getProgramDisplayName: AwardProgramResolvers['getProgramDisplayName'],
   dependencies?: TransferHintDependencies,
 ): string[] {
   if (!dependencies) return [];
@@ -196,33 +285,36 @@ function renderTransferSources(
         .filter((program): program is string => Boolean(program)),
     ),
   ];
-  const lines: string[] = [];
 
-  for (const slug of slugs) {
+  return slugs.flatMap((slug) => {
     const sources = dependencies.getTransferSourcesForAwardProgram(slug);
-    if (sources.length === 0) continue;
+    if (sources.length === 0) return [];
 
-    const dach = sources.filter((s) => s.sourceProgramId === 'amex_dach');
-    const others = sources.filter((s) => s.sourceProgramId !== 'amex_dach');
-    const rendered = [...dach, ...others]
+    const dach = sources.filter(
+      ({ sourceProgramId }) => sourceProgramId === 'amex_dach',
+    );
+    const others = sources.filter(
+      ({ sourceProgramId }) => sourceProgramId !== 'amex_dach',
+    );
+    const renderedSources = [...dach, ...others]
       .slice(0, 3)
-      .map((s) => {
+      .map(({ sourceProgramLabel, partner }) => {
         const via =
-          s.partner.type === 'other'
-            ? ` ${flightI18n.transferHintVia[locale]} ${s.partner.name}`
+          partner.type === 'other'
+            ? ` ${flightI18n.transferHintVia[locale]} ${partner.name}`
             : '';
-        return `${s.sourceProgramLabel[locale]}${via} ${dependencies.formatTransferRatio(s.partner)}`;
+        return `${sourceProgramLabel[locale]}${via} ${dependencies.formatTransferRatio(partner)}`;
       })
       .join(', ');
 
-    lines.push(`- **${getProgramDisplayName(slug, locale)}**: ${rendered}`);
-  }
-
-  return lines;
+    return [
+      `- **${getProgramDisplayName(slug, locale)}**: ${renderedSources}`,
+    ];
+  });
 }
 
 /**
- * Format flight-search results as LLM-facing markdown.
+ * Format flight results for LLM response.
  *
  * Internal provider names ("Seats.aero" / "Duffel") must never be rendered to
  * end users. The section heading gives the user-facing category instead.
@@ -232,38 +324,38 @@ function renderTransferSources(
  * instead of leaving silent space the LLM will pad with a fabricated link
  * (Test 1 produced [Duffel API](https://duffel.com)).
  *
- * Award results include a transfer hint below the table (MYLO-22): a principle
- * line plus per-program source lines when `transferHintDependencies` is provided.
- *
- * @param result - Combined seats.aero award and Duffel cash search payload.
- * @param params - Original search parameters (route, dates, cabin, passengers).
- * @param locale - Output language for table headers and hints.
- * @param createBookingSession - Optional Duffel booking-session creator; when
- *   omitted or failing, cash rows show a direct-booking-unavailable hint.
- * @param transferHintDependencies - Transfer-engine helpers used to render
- *   award-program transfer sources under the award table; when omitted, only
- *   the principle hint is shown without per-program source lines.
- * @returns Markdown string for the LLM response.
+ * @param result - Combined award and cash search results.
+ * @param params - Original flight-search parameters.
+ * @param locale - Output locale.
+ * @param deps - Injected booking, program, caveat, and transfer resolvers.
+ * @returns LLM-facing Markdown.
  */
 export async function formatFlightResults(
   result: any,
   params: any,
   locale: FlightLocale = 'de',
-  createBookingSession?: BookingSessionCreator,
-  transferHintDependencies?: TransferHintDependencies,
+  deps: FormatFlightResultsDeps,
 ): Promise<string> {
+  const {
+    createBookingSession,
+    getProgramDisplayName,
+    getProgramBookingUrl,
+    getProgramCaveat,
+    transferHints,
+  } = deps;
   const sections: string[] = [];
   const partialFailures: string[] = [];
+  const returnAwardCount = result.seatsReturn?.count ?? 0;
 
   // Track partial failures for user notification.
   // result shape: { seats: {...}, cash: {...} }. cash = Duffel; seats = Seats.aero.
   // (Earlier versions had a third Amadeus provider — replaced by Duffel; the
   // partial-failure check still referenced the removed result.amadeus and
   // crashed formatFlightResults whenever search_flights ran.)
-  if (result.seats.error && result.cash.count > 0) {
+  if (result.seats.error && (result.cash.count > 0 || returnAwardCount > 0)) {
     partialFailures.push(flightI18n.awardFlightsLabel[locale]);
   }
-  if (result.cash.error && result.seats.count > 0) {
+  if (result.cash.error && (result.seats.count > 0 || returnAwardCount > 0)) {
     partialFailures.push(flightI18n.cashFlightsLabel[locale]);
   }
 
@@ -291,31 +383,81 @@ export async function formatFlightResults(
   }
 
   // Award Flights Section
-  if (result.seats.count > 0) {
-    sections.push(flightI18n.awardHeader[locale](result.seats.count));
-    sections.push(flightI18n.awardTableHeader[locale]);
-    sections.push(`|-----|---------|----------|-------|--------|---------|-------|-------|-------|-------|------------|`);
+  if (result.seats.count > 0 || returnAwardCount > 0) {
+    sections.push(
+      flightI18n.awardHeader[locale](result.seats.count + returnAwardCount),
+    );
 
-    result.seats.flights.forEach((flight: any, idx: number) => {
-      const departTime = formatTime(flight.outbound.departure.time);
-      const arriveTime = formatTime(flight.outbound.arrival.time);
-      const seats = flight.seatsLeft || '-';
-      // Resolve the seats.aero program slug to a customer-facing brand name.
-      // The slug ("aeroplan") is the bookable mileage currency; the operating
-      // carrier in `airline` ("LH") is shown separately.
-      const program = getProgramDisplayName(flight.program, locale);
-
+    if (returnAwardCount > 0) {
+      sections.push(flightI18n.awardPerLegNotice[locale]);
+      sections.push(flightI18n.awardOutboundLegHeader[locale](result.seats.count));
+      if (result.seats.count > 0) {
+        sections.push(
+          ...renderAwardTable(result.seats.flights, locale, params, {
+            getProgramDisplayName,
+            getProgramBookingUrl,
+          }),
+        );
+      } else {
+        sections.push(
+          result.seats.error
+            ? flightI18n.awardOutboundProviderUnavailable[locale]
+            : flightI18n.awardNoOutboundAvailability[locale],
+        );
+      }
+      sections.push('');
+      sections.push(flightI18n.awardReturnLegHeader[locale](returnAwardCount));
       sections.push(
-        `| ${idx + 1} | ${flight.airline} | ${program} | ${flight.cabin} | ${flight.price} | ${flight.outbound.departure.airport} ${departTime} | ${flight.outbound.arrival.airport} ${arriveTime} | ${flight.outbound.duration} | ${flight.outbound.stops} | ${seats} | ${flight.outbound.flightNumbers} |`,
+        ...renderAwardTable(result.seatsReturn.flights, locale, params, {
+          getProgramDisplayName,
+          getProgramBookingUrl,
+        }),
       );
-    });
+    } else {
+      if (params.returnDate) {
+        sections.push(flightI18n.awardOneWayNotice[locale]);
+      }
+      sections.push(
+        ...renderAwardTable(result.seats.flights, locale, params, {
+          getProgramDisplayName,
+          getProgramBookingUrl,
+        }),
+      );
+    }
     sections.push('');
+
+    // Website-hurdle footnotes (MYLO-17): only for programs that actually
+    // appear in the result, one line per program, below the award table.
+    const caveatPrograms = [
+      ...new Set<string>(
+        [
+          ...result.seats.flights,
+          ...(result.seatsReturn?.flights ?? []),
+        ].map((flight: any) => flight.program),
+      ),
+    ];
+    const caveatLines = caveatPrograms.flatMap((slug) => {
+      const caveat = getProgramCaveat(slug, locale);
+      return caveat
+        ? [`_⚠️ **${getProgramDisplayName(slug, locale)}:** ${caveat}_`]
+        : [];
+    });
+    if (caveatLines.length > 0) {
+      sections.push(...caveatLines);
+      sections.push('');
+    }
+
+    const awardFlights = [
+      ...result.seats.flights,
+      ...(result.seatsReturn?.flights ?? []),
+    ];
     sections.push(flightI18n.transferHintIntro[locale]);
     sections.push(
       ...renderTransferSources(
-        result.seats.flights,
+        awardFlights,
         locale,
-        transferHintDependencies,
+        getProgramDisplayName,
+        transferHints,
       ),
     );
     sections.push('');
@@ -365,7 +507,10 @@ export async function formatFlightResults(
   }
 
   // Add partial failure notice if some providers failed
-  if (partialFailures.length > 0 && (result.seats.count > 0 || result.cash.count > 0)) {
+  if (
+    partialFailures.length > 0 &&
+    (result.seats.count > 0 || result.cash.count > 0 || returnAwardCount > 0)
+  ) {
     const failedTypes = partialFailures.join(flightI18n.andConnector[locale]);
     sections.push(flightI18n.partialFailureNote[locale](failedTypes));
 
@@ -378,7 +523,11 @@ export async function formatFlightResults(
   }
 
   // Safety fallback (no-results path is normally handled upstream)
-  if (result.seats.count === 0 && result.cash.count === 0) {
+  if (
+    result.seats.count === 0 &&
+    result.cash.count === 0 &&
+    returnAwardCount === 0
+  ) {
     sections.push(flightI18n.noResultsFallback[locale](params.origin, params.destination, params.departDate, params.cabin));
   }
 
