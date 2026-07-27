@@ -16,6 +16,7 @@ import {
   getProgramCaveat,
   getProgramDisplayName,
   KNOWN_PROGRAM_SLUGS,
+  resolveProgramSlugs,
 } from './program-registry';
 
 describe('getProgramDisplayName', () => {
@@ -55,6 +56,45 @@ describe('getProgramDisplayName', () => {
     } finally {
       warn.mock.restore();
     }
+  });
+});
+
+describe('resolveProgramSlugs', () => {
+  it('resolves exact slugs and display names regardless of case', () => {
+    assert.deepStrictEqual(resolveProgramSlugs(['Aeroplan']), {
+      matched: ['aeroplan'],
+      unmatched: [],
+    });
+    assert.deepStrictEqual(
+      resolveProgramSlugs(['Lufthansa Miles & More', 'Miles&More']).matched,
+      ['lufthansa'],
+    );
+  });
+
+  it('resolves well-known brand keywords', () => {
+    assert.deepStrictEqual(resolveProgramSlugs(['KrisFlyer']).matched, ['singapore']);
+    assert.deepStrictEqual(resolveProgramSlugs(['use United rewards']).matched, ['united']);
+  });
+
+  it('does not match unrelated words or short fragments', () => {
+    assert.deepStrictEqual(resolveProgramSlugs(['disunited rewards', 'lan']), {
+      matched: [],
+      unmatched: ['disunited rewards', 'lan'],
+    });
+  });
+
+  it('reports unknown inputs, deduplicates matches, and ignores blanks', () => {
+    assert.deepStrictEqual(
+      resolveProgramSlugs(['aeroplan', 'Air Canada Aeroplan', 'Nonexistent Program']),
+      {
+        matched: ['aeroplan'],
+        unmatched: ['Nonexistent Program'],
+      },
+    );
+    assert.deepStrictEqual(resolveProgramSlugs(['  ']), {
+      matched: [],
+      unmatched: [],
+    });
   });
 });
 

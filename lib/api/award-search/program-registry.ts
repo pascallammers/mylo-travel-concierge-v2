@@ -50,6 +50,81 @@ const PROGRAM_NAMES: Record<string, LocalizedProgramName> = {
 /** All seats.aero source slugs the registry maps by name. */
 export const KNOWN_PROGRAM_SLUGS: string[] = Object.keys(PROGRAM_NAMES);
 
+/**
+ * Map free-text loyalty-program inputs to seats.aero source slugs.
+ *
+ * @param inputs - Free-text loyalty-program names or seats.aero slugs.
+ * @returns Matched source slugs and the original inputs that could not be mapped.
+ */
+export function resolveProgramSlugs(
+  inputs: string[],
+): { matched: string[]; unmatched: string[] } {
+  const matched: string[] = [];
+  const unmatched: string[] = [];
+
+  for (const raw of inputs) {
+    const needle = normalizeProgramName(raw);
+    if (!needle) continue;
+
+    const tokens = needle.split(/[^a-z0-9]+/).filter(Boolean);
+    const slug =
+      KNOWN_PROGRAM_SLUGS.find((candidate) => candidate === needle || tokens.includes(candidate)) ??
+      KNOWN_PROGRAM_SLUGS.find((candidate) =>
+        displayNameMatchesNeedle(PROGRAM_NAMES[candidate].en, needle),
+      );
+
+    if (!slug) {
+      if (!unmatched.includes(raw)) unmatched.push(raw);
+    } else if (!matched.includes(slug)) {
+      matched.push(slug);
+    }
+  }
+
+  return { matched, unmatched };
+}
+
+/**
+ * Match a normalized needle against a program display name using token or
+ * consecutive phrase equality.
+ *
+ * @param displayName - Localized program brand name.
+ * @param needle - Normalized user input to match.
+ * @returns True when the needle equals a name token or consecutive phrase.
+ */
+function displayNameMatchesNeedle(displayName: string, needle: string): boolean {
+  if (needle.length < 3) return false;
+
+  const nameTokens = normalizeProgramName(displayName).split(/[^a-z0-9]+/).filter(Boolean);
+  const needleTokens = needle.split(/[^a-z0-9]+/).filter(Boolean);
+  if (needleTokens.length === 0) return false;
+
+  if (needleTokens.length === 1) {
+    return nameTokens.some((nameToken) => nameToken === needleTokens[0]);
+  }
+
+  for (let index = 0; index <= nameTokens.length - needleTokens.length; index += 1) {
+    if (needleTokens.every((token, offset) => nameTokens[index + offset] === token)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Normalize a program name for case-insensitive matching.
+ *
+ * @param value - Raw program name or slug input.
+ * @returns Normalized program name.
+ */
+function normalizeProgramName(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/\s*&\s*/g, ' and ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /** Route/date/cabin context used to prefill a program's award-search deeplink. */
 export interface AwardBookingContext {
   origin: string;
@@ -167,6 +242,13 @@ export function getProgramCaveat(
   return PROGRAM_CAVEATS[slug]?.[locale] ?? null;
 }
 
+/**
+ * Resolve a seats.aero source slug to a customer-facing program label.
+ *
+ * @param slug - seats.aero source slug.
+ * @param locale - Response locale for the display name.
+ * @returns Localized brand name, or a Title-Cased fallback for unknown slugs.
+ */
 export function getProgramDisplayName(slug: string, locale: TransferLocale): string {
   // A missing slug must never crash the renderer (which formats both award AND
   // cash tables in one call); degrade to an empty label.
