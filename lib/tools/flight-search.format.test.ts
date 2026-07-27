@@ -219,6 +219,21 @@ describe('formatFlightResults', () => {
       assert.doesNotMatch(out, /keine Flüge für Ihre Suche gefunden/i, 'no-results fallback must not fire');
     });
 
+    it('surfaces an outbound provider error instead of claiming no award availability', async () => {
+      const result = {
+        ...makeRoundtripAwardResult(),
+        seats: { count: 0, flights: [], error: true },
+        cash: { count: 0, flights: [] },
+      };
+      const out = await formatFlightResults(result, rtParams, 'de');
+      assert.match(out, /Award-Verfügbarkeit.*Hinflug.*konnte.*nicht geladen/i);
+      assert.doesNotMatch(out, /Hinflug.*keine Award-Verfügbarkeit/i);
+
+      const enOut = await formatFlightResults(result, rtParams, 'en');
+      assert.match(enOut, /outbound.*could not be loaded/i);
+      assert.doesNotMatch(enOut, /No award availability.*outbound/i);
+    });
+
     it('localizes the leg headings (en)', async () => {
       const out = await formatFlightResults(makeRoundtripAwardResult(), rtParams, 'en');
       assert.match(out, /### Outbound \(1 results\)/);

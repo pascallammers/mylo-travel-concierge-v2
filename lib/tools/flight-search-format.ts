@@ -126,6 +126,10 @@ export const flightI18n = {
     de: '_Für den Hinflug wurde keine Award-Verfügbarkeit gefunden._',
     en: '_No award availability was found for the outbound leg._',
   },
+  awardOutboundProviderUnavailable: {
+    de: '_Die Award-Verfügbarkeit für den Hinflug konnte wegen einer vorübergehend nicht erreichbaren Datenquelle nicht geladen werden._',
+    en: '_Award availability for the outbound leg could not be loaded because a data source is temporarily unavailable._',
+  },
   cashHeader: {
     de: (count: number) => `## Flüge mit Barzahlung (${count} Ergebnisse)\n`,
     en: (count: number) => `## Flights with Cash (${count} results)\n`,
@@ -273,6 +277,8 @@ export async function formatFlightResults(
       sections.push(flightI18n.awardOutboundLegHeader[locale](result.seats.count));
       if (result.seats.count > 0) {
         sections.push(...renderAwardTable(result.seats.flights, locale));
+      } else if (result.seats.error) {
+        sections.push(flightI18n.awardOutboundProviderUnavailable[locale]);
       } else {
         sections.push(flightI18n.awardNoOutboundAvailability[locale]);
       }
