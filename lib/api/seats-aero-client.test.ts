@@ -76,6 +76,12 @@ function mockFetchReturning(payload: unknown) {
   return fetchMock;
 }
 
+function firstRequestedUrl(fetchMock: ReturnType<typeof mockFetchReturning>): URL {
+  const firstCall = fetchMock.mock.calls[0];
+  assert.ok(firstCall, 'expected fetch to be called');
+  return new URL(String(firstCall.arguments[0]));
+}
+
 describe('searchSeatsAero (MUC->MIA regression)', () => {
   afterEach(() => {
     global.fetch = originalFetch;
@@ -131,6 +137,35 @@ describe('searchSeatsAero (MUC->MIA regression)', () => {
         `program "${f.program}" is not a known seats.aero source`,
       );
     }
+  });
+
+  it('passes only_direct_flights to the API when onlyDirectFlights is set', async () => {
+    const fetchMock = mockFetchReturning(mucMiaThreePrograms());
+
+    await searchSeatsAero({
+      origin: 'MUC',
+      destination: 'MIA',
+      departureDate: '2026-09-01',
+      travelClass: 'BUSINESS',
+      onlyDirectFlights: true,
+    });
+
+    const calledUrl = firstRequestedUrl(fetchMock);
+    assert.strictEqual(calledUrl.searchParams.get('only_direct_flights'), 'true');
+  });
+
+  it('omits only_direct_flights by default (API default = all connections)', async () => {
+    const fetchMock = mockFetchReturning(mucMiaThreePrograms());
+
+    await searchSeatsAero({
+      origin: 'MUC',
+      destination: 'MIA',
+      departureDate: '2026-09-01',
+      travelClass: 'BUSINESS',
+    });
+
+    const calledUrl = firstRequestedUrl(fetchMock);
+    assert.strictEqual(calledUrl.searchParams.get('only_direct_flights'), null);
   });
 
   it('keeps operating carriers separate from the program', async () => {
@@ -225,8 +260,9 @@ describe('searchSeatsAero (API efficiency, MYLO-23)', () => {
     await searchSeatsAero({ ...mucMiaParams, travelClass: 'ECONOMY' });
     await searchSeatsAero({ ...mucMiaParams, departureDate: '2026-09-02' });
     await searchSeatsAero({ ...mucMiaParams, flexibility: 2 });
+    await searchSeatsAero({ ...mucMiaParams, onlyDirectFlights: true });
 
-    assert.strictEqual(fetchMock.mock.callCount(), 4, 'each distinct search hits the API once');
+    assert.strictEqual(fetchMock.mock.callCount(), 5, 'each distinct search hits the API once');
   });
 
   it('refreshes from the API once the cache TTL has expired', async (t) => {

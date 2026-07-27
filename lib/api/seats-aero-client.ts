@@ -34,6 +34,7 @@ function searchCacheKey(params: SeatsAeroSearchParams): string {
     params.flexibility || 0,
     params.travelClass,
     params.maxResults || 100,
+    params.onlyDirectFlights === true ? 'direct' : 'all',
   ].join('|');
 }
 
@@ -90,6 +91,8 @@ export interface SeatsAeroSearchParams {
   travelClass: TravelClass;
   flexibility?: number;
   maxResults?: number;
+  /** Ask seats.aero for direct flights only (API param only_direct_flights). */
+  onlyDirectFlights?: boolean;
 }
 
 /**
@@ -236,6 +239,9 @@ async function executeSeatsAeroSearch(
   // Without order_by, seats.aero sorts by date — with take-truncation the
   // cheapest options of whole programs can fall off the page.
   searchUrl.searchParams.set('order_by', 'lowest_mileage');
+  if (params.onlyDirectFlights) {
+    searchUrl.searchParams.set('only_direct_flights', 'true');
+  }
 
   console.log('[Seats.aero] Searching:', searchUrl.toString());
 

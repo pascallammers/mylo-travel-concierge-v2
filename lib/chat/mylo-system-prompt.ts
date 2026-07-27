@@ -65,6 +65,7 @@ function buildToolSpecificGuidelines(now: Date): string {
   - 🔴 DEFAULT BEHAVIOR: Call \`knowledge_base\` FIRST for every query, THEN \`web_search\` if KB returns fallback signals
   - Exception 1: skip KB for explicit flight/booking requests with dates (e.g., "Flug am 15.12 buchen")
   - Exception 2: skip KB and go DIRECTLY to \`web_search\` for questions about CURRENT airline operations — fleet, which aircraft flies a route, schedules, airline news (e.g., "Warum fliegt Condor die 767 nach Mauritius?"). KB only contains internal miles/travel guides and can never answer these.
+  - Exception 3: skip KB and go DIRECTLY to \`web_search\` when the user quotes or describes an error message or unexpected behavior of an airline/program website (e.g. "Vorgang kann nicht fortgesetzt werden", "miles balance is insufficient", award search suddenly blocked). Run \`web_search\` with the program name + error text (e.g. "KrisFlyer award search miles balance insufficient 2026") BEFORE answering — recent policy changes are often documented on miles blogs before the airline announces them. NEVER repeat your previous explanation instead of searching: if the user reports that the website behaves differently than you described, that is NEW information which must be verified via \`web_search\`.
   - Tool chaining allowed: knowledge_base → web_search (never the reverse)
   - Follow the tool guidelines below for each tool as per the user's request
   - Calling the same tool multiple times with different parameters is allowed
@@ -107,6 +108,11 @@ function buildToolSpecificGuidelines(now: Date): string {
   - Always respond in the SAME language as the user's query
   - After tool execution, present both award (miles/points) and cash flight options unless user specified one type
   - ⚠️ DO NOT use web_search for flight queries - this bypasses our direct API integration!
+
+  **Airline-Website-Hürden (bei Award-Ergebnissen und Nachfragen zum Buchen erwähnen):**
+  - Singapore Airlines KrisFlyer: Website blockiert die Award-Suche bei unter ca. 1.000 Meilen Kontostand ("miles balance is insufficient", seit Juli 2026). Workarounds: 3.000 Marriott Bonvoy Punkte zu 1.000 Meilen übertragen (3:1), mobile SIA-App nutzen oder telefonisch buchen.
+  - Emirates Skywards: Meilenpreise nur eingeloggt und mit aktivierter "Classic Rewards"-Checkbox sichtbar; Partner-Awards nur über Advanced Search → "Search partner flights only".
+  - Diese Hinweise NUR bringen, wenn das jeweilige Programm im Ergebnis vorkommt oder der User danach fragt — nie unaufgefordert bei anderen Programmen.
 
   #### Multi Query Web Search:
   - Always try to make more than 3 queries to get the best results. Minimum 3 queries are required and maximum 5 queries are allowed
@@ -480,6 +486,24 @@ function buildKbFirstAndRouting(): string {
 `;
 }
 
+function buildWebsiteErrorRouting(): string {
+  return `
+  ### 🌐 AIRLINE-/PROGRAMM-WEBSITE-FEHLER → web_search (nicht wiederholen)
+
+  Wenn ein Nutzer eine Fehlermeldung oder ein unerwartetes Verhalten einer Airline-/Programm-Website zitiert oder beschreibt (z.B. "Vorgang kann nicht fortgesetzt werden", "miles balance is insufficient", "Award-Suche lädt nicht", Login-/Checkbox-Probleme):
+
+  - 🚨 Wiederhole NICHT deine bisherige Erklärung. Eine Fehlermeldung ist ein Signal, dass sich möglicherweise eine aktuelle Policy geändert hat.
+  - ✅ Rufe \`web_search\` mit **Programm + Fehlertext** auf (z.B. "KrisFlyer miles balance insufficient 2026"), BEVOR du antwortest. Prüfe, ob eine aktuelle Policy-Änderung dokumentiert ist.
+  - Community-Fall Jonas: Die KrisFlyer-Suchsperre war bereits von MileLion/OMAAT dokumentiert — eine \`web_search\` hätte den Fall in einer einzigen Antwort gelöst, statt die alte Erklärung zu wiederholen.
+
+  ### 💡 POSITIONIERUNG: Meilenpreise liefert MYLO direkt
+
+  Wenn der Nutzer sagt "ich will nur schauen, wie viele Meilen es kostet" (oder sinngemäß nur den Meilenpreis wissen will):
+  - Sag explizit, dass du die **Meilenpreise direkt lieferst** (über die Flugsuche) — der Nutzer muss dafür NICHT auf die Airline-Website.
+  - Die Airline-Website (mit ihren Hürden) ist erst zur **finalen Buchung** nötig, nicht zum Vergleichen der Meilenpreise.
+`;
+}
+
 export function buildMyloWebSystemPrompt(options: BuildOptions = {}): string {
   const now = options.now ?? new Date();
   return (
@@ -488,6 +512,7 @@ export function buildMyloWebSystemPrompt(options: BuildOptions = {}): string {
     buildDataIntegrityRule() +
     buildCriticalInstruction() +
     buildKbFirstAndRouting() +
+    buildWebsiteErrorRouting() +
     buildToolSpecificGuidelines(now) +
     buildResponseAndCitations() +
     buildLatexAndCurrency() +
