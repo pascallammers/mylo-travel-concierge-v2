@@ -174,6 +174,50 @@ describe('searchSeatsAero (API efficiency, MYLO-23)', () => {
     assert.deepStrictEqual(second, first, 'cached result matches the live result');
   });
 
+  it('does not expose cached results to mutations by callers', async () => {
+    const fetchMock = mockFetchReturning(mucMiaThreePrograms());
+
+    const first = await searchSeatsAero(mucMiaParams);
+    first[0]!.airline = 'MUTATED';
+
+    const second = await searchSeatsAero(mucMiaParams);
+    assert.strictEqual(fetchMock.mock.callCount(), 1, 'second search must still use the cache');
+    assert.notStrictEqual(second[0]!.airline, 'MUTATED', 'caller mutation must not leak into the cache');
+
+    second[0]!.outbound.departure.airport = 'XXX';
+    const third = await searchSeatsAero(mucMiaParams);
+    assert.notStrictEqual(
+      third[0]!.outbound.departure.airport,
+      'XXX',
+      'nested caller mutation must not leak into later cache hits',
+    );
+  });
+
+  it('coalesces concurrent identical searches into one API request', async () => {
+    let resolveFetch!: (response: Response) => void;
+    const responsePromise = new Promise<Response>((resolve) => {
+      resolveFetch = resolve;
+    });
+    const fetchMock = mock.fn((_url: string | URL) => responsePromise);
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const firstPromise = searchSeatsAero(mucMiaParams);
+    const secondPromise = searchSeatsAero(mucMiaParams);
+
+    assert.strictEqual(fetchMock.mock.callCount(), 1, 'identical in-flight searches must share one API request');
+
+    resolveFetch(
+      new Response(JSON.stringify(mucMiaThreePrograms()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    const [first, second] = await Promise.all([firstPromise, secondPromise]);
+
+    assert.deepStrictEqual(second, first);
+    assert.notStrictEqual(second, first, 'concurrent callers must receive independent result arrays');
+  });
+
   it('does not share cache entries across different search parameters', async () => {
     const fetchMock = mockFetchReturning(mucMiaThreePrograms());
 

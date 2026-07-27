@@ -20,6 +20,11 @@ interface SearchCacheEntry {
 }
 
 const searchCache = new Map<string, SearchCacheEntry>();
+const inFlightSearches = new Map<string, Promise<SeatsAeroFlight[]>>();
+
+function cloneSearchResults(flights: SeatsAeroFlight[]): SeatsAeroFlight[] {
+  return structuredClone(flights);
+}
 
 function searchCacheKey(params: SeatsAeroSearchParams): string {
   return [
@@ -39,7 +44,7 @@ function getCachedSearch(key: string): SeatsAeroFlight[] | null {
     searchCache.delete(key);
     return null;
   }
-  return entry.flights;
+  return cloneSearchResults(entry.flights);
 }
 
 function setCachedSearch(key: string, flights: SeatsAeroFlight[]): void {
@@ -47,12 +52,20 @@ function setCachedSearch(key: string, flights: SeatsAeroFlight[]): void {
     const oldestKey = searchCache.keys().next().value;
     if (oldestKey !== undefined) searchCache.delete(oldestKey);
   }
-  searchCache.set(key, { flights, cachedAt: Date.now() });
+  searchCache.set(key, {
+    flights: cloneSearchResults(flights),
+    cachedAt: Date.now(),
+  });
 }
 
-/** Test hook: reset the search cache between test cases. */
+/**
+ * Reset completed and in-flight search caches between test cases.
+ *
+ * @returns Nothing.
+ */
 export function clearSeatsAeroSearchCache(): void {
   searchCache.clear();
+  inFlightSearches.clear();
 }
 
 /**
@@ -135,13 +148,34 @@ export async function searchSeatsAero(
     return cached;
   }
 
+  const inFlight = inFlightSearches.get(cacheKey);
+  if (inFlight) {
+    console.log(`[Seats.aero] Joining in-flight search for ${cacheKey}`);
+    return cloneSearchResults(await inFlight);
+  }
+
+  const searchPromise = executeSeatsAeroSearchWithRetry(params);
+  inFlightSearches.set(cacheKey, searchPromise);
+
+  try {
+    const flights = await searchPromise;
+    setCachedSearch(cacheKey, flights);
+    return cloneSearchResults(flights);
+  } finally {
+    if (inFlightSearches.get(cacheKey) === searchPromise) {
+      inFlightSearches.delete(cacheKey);
+    }
+  }
+}
+
+async function executeSeatsAeroSearchWithRetry(
+  params: SeatsAeroSearchParams,
+): Promise<SeatsAeroFlight[]> {
   let lastError: Error | undefined;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const flights = await executeSeatsAeroSearch(params);
-      setCachedSearch(cacheKey, flights);
-      return flights;
+      return await executeSeatsAeroSearch(params);
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
 
