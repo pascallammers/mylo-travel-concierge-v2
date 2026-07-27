@@ -138,6 +138,10 @@ function fixtureFromCandidate(c: Candidate & { anon: string }, n: number): strin
     userQuery: ${JSON.stringify(c.anon)},
     expectedTool: '${c.toolName}',
     reason: 'Production: this user query routed to ${c.toolName} successfully. Eval captures that behavior as the regression baseline.',
+    // Pin the prompt clock to the extraction moment so relative dates in the
+    // query ("Am 24.07.") stay in the future forever instead of tripping the
+    // past-date guard once the calendar passes them.
+    now: new Date('${c.createdAt.toISOString()}'),
   },`;
 }
 
