@@ -12,9 +12,9 @@ import {
   buildSkyscannerUrl,
 } from '@/lib/utils/flight-search-links';
 import { getProgramDisplayName } from '@/lib/api/award-search/program-registry';
-import {
-  formatTransferRatio,
-  getTransferSourcesForAwardProgram,
+import type {
+  AwardProgramTransferSource,
+  TransferPartner,
 } from '@/lib/config/transfer-engine';
 
 // Booking-session creator is injected to keep the renderer free of the
@@ -29,6 +29,13 @@ export type BookingSessionCreator = (params: {
 }) => Promise<{ url: string }>;
 
 export type FlightLocale = 'de' | 'en';
+
+export interface TransferHintDependencies {
+  getTransferSourcesForAwardProgram: (
+    slug: string,
+  ) => AwardProgramTransferSource[];
+  formatTransferRatio: (partner: TransferPartner) => string;
+}
 
 export const flightI18n = {
   pastDepartDate: {
@@ -175,12 +182,24 @@ function formatTime(timeStr: string): string {
  * Partner entries typed 'other' are indirect routes (PAYBACK -> Miles & More)
  * and get a "via <partner>" marker so they don't read as direct transfers.
  */
-function renderTransferSources(flights: any[], locale: FlightLocale): string[] {
-  const slugs = [...new Set(flights.map((f: any) => f.program).filter(Boolean))];
+function renderTransferSources(
+  flights: ReadonlyArray<{ program?: string }>,
+  locale: FlightLocale,
+  dependencies?: TransferHintDependencies,
+): string[] {
+  if (!dependencies) return [];
+
+  const slugs = [
+    ...new Set(
+      flights
+        .map(({ program }) => program)
+        .filter((program): program is string => Boolean(program)),
+    ),
+  ];
   const lines: string[] = [];
 
   for (const slug of slugs) {
-    const sources = getTransferSourcesForAwardProgram(slug);
+    const sources = dependencies.getTransferSourcesForAwardProgram(slug);
     if (sources.length === 0) continue;
 
     const dach = sources.filter((s) => s.sourceProgramId === 'amex_dach');
@@ -192,7 +211,7 @@ function renderTransferSources(flights: any[], locale: FlightLocale): string[] {
           s.partner.type === 'other'
             ? ` ${flightI18n.transferHintVia[locale]} ${s.partner.name}`
             : '';
-        return `${s.sourceProgramLabel[locale]}${via} ${formatTransferRatio(s.partner)}`;
+        return `${s.sourceProgramLabel[locale]}${via} ${dependencies.formatTransferRatio(s.partner)}`;
       })
       .join(', ');
 
@@ -218,6 +237,7 @@ export async function formatFlightResults(
   params: any,
   locale: FlightLocale = 'de',
   createBookingSession?: BookingSessionCreator,
+  transferHintDependencies?: TransferHintDependencies,
 ): Promise<string> {
   const sections: string[] = [];
   const partialFailures: string[] = [];
@@ -278,7 +298,13 @@ export async function formatFlightResults(
     });
     sections.push('');
     sections.push(flightI18n.transferHintIntro[locale]);
-    sections.push(...renderTransferSources(result.seats.flights, locale));
+    sections.push(
+      ...renderTransferSources(
+        result.seats.flights,
+        locale,
+        transferHintDependencies,
+      ),
+    );
     sections.push('');
   }
 

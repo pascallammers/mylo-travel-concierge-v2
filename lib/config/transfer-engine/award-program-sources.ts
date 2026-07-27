@@ -7,12 +7,6 @@
  * engine stays the single source of truth.
  */
 
-import { AMEX_DACH_PARTNERS } from './dach';
-import { AMEX_US_PARTNERS } from './us-amex';
-import { BILT_PARTNERS } from './us-bilt';
-import { CAPITAL_ONE_PARTNERS } from './us-capital-one';
-import { CHASE_PARTNERS } from './us-chase';
-import { CITI_PARTNERS } from './us-citi';
 import type { LocalizedString, PartnerMap, TransferPartner } from './types';
 
 /** Source-program ids, aligned with the transfer-partner-optimizer tool enum. */
@@ -31,42 +25,11 @@ export interface AwardProgramTransferSource {
   partner: TransferPartner;
 }
 
-const SOURCE_PROGRAMS: Array<{
+export interface AwardProgramSourceProgram {
   id: SourceProgramId;
   label: LocalizedString;
   partners: PartnerMap;
-}> = [
-  {
-    id: 'amex_dach',
-    label: { de: 'Amex Membership Rewards (DACH)', en: 'Amex Membership Rewards (DACH)' },
-    partners: AMEX_DACH_PARTNERS,
-  },
-  {
-    id: 'amex_us',
-    label: { de: 'Amex Membership Rewards (US)', en: 'Amex Membership Rewards (US)' },
-    partners: AMEX_US_PARTNERS,
-  },
-  {
-    id: 'chase_ur',
-    label: { de: 'Chase Ultimate Rewards', en: 'Chase Ultimate Rewards' },
-    partners: CHASE_PARTNERS,
-  },
-  {
-    id: 'bilt',
-    label: { de: 'Bilt Rewards', en: 'Bilt Rewards' },
-    partners: BILT_PARTNERS,
-  },
-  {
-    id: 'capital_one',
-    label: { de: 'Capital One Miles', en: 'Capital One Miles' },
-    partners: CAPITAL_ONE_PARTNERS,
-  },
-  {
-    id: 'citi_ty',
-    label: { de: 'Citi ThankYou Points', en: 'Citi ThankYou Points' },
-    partners: CITI_PARTNERS,
-  },
-];
+}
 
 /**
  * seats.aero `Source` slug -> partner-map key. Partner ids are consistent
@@ -101,27 +64,30 @@ const AWARD_PROGRAM_TO_PARTNER_ID: Record<string, string> = {
 };
 
 /**
- * List all card programs that transfer into the given seats.aero award
- * program, best effective rate first. Returns `[]` for unknown slugs or
- * programs without any transfer route.
+ * Create a resolver for seats.aero award-program transfer sources.
+ *
+ * @param sourcePrograms - Regional source programs and their partner maps.
+ * @returns A resolver that lists matching sources best effective rate first.
  */
-export function getTransferSourcesForAwardProgram(
-  slug: string,
-): AwardProgramTransferSource[] {
-  const partnerId = AWARD_PROGRAM_TO_PARTNER_ID[slug];
-  if (!partnerId) return [];
+export function createAwardProgramSourceResolver(
+  sourcePrograms: ReadonlyArray<AwardProgramSourceProgram>,
+): (slug: string) => AwardProgramTransferSource[] {
+  return (slug) => {
+    const partnerId = AWARD_PROGRAM_TO_PARTNER_ID[slug];
+    if (!partnerId) return [];
 
-  const sources: AwardProgramTransferSource[] = [];
-  for (const program of SOURCE_PROGRAMS) {
-    const partner = program.partners[partnerId];
-    if (!partner) continue;
-    sources.push({
-      sourceProgramId: program.id,
-      sourceProgramLabel: program.label,
-      partnerId,
-      partner,
-    });
-  }
+    const sources: AwardProgramTransferSource[] = [];
+    for (const program of sourcePrograms) {
+      const partner = program.partners[partnerId];
+      if (!partner) continue;
+      sources.push({
+        sourceProgramId: program.id,
+        sourceProgramLabel: program.label,
+        partnerId,
+        partner,
+      });
+    }
 
-  return sources.sort((a, b) => b.partner.effectiveRate - a.partner.effectiveRate);
+    return sources.sort((a, b) => b.partner.effectiveRate - a.partner.effectiveRate);
+  };
 }

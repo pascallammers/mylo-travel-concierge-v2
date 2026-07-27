@@ -10,6 +10,10 @@ import {
   FlightSearchLinkParams,
 } from '@/lib/utils/flight-search-links';
 import { createDuffelBookingSession } from '@/lib/utils/duffel-links';
+import {
+  formatTransferRatio,
+  getTransferSourcesForAwardProgram,
+} from '@/lib/config/transfer-engine';
 import { formatGracefulFlightError, formatFlightErrorWithAlternatives, AlternativeAirport } from '@/lib/utils/tool-error-response';
 import { logFailedSearch } from '@/lib/db/queries/failed-search';
 import { flightI18n, formatFlightResults, type FlightLocale } from './flight-search-format';
@@ -535,7 +539,13 @@ Examples of queries that should trigger this tool:
 
       // Format response for LLM (inject real booking-session creator;
       // flight-search-format keeps the renderer free of the server env graph)
-      return await formatFlightResults(result, params, locale, createDuffelBookingSession);
+      return await formatFlightResults(
+        result,
+        params,
+        locale,
+        createDuffelBookingSession,
+        { formatTransferRatio, getTransferSourcesForAwardProgram },
+      );
     } catch (error) {
       console.error('[Flight Search] ❌ Error:', error);
 
