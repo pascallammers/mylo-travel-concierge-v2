@@ -239,4 +239,24 @@ describe('flight-search tool factory integration', () => {
 
     assert.strictEqual(retainedAwards.length, 3);
   });
+
+  it('treats an intentionally skipped cash provider as no results for award-only searches', async () => {
+    let cashProviderCalls = 0;
+    const tool = createFlightSearchTool(dependencies({
+      searchSeatsAero: async () => [],
+      searchDuffel: async () => {
+        cashProviderCalls += 1;
+        return [];
+      },
+    }));
+
+    const result = await tool.execute!(
+      { ...params, awardOnly: true },
+      executeOptions(),
+    );
+
+    assert.strictEqual(cashProviderCalls, 0);
+    assert.ok(typeof result === 'string');
+    assert.match(result, /"type":"no_results_offer_flexible"/);
+  });
 });

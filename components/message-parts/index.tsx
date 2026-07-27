@@ -31,7 +31,6 @@ import {
   DataQueryCompletionPart,
   DataExtremeSearchPart,
   ChatTools,
-  type FlexibleDateFlight,
 } from '@/lib/types';
 import { UseChatHelpers } from '@ai-sdk/react';
 import { MyloLogoHeader } from '@/components/mylo-logo-header';
@@ -67,7 +66,6 @@ import {
   TextIcon,
   Pause,
   Play as PlayIcon,
-  Calendar,
 } from 'lucide-react';
 import {
   RedditLogoIcon,
@@ -76,6 +74,7 @@ import {
   MemoryIcon,
 } from '@phosphor-icons/react';
 import { ComprehensiveUserData } from '@/lib/user-data-server';
+import { FlexibleDateResults } from './flexible-date-results';
 
 // Lazy load tool components
 const FlightTracker = lazy(() =>
@@ -326,109 +325,6 @@ const ToolErrorDisplay = ({ errorText, toolName }: { errorText: string; toolName
     </div>
   </div>
 );
-
-// Compact flight card for flexible date results
-const FlexibleDateFlightCard = ({
-  flight,
-  locale,
-}: {
-  flight: FlexibleDateFlight;
-  locale: 'de' | 'en';
-}) => {
-  // Determine if this is a Seats.aero (award) or Duffel (cash) flight
-  const isAward = flight.source === 'seats.aero';
-  const awardPrice = typeof flight.price === 'string' ? flight.price : undefined;
-  const cashPrice =
-    typeof flight.price === 'object' && flight.price !== null
-      ? flight.price
-      : undefined;
-
-  // Format price display
-  const priceDisplay = isAward
-    ? awardPrice || 'N/A'
-    : cashPrice?.total
-      ? `${cashPrice.total} ${cashPrice.currency || 'EUR'}`
-      : 'N/A';
-
-  // Format departure info
-  const departureAirport = isAward
-    ? flight.outbound?.departure?.airport || flight.origin || 'N/A'
-    : flight.departure?.airport || 'N/A';
-
-  const arrivalAirport = isAward
-    ? flight.outbound?.arrival?.airport || flight.destination || 'N/A'
-    : flight.arrival?.airport || 'N/A';
-
-  const departureTime = isAward
-    ? flight.outbound?.departure?.time || 'N/A'
-    : flight.departure?.time
-      ? new Date(flight.departure.time).toLocaleTimeString(
-          locale === 'en' ? 'en-US' : 'de-DE',
-          { hour: '2-digit', minute: '2-digit' },
-        )
-      : 'N/A';
-
-  const arrivalTime = isAward
-    ? flight.outbound?.arrival?.time || 'N/A'
-    : flight.arrival?.time
-      ? new Date(flight.arrival.time).toLocaleTimeString(
-          locale === 'en' ? 'en-US' : 'de-DE',
-          { hour: '2-digit', minute: '2-digit' },
-        )
-      : 'N/A';
-
-  const airline = flight.airline || 'Unknown';
-  const duration = isAward ? flight.outbound?.duration : flight.duration;
-
-  return (
-    <div className="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        {/* Left: Flight info */}
-        <div className="flex-1 min-w-0">
-          {/* Date badge - prominent per CONTEXT.md */}
-          {flight.searchedDate && (
-            <p className="text-sm font-medium text-primary mb-1">
-              {new Date(flight.searchedDate).toLocaleDateString('de-DE', {
-                weekday: 'short',
-                day: '2-digit',
-                month: 'short',
-              })}
-            </p>
-          )}
-          <div className="flex items-center gap-2 text-sm">
-            <span className="font-medium">{departureAirport}</span>
-            <span className="text-muted-foreground">{departureTime}</span>
-            <span className="text-muted-foreground">→</span>
-            <span className="font-medium">{arrivalAirport}</span>
-            <span className="text-muted-foreground">{arrivalTime}</span>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-            <Plane className="h-3 w-3" />
-            <span>{airline}</span>
-            {duration && <span>• {duration}</span>}
-          </div>
-        </div>
-
-        {/* Right: Price and date label */}
-        <div className="flex flex-col items-end gap-1">
-          {/* Date offset badge */}
-          {flight.dateLabel && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-              {flight.dateLabel}
-            </span>
-          )}
-          {/* Price */}
-          <span className={`text-sm font-semibold ${isAward ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
-            {priceDisplay}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {isAward ? 'Meilen' : 'Cash'}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 interface MessagePartRendererProps {
   part: ChatMessage['parts'][number];
@@ -2203,73 +2099,11 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
 
                     // Check for flexible date results
                     if (parsed.type === 'flexible_date_results') {
-                      const awardFlights: FlexibleDateFlight[] = parsed.awardFlights ?? [];
-                      const cashFlights: FlexibleDateFlight[] = parsed.cashFlights ?? [];
-                      const legacyFlights: FlexibleDateFlight[] = parsed.flights ?? [];
-                      const resultLocale: 'de' | 'en' =
-                        parsed.locale === 'en' ? 'en' : 'de';
-                      const labels = parsed.labels ?? {
-                        dateRangePrefix: 'Ergebnisse vom',
-                        dateRangeSeparator: 'bis',
-                        awardFlights: 'Flüge mit Meilen/Punkten',
-                        cashFlights: 'Flüge mit Barzahlung',
-                        truncated:
-                          'Top 5 Ergebnisse pro Kategorie angezeigt (sortiert nach Preis)',
-                      };
-                      const dateLocale = resultLocale === 'en' ? 'en-US' : 'de-DE';
                       return (
-                        <div key={`${messageIndex}-${partIndex}-tool`} className="space-y-4">
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Calendar className="h-4 w-4" />
-                            <span>
-                              {labels.dateRangePrefix}{' '}
-                              {new Date(parsed.dateRange.start).toLocaleDateString(dateLocale)}{' '}
-                              {labels.dateRangeSeparator}{' '}
-                              {new Date(parsed.dateRange.end).toLocaleDateString(dateLocale)}
-                            </span>
-                          </div>
-                          {awardFlights.length > 0 && (
-                            <div className="space-y-3">
-                              <h4 className="text-sm font-medium">{labels.awardFlights}</h4>
-                              {awardFlights.map((flight, idx) => (
-                                <FlexibleDateFlightCard
-                                  key={flight.id || `award-flight-${idx}`}
-                                  flight={flight}
-                                  locale={resultLocale}
-                                />
-                              ))}
-                            </div>
-                          )}
-                          {cashFlights.length > 0 && (
-                            <div className="space-y-3">
-                              <h4 className="text-sm font-medium">{labels.cashFlights}</h4>
-                              {cashFlights.map((flight, idx) => (
-                                <FlexibleDateFlightCard
-                                  key={flight.id || `cash-flight-${idx}`}
-                                  flight={flight}
-                                  locale={resultLocale}
-                                />
-                              ))}
-                            </div>
-                          )}
-                          {legacyFlights.length > 0 && (
-                            <div className="space-y-3">
-                              {legacyFlights.map((flight, idx) => (
-                                <FlexibleDateFlightCard
-                                  key={flight.id || `flight-${idx}`}
-                                  flight={flight}
-                                  locale={resultLocale}
-                                />
-                              ))}
-                            </div>
-                          )}
-                          {(parsed.awardFlightsTruncated === true ||
-                            parsed.cashFlightsTruncated === true) && (
-                            <p className="text-xs text-muted-foreground text-center">
-                              {labels.truncated}
-                            </p>
-                          )}
-                        </div>
+                        <FlexibleDateResults
+                          key={`${messageIndex}-${partIndex}-tool`}
+                          data={parsed}
+                        />
                       );
                     }
 

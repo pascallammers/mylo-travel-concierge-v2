@@ -277,7 +277,7 @@ Examples of queries that should trigger this tool:
 
       // Track which providers failed (null means error, empty array means no results)
       const seatsError = seatsResult === null;
-      const duffelError = duffelResult === null;
+      const duffelError = !params.awardOnly && duffelResult === null;
 
       // Build search params for fallback links
       const searchLinkParams: FlightSearchLinkParams = {
@@ -436,7 +436,13 @@ Examples of queries that should trigger this tool:
       if (isFlexibleDateSearch && (hasSeats || hasDuffel)) {
         console.log('[Flight Search] Processing flexible date results');
         return JSON.stringify(
-          buildFlexibleDateResults(seatsResult, duffelResult, params, locale),
+          buildFlexibleDateResults(
+            seatsResult,
+            duffelResult,
+            params,
+            locale,
+            flightI18n,
+          ),
         );
       }
 
