@@ -31,6 +31,69 @@ function waitForRetryDelay(
   });
 }
 
+// Short-lived TTL cache for search results (MYLO-23). The seats.aero daily
+// quota is shared between chat search and the deal scanner, so a repeated
+// identical route+dates+cabin lookup within the TTL must not burn a second
+// call. Modeled on lib/performance-cache, kept local to avoid pulling the db
+// layer into this client.
+const SEARCH_CACHE_TTL_MS = 10 * 60 * 1000;
+const SEARCH_CACHE_MAX_ENTRIES = 200;
+
+interface SearchCacheEntry {
+  flights: SeatsAeroFlight[];
+  cachedAt: number;
+}
+
+const searchCache = new Map<string, SearchCacheEntry>();
+const inFlightSearches = new Map<string, Promise<SeatsAeroFlight[]>>();
+
+function cloneSearchResults(flights: SeatsAeroFlight[]): SeatsAeroFlight[] {
+  return structuredClone(flights);
+}
+
+function searchCacheKey(params: SeatsAeroSearchParams): string {
+  return [
+    params.origin,
+    params.destination,
+    params.departureDate,
+    params.flexibility || 0,
+    params.travelClass,
+    params.maxResults || 100,
+    params.onlyDirectFlights === true ? 'direct' : 'all',
+  ].join('|');
+}
+
+function getCachedSearch(key: string): SeatsAeroFlight[] | null {
+  const entry = searchCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.cachedAt > SEARCH_CACHE_TTL_MS) {
+    searchCache.delete(key);
+    return null;
+  }
+  return cloneSearchResults(entry.flights);
+}
+
+function setCachedSearch(key: string, flights: SeatsAeroFlight[]): void {
+  if (searchCache.size >= SEARCH_CACHE_MAX_ENTRIES) {
+    const oldestKey = searchCache.keys().next().value;
+    if (oldestKey !== undefined) searchCache.delete(oldestKey);
+  }
+  searchCache.set(key, {
+    flights: cloneSearchResults(flights),
+    cachedAt: Date.now(),
+  });
+}
+
+/**
+ * Reset completed and in-flight search caches between test cases.
+ *
+ * @returns Nothing.
+ */
+export function clearSeatsAeroSearchCache(): void {
+  searchCache.clear();
+  inFlightSearches.clear();
+}
+
 /**
  * Cabin class mapping for Seats.aero API
  */
@@ -108,6 +171,47 @@ export async function searchSeatsAero(
   params: SeatsAeroSearchParams,
   signal?: AbortSignal
 ): Promise<SeatsAeroFlight[]> {
+  const cacheKey = searchCacheKey(params);
+  const cached = getCachedSearch(cacheKey);
+  if (cached) {
+    console.log(`[Seats.aero] Cache hit for ${cacheKey}, skipping API call`);
+    return cached;
+  }
+
+  // An abort signal belongs to one caller. Sharing its provider request would
+  // let one cancelled chat abort another caller's identical search. Abortable
+  // requests therefore keep their own in-flight operation, while successful
+  // results still populate the shared completed-result cache.
+  if (signal) {
+    const flights = await executeSeatsAeroSearchWithRetry(params, signal);
+    setCachedSearch(cacheKey, flights);
+    return cloneSearchResults(flights);
+  }
+
+  const inFlight = inFlightSearches.get(cacheKey);
+  if (inFlight) {
+    console.log(`[Seats.aero] Joining in-flight search for ${cacheKey}`);
+    return cloneSearchResults(await inFlight);
+  }
+
+  const searchPromise = executeSeatsAeroSearchWithRetry(params);
+  inFlightSearches.set(cacheKey, searchPromise);
+
+  try {
+    const flights = await searchPromise;
+    setCachedSearch(cacheKey, flights);
+    return cloneSearchResults(flights);
+  } finally {
+    if (inFlightSearches.get(cacheKey) === searchPromise) {
+      inFlightSearches.delete(cacheKey);
+    }
+  }
+}
+
+async function executeSeatsAeroSearchWithRetry(
+  params: SeatsAeroSearchParams,
+  signal?: AbortSignal,
+): Promise<SeatsAeroFlight[]> {
   let lastError: Error | undefined;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -175,6 +279,9 @@ async function executeSeatsAeroSearch(
   searchUrl.searchParams.set('end_date', formatDate(endDate));
   searchUrl.searchParams.set('take', String(params.maxResults || 100));
   searchUrl.searchParams.set('include_trips', 'true');
+  // Without order_by, seats.aero sorts by date — with take-truncation the
+  // cheapest options of whole programs can fall off the page.
+  searchUrl.searchParams.set('order_by', 'lowest_mileage');
   if (params.onlyDirectFlights) {
     searchUrl.searchParams.set('only_direct_flights', 'true');
   }
@@ -197,6 +304,15 @@ async function executeSeatsAeroSearch(
   }
 
   const data = await response.json();
+
+  // take-truncation: seats.aero signals more pages via hasMore. We don't
+  // paginate (quota), but order_by=lowest_mileage keeps the cheapest options
+  // on the first page — surface the truncation for visibility.
+  if (data?.hasMore) {
+    console.warn(
+      `[Seats.aero] Response truncated (hasMore=true) at take=${params.maxResults || 100} for ${params.origin}->${params.destination}; cheapest options retained via order_by=lowest_mileage`
+    );
+  }
 
   // Parse raw JSON -> AwardFlight[] (reads Source as the program), then keep
   // only the requested cabin and collapse to the cheapest-per-program slice.

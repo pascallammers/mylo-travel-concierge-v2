@@ -16,7 +16,7 @@
 import assert from 'node:assert';
 import { afterEach, describe, it, mock } from 'node:test';
 
-import { searchSeatsAero } from './seats-aero-client';
+import { clearSeatsAeroSearchCache, searchSeatsAero } from './seats-aero-client';
 import { KNOWN_PROGRAM_SLUGS } from './award-search/program-registry';
 
 const originalFetch = global.fetch;
@@ -85,6 +85,7 @@ function firstRequestedUrl(fetchMock: ReturnType<typeof mockFetchReturning>): UR
 describe('searchSeatsAero (MUC->MIA regression)', () => {
   afterEach(() => {
     global.fetch = originalFetch;
+    clearSeatsAeroSearchCache();
   });
 
   it('surfaces every distinct mileage program, not just the operating carrier', async () => {
@@ -227,5 +228,185 @@ describe('searchSeatsAero (MUC->MIA regression)', () => {
       Date.now() - startedAt < 500,
       'cancellation should not wait for the one-second retry delay',
     );
+  });
+});
+
+describe('searchSeatsAero (API efficiency, MYLO-23)', () => {
+  afterEach(() => {
+    global.fetch = originalFetch;
+    clearSeatsAeroSearchCache();
+  });
+
+  const mucMiaParams = {
+    origin: 'MUC',
+    destination: 'MIA',
+    departureDate: '2026-09-01',
+    travelClass: 'BUSINESS',
+    maxResults: 100,
+  } as const;
+
+  it('serves a repeated identical search from cache without a second API call', async () => {
+    const fetchMock = mockFetchReturning(mucMiaThreePrograms());
+
+    const first = await searchSeatsAero(mucMiaParams);
+    const second = await searchSeatsAero(mucMiaParams);
+
+    assert.strictEqual(fetchMock.mock.callCount(), 1, 'second search must not hit the API');
+    assert.deepStrictEqual(second, first, 'cached result matches the live result');
+  });
+
+  it('does not expose cached results to mutations by callers', async () => {
+    const fetchMock = mockFetchReturning(mucMiaThreePrograms());
+
+    const first = await searchSeatsAero(mucMiaParams);
+    first[0]!.airline = 'MUTATED';
+
+    const second = await searchSeatsAero(mucMiaParams);
+    assert.strictEqual(fetchMock.mock.callCount(), 1, 'second search must still use the cache');
+    assert.notStrictEqual(second[0]!.airline, 'MUTATED', 'caller mutation must not leak into the cache');
+
+    second[0]!.outbound.departure.airport = 'XXX';
+    const third = await searchSeatsAero(mucMiaParams);
+    assert.notStrictEqual(
+      third[0]!.outbound.departure.airport,
+      'XXX',
+      'nested caller mutation must not leak into later cache hits',
+    );
+  });
+
+  it('coalesces concurrent identical searches into one API request', async () => {
+    let resolveFetch!: (response: Response) => void;
+    const responsePromise = new Promise<Response>((resolve) => {
+      resolveFetch = resolve;
+    });
+    const fetchMock = mock.fn((_url: string | URL) => responsePromise);
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const firstPromise = searchSeatsAero(mucMiaParams);
+    const secondPromise = searchSeatsAero(mucMiaParams);
+
+    assert.strictEqual(fetchMock.mock.callCount(), 1, 'identical in-flight searches must share one API request');
+
+    resolveFetch(
+      new Response(JSON.stringify(mucMiaThreePrograms()), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    const [first, second] = await Promise.all([firstPromise, secondPromise]);
+
+    assert.deepStrictEqual(second, first);
+    assert.notStrictEqual(second, first, 'concurrent callers must receive independent result arrays');
+  });
+
+  it('does not let one abortable caller cancel another identical search', async () => {
+    const firstController = new AbortController();
+    const secondController = new AbortController();
+    let invocation = 0;
+    const fetchMock = mock.fn((_url: string | URL, init?: RequestInit) => {
+      invocation += 1;
+      if (invocation === 1) {
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener(
+            'abort',
+            () => reject(init.signal?.reason),
+            { once: true },
+          );
+        });
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify(mucMiaThreePrograms()), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const first = searchSeatsAero(mucMiaParams, firstController.signal);
+    const second = searchSeatsAero(mucMiaParams, secondController.signal);
+    firstController.abort(new DOMException('First caller cancelled', 'AbortError'));
+
+    await assert.rejects(first, { name: 'AbortError' });
+    const secondResult = await second;
+
+    assert.strictEqual(fetchMock.mock.callCount(), 2);
+    assert.ok(secondResult.length > 0, 'the independent caller must still succeed');
+  });
+
+  it('does not share cache entries across different search parameters', async () => {
+    const fetchMock = mockFetchReturning(mucMiaThreePrograms());
+
+    await searchSeatsAero(mucMiaParams);
+    await searchSeatsAero({ ...mucMiaParams, travelClass: 'ECONOMY' });
+    await searchSeatsAero({ ...mucMiaParams, departureDate: '2026-09-02' });
+    await searchSeatsAero({ ...mucMiaParams, flexibility: 2 });
+    await searchSeatsAero({ ...mucMiaParams, onlyDirectFlights: true });
+
+    assert.strictEqual(fetchMock.mock.callCount(), 5, 'each distinct search hits the API once');
+  });
+
+  it('refreshes from the API once the cache TTL has expired', async (t) => {
+    t.mock.timers.enable({ apis: ['Date'] });
+    const fetchMock = mockFetchReturning(mucMiaThreePrograms());
+
+    await searchSeatsAero(mucMiaParams);
+    t.mock.timers.tick(11 * 60 * 1000);
+    await searchSeatsAero(mucMiaParams);
+
+    assert.strictEqual(fetchMock.mock.callCount(), 2, 'expired entry must trigger a fresh API call');
+  });
+
+  it('logs a truncation hint when the response reports hasMore', async (t) => {
+    const warnMock = t.mock.method(console, 'warn');
+    mockFetchReturning({ ...mucMiaThreePrograms(), hasMore: true });
+
+    await searchSeatsAero(mucMiaParams);
+
+    const truncationWarnings = warnMock.mock.calls.filter((call) =>
+      call.arguments.join(' ').includes('hasMore')
+    );
+    assert.strictEqual(truncationWarnings.length, 1, 'expected one hasMore truncation warning');
+  });
+
+  it('stays silent about truncation when the response is complete', async (t) => {
+    const warnMock = t.mock.method(console, 'warn');
+    mockFetchReturning({ ...mucMiaThreePrograms(), hasMore: false });
+
+    await searchSeatsAero(mucMiaParams);
+
+    assert.strictEqual(warnMock.mock.callCount(), 0);
+  });
+
+  it('does not cache failures — the next identical search retries the API', async () => {
+    global.fetch = mock.fn(async () => ({
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized',
+    })) as unknown as typeof fetch;
+
+    await assert.rejects(() => searchSeatsAero(mucMiaParams), /401/);
+
+    const fetchMock = mockFetchReturning(mucMiaThreePrograms());
+    const flights = await searchSeatsAero(mucMiaParams);
+
+    assert.strictEqual(fetchMock.mock.callCount(), 1, 'search after a failure must hit the API');
+    assert.ok(flights.length > 0);
+  });
+
+  it('requests results ordered by lowest mileage so take-truncation keeps the cheapest options', async () => {
+    const fetchMock = mockFetchReturning(mucMiaThreePrograms());
+
+    await searchSeatsAero({
+      origin: 'MUC',
+      destination: 'MIA',
+      departureDate: '2026-09-01',
+      travelClass: 'BUSINESS',
+      maxResults: 100,
+    });
+
+    assert.strictEqual(fetchMock.mock.callCount(), 1);
+    const requestedUrl = new URL(String(fetchMock.mock.calls[0].arguments[0]));
+    assert.strictEqual(requestedUrl.searchParams.get('order_by'), 'lowest_mileage');
   });
 });
