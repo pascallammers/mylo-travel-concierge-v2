@@ -11,6 +11,10 @@ export const realChats: EvalFixture[] = [
     userQuery: "Suche nach Meilen Flüge von faro nach Düsseldorf oder Köln. Am 24.07.",
     expectedTool: 'search_flights',
     reason: 'Production: this user query routed to search_flights successfully. Eval captures that behavior as the regression baseline.',
+    // Pin the prompt clock to the extraction date: "Am 24.07." has no year, so
+    // once the real calendar passes it, the past-date guard correctly refuses
+    // and the fixture would fail forever without this anchor.
+    now: new Date('2026-04-27T17:38:46.650Z'),
   },
   {
     id: 'real-002-knowledge-base',
