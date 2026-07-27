@@ -79,10 +79,9 @@ export function resolveProgramSlugs(
     const tokens = needle.split(/[^a-z0-9]+/).filter(Boolean);
     const slug =
       KNOWN_PROGRAM_SLUGS.find((s) => s === needle || tokens.includes(s)) ??
-      KNOWN_PROGRAM_SLUGS.find((s) => {
-        const name = normalizeProgramName(PROGRAM_NAMES[s].en);
-        return needle.length >= 3 && name.includes(needle);
-      });
+      KNOWN_PROGRAM_SLUGS.find((s) =>
+        displayNameMatchesNeedle(PROGRAM_NAMES[s].en, needle),
+      );
 
     if (!slug) {
       if (!unmatched.includes(raw)) unmatched.push(raw);
@@ -92,6 +91,31 @@ export function resolveProgramSlugs(
   }
 
   return { matched, unmatched };
+}
+
+/**
+ * Match a normalized needle against a program display name using token or
+ * consecutive phrase equality — avoids substring false positives like "lan"
+ * inside "aeroplan" or "united" inside "disunited".
+ */
+function displayNameMatchesNeedle(displayName: string, needle: string): boolean {
+  if (needle.length < 3) return false;
+
+  const nameTokens = normalizeProgramName(displayName).split(/[^a-z0-9]+/).filter(Boolean);
+  const needleTokens = needle.split(/[^a-z0-9]+/).filter(Boolean);
+  if (needleTokens.length === 0) return false;
+
+  if (needleTokens.length === 1) {
+    return nameTokens.some((nameToken) => nameToken === needleTokens[0]);
+  }
+
+  for (let i = 0; i <= nameTokens.length - needleTokens.length; i++) {
+    if (needleTokens.every((token, index) => nameTokens[i + index] === token)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /** Lowercase, collapse whitespace and unify "&"/"and" for tolerant matching. */

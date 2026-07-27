@@ -80,6 +80,13 @@ describe('resolveProgramSlugs', () => {
     });
   });
 
+  it('does not resolve a short fragment that only appears inside a program token', () => {
+    assert.deepStrictEqual(resolveProgramSlugs(['lan']), {
+      matched: [],
+      unmatched: ['lan'],
+    });
+  });
+
   it('reports inputs it cannot map instead of silently dropping them', () => {
     const { matched, unmatched } = resolveProgramSlugs(['aeroplan', 'Nonexistent Program']);
     assert.deepStrictEqual(matched, ['aeroplan']);
