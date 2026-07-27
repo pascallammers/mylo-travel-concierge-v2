@@ -121,6 +121,21 @@ describe('formatFlightResults', () => {
     });
   });
 
+  describe('transfer hint under the award table (MYLO-22)', () => {
+    it('shows the "miles not needed yet — transfer at booking" principle when award results exist (de)', async () => {
+      const out = await formatFlightResults(makeAwardResult(), baseParams, 'de');
+      // The community "Jonas" case was caused by users assuming they must
+      // already own the miles. The hint must state the opposite up front.
+      assert.match(out, /noch nicht (haben|besitzen)/i, 'must state the miles are not needed yet');
+      assert.match(out, /Transfer.*(Buchung|buchst)/i, 'must explain transfer happens at booking');
+    });
+
+    it('does NOT show the transfer hint when there are no award results (cash only)', async () => {
+      const out = await formatFlightResults(makeCashResult(), baseParams, 'de');
+      assert.doesNotMatch(out, /noch nicht (haben|besitzen)/i, 'hint belongs to the award table only');
+    });
+  });
+
   describe('happy-path with injected booking-session creator', () => {
     it('renders the [Buchen] link when the creator returns a real booking URL', async () => {
       const creator = async () => ({ url: 'https://booking.example.com/abc123' });

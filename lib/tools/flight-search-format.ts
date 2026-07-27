@@ -123,6 +123,14 @@ export const flightI18n = {
     en: (types: string) =>
       `\n---\n\n_**Note:** ${types} could not be loaded. For more options you can use the following links:_\n`,
   },
+  // The community "Jonas" case: users read the miles column as a balance they
+  // must already own and dismiss award options entirely. The hint states the
+  // opposite — miles are usually sourced via credit-card/hotel-points transfer
+  // when booking (MYLO-22).
+  transferHintIntro: {
+    de: '_**Hinweis:** Diese Meilen musst du noch nicht haben — der Transfer von Kreditkarten- oder Hotelpunkten ist erst bei der Buchung nötig._',
+    en: "_**Note:** You don't need to have these miles yet — transferring credit-card or hotel points is only necessary when you book._",
+  },
   awardFlightsLabel: { de: 'Meilen/Punkte-Flüge', en: 'Miles/points flights' },
   cashFlightsLabel: { de: 'Cash-Flüge', en: 'Cash flights' },
   noResultsFallback: {
@@ -226,6 +234,8 @@ export async function formatFlightResults(
         `| ${idx + 1} | ${flight.airline} | ${program} | ${flight.cabin} | ${flight.price} | ${flight.outbound.departure.airport} ${departTime} | ${flight.outbound.arrival.airport} ${arriveTime} | ${flight.outbound.duration} | ${flight.outbound.stops} | ${seats} | ${flight.outbound.flightNumbers} |`,
       );
     });
+    sections.push('');
+    sections.push(flightI18n.transferHintIntro[locale]);
     sections.push('');
   }
 
