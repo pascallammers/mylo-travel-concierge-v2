@@ -137,6 +137,23 @@ export function buildFlexibleDateResults(
 
   return {
     type: 'flexible_date_results',
+    locale,
+    labels:
+      locale === 'en'
+        ? {
+            dateRangePrefix: 'Results from',
+            dateRangeSeparator: 'to',
+            awardFlights: 'Flights with Miles/Points',
+            cashFlights: 'Flights with Cash',
+            truncated: 'Top 5 results per category shown (sorted by price)',
+          }
+        : {
+            dateRangePrefix: 'Ergebnisse vom',
+            dateRangeSeparator: 'bis',
+            awardFlights: 'Flüge mit Meilen/Punkten',
+            cashFlights: 'Flüge mit Barzahlung',
+            truncated: 'Top 5 Ergebnisse pro Kategorie angezeigt (sortiert nach Preis)',
+          },
     awardFlights,
     cashFlights,
     awardFlightsTruncated,

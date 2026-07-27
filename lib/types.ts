@@ -262,6 +262,14 @@ export interface FlexibleDateFlight {
 
 export interface FlexibleDateResultsResponse {
   type: 'flexible_date_results';
+  locale: 'de' | 'en';
+  labels: {
+    dateRangePrefix: string;
+    dateRangeSeparator: string;
+    awardFlights: string;
+    cashFlights: string;
+    truncated: string;
+  };
   awardFlights: FlexibleDateFlight[];
   cashFlights: FlexibleDateFlight[];
   awardFlightsTruncated: boolean;

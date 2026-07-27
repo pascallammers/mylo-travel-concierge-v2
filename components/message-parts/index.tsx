@@ -328,7 +328,13 @@ const ToolErrorDisplay = ({ errorText, toolName }: { errorText: string; toolName
 );
 
 // Compact flight card for flexible date results
-const FlexibleDateFlightCard = ({ flight }: { flight: FlexibleDateFlight }) => {
+const FlexibleDateFlightCard = ({
+  flight,
+  locale,
+}: {
+  flight: FlexibleDateFlight;
+  locale: 'de' | 'en';
+}) => {
   // Determine if this is a Seats.aero (award) or Duffel (cash) flight
   const isAward = flight.source === 'seats.aero';
   const awardPrice = typeof flight.price === 'string' ? flight.price : undefined;
@@ -356,13 +362,19 @@ const FlexibleDateFlightCard = ({ flight }: { flight: FlexibleDateFlight }) => {
   const departureTime = isAward
     ? flight.outbound?.departure?.time || 'N/A'
     : flight.departure?.time
-      ? new Date(flight.departure.time).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+      ? new Date(flight.departure.time).toLocaleTimeString(
+          locale === 'en' ? 'en-US' : 'de-DE',
+          { hour: '2-digit', minute: '2-digit' },
+        )
       : 'N/A';
 
   const arrivalTime = isAward
     ? flight.outbound?.arrival?.time || 'N/A'
     : flight.arrival?.time
-      ? new Date(flight.arrival.time).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+      ? new Date(flight.arrival.time).toLocaleTimeString(
+          locale === 'en' ? 'en-US' : 'de-DE',
+          { hour: '2-digit', minute: '2-digit' },
+        )
       : 'N/A';
 
   const airline = flight.airline || 'Unknown';
@@ -2194,33 +2206,48 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
                       const awardFlights: FlexibleDateFlight[] = parsed.awardFlights ?? [];
                       const cashFlights: FlexibleDateFlight[] = parsed.cashFlights ?? [];
                       const legacyFlights: FlexibleDateFlight[] = parsed.flights ?? [];
+                      const resultLocale: 'de' | 'en' =
+                        parsed.locale === 'en' ? 'en' : 'de';
+                      const labels = parsed.labels ?? {
+                        dateRangePrefix: 'Ergebnisse vom',
+                        dateRangeSeparator: 'bis',
+                        awardFlights: 'Flüge mit Meilen/Punkten',
+                        cashFlights: 'Flüge mit Barzahlung',
+                        truncated:
+                          'Top 5 Ergebnisse pro Kategorie angezeigt (sortiert nach Preis)',
+                      };
+                      const dateLocale = resultLocale === 'en' ? 'en-US' : 'de-DE';
                       return (
                         <div key={`${messageIndex}-${partIndex}-tool`} className="space-y-4">
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <Calendar className="h-4 w-4" />
                             <span>
-                              Ergebnisse vom {new Date(parsed.dateRange.start).toLocaleDateString('de-DE')} bis{' '}
-                              {new Date(parsed.dateRange.end).toLocaleDateString('de-DE')}
+                              {labels.dateRangePrefix}{' '}
+                              {new Date(parsed.dateRange.start).toLocaleDateString(dateLocale)}{' '}
+                              {labels.dateRangeSeparator}{' '}
+                              {new Date(parsed.dateRange.end).toLocaleDateString(dateLocale)}
                             </span>
                           </div>
                           {awardFlights.length > 0 && (
                             <div className="space-y-3">
-                              <h4 className="text-sm font-medium">Flüge mit Meilen/Punkten</h4>
+                              <h4 className="text-sm font-medium">{labels.awardFlights}</h4>
                               {awardFlights.map((flight, idx) => (
                                 <FlexibleDateFlightCard
                                   key={flight.id || `award-flight-${idx}`}
                                   flight={flight}
+                                  locale={resultLocale}
                                 />
                               ))}
                             </div>
                           )}
                           {cashFlights.length > 0 && (
                             <div className="space-y-3">
-                              <h4 className="text-sm font-medium">Flüge mit Barzahlung</h4>
+                              <h4 className="text-sm font-medium">{labels.cashFlights}</h4>
                               {cashFlights.map((flight, idx) => (
                                 <FlexibleDateFlightCard
                                   key={flight.id || `cash-flight-${idx}`}
                                   flight={flight}
+                                  locale={resultLocale}
                                 />
                               ))}
                             </div>
@@ -2231,6 +2258,7 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
                                 <FlexibleDateFlightCard
                                   key={flight.id || `flight-${idx}`}
                                   flight={flight}
+                                  locale={resultLocale}
                                 />
                               ))}
                             </div>
@@ -2238,7 +2266,7 @@ export const MessagePartRenderer = memo<MessagePartRendererProps>(
                           {(parsed.awardFlightsTruncated === true ||
                             parsed.cashFlightsTruncated === true) && (
                             <p className="text-xs text-muted-foreground text-center">
-                              Top 5 Ergebnisse pro Kategorie angezeigt (sortiert nach Preis)
+                              {labels.truncated}
                             </p>
                           )}
                         </div>

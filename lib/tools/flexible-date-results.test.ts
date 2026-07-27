@@ -57,6 +57,31 @@ describe('buildFlexibleDateResults', () => {
     assert.strictEqual(result.cashFlights.length, 5);
   });
 
+  it('carries English UI labels for an English flexible-date search', () => {
+    const result = buildFlexibleDateResults(
+      [makeAwardFlight()],
+      [makeCashFlight()],
+      params,
+      'en',
+    ) as ReturnType<typeof buildFlexibleDateResults> & {
+      labels?: {
+        dateRangePrefix: string;
+        dateRangeSeparator: string;
+        awardFlights: string;
+        cashFlights: string;
+        truncated: string;
+      };
+    };
+
+    assert.deepStrictEqual(result.labels, {
+      dateRangePrefix: 'Results from',
+      dateRangeSeparator: 'to',
+      awardFlights: 'Flights with Miles/Points',
+      cashFlights: 'Flights with Cash',
+      truncated: 'Top 5 results per category shown (sorted by price)',
+    });
+  });
+
   it('sorts cash flights by EUR ascending and caps the group at 5', () => {
     const cash = [
       makeCashFlight({ price: { total: '414.76', currency: 'EUR' } }),
