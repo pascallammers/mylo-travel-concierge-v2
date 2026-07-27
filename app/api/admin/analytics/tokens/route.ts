@@ -3,10 +3,10 @@ import { isCurrentUserAdmin } from '@/lib/auth-utils';
 import { db } from '@/lib/db';
 import { chat, message, user } from '@/lib/db/schema';
 import {
-  calculateGrok43TokenCost,
+  calculateGrokTokenCost,
   calculateRevenueBaseline,
   DEFAULT_USD_TO_EUR_RATE,
-  GROK_43_PRICING_USD_PER_MILLION,
+  GROK_45_PRICING_USD_PER_MILLION,
   MONTHLY_REVENUE_PER_USER_EUR,
 } from '@/lib/admin/token-costs';
 import { and, eq, gte, sql } from 'drizzle-orm';
@@ -14,6 +14,7 @@ import { and, eq, gte, sql } from 'drizzle-orm';
 type UsageRow = {
   userId: string;
   email: string;
+  model: string | null;
   inputTokens: number;
   cachedInputTokens: number;
   outputTokens: number;
@@ -23,7 +24,9 @@ type UsageRow = {
 
 /**
  * GET /api/admin/analytics/tokens
- * Returns Grok 4.3 token usage, cost, and revenue-baseline analytics.
+ * Returns Grok token usage, cost, and revenue-baseline analytics. Rows are
+ * aggregated per model so historical Grok 4.3 messages keep 4.3 pricing while
+ * Grok 4.5 messages are billed at 4.5 rates.
  * @param request - Incoming admin request with optional days query parameter.
  * @returns Token analytics for the selected period.
  */
@@ -48,11 +51,10 @@ export async function GET(request: NextRequest) {
       usdToEurRate: DEFAULT_USD_TO_EUR_RATE,
     }).revenueEur;
 
-    const userCostRows = usageRows
+    const userCostRows = [...aggregateUsersAcrossModels(usageRows).values()]
       .map((row) => {
-        const cost = calculateGrok43TokenCost(row);
         const baseline = calculateRevenueBaseline({
-          costUsd: cost.totalCostUsd,
+          costUsd: row.rawCostUsd,
           days,
           monthlyRevenueEur: MONTHLY_REVENUE_PER_USER_EUR,
           usdToEurRate: DEFAULT_USD_TO_EUR_RATE,
@@ -62,15 +64,15 @@ export async function GET(request: NextRequest) {
           userId: row.userId,
           email: row.email,
           messageCount: row.messageCount,
-          inputTokens: cost.inputTokens,
-          cachedInputTokens: cost.cachedInputTokens,
-          billableInputTokens: cost.billableInputTokens,
-          outputTokens: cost.outputTokens,
-          totalTokens: cost.totalTokens,
-          costUsd: roundCurrency(cost.totalCostUsd),
+          inputTokens: row.inputTokens,
+          cachedInputTokens: row.cachedInputTokens,
+          billableInputTokens: row.billableInputTokens,
+          outputTokens: row.outputTokens,
+          totalTokens: row.totalTokens,
+          costUsd: roundCurrency(row.rawCostUsd),
           revenueEur: roundCurrency(baseline.revenueEur),
           estimatedProfitEur: roundCurrency(baseline.profitEur),
-          rawCostUsd: cost.totalCostUsd,
+          rawCostUsd: row.rawCostUsd,
           rawRevenueEur: baseline.revenueEur,
           rawProfitEur: baseline.profitEur,
         };
@@ -102,18 +104,15 @@ export async function GET(request: NextRequest) {
       },
     );
 
-    const dailyUsage = dailyUsageRows.map((row) => {
-      const cost = calculateGrok43TokenCost(row);
-      return {
-        date: row.date,
-        inputTokens: cost.inputTokens,
-        cachedInputTokens: cost.cachedInputTokens,
-        outputTokens: cost.outputTokens,
-        totalTokens: cost.totalTokens,
-        tokens: cost.totalTokens,
-        costUsd: roundCurrency(cost.totalCostUsd),
-      };
-    });
+    const dailyUsage = [...aggregateDaysAcrossModels(dailyUsageRows).values()].map((row) => ({
+      date: row.date,
+      inputTokens: row.inputTokens,
+      cachedInputTokens: row.cachedInputTokens,
+      outputTokens: row.outputTokens,
+      totalTokens: row.totalTokens,
+      tokens: row.totalTokens,
+      costUsd: roundCurrency(row.rawCostUsd),
+    }));
 
     return NextResponse.json({
       totalTokens: totals.totalTokens,
@@ -136,10 +135,10 @@ export async function GET(request: NextRequest) {
       })),
       dailyUsage,
       pricing: {
-        model: 'grok-4.3',
-        inputUsdPerMillion: GROK_43_PRICING_USD_PER_MILLION.input,
-        cachedInputUsdPerMillion: GROK_43_PRICING_USD_PER_MILLION.cachedInput,
-        outputUsdPerMillion: GROK_43_PRICING_USD_PER_MILLION.output,
+        model: 'grok-4.5',
+        inputUsdPerMillion: GROK_45_PRICING_USD_PER_MILLION.input,
+        cachedInputUsdPerMillion: GROK_45_PRICING_USD_PER_MILLION.cachedInput,
+        outputUsdPerMillion: GROK_45_PRICING_USD_PER_MILLION.output,
         monthlyRevenuePerUserEur: MONTHLY_REVENUE_PER_USER_EUR,
         usdToEurRate: DEFAULT_USD_TO_EUR_RATE,
       },
@@ -160,6 +159,7 @@ async function getUsageByUser(startDate: Date): Promise<UsageRow[]> {
     .select({
       userId: chat.userId,
       email: user.email,
+      model: message.model,
       inputTokens: sql<number>`COALESCE(SUM(${message.inputTokens}), 0)::int`,
       cachedInputTokens: sql<number>`COALESCE(SUM(${message.cachedInputTokens}), 0)::int`,
       outputTokens: sql<number>`COALESCE(SUM(${message.outputTokens}), 0)::int`,
@@ -170,13 +170,14 @@ async function getUsageByUser(startDate: Date): Promise<UsageRow[]> {
     .innerJoin(chat, eq(message.chatId, chat.id))
     .innerJoin(user, eq(chat.userId, user.id))
     .where(and(gte(message.createdAt, startDate), gte(message.totalTokens, 1)))
-    .groupBy(chat.userId, user.email);
+    .groupBy(chat.userId, user.email, message.model);
 }
 
 async function getDailyUsage(startDate: Date) {
   return db
     .select({
       date: sql<string>`DATE(${message.createdAt})::text`,
+      model: message.model,
       inputTokens: sql<number>`COALESCE(SUM(${message.inputTokens}), 0)::int`,
       cachedInputTokens: sql<number>`COALESCE(SUM(${message.cachedInputTokens}), 0)::int`,
       outputTokens: sql<number>`COALESCE(SUM(${message.outputTokens}), 0)::int`,
@@ -185,8 +186,80 @@ async function getDailyUsage(startDate: Date) {
     .from(message)
     .innerJoin(chat, eq(message.chatId, chat.id))
     .where(and(gte(message.createdAt, startDate), gte(message.totalTokens, 1)))
-    .groupBy(sql`DATE(${message.createdAt})`)
+    .groupBy(sql`DATE(${message.createdAt})`, message.model)
     .orderBy(sql`DATE(${message.createdAt})`);
+}
+
+type UserAggregate = {
+  userId: string;
+  email: string;
+  messageCount: number;
+  inputTokens: number;
+  cachedInputTokens: number;
+  billableInputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  rawCostUsd: number;
+};
+
+function aggregateUsersAcrossModels(rows: UsageRow[]): Map<string, UserAggregate> {
+  const perUser = new Map<string, UserAggregate>();
+  for (const row of rows) {
+    const cost = calculateGrokTokenCost(row, row.model);
+    const aggregate = perUser.get(row.userId) ?? {
+      userId: row.userId,
+      email: row.email,
+      messageCount: 0,
+      inputTokens: 0,
+      cachedInputTokens: 0,
+      billableInputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      rawCostUsd: 0,
+    };
+    aggregate.messageCount += row.messageCount;
+    aggregate.inputTokens += cost.inputTokens;
+    aggregate.cachedInputTokens += cost.cachedInputTokens;
+    aggregate.billableInputTokens += cost.billableInputTokens;
+    aggregate.outputTokens += cost.outputTokens;
+    aggregate.totalTokens += cost.totalTokens;
+    aggregate.rawCostUsd += cost.totalCostUsd;
+    perUser.set(row.userId, aggregate);
+  }
+  return perUser;
+}
+
+type DailyAggregate = {
+  date: string;
+  inputTokens: number;
+  cachedInputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  rawCostUsd: number;
+};
+
+function aggregateDaysAcrossModels(
+  rows: Awaited<ReturnType<typeof getDailyUsage>>,
+): Map<string, DailyAggregate> {
+  const perDay = new Map<string, DailyAggregate>();
+  for (const row of rows) {
+    const cost = calculateGrokTokenCost(row, row.model);
+    const aggregate = perDay.get(row.date) ?? {
+      date: row.date,
+      inputTokens: 0,
+      cachedInputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      rawCostUsd: 0,
+    };
+    aggregate.inputTokens += cost.inputTokens;
+    aggregate.cachedInputTokens += cost.cachedInputTokens;
+    aggregate.outputTokens += cost.outputTokens;
+    aggregate.totalTokens += cost.totalTokens;
+    aggregate.rawCostUsd += cost.totalCostUsd;
+    perDay.set(row.date, aggregate);
+  }
+  return perDay;
 }
 
 function roundCurrency(value: number): number {

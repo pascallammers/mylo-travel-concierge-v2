@@ -199,7 +199,7 @@ export default function AdminDashboard() {
                 <StatsCard
                   title="Costs (30 Days)"
                   value={`$${tokenAnalytics.totalCostUsd.toFixed(2)}`}
-                  description="Grok 4.3 API-Kosten"
+                  description="Grok API-Kosten (modellgenau)"
                   icon={HardDrive}
                   delay={200}
                 />

@@ -22,9 +22,9 @@ export type AIModelDefinition = {
 // existing analytics queries when the gateway prefix changes.
 const MODELS = {
   xai: {
-    name: 'grok-4.3',
-    gatewaySlug: 'xai/grok-4.3',
-    displayName: 'Grok 4.3',
+    name: 'grok-4.5',
+    gatewaySlug: 'xai/grok-4.5',
+    displayName: 'Grok 4.5',
     capabilities: {
       vision: true,
       reasoning: true,
@@ -41,8 +41,8 @@ export const DEFAULT_MODEL = activeConfig.name;
 export const MODEL_CAPABILITIES = activeConfig.capabilities;
 
 // Lightweight model for airport-code normalization. grok-3-mini is text-only
-// (fine for "Frankfurt" → "FRA") and ~75% cheaper than the flagship: $0.30/M
-// input vs $1.25/M, $0.50/M output vs $2.50/M.
+// (fine for "Frankfurt" → "FRA") and ~85% cheaper than the flagship: $0.30/M
+// input vs $2.00/M, $0.50/M output vs $6.00/M.
 const AIRPORT_RESOLVER_GATEWAY_SLUG = 'xai/grok-3-mini';
 
 let _airportResolverModel: ReturnType<typeof gateway> | undefined;
@@ -129,5 +129,5 @@ export const models: AIModelDefinition[] = [
   },
 ];
 
-console.log('[AI Provider] Using Vercel AI Gateway → xai/grok-4.3 (primary)');
+console.log('[AI Provider] Using Vercel AI Gateway → xai/grok-4.5 (primary)');
 console.log(`[AI Provider] Model: ${activeConfig.name}`);

@@ -207,7 +207,7 @@ export default function AnalyticsPage() {
               <StatsCard
                 title="API-Kosten"
                 value={usdFormatter.format(tokenAnalytics.totalCostUsd)}
-                description="Grok 4.3 Input/Cached/Output"
+                description="Grok Input/Cached/Output (modellgenau)"
                 icon={Clock}
                 delay={100}
               />

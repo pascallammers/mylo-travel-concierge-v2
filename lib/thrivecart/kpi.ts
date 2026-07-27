@@ -9,7 +9,7 @@ import {
 } from '@/lib/db/schema';
 import { eq, and, count, ne, desc, gte, lte, sql } from 'drizzle-orm';
 import { thrivecartConfig } from './config';
-import { calculateGrok43TokenCost } from '@/lib/admin/token-costs';
+import { calculateGrokTokenCost } from '@/lib/admin/token-costs';
 import { isTrackedProductTransactionForProduct } from './kpi-product-filter';
 
 export const DATE_RANGES = ['this_month', 'last_month', 'this_year', 'last_year', 'all_time'] as const;
@@ -467,31 +467,50 @@ export async function computeKPIs(dateRange: DateRange = 'this_month'): Promise<
 }
 
 async function computeAIUsage(start: Date, end: Date): Promise<Omit<AIUsageKPIs, 'previousPeriodCostUsd'>> {
-  const [usage] = await db
+  // Grouped by model so historical Grok 4.3 rows keep 4.3 pricing while newer
+  // Grok 4.5 rows are billed at 4.5 rates. COUNT(DISTINCT userId) cannot be
+  // summed across model groups, so it runs as a separate query.
+  const usageWindow = and(
+    gte(message.createdAt, start),
+    lte(message.createdAt, end),
+    gte(message.totalTokens, 1),
+  );
+  const usageByModel = await db
     .select({
+      model: message.model,
       inputTokens: sql<number>`COALESCE(SUM(${message.inputTokens}), 0)::int`,
       cachedInputTokens: sql<number>`COALESCE(SUM(${message.cachedInputTokens}), 0)::int`,
       outputTokens: sql<number>`COALESCE(SUM(${message.outputTokens}), 0)::int`,
       totalTokens: sql<number>`COALESCE(SUM(${message.totalTokens}), 0)::int`,
-      activeUsers: sql<number>`COUNT(DISTINCT ${chat.userId})::int`,
     })
     .from(message)
     .innerJoin(chat, eq(message.chatId, chat.id))
-    .where(and(gte(message.createdAt, start), lte(message.createdAt, end), gte(message.totalTokens, 1)));
+    .where(usageWindow)
+    .groupBy(message.model);
 
-  const cost = calculateGrok43TokenCost({
-    inputTokens: usage?.inputTokens ?? 0,
-    cachedInputTokens: usage?.cachedInputTokens ?? 0,
-    outputTokens: usage?.outputTokens ?? 0,
-    totalTokens: usage?.totalTokens ?? 0,
-  });
+  const [activeUserRow] = await db
+    .select({ activeUsers: sql<number>`COUNT(DISTINCT ${chat.userId})::int` })
+    .from(message)
+    .innerJoin(chat, eq(message.chatId, chat.id))
+    .where(usageWindow);
+
+  const totals = usageByModel.reduce(
+    (acc, row) => {
+      const cost = calculateGrokTokenCost(row, row.model);
+      return {
+        totalTokens: acc.totalTokens + cost.totalTokens,
+        inputTokens: acc.inputTokens + cost.inputTokens,
+        cachedInputTokens: acc.cachedInputTokens + cost.cachedInputTokens,
+        outputTokens: acc.outputTokens + cost.outputTokens,
+        totalCostUsd: acc.totalCostUsd + cost.totalCostUsd,
+      };
+    },
+    { totalTokens: 0, inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, totalCostUsd: 0 },
+  );
 
   return {
-    totalTokens: cost.totalTokens,
-    inputTokens: cost.inputTokens,
-    cachedInputTokens: cost.cachedInputTokens,
-    outputTokens: cost.outputTokens,
-    totalCostUsd: Math.round(cost.totalCostUsd * 100) / 100,
-    activeUsers: usage?.activeUsers ?? 0,
+    ...totals,
+    totalCostUsd: Math.round(totals.totalCostUsd * 100) / 100,
+    activeUsers: activeUserRow?.activeUsers ?? 0,
   };
 }
