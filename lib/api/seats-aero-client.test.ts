@@ -145,4 +145,26 @@ describe('searchSeatsAero (MUC->MIA regression)', () => {
     assert.strictEqual(lufthansa!.airline, 'LH, LX', 'airline column shows operating metal');
     assert.strictEqual(lufthansa!.program, 'lufthansa', 'program column shows the mileage program');
   });
+
+  it('forwards the abort signal to the provider fetch', async () => {
+    const controller = new AbortController();
+    let receivedSignal: AbortSignal | null | undefined;
+    global.fetch = mock.fn(async (_input, init) => {
+      receivedSignal = init?.signal;
+      return {
+        ok: true,
+        json: async () => mucMiaThreePrograms(),
+      } as Response;
+    }) as typeof fetch;
+
+    await searchSeatsAero({
+      origin: 'MUC',
+      destination: 'MIA',
+      departureDate: '2026-09-01',
+      travelClass: 'BUSINESS',
+      maxResults: 100,
+    }, controller.signal);
+
+    assert.strictEqual(receivedSignal, controller.signal);
+  });
 });

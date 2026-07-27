@@ -1,7 +1,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import type { TravelClass } from '@/lib/api/seats-aero-client';
-import type { NearbyAirport } from '@/lib/api/duffel-client';
+import type { SeatsAeroFlight, TravelClass } from '@/lib/api/seats-aero-client';
+import type { DuffelFlight, NearbyAirport } from '@/lib/api/duffel-client';
 import type {
   AirportResolutionResult,
 } from '@/lib/utils/airport-codes';
@@ -17,6 +17,17 @@ import type { FlightSearchToolDependencies } from './flight-search-dependencies'
 // Re-export for legacy callers and tests that import these from flight-search.
 export { flightI18n, formatFlightResults };
 export type { FlightLocale, FlightSearchToolDependencies };
+
+type FlexibleAwardFlight = SeatsAeroFlight & { source: 'seats.aero'; searchedDate: string };
+type FlexibleCashFlight = DuffelFlight & { source: 'duffel'; searchedDate: string };
+type FlexibleFlight = FlexibleAwardFlight | FlexibleCashFlight;
+
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 /**
  * Create the flight-search tool with explicit infrastructure dependencies.
@@ -127,26 +138,23 @@ Examples of queries that should trigger this tool:
     console.log('[Flight Search] Starting search:', params);
 
     // Validate dates are not in the past
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset to midnight for fair comparison
+    const today = formatLocalDate(new Date());
 
     // Locale comes from the [locale] route segment via experimental_context
     // (default: 'de' for backward compatibility)
     const locale: FlightLocale = ctx.locale === 'en' ? 'en' : 'de';
 
-    const departDate = new Date(params.departDate);
-    if (departDate < today) {
+    if (params.departDate < today) {
       throw new Error(
-        flightI18n.pastDepartDate[locale](params.departDate, today.toISOString().split('T')[0])
+        flightI18n.pastDepartDate[locale](params.departDate, today)
       );
     }
 
     if (params.returnDate) {
-      const returnDate = new Date(params.returnDate);
-      if (returnDate < today) {
+      if (params.returnDate < today) {
         throw new Error(flightI18n.pastReturnDate[locale](params.returnDate));
       }
-      if (returnDate < departDate) {
+      if (params.returnDate < params.departDate) {
         throw new Error(flightI18n.returnBeforeDepart[locale](params.returnDate, params.departDate));
       }
     }
@@ -207,10 +215,11 @@ Examples of queries that should trigger this tool:
           // surfaced only the first program ("nur Lufthansa"); pull a high page
           // so program-grouping can keep every program. Flex spans 7 days.
           maxResults: isFlexibleDateSearch ? 100 : 60,
-        }).then((result) => {
+        }, abortSignal).then((result) => {
           console.log('[Flight Search] Seats.aero SUCCESS:', result ? `${result.length} flights` : 'null');
           return result;
         }).catch((err) => {
+          if (abortSignal?.aborted) throw err;
           console.error('[Flight Search] Seats.aero FAILED:', err.message, err);
           return null;
         }),
@@ -227,10 +236,11 @@ Examples of queries that should trigger this tool:
                 cabinClass: mapCabinClass(params.cabin),
                 passengers: params.passengers,
                 maxConnections: params.nonStop ? 0 : 2,
-              }, 3).then((result) => {
+              }, 3, abortSignal).then((result) => {
                 console.log('[Flight Search] Duffel Flexible SUCCESS:', result ? `${result.length} flights` : 'null');
                 return result;
               }).catch((err) => {
+                if (abortSignal?.aborted) throw err;
                 console.error('[Flight Search] Duffel Flexible FAILED:', err.message, err);
                 return null;
               })
@@ -242,10 +252,11 @@ Examples of queries that should trigger this tool:
                 cabinClass: mapCabinClass(params.cabin),
                 passengers: params.passengers,
                 maxConnections: params.nonStop ? 0 : 2,
-              }).then((result) => {
+              }, abortSignal).then((result) => {
                 console.log('[Flight Search] Duffel SUCCESS:', result ? `${result.length} flights` : 'null');
                 return result;
               }).catch((err) => {
+                if (abortSignal?.aborted) throw err;
                 console.error('[Flight Search] Duffel FAILED:', err.message, err);
                 return null;
               }),
@@ -417,26 +428,28 @@ Examples of queries that should trigger this tool:
         console.log('[Flight Search] Processing flexible date results');
 
         // Merge all results
-        const allFlights: any[] = [];
+        const allFlights: FlexibleFlight[] = [];
 
         // Add Seats.aero results with searchedDate from their departure info
         if (seatsResult) {
-          seatsResult.forEach((flight: any) => {
+          seatsResult.forEach((flight) => {
             allFlights.push({
               ...flight,
               source: 'seats.aero',
-              searchedDate: flight.outbound?.departure?.date || flight.departureDate || params.departDate,
+              searchedDate: flight.outbound.departure.time.split('T')[0] || params.departDate,
             });
           });
         }
 
         // Add Duffel results (already have searchedDate from flexible search)
         if (duffelResult) {
-          duffelResult.forEach((flight: any) => {
+          duffelResult.forEach((flight) => {
             allFlights.push({
               ...flight,
               source: 'duffel',
-              searchedDate: flight.searchedDate || flight.departure?.time?.split('T')[0] || params.departDate,
+              searchedDate: 'searchedDate' in flight
+                ? flight.searchedDate
+                : flight.departure.time.split('T')[0] || params.departDate,
             });
           });
         }
@@ -471,16 +484,14 @@ Examples of queries that should trigger this tool:
         flightsWithDateLabels.sort((a, b) => {
           // For Seats.aero, price is a string like "15,000 Miles"
           // For Duffel, price is an object { total: "123.45", currency: "EUR" }
-          const getPriceValue = (flight: any): number => {
-            if (flight.source === 'duffel' && flight.price?.total) {
+          const getPriceValue = (flight: FlexibleFlight): number => {
+            if (flight.source === 'duffel') {
               return parseFloat(flight.price.total);
             }
-            if (flight.source === 'seats.aero' && flight.price) {
-              // Extract numeric value from "15,000 Miles" format
-              const match = String(flight.price).replace(/,/g, '').match(/[\d.]+/);
-              return match ? parseFloat(match[0]) : 999999;
-            }
-            return 999999;
+
+            // Extract numeric value from "15,000 Miles" format
+            const match = flight.price.replace(/,/g, '').match(/[\d.]+/);
+            return match ? parseFloat(match[0]) : 999999;
           };
 
           return getPriceValue(a) - getPriceValue(b);

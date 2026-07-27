@@ -1,553 +1,179 @@
-/**
- * Integration tests for Flight Search Tool
- * Tests complete flight search flow, parallel API execution, session state, and tool registry
- */
-
-import { describe, it, mock, beforeEach } from 'node:test';
 import assert from 'node:assert';
-import { flightSearchTool } from './flight-search';
-import * as seatsAeroClient from '@/lib/api/seats-aero-client';
-import * as amadeusClient from '@/lib/api/amadeus-client';
-import * as queries from '@/lib/db/queries';
+import { describe, it } from 'node:test';
+import type { DuffelFlight } from '@/lib/api/duffel-client';
+import type { SeatsAeroFlight } from '@/lib/api/seats-aero-client';
+import {
+  createFlightSearchTool,
+  type FlightSearchToolDependencies,
+} from './flight-search-tool';
 
-describe('Flight Search Tool Integration', () => {
-  describe('Complete flight search flow', () => {
-    it('should execute complete search with both award and cash flights', async () => {
-      const mockSeatsAeroResults = [
-        {
-          id: '1',
-          origin: 'FRA',
-          destination: 'JFK',
-          departureDate: '2025-03-15',
-          airline: 'LH',
-          cabins: {
-            business: {
-              available: true,
-              miles: 70000,
-              seats: 4,
-            },
-          },
-          segments: [],
-          duration: 525,
-          stops: 0,
-          bookingLinks: ['https://seats.aero/book/123'],
-        },
-      ];
+const futureDate = (() => {
+  const date = new Date();
+  date.setDate(date.getDate() + 30);
+  return date.toISOString().split('T')[0];
+})();
 
-      const mockAmadeusResults = [
-        {
-          id: '2',
-          origin: 'FRA',
-          destination: 'JFK',
-          departureDate: '2025-03-15',
-          airline: 'UA',
-          cabinClass: 'business',
-          price: '850.00 EUR',
-          segments: [],
-          duration: 540,
-          stops: 0,
-        },
-      ];
+const params = {
+  origin: 'Frankfurt',
+  destination: 'New York',
+  departDate: futureDate,
+  returnDate: null,
+  cabin: 'BUSINESS' as const,
+  passengers: 1,
+  awardOnly: false,
+  flexibility: 0,
+  nonStop: false,
+};
 
-      // Mock API clients
-      const originalSeatsAero = seatsAeroClient.searchSeatsAero;
-      const originalAmadeus = amadeusClient.searchAmadeus;
+const awardFlight: SeatsAeroFlight = {
+  id: 'award-1',
+  price: '70,000 miles + USD 120.00',
+  pricePerPerson: '70,000 miles + USD 120.00',
+  program: 'aeroplan',
+  airline: 'LH',
+  cabin: 'Business',
+  tags: [],
+  totalStops: 0,
+  miles: 70_000,
+  taxes: { amount: 120, currency: 'USD' },
+  seatsLeft: 2,
+  outbound: {
+    departure: { airport: 'FRA', time: `${futureDate}T10:00:00Z` },
+    arrival: { airport: 'JFK', time: `${futureDate}T18:00:00Z` },
+    duration: '8h',
+    stops: 'Nonstop',
+    flightNumbers: 'LH400',
+  },
+};
 
-      (seatsAeroClient as any).searchSeatsAero = mock.fn(async () => mockSeatsAeroResults);
-      (amadeusClient as any).searchAmadeus = mock.fn(async () => mockAmadeusResults);
+const cashFlight: DuffelFlight = {
+  id: 'cash-1',
+  airline: 'Lufthansa',
+  price: { total: '850.00', base: '700.00', currency: 'EUR' },
+  departure: { airport: 'FRA', time: `${futureDate}T10:00:00Z` },
+  arrival: { airport: 'JFK', time: `${futureDate}T18:00:00Z` },
+  duration: 'PT8H',
+  stops: 0,
+  segments: [],
+};
 
-      // Mock database queries
-      const originalRecordToolCall = queries.recordToolCall;
-      const originalUpdateToolCall = queries.updateToolCall;
-      const originalMergeSessionState = queries.mergeSessionState;
+function dependencies(
+  overrides: Partial<FlightSearchToolDependencies> = {},
+): FlightSearchToolDependencies {
+  return {
+    searchSeatsAero: async () => [awardFlight],
+    searchDuffel: async () => [cashFlight],
+    searchDuffelFlexibleDates: async () => [],
+    mapCabinClass: () => 'business',
+    getNearbyAirports: async () => [],
+    mergeSessionState: async () => {},
+    resolveIATACode: async (input) => input.toUpperCase(),
+    resolveAirportCodesWithLLM: async () => ({
+      origin: { code: 'FRA', name: 'Frankfurt Airport' },
+      destination: {
+        code: 'JFK',
+        name: 'John F. Kennedy International Airport',
+      },
+    }),
+    createDuffelBookingSession: async () => ({
+      url: 'https://links.duffel.com/test',
+    }),
+    logFailedSearch: async () => {},
+    ...overrides,
+  };
+}
 
-      (queries as any).recordToolCall = mock.fn(async (params) => ({
-        id: 1,
-        ...params,
-        dedupeKey: 'test-dedupe-key',
-        createdAt: new Date(),
-      }));
+type ExecuteOptions = Parameters<
+  NonNullable<ReturnType<typeof createFlightSearchTool>['execute']>
+>[1];
 
-      (queries as any).updateToolCall = mock.fn(async (params) => ({
-        ...params,
-        completedAt: new Date(),
-      }));
+function executeOptions(): ExecuteOptions {
+  return {
+    toolCallId: 'integration-test',
+    messages: [],
+    experimental_context: {
+      chatId: 'chat-1',
+      userId: 'user-1',
+      locale: 'en',
+    },
+  } as ExecuteOptions;
+}
 
-      (queries as any).mergeSessionState = mock.fn(async () => {});
-
-      // Execute tool
-      const result = await flightSearchTool.execute({
-        origin: 'FRA',
-        destination: 'JFK',
-        departureDate: '2025-03-15',
-        cabinClass: 'business',
-        passengers: 1,
-        searchAwardFlights: true,
-        searchCashFlights: true,
-      });
-
-      // Verify both APIs were called
-      assert.strictEqual((seatsAeroClient as any).searchSeatsAero.mock.calls.length, 1, 'Should call Seats.aero once');
-      assert.strictEqual((amadeusClient as any).searchAmadeus.mock.calls.length, 1, 'Should call Amadeus once');
-
-      // Verify tool call was recorded
-      assert.strictEqual((queries as any).recordToolCall.mock.calls.length, 1, 'Should record tool call');
-
-      // Verify tool call was updated with results
-      assert.strictEqual((queries as any).updateToolCall.mock.calls.length, 1, 'Should update tool call');
-
-      // Verify session state was updated
-      assert.strictEqual((queries as any).mergeSessionState.mock.calls.length, 1, 'Should update session state');
-
-      // Verify result contains both types of flights
-      assert.ok(result.includes('Award-Flüge'), 'Should contain award flights section');
-      assert.ok(result.includes('Cash-Flüge'), 'Should contain cash flights section');
-
-      // Restore original functions
-      (seatsAeroClient as any).searchSeatsAero = originalSeatsAero;
-      (amadeusClient as any).searchAmadeus = originalAmadeus;
-      (queries as any).recordToolCall = originalRecordToolCall;
-      (queries as any).updateToolCall = originalUpdateToolCall;
-      (queries as any).mergeSessionState = originalMergeSessionState;
+describe('flight-search tool factory integration', () => {
+  it('starts award and cash providers in parallel', async () => {
+    let seatsStarted = false;
+    let duffelStarted = false;
+    let releaseBoth: (() => void) | undefined;
+    const bothStarted = new Promise<void>((resolve) => {
+      releaseBoth = resolve;
     });
+    const markStarted = () => {
+      if (seatsStarted && duffelStarted) releaseBoth?.();
+    };
 
-    it('should handle award flights only', async () => {
-      const mockSeatsAeroResults = [
-        {
-          id: '1',
-          origin: 'FRA',
-          destination: 'JFK',
-          departureDate: '2025-03-15',
-          airline: 'LH',
-          cabins: {
-            business: { available: true, miles: 70000, seats: 4 },
-          },
-          segments: [],
-          duration: 525,
-          stops: 0,
-        },
-      ];
+    const tool = createFlightSearchTool(dependencies({
+      searchSeatsAero: async () => {
+        seatsStarted = true;
+        markStarted();
+        await bothStarted;
+        return [awardFlight];
+      },
+      searchDuffel: async () => {
+        duffelStarted = true;
+        markStarted();
+        await bothStarted;
+        return [cashFlight];
+      },
+    }));
 
-      const originalSeatsAero = seatsAeroClient.searchSeatsAero;
-      const originalAmadeus = amadeusClient.searchAmadeus;
+    const result = await tool.execute!(params, executeOptions());
 
-      (seatsAeroClient as any).searchSeatsAero = mock.fn(async () => mockSeatsAeroResults);
-      (amadeusClient as any).searchAmadeus = mock.fn(async () => []);
-
-      const originalRecordToolCall = queries.recordToolCall;
-      const originalUpdateToolCall = queries.updateToolCall;
-      const originalMergeSessionState = queries.mergeSessionState;
-
-      (queries as any).recordToolCall = mock.fn(async (params) => ({ id: 1, ...params }));
-      (queries as any).updateToolCall = mock.fn(async (params) => params);
-      (queries as any).mergeSessionState = mock.fn(async () => {});
-
-      const result = await flightSearchTool.execute({
-        origin: 'FRA',
-        destination: 'JFK',
-        departureDate: '2025-03-15',
-        cabinClass: 'business',
-        passengers: 1,
-        searchAwardFlights: true,
-        searchCashFlights: false,
-      });
-
-      assert.strictEqual((seatsAeroClient as any).searchSeatsAero.mock.calls.length, 1, 'Should call Seats.aero');
-      assert.strictEqual((amadeusClient as any).searchAmadeus.mock.calls.length, 0, 'Should not call Amadeus');
-
-      assert.ok(result.includes('Award-Flüge'), 'Should contain award flights');
-      assert.ok(!result.includes('Cash-Flüge'), 'Should not contain cash flights section');
-
-      (seatsAeroClient as any).searchSeatsAero = originalSeatsAero;
-      (amadeusClient as any).searchAmadeus = originalAmadeus;
-      (queries as any).recordToolCall = originalRecordToolCall;
-      (queries as any).updateToolCall = originalUpdateToolCall;
-      (queries as any).mergeSessionState = originalMergeSessionState;
-    });
-
-    it('should handle cash flights only', async () => {
-      const mockAmadeusResults = [
-        {
-          id: '1',
-          origin: 'FRA',
-          destination: 'JFK',
-          departureDate: '2025-03-15',
-          airline: 'UA',
-          cabinClass: 'business',
-          price: '850.00 EUR',
-          segments: [],
-          duration: 540,
-          stops: 0,
-        },
-      ];
-
-      const originalSeatsAero = seatsAeroClient.searchSeatsAero;
-      const originalAmadeus = amadeusClient.searchAmadeus;
-
-      (seatsAeroClient as any).searchSeatsAero = mock.fn(async () => []);
-      (amadeusClient as any).searchAmadeus = mock.fn(async () => mockAmadeusResults);
-
-      const originalRecordToolCall = queries.recordToolCall;
-      const originalUpdateToolCall = queries.updateToolCall;
-      const originalMergeSessionState = queries.mergeSessionState;
-
-      (queries as any).recordToolCall = mock.fn(async (params) => ({ id: 1, ...params }));
-      (queries as any).updateToolCall = mock.fn(async (params) => params);
-      (queries as any).mergeSessionState = mock.fn(async () => {});
-
-      const result = await flightSearchTool.execute({
-        origin: 'FRA',
-        destination: 'JFK',
-        departureDate: '2025-03-15',
-        cabinClass: 'business',
-        passengers: 1,
-        searchAwardFlights: false,
-        searchCashFlights: true,
-      });
-
-      assert.strictEqual((seatsAeroClient as any).searchSeatsAero.mock.calls.length, 0, 'Should not call Seats.aero');
-      assert.strictEqual((amadeusClient as any).searchAmadeus.mock.calls.length, 1, 'Should call Amadeus');
-
-      assert.ok(result.includes('Cash-Flüge'), 'Should contain cash flights');
-      assert.ok(!result.includes('Award-Flüge'), 'Should not contain award flights section');
-
-      (seatsAeroClient as any).searchSeatsAero = originalSeatsAero;
-      (amadeusClient as any).searchAmadeus = originalAmadeus;
-      (queries as any).recordToolCall = originalRecordToolCall;
-      (queries as any).updateToolCall = originalUpdateToolCall;
-      (queries as any).mergeSessionState = originalMergeSessionState;
-    });
+    assert.strictEqual(seatsStarted, true);
+    assert.strictEqual(duffelStarted, true);
+    assert.ok(typeof result === 'string');
+    assert.match(result, /Flights with Miles\/Points/);
+    assert.match(result, /Flights with Cash/);
   });
 
-  describe('Parallel API execution', () => {
-    it('should execute both API calls in parallel', async () => {
-      const startTimes: number[] = [];
-      const endTimes: number[] = [];
+  it('returns cash results when the award provider fails', async () => {
+    const tool = createFlightSearchTool(dependencies({
+      searchSeatsAero: async () => {
+        throw new Error('Seats.aero unavailable');
+      },
+    }));
 
-      const originalSeatsAero = seatsAeroClient.searchSeatsAero;
-      const originalAmadeus = amadeusClient.searchAmadeus;
+    const result = await tool.execute!(params, executeOptions());
 
-      (seatsAeroClient as any).searchSeatsAero = mock.fn(async () => {
-        startTimes.push(Date.now());
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        endTimes.push(Date.now());
-        return [];
-      });
-
-      (amadeusClient as any).searchAmadeus = mock.fn(async () => {
-        startTimes.push(Date.now());
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        endTimes.push(Date.now());
-        return [];
-      });
-
-      const originalRecordToolCall = queries.recordToolCall;
-      const originalUpdateToolCall = queries.updateToolCall;
-      const originalMergeSessionState = queries.mergeSessionState;
-
-      (queries as any).recordToolCall = mock.fn(async (params) => ({ id: 1, ...params }));
-      (queries as any).updateToolCall = mock.fn(async (params) => params);
-      (queries as any).mergeSessionState = mock.fn(async () => {});
-
-      await flightSearchTool.execute({
-        origin: 'FRA',
-        destination: 'JFK',
-        departureDate: '2025-03-15',
-        cabinClass: 'business',
-        passengers: 1,
-        searchAwardFlights: true,
-        searchCashFlights: true,
-      });
-
-      // Both should start around the same time (parallel execution)
-      const timeDiff = Math.abs(startTimes[0] - startTimes[1]);
-      assert.ok(timeDiff < 50, 'APIs should start within 50ms (parallel execution)');
-
-      (seatsAeroClient as any).searchSeatsAero = originalSeatsAero;
-      (amadeusClient as any).searchAmadeus = originalAmadeus;
-      (queries as any).recordToolCall = originalRecordToolCall;
-      (queries as any).updateToolCall = originalUpdateToolCall;
-      (queries as any).mergeSessionState = originalMergeSessionState;
-    });
-
-    it('should continue if one API fails', async () => {
-      const originalSeatsAero = seatsAeroClient.searchSeatsAero;
-      const originalAmadeus = amadeusClient.searchAmadeus;
-
-      (seatsAeroClient as any).searchSeatsAero = mock.fn(async () => {
-        throw new Error('Seats.aero API error');
-      });
-
-      (amadeusClient as any).searchAmadeus = mock.fn(async () => [
-        {
-          id: '1',
-          origin: 'FRA',
-          destination: 'JFK',
-          departureDate: '2025-03-15',
-          airline: 'UA',
-          cabinClass: 'business',
-          price: '850.00 EUR',
-          segments: [],
-          duration: 540,
-          stops: 0,
-        },
-      ]);
-
-      const originalRecordToolCall = queries.recordToolCall;
-      const originalUpdateToolCall = queries.updateToolCall;
-      const originalMergeSessionState = queries.mergeSessionState;
-
-      (queries as any).recordToolCall = mock.fn(async (params) => ({ id: 1, ...params }));
-      (queries as any).updateToolCall = mock.fn(async (params) => params);
-      (queries as any).mergeSessionState = mock.fn(async () => {});
-
-      const result = await flightSearchTool.execute({
-        origin: 'FRA',
-        destination: 'JFK',
-        departureDate: '2025-03-15',
-        cabinClass: 'business',
-        passengers: 1,
-        searchAwardFlights: true,
-        searchCashFlights: true,
-      });
-
-      // Should still get Amadeus results
-      assert.ok(result.includes('Cash-Flüge'), 'Should have cash flights despite award API failure');
-
-      (seatsAeroClient as any).searchSeatsAero = originalSeatsAero;
-      (amadeusClient as any).searchAmadeus = originalAmadeus;
-      (queries as any).recordToolCall = originalRecordToolCall;
-      (queries as any).updateToolCall = originalUpdateToolCall;
-      (queries as any).mergeSessionState = originalMergeSessionState;
-    });
+    assert.ok(typeof result === 'string');
+    assert.match(result, /Flights with Cash/);
+    assert.match(result, /Lufthansa/);
   });
 
-  describe('Session state updates', () => {
-    it('should update session state with search parameters', async () => {
-      const originalSeatsAero = seatsAeroClient.searchSeatsAero;
-      const originalAmadeus = amadeusClient.searchAmadeus;
+  it('stores the resolved search contract for follow-up turns', async () => {
+    let mergedChatId: string | undefined;
+    let mergedState: unknown;
+    const tool = createFlightSearchTool(dependencies({
+      mergeSessionState: async (chatId, state) => {
+        mergedChatId = chatId;
+        mergedState = state;
+      },
+    }));
 
-      (seatsAeroClient as any).searchSeatsAero = mock.fn(async () => []);
-      (amadeusClient as any).searchAmadeus = mock.fn(async () => []);
+    await tool.execute!(params, executeOptions());
 
-      const originalRecordToolCall = queries.recordToolCall;
-      const originalUpdateToolCall = queries.updateToolCall;
-      const originalMergeSessionState = queries.mergeSessionState;
-
-      (queries as any).recordToolCall = mock.fn(async (params) => ({ id: 1, ...params }));
-      (queries as any).updateToolCall = mock.fn(async (params) => params);
-
-      const mergeSessionStateMock = mock.fn(async (chatId: string, state: any) => {
-        assert.ok(state.lastFlightSearch, 'Should include lastFlightSearch in state');
-        assert.strictEqual(state.lastFlightSearch.origin, 'FRA', 'Should include origin');
-        assert.strictEqual(state.lastFlightSearch.destination, 'JFK', 'Should include destination');
-      });
-
-      (queries as any).mergeSessionState = mergeSessionStateMock;
-
-      await flightSearchTool.execute({
+    assert.strictEqual(mergedChatId, 'chat-1');
+    assert.deepStrictEqual(mergedState, {
+      last_flight_request: {
         origin: 'FRA',
         destination: 'JFK',
-        departureDate: '2025-03-15',
-        cabinClass: 'business',
+        departDate: futureDate,
+        returnDate: null,
+        cabin: 'BUSINESS',
         passengers: 1,
-        searchAwardFlights: true,
-        searchCashFlights: true,
-      });
-
-      assert.strictEqual(mergeSessionStateMock.mock.calls.length, 1, 'Should update session state');
-
-      (seatsAeroClient as any).searchSeatsAero = originalSeatsAero;
-      (amadeusClient as any).searchAmadeus = originalAmadeus;
-      (queries as any).recordToolCall = originalRecordToolCall;
-      (queries as any).updateToolCall = originalUpdateToolCall;
-      (queries as any).mergeSessionState = originalMergeSessionState;
-    });
-  });
-
-  describe('Tool-call registry integration', () => {
-    it('should record tool call before execution', async () => {
-      const originalSeatsAero = seatsAeroClient.searchSeatsAero;
-      const originalAmadeus = amadeusClient.searchAmadeus;
-
-      (seatsAeroClient as any).searchSeatsAero = mock.fn(async () => []);
-      (amadeusClient as any).searchAmadeus = mock.fn(async () => []);
-
-      const originalRecordToolCall = queries.recordToolCall;
-      const originalUpdateToolCall = queries.updateToolCall;
-      const originalMergeSessionState = queries.mergeSessionState;
-
-      const recordToolCallMock = mock.fn(async (params) => {
-        assert.strictEqual(params.toolName, 'search_flights', 'Should record correct tool name');
-        assert.strictEqual(params.status, 'pending', 'Should start as pending');
-        assert.ok(params.parameters, 'Should include parameters');
-        return { id: 1, ...params, dedupeKey: 'test-key', createdAt: new Date() };
-      });
-
-      (queries as any).recordToolCall = recordToolCallMock;
-      (queries as any).updateToolCall = mock.fn(async (params) => params);
-      (queries as any).mergeSessionState = mock.fn(async () => {});
-
-      await flightSearchTool.execute({
-        origin: 'FRA',
-        destination: 'JFK',
-        departureDate: '2025-03-15',
-        cabinClass: 'business',
-        passengers: 1,
-        searchAwardFlights: true,
-        searchCashFlights: true,
-      });
-
-      assert.strictEqual(recordToolCallMock.mock.calls.length, 1, 'Should record tool call');
-
-      (seatsAeroClient as any).searchSeatsAero = originalSeatsAero;
-      (amadeusClient as any).searchAmadeus = originalAmadeus;
-      (queries as any).recordToolCall = originalRecordToolCall;
-      (queries as any).updateToolCall = originalUpdateToolCall;
-      (queries as any).mergeSessionState = originalMergeSessionState;
-    });
-
-    it('should update tool call with results after execution', async () => {
-      const originalSeatsAero = seatsAeroClient.searchSeatsAero;
-      const originalAmadeus = amadeusClient.searchAmadeus;
-
-      (seatsAeroClient as any).searchSeatsAero = mock.fn(async () => []);
-      (amadeusClient as any).searchAmadeus = mock.fn(async () => []);
-
-      const originalRecordToolCall = queries.recordToolCall;
-      const originalUpdateToolCall = queries.updateToolCall;
-      const originalMergeSessionState = queries.mergeSessionState;
-
-      (queries as any).recordToolCall = mock.fn(async (params) => ({ id: 1, ...params }));
-
-      const updateToolCallMock = mock.fn(async (params) => {
-        assert.strictEqual(params.status, 'completed', 'Should mark as completed');
-        assert.ok(params.result, 'Should include result');
-        assert.ok(params.executionTime, 'Should include execution time');
-        return params;
-      });
-
-      (queries as any).updateToolCall = updateToolCallMock;
-      (queries as any).mergeSessionState = mock.fn(async () => {});
-
-      await flightSearchTool.execute({
-        origin: 'FRA',
-        destination: 'JFK',
-        departureDate: '2025-03-15',
-        cabinClass: 'business',
-        passengers: 1,
-        searchAwardFlights: true,
-        searchCashFlights: true,
-      });
-
-      assert.strictEqual(updateToolCallMock.mock.calls.length, 1, 'Should update tool call');
-
-      (seatsAeroClient as any).searchSeatsAero = originalSeatsAero;
-      (amadeusClient as any).searchAmadeus = originalAmadeus;
-      (queries as any).recordToolCall = originalRecordToolCall;
-      (queries as any).updateToolCall = originalUpdateToolCall;
-      (queries as any).mergeSessionState = originalMergeSessionState;
-    });
-
-    it('should handle tool call failures', async () => {
-      const originalSeatsAero = seatsAeroClient.searchSeatsAero;
-      const originalAmadeus = amadeusClient.searchAmadeus;
-
-      (seatsAeroClient as any).searchSeatsAero = mock.fn(async () => {
-        throw new Error('Critical error');
-      });
-      (amadeusClient as any).searchAmadeus = mock.fn(async () => {
-        throw new Error('Critical error');
-      });
-
-      const originalRecordToolCall = queries.recordToolCall;
-      const originalUpdateToolCall = queries.updateToolCall;
-      const originalMergeSessionState = queries.mergeSessionState;
-
-      (queries as any).recordToolCall = mock.fn(async (params) => ({ id: 1, ...params }));
-
-      const updateToolCallMock = mock.fn(async (params) => {
-        if (params.status === 'failed') {
-          assert.ok(params.error, 'Should include error message');
-        }
-        return params;
-      });
-
-      (queries as any).updateToolCall = updateToolCallMock;
-      (queries as any).mergeSessionState = mock.fn(async () => {});
-
-      await flightSearchTool.execute({
-        origin: 'FRA',
-        destination: 'JFK',
-        departureDate: '2025-03-15',
-        cabinClass: 'business',
-        passengers: 1,
-        searchAwardFlights: true,
-        searchCashFlights: true,
-      });
-
-      // Should still update tool call even on failure
-      assert.ok(updateToolCallMock.mock.calls.length >= 1, 'Should update tool call on failure');
-
-      (seatsAeroClient as any).searchSeatsAero = originalSeatsAero;
-      (amadeusClient as any).searchAmadeus = originalAmadeus;
-      (queries as any).recordToolCall = originalRecordToolCall;
-      (queries as any).updateToolCall = originalUpdateToolCall;
-      (queries as any).mergeSessionState = originalMergeSessionState;
-    });
-  });
-
-  describe('German response formatting', () => {
-    it('should format response in German', async () => {
-      const mockResults = [
-        {
-          id: '1',
-          origin: 'FRA',
-          destination: 'JFK',
-          departureDate: '2025-03-15',
-          airline: 'LH',
-          cabins: {
-            business: { available: true, miles: 70000, seats: 4 },
-          },
-          segments: [],
-          duration: 525,
-          stops: 0,
-        },
-      ];
-
-      const originalSeatsAero = seatsAeroClient.searchSeatsAero;
-      const originalAmadeus = amadeusClient.searchAmadeus;
-
-      (seatsAeroClient as any).searchSeatsAero = mock.fn(async () => mockResults);
-      (amadeusClient as any).searchAmadeus = mock.fn(async () => []);
-
-      const originalRecordToolCall = queries.recordToolCall;
-      const originalUpdateToolCall = queries.updateToolCall;
-      const originalMergeSessionState = queries.mergeSessionState;
-
-      (queries as any).recordToolCall = mock.fn(async (params) => ({ id: 1, ...params }));
-      (queries as any).updateToolCall = mock.fn(async (params) => params);
-      (queries as any).mergeSessionState = mock.fn(async () => {});
-
-      const result = await flightSearchTool.execute({
-        origin: 'FRA',
-        destination: 'JFK',
-        departureDate: '2025-03-15',
-        cabinClass: 'business',
-        passengers: 1,
-        searchAwardFlights: true,
-        searchCashFlights: false,
-      });
-
-      // Check for German text
-      assert.ok(result.includes('Flug'), 'Should contain German word for flight');
-      assert.ok(!result.includes('Flight'), 'Should not contain English words');
-
-      (seatsAeroClient as any).searchSeatsAero = originalSeatsAero;
-      (amadeusClient as any).searchAmadeus = originalAmadeus;
-      (queries as any).recordToolCall = originalRecordToolCall;
-      (queries as any).updateToolCall = originalUpdateToolCall;
-      (queries as any).mergeSessionState = originalMergeSessionState;
+        awardOnly: false,
+        loyaltyPrograms: undefined,
+      },
+      pending_flight_request: null,
     });
   });
 });

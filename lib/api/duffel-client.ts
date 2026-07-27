@@ -66,6 +66,34 @@ export interface DuffelFlight {
   emissionsKg?: number;
 }
 
+function abortError(signal: AbortSignal): unknown {
+  return signal.reason ?? new DOMException('Operation aborted', 'AbortError');
+}
+
+function awaitWithAbort<T>(
+  promise: Promise<T>,
+  signal?: AbortSignal,
+): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(abortError(signal));
+
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(abortError(signal));
+    signal.addEventListener('abort', onAbort, { once: true });
+
+    promise.then(
+      (value) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(error);
+      },
+    );
+  });
+}
+
 /**
  * Map uppercase cabin class to Duffel format
  */
@@ -82,10 +110,12 @@ function mapCabinClass(cabin: string): DuffelSearchParams['cabinClass'] {
 /**
  * Search for cash flights using Duffel Flight Offers API (SDK with verbose debugging)
  * @param params - Search parameters
+ * @param signal - Optional request cancellation signal
  * @returns List of flight offers
  */
 export async function searchDuffel(
-  params: DuffelSearchParams
+  params: DuffelSearchParams,
+  signal?: AbortSignal
 ): Promise<DuffelFlight[]> {
   const duffel = getDuffelClient();
 
@@ -131,13 +161,16 @@ export async function searchDuffel(
     // Type assertion needed due to SDK type constraints
     const maxConn = Math.min(params.maxConnections ?? 1, 2) as 0 | 1 | 2;
     
-    const response = await duffel.offerRequests.create({
-      slices: slices as any, // SDK types are overly strict
-      passengers,
-      cabin_class: params.cabinClass,
-      max_connections: maxConn,
-      return_offers: true,
-    });
+    const response = await awaitWithAbort(
+      duffel.offerRequests.create({
+        slices: slices as any, // SDK types are overly strict
+        passengers,
+        cabin_class: params.cabinClass,
+        max_connections: maxConn,
+        return_offers: true,
+      }),
+      signal,
+    );
 
     // Log request ID for debugging/tracking in Duffel Dashboard
     console.log('=== [DUFFEL API CALL] === Request completed - Offer Request ID:', response.data.id);
@@ -419,11 +452,13 @@ export async function getNearbyAirports(
  * Search Duffel across flexible date range with batched parallelism
  * @param params - Base search parameters
  * @param flexDays - Days to search before and after (default: 3)
+ * @param signal - Optional request cancellation signal
  * @returns Array of flights with searchedDate metadata
  */
 export async function searchDuffelFlexibleDates(
   params: DuffelSearchParams,
-  flexDays: number = 3
+  flexDays: number = 3,
+  signal?: AbortSignal,
 ): Promise<(DuffelFlight & { searchedDate: string })[]> {
   const baseDate = new Date(params.departureDate);
   const dates: string[] = [];
@@ -446,9 +481,10 @@ export async function searchDuffelFlexibleDates(
     console.log(`[Duffel] Processing batch ${Math.floor(i/batchSize) + 1}: ${batch.join(', ')}`);
 
     const promises = batch.map(date =>
-      searchDuffel({ ...params, departureDate: date })
+      searchDuffel({ ...params, departureDate: date }, signal)
         .then(flights => flights.map(f => ({ ...f, searchedDate: date })))
         .catch(err => {
+          if (signal?.aborted) throw err;
           console.warn(`[Duffel] Date ${date} failed:`, err.message);
           return []; // Return empty array on failure
         })
@@ -465,7 +501,10 @@ export async function searchDuffelFlexibleDates(
 
     // Small delay between batches to be respectful to API
     if (i + batchSize < dates.length) {
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await awaitWithAbort(
+        new Promise<void>((resolve) => setTimeout(resolve, 500)),
+        signal,
+      );
     }
   }
 

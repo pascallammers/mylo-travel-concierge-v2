@@ -74,18 +74,24 @@ export interface SeatsAeroFlight {
  * Includes automatic retry with exponential backoff for transient errors
  *
  * @param params - Search parameters
+ * @param signal - Optional request cancellation signal
  * @returns List of available award flights
  */
 export async function searchSeatsAero(
-  params: SeatsAeroSearchParams
+  params: SeatsAeroSearchParams,
+  signal?: AbortSignal
 ): Promise<SeatsAeroFlight[]> {
   let lastError: Error | undefined;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      return await executeSeatsAeroSearch(params);
+      return await executeSeatsAeroSearch(params, signal);
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
+
+      if (signal?.aborted) {
+        throw lastError;
+      }
 
       // Check if we should retry
       const shouldRetry = attempt < MAX_RETRIES && isRetryableError(error);
@@ -115,7 +121,8 @@ export async function searchSeatsAero(
  * Separated from retry logic for clarity
  */
 async function executeSeatsAeroSearch(
-  params: SeatsAeroSearchParams
+  params: SeatsAeroSearchParams,
+  signal?: AbortSignal
 ): Promise<SeatsAeroFlight[]> {
   const { cabin, apiValue } = CLASS_MAP[params.travelClass];
   const flex = Math.min(params.flexibility || 0, 3);
@@ -146,6 +153,7 @@ async function executeSeatsAeroSearch(
 
   // API Call
   const response = await fetch(searchUrl.toString(), {
+    signal,
     headers: {
       'Partner-Authorization': process.env.SEATSAERO_API_KEY || '',
       'Content-Type': 'application/json',

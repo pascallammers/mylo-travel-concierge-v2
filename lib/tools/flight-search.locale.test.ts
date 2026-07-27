@@ -38,18 +38,28 @@ const calls = {
 };
 
 let seatsAeroResult: SeatsAeroFlight[] = [];
+let seatsAeroSignal: AbortSignal | undefined;
+let duffelSignal: AbortSignal | undefined;
+let duffelFlexibleSignal: AbortSignal | undefined;
 
 const dependencies: FlightSearchToolDependencies = {
-  searchSeatsAero: async (params) => {
+  searchSeatsAero: async (params, signal?: AbortSignal) => {
     calls.seatsAero.push(params);
+    seatsAeroSignal = signal;
     return seatsAeroResult;
   },
-  searchDuffel: async (params) => {
+  searchDuffel: async (params, signal?: AbortSignal) => {
     calls.duffel.push(params);
+    duffelSignal = signal;
     return [];
   },
-  searchDuffelFlexibleDates: async (params, days = 3) => {
+  searchDuffelFlexibleDates: async (
+    params,
+    days = 3,
+    signal?: AbortSignal,
+  ) => {
     calls.duffelFlexible.push({ params, days });
+    duffelFlexibleSignal = signal;
     return [];
   },
   mapCabinClass: (cabin) => {
@@ -126,10 +136,11 @@ type ExecuteCallOptions = Parameters<
   NonNullable<typeof flightSearchTool.execute>
 >[1];
 
-function callOptions(locale?: string) {
+function callOptions(locale?: string, abortSignal?: AbortSignal) {
   return {
     toolCallId: 'test-call',
     messages: [],
+    abortSignal,
     experimental_context: {
       chatId: 'chat-1',
       userId: 'user-1',
@@ -143,6 +154,9 @@ beforeEach(() => {
   calls.duffel.length = 0;
   calls.duffelFlexible.length = 0;
   seatsAeroResult = [];
+  seatsAeroSignal = undefined;
+  duffelSignal = undefined;
+  duffelFlexibleSignal = undefined;
 });
 
 describe('flight-search locale resolution', () => {
@@ -206,6 +220,30 @@ describe('flight-search locale resolution', () => {
     assert.ok(typeof result === 'string');
     assert.match(result, /Flüge mit Meilen\/Punkten/);
   });
+
+  it('accepts today as a departure date in a negative UTC offset', async () => {
+    const previousTimeZone = process.env.TZ;
+    process.env.TZ = 'America/Los_Angeles';
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Los_Angeles',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(new Date());
+    const value = (type: Intl.DateTimeFormatPartTypes) =>
+      parts.find((part) => part.type === type)?.value ?? '';
+    const today = `${value('year')}-${value('month')}-${value('day')}`;
+
+    try {
+      const result = await flightSearchTool.execute!(
+        { ...baseParams, departDate: today },
+        callOptions(),
+      );
+      assert.ok(typeof result === 'string');
+    } finally {
+      process.env.TZ = previousTimeZone;
+    }
+  });
 });
 
 describe('flight-search flexible-date trigger', () => {
@@ -240,5 +278,18 @@ describe('flight-search flexible-date trigger', () => {
       /"type":"no_results_offer_flexible"/,
       'a normal no-results search must offer the flexible-date retry',
     );
+  });
+
+  it('forwards the execute abort signal to both search providers', async () => {
+    const controller = new AbortController();
+
+    await flightSearchTool.execute!(
+      baseParams,
+      callOptions(undefined, controller.signal),
+    );
+
+    assert.strictEqual(seatsAeroSignal, controller.signal);
+    assert.strictEqual(duffelSignal, controller.signal);
+    assert.strictEqual(duffelFlexibleSignal, undefined);
   });
 });
