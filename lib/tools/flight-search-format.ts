@@ -11,7 +11,10 @@ import {
   buildGoogleFlightsUrl,
   buildSkyscannerUrl,
 } from '@/lib/utils/flight-search-links';
-import { getProgramDisplayName } from '@/lib/api/award-search/program-registry';
+import {
+  getProgramBookingUrl,
+  getProgramDisplayName,
+} from '@/lib/api/award-search/program-registry';
 
 // Booking-session creator is injected to keep the renderer free of the
 // server-env import graph. The tool entry-point passes the real
@@ -97,9 +100,10 @@ export const flightI18n = {
     en: (count: number) => `## Flights with Miles/Points (${count} results)\n`,
   },
   awardTableHeader: {
-    de: '| Nr. | Airline | Programm | Klasse | Preis | Abflug | Ankunft | Dauer | Stops | Sitze | Flugnummer |',
-    en: '| No. | Airline | Program | Class | Price | Departure | Arrival | Duration | Stops | Seats | Flight No. |',
+    de: '| Nr. | Airline | Programm | Klasse | Preis | Abflug | Ankunft | Dauer | Stops | Sitze | Flugnummer | Buchen |',
+    en: '| No. | Airline | Program | Class | Price | Departure | Arrival | Duration | Stops | Seats | Flight No. | Book |',
   },
+  bookLinkLabel: { de: 'Buchen', en: 'Book' },
   cashHeader: {
     de: (count: number) => `## Flüge mit Barzahlung (${count} Ergebnisse)\n`,
     en: (count: number) => `## Flights with Cash (${count} results)\n`,
@@ -211,7 +215,7 @@ export async function formatFlightResults(
   if (result.seats.count > 0) {
     sections.push(flightI18n.awardHeader[locale](result.seats.count));
     sections.push(flightI18n.awardTableHeader[locale]);
-    sections.push(`|-----|---------|----------|-------|--------|---------|-------|-------|-------|-------|------------|`);
+    sections.push(`|-----|---------|----------|-------|--------|---------|-------|-------|-------|-------|------------|--------|`);
 
     result.seats.flights.forEach((flight: any, idx: number) => {
       const departTime = formatTime(flight.outbound.departure.time);
@@ -222,8 +226,23 @@ export async function formatFlightResults(
       // carrier in `airline` ("LH") is shown separately.
       const program = getProgramDisplayName(flight.program, locale);
 
+      // Booking link points at the mileage program's own website (deeplink or
+      // award-search page) — never at the data vendor. Awards book on the
+      // flight's actual date, which can differ from params.departDate when the
+      // search ran with flexibility.
+      const flightDate =
+        (flight.outbound.departure.time || '').split('T')[0] || params.departDate;
+      const bookingUrl = getProgramBookingUrl(flight.program, {
+        origin: flight.outbound.departure.airport,
+        destination: flight.outbound.arrival.airport,
+        departDate: flightDate,
+      });
+      const bookCell = bookingUrl
+        ? `[${flightI18n.bookLinkLabel[locale]}](${bookingUrl})`
+        : '-';
+
       sections.push(
-        `| ${idx + 1} | ${flight.airline} | ${program} | ${flight.cabin} | ${flight.price} | ${flight.outbound.departure.airport} ${departTime} | ${flight.outbound.arrival.airport} ${arriveTime} | ${flight.outbound.duration} | ${flight.outbound.stops} | ${seats} | ${flight.outbound.flightNumbers} |`,
+        `| ${idx + 1} | ${flight.airline} | ${program} | ${flight.cabin} | ${flight.price} | ${flight.outbound.departure.airport} ${departTime} | ${flight.outbound.arrival.airport} ${arriveTime} | ${flight.outbound.duration} | ${flight.outbound.stops} | ${seats} | ${flight.outbound.flightNumbers} | ${bookCell} |`,
       );
     });
     sections.push('');

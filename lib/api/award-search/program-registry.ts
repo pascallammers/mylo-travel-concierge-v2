@@ -50,6 +50,64 @@ const PROGRAM_NAMES: Record<string, LocalizedProgramName> = {
 /** All seats.aero source slugs the registry maps by name. */
 export const KNOWN_PROGRAM_SLUGS: string[] = Object.keys(PROGRAM_NAMES);
 
+/** Route/date context used to prefill a program's award-search deeplink. */
+export interface AwardBookingContext {
+  origin: string;
+  destination: string;
+  /** YYYY-MM-DD */
+  departDate: string;
+}
+
+const PROGRAM_DEEPLINKS: Record<string, (ctx: AwardBookingContext) => string> = {
+  aeroplan: ({ origin, destination, departDate }) =>
+    `https://www.aircanada.com/aeroplan/redeem/availability/outbound?org0=${origin}&dest0=${destination}&departureDate0=${departDate}&tripType=O&ADT=1&YTH=0&CHD=0&INF=0&marketCode=INT`,
+  alaska: ({ origin, destination, departDate }) =>
+    `https://www.alaskaair.com/search/results?A=1&O=${origin}&D=${destination}&OD=${departDate}&RT=false&ShoppingMethod=onlineaward`,
+  jetblue: ({ origin, destination, departDate }) =>
+    `https://www.jetblue.com/booking/flights?from=${origin}&to=${destination}&depart=${departDate}&adults=1&usePoints=true`,
+  united: ({ origin, destination, departDate }) =>
+    `https://www.united.com/en/us/fsr/choose-flights?f=${origin}&t=${destination}&d=${departDate}&tt=1&at=1&px=1&taxng=1&idx=1`,
+};
+
+// Award-search entry page per program, used when the website offers no
+// prefillable deeplink (login walls, session-bound search forms, ...).
+const PROGRAM_SEARCH_PAGES: Record<string, string> = {
+  aeromexico: 'https://www.aeromexico.com/en-us/aeromexico-rewards',
+  american: 'https://www.aa.com/booking/find-flights',
+  azul: 'https://www.voeazul.com.br/en/tudoazul',
+  british: 'https://www.britishairways.com/travel/redeem/execclub/_gf/en_gb',
+  connectmiles: 'https://www.copaair.com/en/web/us/connectmiles',
+  delta: 'https://www.delta.com/flight-search/book-a-flight',
+  emirates: 'https://www.emirates.com/english/skywards/',
+  ethiopian: 'https://www.ethiopianairlines.com/aa/shebamiles',
+  etihad: 'https://www.etihadguest.com/',
+  eurobonus: 'https://www.flysas.com/',
+  finnair: 'https://www.finnair.com/finnair-plus',
+  flyingblue: 'https://www.flyingblue.com/',
+  lifemiles: 'https://www.lifemiles.com/',
+  lufthansa: 'https://www.miles-and-more.com/de/en/spend/flights.html',
+  qantas: 'https://www.qantas.com/frequent-flyer',
+  qatar: 'https://www.qatarairways.com/en/privilege-club.html',
+  saudia: 'https://www.saudia.com/alfursan',
+  singapore: 'https://www.singaporeair.com/en_UK/us/ppsclub-krisflyer/use-miles/',
+  smiles: 'https://www.smiles.com.br/',
+  velocity: 'https://www.virginaustralia.com/velocity/',
+  virginatlantic: 'https://www.virginatlantic.com/flying-club',
+};
+
+/**
+ * Booking URL for an award row: a prefilled deeplink where the program's
+ * website supports one, otherwise the program's award-search page.
+ */
+export function getProgramBookingUrl(
+  slug: string,
+  ctx: AwardBookingContext,
+): string | null {
+  const deeplink = PROGRAM_DEEPLINKS[slug];
+  if (deeplink) return deeplink(ctx);
+  return PROGRAM_SEARCH_PAGES[slug] ?? null;
+}
+
 export function getProgramDisplayName(slug: string, locale: TransferLocale): string {
   // A missing slug must never crash the renderer (which formats both award AND
   // cash tables in one call); degrade to an empty label.

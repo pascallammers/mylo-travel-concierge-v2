@@ -11,7 +11,11 @@
 import assert from 'node:assert';
 import { describe, it, mock } from 'node:test';
 
-import { getProgramDisplayName, KNOWN_PROGRAM_SLUGS } from './program-registry';
+import {
+  getProgramBookingUrl,
+  getProgramDisplayName,
+  KNOWN_PROGRAM_SLUGS,
+} from './program-registry';
 
 describe('getProgramDisplayName', () => {
   it('maps the three MUC->MIA regression programs to brand names', () => {
@@ -50,5 +54,56 @@ describe('getProgramDisplayName', () => {
     } finally {
       warn.mock.restore();
     }
+  });
+});
+
+describe('getProgramBookingUrl', () => {
+  const ctx = { origin: 'FRA', destination: 'JFK', departDate: '2026-06-15' };
+
+  it('builds a prefilled united.com award deeplink (route + date, one-way, award toggle)', () => {
+    assert.strictEqual(
+      getProgramBookingUrl('united', ctx),
+      'https://www.united.com/en/us/fsr/choose-flights?f=FRA&t=JFK&d=2026-06-15&tt=1&at=1&px=1&taxng=1&idx=1',
+    );
+  });
+
+  it('builds prefilled deeplinks for aeroplan, alaska and jetblue', () => {
+    assert.strictEqual(
+      getProgramBookingUrl('aeroplan', ctx),
+      'https://www.aircanada.com/aeroplan/redeem/availability/outbound?org0=FRA&dest0=JFK&departureDate0=2026-06-15&tripType=O&ADT=1&YTH=0&CHD=0&INF=0&marketCode=INT',
+    );
+    assert.strictEqual(
+      getProgramBookingUrl('alaska', ctx),
+      'https://www.alaskaair.com/search/results?A=1&O=FRA&D=JFK&OD=2026-06-15&RT=false&ShoppingMethod=onlineaward',
+    );
+    assert.strictEqual(
+      getProgramBookingUrl('jetblue', ctx),
+      'https://www.jetblue.com/booking/flights?from=FRA&to=JFK&depart=2026-06-15&adults=1&usePoints=true',
+    );
+  });
+
+  it('falls back to the program award-search page when no deeplink template exists', () => {
+    assert.strictEqual(
+      getProgramBookingUrl('lufthansa', ctx),
+      'https://www.miles-and-more.com/de/en/spend/flights.html',
+    );
+    assert.strictEqual(
+      getProgramBookingUrl('singapore', ctx),
+      'https://www.singaporeair.com/en_UK/us/ppsclub-krisflyer/use-miles/',
+    );
+  });
+
+  it('resolves EVERY known slug to an https URL that never points at seats.aero', () => {
+    for (const slug of KNOWN_PROGRAM_SLUGS) {
+      const url = getProgramBookingUrl(slug, ctx);
+      assert.ok(url, `slug ${slug} must resolve to a booking URL`);
+      assert.match(url!, /^https:\/\//, `slug ${slug} must be an https URL`);
+      assert.doesNotMatch(url!, /seats\.aero/i, `slug ${slug} must not link to seats.aero`);
+    }
+  });
+
+  it('returns null for unknown or empty slugs instead of inventing a URL', () => {
+    assert.strictEqual(getProgramBookingUrl('madeupprogram', ctx), null);
+    assert.strictEqual(getProgramBookingUrl('', ctx), null);
   });
 });

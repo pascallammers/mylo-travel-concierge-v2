@@ -82,7 +82,10 @@ describe('formatFlightResults', () => {
       assert.match(headerLine, /Programm/, 'award header must include a Programm column');
       // ...resolved to the customer-facing brand name, not the raw slug.
       assert.match(out, /Air Canada Aeroplan/, 'program slug must render as a display name');
-      assert.doesNotMatch(out, /aeroplan/, 'raw program slug must not leak');
+      // The raw slug must not leak as visible text. Link TARGETS are exempt:
+      // Air Canada's own booking URL legitimately contains /aeroplan/.
+      const visibleText = out.replace(/\]\([^)]*\)/g, ']');
+      assert.doesNotMatch(visibleText, /aeroplan/, 'raw program slug must not leak as visible text');
       // The data vendor itself stays hidden.
       assert.doesNotMatch(headerLine, /Quelle|Source/i, 'award table must not expose a vendor source column');
       assert.doesNotMatch(out, /Seats\.aero/i);
@@ -118,6 +121,48 @@ describe('formatFlightResults', () => {
       const out = await formatFlightResults(makeCashResult(), baseParams, 'de', failingCreator);
       assert.match(out, /keine direktbuchung/i);
       assert.doesNotMatch(out, /\[Buchen\]/);
+    });
+  });
+
+  describe('award booking links (MYLO-16)', () => {
+    it('award table header ends with a Buchen column and a matching separator', async () => {
+      const out = await formatFlightResults(makeAwardResult(), baseParams, 'de');
+      const lines = out.split('\n');
+      const headerIdx = lines.findIndex((l) => l.includes('Programm'));
+      const headerLine = lines[headerIdx] ?? '';
+      const separatorLine = lines[headerIdx + 1] ?? '';
+      assert.match(headerLine, /\| Buchen \|$/, 'award header must end with a Buchen column');
+      assert.strictEqual(
+        separatorLine.split('|').length,
+        headerLine.split('|').length,
+        'separator row must have as many cells as the header',
+      );
+    });
+
+    it('each award row links to the mileage program booking page for the searched route/date', async () => {
+      const out = await formatFlightResults(makeAwardResult(), baseParams, 'de');
+      // aeroplan supports a prefilled deeplink: route + flight date must be in it.
+      assert.match(
+        out,
+        /\[Buchen\]\(https:\/\/www\.aircanada\.com\/aeroplan\/redeem\/availability\/outbound\?org0=FRA&dest0=JFK&departureDate0=2026-06-15[^)]*\)/,
+        'award row must carry the aeroplan deeplink with route and date prefilled',
+      );
+      assert.doesNotMatch(out, /seats\.aero/i, 'no booking link may point at seats.aero');
+    });
+
+    it('renders the en locale with a Book column and label', async () => {
+      const out = await formatFlightResults(makeAwardResult(), baseParams, 'en');
+      const headerLine = out.split('\n').find((l) => l.includes('Program')) ?? '';
+      assert.match(headerLine, /\| Book \|$/);
+      assert.match(out, /\[Book\]\(https:\/\/www\.aircanada\.com\//);
+    });
+
+    it('renders a dash instead of a fabricated link for an unknown program', async () => {
+      const result = makeAwardResult();
+      result.seats.flights[0].program = 'madeupprogram';
+      const out = await formatFlightResults(result, baseParams, 'de');
+      assert.doesNotMatch(out, /\[Buchen\]/, 'unknown program must not get a booking link');
+      assert.match(out, /\| - \|$/m, 'unknown program row must end with a dash cell');
     });
   });
 
