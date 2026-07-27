@@ -58,13 +58,38 @@ describe('getProgramDisplayName', () => {
 });
 
 describe('getProgramBookingUrl', () => {
-  const ctx = { origin: 'FRA', destination: 'JFK', departDate: '2026-06-15' };
+  const ctx = {
+    origin: 'FRA',
+    destination: 'JFK',
+    departDate: '2026-06-15',
+    cabin: 'Business',
+  };
 
-  it('builds a prefilled united.com award deeplink (route + date, one-way, award toggle)', () => {
+  it('builds a prefilled united.com award deeplink (route + date + cabin, one-way, award toggle)', () => {
     assert.strictEqual(
       getProgramBookingUrl('united', ctx),
-      'https://www.united.com/en/us/fsr/choose-flights?f=FRA&t=JFK&d=2026-06-15&tt=1&at=1&px=1&taxng=1&idx=1',
+      'https://www.united.com/en/us/fsr/choose-flights?f=FRA&t=JFK&d=2026-06-15&tt=1&at=1&px=1&taxng=1&idx=1&tqp=A&clm=4',
     );
+  });
+
+  it('maps all supported United cabin classes and ignores unknown values', () => {
+    const cabinCodes = [
+      ['Economy', '7'],
+      ['Premium Economy', '6'],
+      ['Business', '4'],
+      ['First', '3'],
+    ] as const;
+
+    for (const [cabin, code] of cabinCodes) {
+      const url = getProgramBookingUrl('united', { ...ctx, cabin });
+      assert.match(url ?? '', new RegExp(`[?&]clm=${code}(?:&|$)`));
+    }
+
+    const unknownCabinUrl = getProgramBookingUrl('united', {
+      ...ctx,
+      cabin: 'constructor',
+    });
+    assert.doesNotMatch(unknownCabinUrl ?? '', /[?&]clm=/);
   });
 
   it('builds prefilled deeplinks for aeroplan, alaska and jetblue', () => {
@@ -91,6 +116,14 @@ describe('getProgramBookingUrl', () => {
       getProgramBookingUrl('singapore', ctx),
       'https://www.singaporeair.com/en_UK/us/ppsclub-krisflyer/use-miles/',
     );
+    assert.strictEqual(
+      getProgramBookingUrl('flyingblue', ctx),
+      'https://www.flyingblue.com/en/earn-spend/flights/award-search',
+    );
+    assert.strictEqual(
+      getProgramBookingUrl('qantas', ctx),
+      'https://flightrewardfinder.qantas.com/',
+    );
   });
 
   it('resolves EVERY known slug to an https URL that never points at seats.aero', () => {
@@ -107,11 +140,19 @@ describe('getProgramBookingUrl', () => {
     assert.strictEqual(getProgramBookingUrl('', ctx), null);
   });
 
+  it('treats inherited object properties as unknown slugs without throwing', () => {
+    for (const slug of ['__proto__', 'constructor', 'toString']) {
+      assert.doesNotThrow(() => getProgramBookingUrl(slug, ctx));
+      assert.strictEqual(getProgramBookingUrl(slug, ctx), null);
+    }
+  });
+
   it('encodes reserved characters in deeplink query parameters', () => {
     const maliciousCtx = {
       origin: 'FRA&evil=1',
       destination: 'JFK) [Weiter](https://evil.example)',
       departDate: '2026-06-15&hack=1',
+      cabin: 'Business',
     };
     const url = getProgramBookingUrl('united', maliciousCtx);
     assert.ok(url);

@@ -165,6 +165,20 @@ describe('formatFlightResults', () => {
       assert.doesNotMatch(out, /seats\.aero/i, 'no booking link may point at seats.aero');
     });
 
+    it('passes the award flight cabin to the booking URL resolver', async () => {
+      let receivedCabin: string | undefined;
+      const out = await formatFlightResults(makeAwardResult(), baseParams, 'de', {
+        getProgramDisplayName,
+        getProgramBookingUrl: (_slug, ctx) => {
+          receivedCabin = ctx.cabin;
+          return 'https://booking.example.com/award';
+        },
+      });
+
+      assert.strictEqual(receivedCabin, 'Economy');
+      assert.match(out, /\[Buchen\]\(https:\/\/booking\.example\.com\/award\)/);
+    });
+
     it('renders the en locale with a Book column and label', async () => {
       const out = await formatFlightResults(makeAwardResult(), baseParams, 'en', awardProgramDeps);
       const headerLine = out.split('\n').find((l) => l.includes('Program')) ?? '';

@@ -25,12 +25,13 @@ export type BookingSessionCreator = (params: {
 
 export type FlightLocale = 'de' | 'en';
 
-/** Route/date context passed to award-program booking URL resolvers. */
+/** Route/date/cabin context passed to award-program booking URL resolvers. */
 export type AwardBookingContext = {
   origin: string;
   destination: string;
   /** YYYY-MM-DD */
   departDate: string;
+  cabin: string;
 };
 
 /** Injected award-program resolvers keep the renderer free of the registry import graph. */
@@ -251,6 +252,7 @@ export async function formatFlightResults(
         origin: flight.outbound.departure.airport,
         destination: flight.outbound.arrival.airport,
         departDate: flightDate,
+        cabin: flight.cabin,
       });
       const bookCell = bookingUrl
         ? `[${flightI18n.bookLinkLabel[locale]}](${bookingUrl})`
