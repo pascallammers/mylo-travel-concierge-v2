@@ -6,7 +6,14 @@ import { routing } from './i18n/routing';
 const handleI18nRouting = createMiddleware(routing);
 
 const authRoutes = ['/sign-in', '/reset-password'];
-const publicRoutes = ['/terms', '/privacy-policy', '/subscription-expired', '/pricing'];
+const publicRoutes = [
+  '/terms',
+  '/privacy-policy',
+  '/subscription-expired',
+  '/pricing',
+  // PROTOTYP (MYLO-30) — Wegwerf-Route, fliegt mit dem Prototyp-Branch raus
+  '/prototype-shell',
+];
 const adminRoutes = ['/admin'];
 
 export async function middleware(request: NextRequest) {
