@@ -4,7 +4,7 @@ import { Plane, RefreshCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getUser } from '@/lib/auth-utils';
 import { getActiveDeals, getUserDealPreferences } from '@/lib/db/deal-queries';
-import { isFlightDealsAuthorizedEmail } from '@/lib/deals/flight-deals-access';
+import { hasFlightDealsAccess } from '@/lib/deals/flight-deals-access';
 import {
   buildDealsPageData,
   createDealPreferenceSnapshot,
@@ -48,7 +48,7 @@ export default async function DealsPage({
 
   try {
     const user = await getUser();
-    if (!isFlightDealsAuthorizedEmail(user?.email)) {
+    if (!(await hasFlightDealsAccess(user?.id))) {
       return (
         <div className="mx-auto max-w-4xl px-4 py-8">
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-16 text-center">

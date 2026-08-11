@@ -364,8 +364,8 @@
       "description": "Aktuell keine Deals für deine Filter. Probiere andere Filter oder schau später nochmal vorbei."
     },
     "restricted": {
-      "title": "Flugdeals sind noch im privaten Test",
-      "description": "Diese Ansicht ist aktuell nur für ausgewählte Tester freigeschaltet.",
+      "title": "Flugdeals brauchen eine aktive Mitgliedschaft",
+      "description": "Deine Mitgliedschaft ist gerade nicht aktiv. Reaktiviere sie, um wieder Flugdeals zu sehen.",
       "cta": "Zurück zu MYLO"
     },
     "error": {

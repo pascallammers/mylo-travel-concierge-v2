@@ -2,7 +2,7 @@ import 'server-only';
 
 import { and, desc, eq, gte, lte } from 'drizzle-orm';
 import { db } from './index';
-import { isFlightDealsAuthorizedEmail } from '@/lib/deals/flight-deals-access';
+import { filterUserIdsWithAccess } from '@/lib/access-control';
 import {
   flightDeals,
   priceHistory,
@@ -186,6 +186,16 @@ export interface DealDigestRecipient {
   preferences: UserDealPreferences;
 }
 
+/**
+ * Collect the recipients of a deal digest.
+ *
+ * Only users who explicitly opted into this frequency are selected — the column
+ * defaults to 'none', so nobody is signed up implicitly. Recipients who lost
+ * product access since opting in are dropped.
+ *
+ * @param frequency - Digest frequency to collect recipients for.
+ * @returns Recipients with their saved preferences.
+ */
 export async function getDealDigestRecipients(
   frequency: 'daily' | 'weekly',
 ): Promise<DealDigestRecipient[]> {
@@ -200,8 +210,10 @@ export async function getDealDigestRecipients(
     .innerJoin(user, eq(user.id, userDealPreferences.userId))
     .where(eq(userDealPreferences.emailDigest, frequency));
 
+  const userIdsWithAccess = await filterUserIdsWithAccess(rows.map((row) => row.userId));
+
   return rows
-    .filter((row) => isFlightDealsAuthorizedEmail(row.email))
+    .filter((row) => userIdsWithAccess.has(row.userId))
     .map((row) => ({
       userId: row.userId,
       email: row.email,

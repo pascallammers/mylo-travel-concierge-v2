@@ -1,19 +1,15 @@
 import { db } from '@/lib/db';
 import { subscription, user } from '@/lib/db/schema';
-import { desc, eq } from 'drizzle-orm';
-import { doesSubscriptionGrantAccess } from './subscription-access';
+import { desc, eq, inArray } from 'drizzle-orm';
+import { doesSubscriptionGrantAccess, evaluateAccountAccess, type AccessCheckResult } from './subscription-access';
 
-export type AccessCheckResult = {
-  hasAccess: boolean;
-  reason?: 'admin' | 'active_subscription' | 'no_subscription' | 'expired_subscription' | 'inactive_user';
-  subscriptionEndDate?: Date;
-};
+export type { AccessCheckResult };
 
 /**
  * Check if user has access to the application
  * @param userId - The user's ID
  * @returns Access check result with reason
- * 
+ *
  * Access Rules:
  * 1. Admins ALWAYS have access (bypass all checks)
  * 2. Inactive users are blocked
@@ -31,64 +27,71 @@ export async function checkUserAccess(userId: string): Promise<AccessCheckResult
       return { hasAccess: false, reason: 'inactive_user' };
     }
 
-    // 2. Admins bypass all subscription checks
-    if (userRecord.role === 'admin') {
-      console.log(`✅ Admin access granted for user ${userId}`);
-      return { hasAccess: true, reason: 'admin' };
-    }
+    // 2. Latest subscription (only loaded for non-admins, admins bypass it anyway)
+    const latestSubscription =
+      userRecord.role === 'admin'
+        ? null
+        : ((await db.query.subscription.findFirst({
+            where: eq(subscription.userId, userId),
+            columns: { currentPeriodEnd: true, status: true },
+            orderBy: [desc(subscription.currentPeriodEnd)],
+          })) ?? null);
 
-    // 3. Check if user account is active
-    if (userRecord.isActive === false || (userRecord.activationStatus && userRecord.activationStatus !== 'active')) {
-      console.log(`❌ User ${userId} is inactive (isActive: ${userRecord.isActive}, status: ${userRecord.activationStatus})`);
-      return { hasAccess: false, reason: 'inactive_user' };
-    }
+    const result = evaluateAccountAccess({ ...userRecord, subscription: latestSubscription }, new Date());
 
-    // 4. Check latest subscription validity
-    const now = new Date();
-    const latestSubscription = await db.query.subscription.findFirst({
-      where: eq(subscription.userId, userId),
-      columns: { currentPeriodEnd: true, status: true },
-      orderBy: [desc(subscription.currentPeriodEnd)],
-    });
+    logAccessResult(userId, result);
 
-    if (!latestSubscription) {
-      console.log(`❌ No subscription found for user ${userId}`);
-      return { hasAccess: false, reason: 'no_subscription' };
-    }
-
-    if (doesSubscriptionGrantAccess(latestSubscription.status, latestSubscription.currentPeriodEnd, now)) {
-      console.log(
-        `✅ Valid subscription found for user ${userId}, valid until ${latestSubscription.currentPeriodEnd} (status: ${latestSubscription.status})`
-      );
-      return {
-        hasAccess: true,
-        reason: 'active_subscription',
-        subscriptionEndDate: latestSubscription.currentPeriodEnd,
-      };
-    }
-
-    if (latestSubscription.currentPeriodEnd <= now) {
-      console.log(`❌ Expired subscription for user ${userId}, expired on ${latestSubscription.currentPeriodEnd}`);
-      return {
-        hasAccess: false,
-        reason: 'expired_subscription',
-        subscriptionEndDate: latestSubscription.currentPeriodEnd,
-      };
-    }
-
-    console.log(
-      `❌ Invalid subscription status for user ${userId} (status: ${latestSubscription.status}, validUntil: ${latestSubscription.currentPeriodEnd})`
-    );
-    return {
-      hasAccess: false,
-      reason: 'no_subscription',
-      subscriptionEndDate: latestSubscription.currentPeriodEnd,
-    };
+    return result;
   } catch (error) {
     console.error('❌ Error checking user access:', error);
     // Fail closed: deny access on error
     return { hasAccess: false, reason: 'inactive_user' };
   }
+}
+
+/**
+ * Check which of the given users currently have access to the application.
+ * Batched counterpart to {@link checkUserAccess} for jobs that process many users at once.
+ *
+ * @param userIds - User IDs to check.
+ * @returns The subset of IDs whose account grants access right now.
+ */
+export async function filterUserIdsWithAccess(userIds: string[]): Promise<Set<string>> {
+  const uniqueIds = [...new Set(userIds)];
+
+  if (uniqueIds.length === 0) {
+    return new Set();
+  }
+
+  const [userRecords, subscriptions] = await Promise.all([
+    db.query.user.findMany({
+      where: inArray(user.id, uniqueIds),
+      columns: { id: true, role: true, isActive: true, activationStatus: true },
+    }),
+    db.query.subscription.findMany({
+      where: inArray(subscription.userId, uniqueIds),
+      columns: { userId: true, currentPeriodEnd: true, status: true },
+      orderBy: [desc(subscription.currentPeriodEnd)],
+    }),
+  ]);
+
+  // Ordered by currentPeriodEnd desc, so the first hit per user is the latest subscription.
+  const latestSubscriptions = new Map<string, { status: string | null; currentPeriodEnd: Date }>();
+  for (const row of subscriptions) {
+    if (row.userId && !latestSubscriptions.has(row.userId)) {
+      latestSubscriptions.set(row.userId, { status: row.status, currentPeriodEnd: row.currentPeriodEnd });
+    }
+  }
+
+  const now = new Date();
+
+  return new Set(
+    userRecords
+      .filter((record) =>
+        evaluateAccountAccess({ ...record, subscription: latestSubscriptions.get(record.id) ?? null }, now).hasAccess,
+      )
+      .map((record) => record.id),
+  );
 }
 
 /**
@@ -105,4 +108,31 @@ export async function hasActiveSubscription(userId: string): Promise<boolean> {
   });
 
   return doesSubscriptionGrantAccess(latestSubscription?.status, latestSubscription?.currentPeriodEnd, now);
+}
+
+/**
+ * Mirror the previous per-branch logging so production log greps keep working.
+ */
+function logAccessResult(userId: string, result: AccessCheckResult): void {
+  switch (result.reason) {
+    case 'admin':
+      console.log(`✅ Admin access granted for user ${userId}`);
+      return;
+    case 'active_subscription':
+      console.log(`✅ Valid subscription found for user ${userId}, valid until ${result.subscriptionEndDate}`);
+      return;
+    case 'inactive_user':
+      console.log(`❌ User ${userId} is inactive`);
+      return;
+    case 'expired_subscription':
+      console.log(`❌ Expired subscription for user ${userId}, expired on ${result.subscriptionEndDate}`);
+      return;
+    case 'no_subscription':
+      console.log(
+        result.subscriptionEndDate
+          ? `❌ Invalid subscription status for user ${userId} (validUntil: ${result.subscriptionEndDate})`
+          : `❌ No subscription found for user ${userId}`,
+      );
+      return;
+  }
 }

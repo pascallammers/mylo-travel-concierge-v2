@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { getUser } from '@/lib/auth-utils';
 import { upsertUserDealPreferences } from '@/lib/db/deal-queries';
 import { resolveAirportCodeList } from '@/lib/deals';
-import { isFlightDealsAuthorizedEmail } from '@/lib/deals/flight-deals-access';
+import { hasFlightDealsAccess } from '@/lib/deals/flight-deals-access';
 
 const saveDealPreferencesSchema = z.object({
   locale: z.string().min(2).max(8),
@@ -37,7 +37,7 @@ export async function saveDealPreferencesAction(input: SaveDealPreferencesInput)
   if (!user) {
     throw new Error('Unauthorized');
   }
-  if (!isFlightDealsAuthorizedEmail(user.email)) {
+  if (!(await hasFlightDealsAccess(user.id))) {
     throw new Error('Forbidden');
   }
 
