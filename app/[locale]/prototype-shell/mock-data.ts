@@ -185,10 +185,64 @@ export const MOCK_DEALS: MockDeal[] = [
     tripType: 'oneway',
     publicTile: false,
   },
+  {
+    id: 'fra-gru',
+    origin: 'FRA',
+    originName: 'Frankfurt',
+    destination: 'GRU',
+    destinationName: 'São Paulo',
+    country: 'Brasilien',
+    points: 50000,
+    program: 'Miles & More',
+    taxes: 210,
+    cashAvg: 2680,
+    cabin: 'Business',
+    airline: 'Lufthansa',
+    month: 'Dezember 2026',
+    stops: 0,
+    score: 86,
+    tripType: 'oneway',
+    publicTile: true,
+  },
+  {
+    id: 'muc-lax',
+    origin: 'MUC',
+    originName: 'München',
+    destination: 'LAX',
+    destinationName: 'Los Angeles',
+    country: 'USA',
+    points: 60000,
+    program: 'Aeroplan',
+    taxes: 95,
+    cashAvg: 2450,
+    cabin: 'Business',
+    airline: 'Air Canada',
+    month: 'Februar 2027',
+    stops: 1,
+    score: 83,
+    tripType: 'oneway',
+    publicTile: true,
+  },
+  {
+    id: 'vie-doh',
+    origin: 'VIE',
+    originName: 'Wien',
+    destination: 'DOH',
+    destinationName: 'Doha',
+    country: 'Katar',
+    points: 35000,
+    program: 'Avios (Qatar)',
+    taxes: 140,
+    cashAvg: 1620,
+    cabin: 'Business',
+    airline: 'Qatar Airways',
+    month: 'November 2026',
+    stops: 0,
+    score: 87,
+    tripType: 'oneway',
+    publicTile: true,
+  },
 ];
-
-export const PUBLIC_DEALS = MOCK_DEALS.filter((deal) => deal.publicTile);
-export const LOCKED_DEALS = MOCK_DEALS.filter((deal) => !deal.publicTile);
 
 /** Anzahl Deals, die insgesamt im Scanner liegen — Paywall-Argument */
 export const TOTAL_DEAL_COUNT = 47;
@@ -218,6 +272,36 @@ export function savingsPercent(deal: MockDeal): number {
   if (deal.points === null) return 0;
   return Math.round((savingsEur(deal) / deal.cashAvg) * 100);
 }
+
+/**
+ * Schwelle für öffentlich sichtbare Kacheln (Entscheidung 11.08.2026).
+ * Economy-Kurzstrecke liegt ehrlich gerechnet bei −8 bis −9 % und taugt nicht
+ * als Beweismaterial. Öffentlich erscheint nur, was diese Schwelle reißt.
+ */
+export const MIN_PUBLIC_SAVINGS_PERCENT = 40;
+
+function isStrongEnough(deal: MockDeal): boolean {
+  return savingsPercent(deal) >= MIN_PUBLIC_SAVINGS_PERCENT;
+}
+
+/** Öffentlich: stark genug UND für die öffentliche Kachelwand freigegeben */
+export const PUBLIC_DEALS = MOCK_DEALS.filter(
+  (deal) => deal.publicTile && isStrongEnough(deal),
+);
+
+/** Angerissen hinter der Paywall: ebenfalls stark, aber frisch */
+export const LOCKED_DEALS = MOCK_DEALS.filter(
+  (deal) => !deal.publicTile && isStrongEnough(deal),
+);
+
+/**
+ * Unter der Schwelle — erscheint nur eingeloggt. Nicht Ausschuss, sondern
+ * Deals, deren Wert sich erst im Kontext des eigenen Saldos zeigt.
+ */
+export const WEAK_DEALS = MOCK_DEALS.filter((deal) => !isStrongEnough(deal));
+
+/** Origins, die die öffentliche Maske anbietet */
+export const PUBLIC_ORIGINS = [...new Set(MOCK_DEALS.map((deal) => deal.origin))];
 
 export function formatEur(value: number): string {
   return new Intl.NumberFormat('de-DE', {

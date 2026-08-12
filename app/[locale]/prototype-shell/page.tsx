@@ -12,9 +12,20 @@ import { Suspense } from 'react';
 import { PrototypeSwitcher } from './prototype-switcher';
 import { VARIANT_A } from './variant-a';
 import { VARIANT_B } from './variant-b';
-import { VARIANT_C } from './variant-c';
+import { VARIANT_C, AppC } from './variant-c';
+import { LandingD } from './variant-d';
 
-const VARIANTS = [VARIANT_A, VARIANT_B, VARIANT_C];
+// D wird hier zusammengesetzt, nicht in variant-d.tsx: das ist ein Client-Modul,
+// dessen Exporte aus einer Server Component nur als Client-Referenz ankommen.
+const VARIANT_D = {
+  key: 'D',
+  name: 'Maske filtert den Fundus (A+B)',
+  Landing: LandingD,
+  // Shell-Frage ist mit C entschieden — D erbt sie unverändert
+  App: AppC,
+};
+
+const VARIANTS = [VARIANT_A, VARIANT_B, VARIANT_C, VARIANT_D];
 
 export const metadata = {
   title: 'PROTOTYP — Shell & Landing (MYLO-30)',
