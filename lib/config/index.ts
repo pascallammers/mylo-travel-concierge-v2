@@ -5,6 +5,8 @@
  * @module config
  */
 
+export { resolveNextOutput } from './next-output';
+
 export {
   KB_CONFIG,
   KB_MAX_FILE_SIZE_BYTES,

@@ -1,8 +1,11 @@
 import type { NextConfig } from 'next';
+import path from 'node:path';
 import { fileURLToPath } from "node:url";
 import { createJiti } from "jiti";
 import createNextIntlPlugin from 'next-intl/plugin';
+import { resolveNextOutput } from './lib/config/next-output';
 
+const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const jiti = createJiti(fileURLToPath(import.meta.url));
 
 jiti.import('./env/server.ts');
@@ -11,9 +14,6 @@ jiti.import('./env/client.ts');
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
 const nextConfig: NextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   compiler: {
     // if NODE_ENV is production, remove console.log
     removeConsole:
@@ -24,7 +24,6 @@ const nextConfig: NextConfig = {
         : false,
   },
   experimental: {
-    useCache: true,
     optimizePackageImports: [
       '@phosphor-icons/react',
       'lucide-react',
@@ -42,7 +41,10 @@ const nextConfig: NextConfig = {
   },
   serverExternalPackages: ['@aws-sdk/client-s3', 'prettier'],
   transpilePackages: ['geist', '@daytonaio/sdk', 'shiki', 'resumable-stream', "@t3-oss/env-nextjs", "@t3-oss/env-core"],
-  output: 'standalone',
+  turbopack: {
+    root: projectRoot,
+  },
+  output: resolveNextOutput(process.env),
   devIndicators: false,
   async headers() {
     return [
@@ -180,8 +182,6 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
-    // Add additional settings for better image loading
-    domains: [],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     formats: ['image/webp'],

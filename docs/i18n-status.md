@@ -2,10 +2,10 @@
 
 ## Setup (erledigt)
 
-- [x] **Library:** `next-intl` v4.8.3 installiert
+- [x] **Library:** `next-intl` v4.13.6 installiert
 - [x] **Konfiguration:** `i18n/routing.ts`, `i18n/request.ts`, `i18n/navigation.ts`
 - [x] **next.config.ts:** `createNextIntlPlugin` integriert
-- [x] **Middleware:** next-intl Locale-Routing + Better-Auth kombiniert in `middleware.ts`
+- [x] **Proxy:** next-intl Locale-Routing + Better-Auth kombiniert in `proxy.ts`
 - [x] **Routing:** URL-Prefix (`/de/...`, `/en/...`), Browser-Sprache wird automatisch erkannt, Default: Englisch
 - [x] **Uebersetzungsdateien:** `messages/de.json` und `messages/en.json`
 - [x] **App-Struktur:** Alle Endnutzer-Routen unter `app/[locale]/...` verschoben, Admin bleibt unter `app/admin/`

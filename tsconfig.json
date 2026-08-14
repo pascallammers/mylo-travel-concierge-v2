@@ -15,7 +15,7 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "incremental": true,
     "plugins": [
       {
@@ -36,11 +36,20 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "next.config.mjs",
-    "app/pricing/page.tsx"
+    "next.config.ts",
+    "app/pricing/page.tsx",
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
-    "scripts"
+    "scripts",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    ".claude",
+    ".factory",
+    "documentation",
+    "docs",
+    "tasks",
+    "orchestrator"
   ]
 }
