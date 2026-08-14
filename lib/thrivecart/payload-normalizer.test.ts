@@ -188,6 +188,26 @@ describe('isProductPurchase', () => {
     assert.equal(isProductPurchase(normalized, MYLO_PRODUCT_IDS), false);
   });
 
+  it('matches MYLO upsell rebills that only identify the product on subscription.id', () => {
+    const payload = {
+      event: 'order.subscription_payment',
+      base_product: 37,
+      base_product_name: 'NEA VIP',
+      purchases: [],
+      order: {},
+      subscription: {
+        type: 'upsell',
+        id: '1',
+        upsell_id: '1',
+        name: 'MYLO - Miles & Travel Concierge',
+        amount: '4700',
+      },
+    };
+    const normalized = normalizeThriveCartPayload(payload);
+    assert.equal(isProductPurchase(normalized, MYLO_PRODUCT_IDS), true);
+    assert.ok(normalized.purchases.some((item) => item.product_id === 1));
+  });
+
   it('handles empty / missing fields without throwing', () => {
     const normalized = normalizeThriveCartPayload({ event: 'order.success' });
     assert.equal(isProductPurchase(normalized, MYLO_PRODUCT_IDS), false);

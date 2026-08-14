@@ -3,6 +3,7 @@ import { isCurrentUserAdmin, getUser } from '@/lib/auth-utils';
 import { db } from '@/lib/db';
 import { user, subscription, verification, passwordResetHistory } from '@/lib/db/schema';
 import { eq, desc, inArray, and, gt } from 'drizzle-orm';
+import { pickLatestSubscription } from '@/lib/thrivecart/subscription-status';
 import { sendPasswordResetEmail } from '@/lib/email';
 import { buildResetPasswordUrl, resolveBaseUrl } from '@/lib/password-reset';
 import crypto from 'crypto';
@@ -73,14 +74,19 @@ export async function POST(request: NextRequest) {
         createdAt: subscription.createdAt,
       })
       .from(subscription)
-      .orderBy(desc(subscription.createdAt));
+      .orderBy(desc(subscription.currentPeriodEnd), desc(subscription.createdAt));
 
-    // Create subscription map (most recent per user)
-    const subscriptionMap = new Map<string, typeof allSubscriptions[0]>();
+    const subscriptionMap = new Map<string, (typeof allSubscriptions)[0]>();
+    const grouped = new Map<string, typeof allSubscriptions>();
     for (const sub of allSubscriptions) {
-      if (sub.userId && !subscriptionMap.has(sub.userId)) {
-        subscriptionMap.set(sub.userId, sub);
-      }
+      if (!sub.userId) continue;
+      const list = grouped.get(sub.userId) ?? [];
+      list.push(sub);
+      grouped.set(sub.userId, list);
+    }
+    for (const [userId, rows] of grouped) {
+      const picked = pickLatestSubscription(rows);
+      if (picked) subscriptionMap.set(userId, picked);
     }
 
     // 4. Filter to only active users

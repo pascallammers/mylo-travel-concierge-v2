@@ -485,6 +485,7 @@ export const adminActivityAction = [
   'webhook.backfill_order_success',
   'support.provision_from_thrivecart',
   'support.recovery_grace_extension',
+  'sync.user_restored',
 ] as const;
 export type AdminActivityAction = (typeof adminActivityAction)[number];
 

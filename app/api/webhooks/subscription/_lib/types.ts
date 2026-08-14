@@ -29,6 +29,10 @@ export interface RebillWebhookRequest extends BaseWebhookRequest {
   productName?: string;
   /** ThriveCart customer ID */
   customerId?: string;
+  /** ThriveCart invoice id — unique per rebill when present */
+  invoiceId?: string;
+  /** ThriveCart event id — unique per webhook delivery */
+  eventId?: string;
 }
 
 /**

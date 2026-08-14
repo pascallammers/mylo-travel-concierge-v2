@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { after } from 'next/server';
 import { dbUncached as db } from '@/lib/db';
 import { payment } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq, gt } from 'drizzle-orm';
 import crypto from 'crypto';
 import type { RebillWebhookRequest } from '../_lib/types';
 import {
@@ -36,7 +36,7 @@ import {
 export async function POST(req: NextRequest) {
   try {
     const body: RebillWebhookRequest = await req.json();
-    const { email, orderId, amount, currency, productName, customerId, webhookSecret } = body;
+    const { email, orderId, amount, currency, productName, customerId, webhookSecret, invoiceId, eventId } = body;
 
     console.log('📥 Rebill webhook received for:', email);
 
@@ -71,14 +71,30 @@ export async function POST(req: NextRequest) {
 
     console.log('✅ User found:', user.id, user.name);
 
-    // 4. Check for idempotency (prevent duplicate processing)
-    if (orderId) {
+    // 4. Idempotency: ThriveCart reuses order_id across rebills, so never key off it alone.
+    const idempotencyKey = invoiceId || eventId;
+    if (idempotencyKey) {
       const existingPayment = await db.query.payment.findFirst({
-        where: eq(payment.thrivecardPaymentId, orderId),
+        where: eq(payment.thrivecardPaymentId, idempotencyKey),
       });
 
       if (existingPayment) {
-        console.log('ℹ️ Rebill already processed for order:', orderId);
+        console.log('ℹ️ Rebill already processed for invoice/event:', idempotencyKey);
+        return NextResponse.json(
+          createWebhookResponse(true, 'Already processed', {
+            userId: user.id,
+          }),
+          { status: 200 }
+        );
+      }
+    } else if (orderId) {
+      const retryWindow = new Date(Date.now() - 10 * 60 * 1000);
+      const recentSameOrder = await db.query.payment.findFirst({
+        where: and(eq(payment.thrivecardPaymentId, orderId), gt(payment.createdAt, retryWindow)),
+      });
+
+      if (recentSameOrder) {
+        console.log('ℹ️ Rebill retry ignored for order:', orderId);
         return NextResponse.json(
           createWebhookResponse(true, 'Already processed', {
             userId: user.id,
@@ -123,7 +139,7 @@ export async function POST(req: NextRequest) {
       totalAmount: amountInCents,
       currency: currency || 'EUR',
       status: 'succeeded',
-      thrivecardPaymentId: orderId || null,
+      thrivecardPaymentId: invoiceId || eventId || orderId || null,
       thrivecardCustomerId: customerId || null,
       paymentProvider: 'thrivecart',
       webhookSource: 'zapier',

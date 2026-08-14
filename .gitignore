@@ -61,6 +61,9 @@ docs/*ThriveCart*.csv
 .worktrees/
 .claude/worktrees/
 
+# ThriveCart customer dumps (PII)
+lib/thrivecart/fixtures/*.tc.json
+
 # local tool artifacts
 .claude/scheduled_tasks.lock
 .fallow/

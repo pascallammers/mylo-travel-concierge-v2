@@ -3,35 +3,10 @@ import { isCurrentUserAdmin } from '@/lib/auth-utils';
 import { db } from '@/lib/db';
 import { user, chat, message, session, subscription } from '@/lib/db/schema';
 import { count, desc, ilike, or, sql, eq, inArray, and, gte, lte, isNotNull } from 'drizzle-orm';
-
-/**
- * Subscription status type for admin user list
- */
-type SubscriptionStatus = 'active' | 'inactive' | 'cancelled' | 'none';
-
-/**
- * Determines the subscription status based on subscription data
- */
-function determineSubscriptionStatus(
-  sub: { status: string; currentPeriodEnd: Date; cancelAtPeriodEnd: boolean } | null
-): { status: SubscriptionStatus; validUntil: string | null } {
-  if (!sub) {
-    return { status: 'none', validUntil: null };
-  }
-
-  const now = new Date();
-  const periodEnd = sub.currentPeriodEnd;
-
-  if (sub.status === 'active' && periodEnd > now) {
-    return { status: 'active', validUntil: periodEnd.toISOString() };
-  } else if (sub.cancelAtPeriodEnd) {
-    return { status: 'cancelled', validUntil: periodEnd.toISOString() };
-  } else if (sub.status === 'canceled' || periodEnd < now) {
-    return { status: 'inactive', validUntil: null };
-  }
-  
-  return { status: 'active', validUntil: periodEnd.toISOString() };
-}
+import {
+  determineSubscriptionStatus,
+  pickLatestSubscription,
+} from '@/lib/thrivecart/subscription-status';
 
 /**
  * GET /api/admin/users
@@ -184,16 +159,20 @@ export async function GET(request: NextRequest) {
           })
           .from(subscription)
           .where(inArray(subscription.userId, userIds))
-          .orderBy(desc(subscription.createdAt))
+          .orderBy(desc(subscription.currentPeriodEnd), desc(subscription.createdAt))
       : [];
 
-    // Create a map for O(1) subscription lookup
-    // Keep only the most recent subscription per user
-    const subscriptionMap = new Map<string, typeof allSubscriptions[0]>();
+    const subscriptionMap = new Map<string, (typeof allSubscriptions)[0]>();
+    const grouped = new Map<string, typeof allSubscriptions>();
     for (const sub of allSubscriptions) {
-      if (sub.userId && !subscriptionMap.has(sub.userId)) {
-        subscriptionMap.set(sub.userId, sub);
-      }
+      if (!sub.userId) continue;
+      const list = grouped.get(sub.userId) ?? [];
+      list.push(sub);
+      grouped.set(sub.userId, list);
+    }
+    for (const [userId, rows] of grouped) {
+      const picked = pickLatestSubscription(rows);
+      if (picked) subscriptionMap.set(userId, picked);
     }
 
     // Map users to response format

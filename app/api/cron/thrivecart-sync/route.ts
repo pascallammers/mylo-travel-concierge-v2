@@ -20,11 +20,11 @@ export async function POST(request: NextRequest) {
   console.log('[ThriveCart Cron] Starting scheduled sync...');
 
   try {
-    // 1. Deactivate users with expired subscriptions
-    const deactivated = await deactivateExpiredUsers();
-
-    // 2. Sync with ThriveCart API
+    // 1. Sync with ThriveCart first so active rebills extend periodEnd
     const result = await runFullSync();
+
+    // 2. Only then deactivate users whose period is still expired
+    const deactivated = await deactivateExpiredUsers();
 
     return NextResponse.json({
       success: true,

@@ -71,6 +71,15 @@ export interface ThriveCartWebhookPayload {
   order: ThriveCartOrder;
   purchases: ThriveCartPurchase[];
   purchase_map?: Record<string, unknown>;
+  /** Present on rebill/cancel events for the line item that actually recurred. */
+  subscription?: {
+    id?: string | number;
+    upsell_id?: string | number;
+    name?: string;
+    type?: string;
+    next_payment_date?: string;
+    next_payment_date_iso8601?: string;
+  };
 }
 
 export type ThriveCartEventType =
@@ -85,11 +94,26 @@ export type ThriveCartEventType =
 
 // --- API Response Types ---
 
+export interface ThriveCartApiSubscription {
+  id?: string;
+  status: string;
+  item_id?: number | string;
+  product_id?: number | string;
+  frequency?: string;
+  next_payment_date?: string;
+  next_payment?: string;
+  last_payment_date?: string;
+  last_payment?: string;
+  amount?: number;
+  currency?: string;
+}
+
 export interface ThriveCartApiCustomer {
   id: string;
   email: string;
   name: string;
-  purchases: ThriveCartApiPurchase[];
+  purchases?: ThriveCartApiPurchase[];
+  subscriptions?: ThriveCartApiSubscription[];
 }
 
 export interface ThriveCartApiPurchase {

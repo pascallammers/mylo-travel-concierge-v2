@@ -49,51 +49,95 @@ export function normalizeThriveCartPayload(
   return p as unknown as ThriveCartWebhookPayload;
 }
 
+function extractProductId(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value !== 'string' || value.trim() === '') return null;
+
+  const direct = Number(value);
+  if (Number.isFinite(direct)) return direct;
+
+  const mapped = value.match(/(?:product|upsell|bump|downsell)[_-]?(\d+)/i);
+  if (!mapped?.[1]) return null;
+  const n = Number(mapped[1]);
+  return Number.isFinite(n) ? n : null;
+}
+
 /**
  * Returns a purchases array of objects regardless of the shape ThriveCart sent.
  * Falls back to `order.charges` and `base_product` when `purchases` is degenerate.
  */
 function reconstructPurchases(p: Record<string, unknown>): ThriveCartPurchase[] {
   const purchases = p.purchases;
+  let reconstructed: ThriveCartPurchase[] = [];
+
   if (
     Array.isArray(purchases) &&
     purchases.length > 0 &&
     typeof purchases[0] === 'object' &&
     purchases[0] !== null
   ) {
-    return purchases as ThriveCartPurchase[];
+    reconstructed = purchases as ThriveCartPurchase[];
+  } else {
+    const order = p.order as { charges?: Array<Record<string, unknown>> } | undefined;
+    if (Array.isArray(order?.charges) && order.charges.length > 0) {
+      reconstructed = order.charges.map(chargeToPurchase);
+    } else {
+      const baseProduct = Number(p.base_product);
+      if (Number.isFinite(baseProduct)) {
+        reconstructed = [
+          {
+            product_id: baseProduct,
+            product_name: typeof p.base_product_name === 'string' ? p.base_product_name : '',
+            pricing_option: '',
+            type: 'product',
+            amount: 0,
+            amount_str: '',
+          },
+        ];
+      }
+    }
   }
 
-  const order = p.order as { charges?: Array<Record<string, unknown>> } | undefined;
-  if (Array.isArray(order?.charges) && order!.charges.length > 0) {
-    return order!.charges.map(chargeToPurchase);
+  return appendSubscriptionPurchase(reconstructed, p);
+}
+
+function appendSubscriptionPurchase(
+  purchases: ThriveCartPurchase[],
+  p: Record<string, unknown>
+): ThriveCartPurchase[] {
+  const sub = p.subscription;
+  if (!sub || typeof sub !== 'object') {
+    return purchases;
   }
 
-  const baseProduct = Number(p.base_product);
-  if (Number.isFinite(baseProduct)) {
-    return [
-      {
-        product_id: baseProduct,
-        product_name: typeof p.base_product_name === 'string' ? p.base_product_name : '',
-        pricing_option: '',
-        type: 'product',
-        amount: 0,
-        amount_str: '',
-      },
-    ];
+  const record = sub as Record<string, unknown>;
+  const productId = extractProductId(record.id) ?? extractProductId(record.upsell_id);
+  if (productId === null) {
+    return purchases;
   }
 
-  return [];
+  if (purchases.some((item) => Number(item.product_id) === productId)) {
+    return purchases;
+  }
+
+  return [
+    ...purchases,
+    {
+      product_id: productId,
+      product_name: typeof record.name === 'string' ? record.name : '',
+      pricing_option: '',
+      type: record.type === 'upsell' ? 'upsell' : 'product',
+      amount: Number(record.amount) || 0,
+      amount_str: typeof record.amount_str === 'string' ? record.amount_str : '',
+    },
+  ];
 }
 
 function chargeToPurchase(charge: Record<string, unknown>): ThriveCartPurchase {
-  const reference = charge.reference;
   const productId =
-    typeof reference === 'number'
-      ? reference
-      : typeof reference === 'string'
-        ? Number(reference)
-        : 0;
+    extractProductId(charge.reference) ??
+    extractProductId(charge.item_identifier) ??
+    0;
 
   const amountRaw = charge.amount;
   const amount =
@@ -151,11 +195,35 @@ export function isProductPurchase(
   if (isMyloProductId(payload.base_product, productIds)) return true;
 
   const purchases = Array.isArray(payload.purchases) ? payload.purchases : [];
-  return purchases.some((p) => {
-    if (!p || typeof p !== 'object') return false;
-    return isMyloProductId(
-      (p as { product_id?: number | string }).product_id,
-      productIds
-    );
-  });
+  if (
+    purchases.some((p) => {
+      if (!p || typeof p !== 'object') return false;
+      return isMyloProductId(
+        (p as { product_id?: number | string }).product_id,
+        productIds
+      );
+    })
+  ) {
+    return true;
+  }
+
+  const subscription = payload.subscription;
+  if (
+    subscription &&
+    (isMyloProductId(subscription.id, productIds) ||
+      isMyloProductId(subscription.upsell_id, productIds))
+  ) {
+    return true;
+  }
+
+  const purchaseMap = payload.purchase_map;
+  if (purchaseMap && typeof purchaseMap === 'object') {
+    return Object.values(purchaseMap).some((value) => {
+      if (typeof value !== 'string') return false;
+      const id = extractProductId(value);
+      return id !== null && isMyloProductId(id, productIds);
+    });
+  }
+
+  return false;
 }
