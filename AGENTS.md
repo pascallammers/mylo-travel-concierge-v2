@@ -1,13 +1,23 @@
 # AGENTS.md
 
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
+
 ## Project Overview
 
-Mylo Travel Concierge - A Next.js 15 application with TypeScript, Drizzle ORM, and a modular architecture. All code must be modular with strict file size limits for maintainability.
+Mylo Travel Concierge - A Next.js 16.3 application with TypeScript, Drizzle ORM, and a modular architecture. All code must be modular with strict file size limits for maintainability.
 
 ## Dev Environment
 
 - **Runtime:** Node.js with pnpm
-- **Framework:** Next.js 15 (App Router)
+- **Framework:** Next.js 16.3 (App Router)
 - **Database:** PostgreSQL with Drizzle ORM
 - **Styling:** Tailwind CSS + shadcn/ui components
 

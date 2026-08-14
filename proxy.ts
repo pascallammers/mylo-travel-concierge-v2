@@ -9,7 +9,7 @@ const authRoutes = ['/sign-in', '/reset-password'];
 const publicRoutes = ['/terms', '/privacy-policy', '/subscription-expired', '/pricing'];
 const adminRoutes = ['/admin'];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow all API routes including webhooks and auth

@@ -1,8 +1,6 @@
 import { ImageResponse } from 'next/og';
 import { MyloLogo } from '@/components/logos/mylo-logo';
 
-// Route segment config
-export const runtime = 'edge';
 export const size = {
   width: 512,
   height: 512,
