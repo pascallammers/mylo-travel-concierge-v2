@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from "node:url";
 import { createJiti } from "jiti";
 import createNextIntlPlugin from 'next-intl/plugin';
+import { resolveNextOutput } from './lib/config/next-output';
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const jiti = createJiti(fileURLToPath(import.meta.url));
@@ -43,7 +44,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: projectRoot,
   },
-  output: 'standalone',
+  output: resolveNextOutput(process.env),
   devIndicators: false,
   async headers() {
     return [
