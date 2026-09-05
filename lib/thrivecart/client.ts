@@ -1,8 +1,8 @@
 import { thrivecartConfig } from './config';
 import type { ThriveCartApiCustomer, ThriveCartApiResponse, ThriveCartTransactionsResponse } from './types';
 
-const RATE_LIMIT_DELAY_MS = 1100;
-const REQUEST_TIMEOUT_MS = 20_000; // ~55 requests/minute (safe margin under 60/min limit)
+const RATE_LIMIT_DELAY_MS = 1100; // ~55 requests/minute (safe margin under 60/min limit)
+const REQUEST_TIMEOUT_MS = 20_000;
 
 /**
  * Make an authenticated POST request to the ThriveCart API.
