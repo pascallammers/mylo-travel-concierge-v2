@@ -5,6 +5,7 @@ import { db } from '../index';
 import {
   awardwalletConnections,
   loyaltyAccounts,
+  user,
   type AwardWalletConnection,
   type AwardWalletConnectionStatus,
   type LoyaltyAccount,
@@ -347,13 +348,14 @@ const ERROR_RETRY_BACKOFF_MS = 24 * 60 * 60 * 1000; // 24h
  *
  * @returns Array of connections to sync
  */
-export async function getSyncableConnections(): Promise<AwardWalletConnection[]> {
+export async function getSyncableConnections(): Promise<Array<AwardWalletConnection & { userName: string }>> {
   try {
     const cutoff = new Date(Date.now() - ERROR_RETRY_BACKOFF_MS);
 
-    return await db
-      .select()
+    const rows = await db
+      .select({ connection: awardwalletConnections, userName: user.name })
       .from(awardwalletConnections)
+      .innerJoin(user, eq(user.id, awardwalletConnections.userId))
       .where(
         or(
           eq(awardwalletConnections.status, 'connected'),
@@ -366,6 +368,7 @@ export async function getSyncableConnections(): Promise<AwardWalletConnection[]>
           ),
         ),
       );
+    return rows.map((row) => ({ ...row.connection, userName: row.userName }));
   } catch {
     throw new ChatSDKError('bad_request:database', 'Failed to get syncable connections');
   }

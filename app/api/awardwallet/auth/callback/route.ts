@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
 
     // Perform initial sync of loyalty accounts
     try {
-      const accounts = await getConnectedUser(connectionInfo.userId);
+      const accounts = await getConnectedUser(connectionInfo.userId, { userName: session.user.name });
       await syncLoyaltyAccounts(connection.id, accounts);
       console.error('[AwardWallet] Initial sync completed:', accounts.length, 'accounts');
     } catch (syncError) {
