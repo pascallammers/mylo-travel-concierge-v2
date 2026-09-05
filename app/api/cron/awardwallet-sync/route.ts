@@ -28,10 +28,14 @@ function getErrorMessage(error: unknown): string {
 }
 
 /**
- * POST /api/cron/awardwallet-sync
- * Scheduled sync for all active AwardWallet connections
- * Runs every 6 hours via Vercel Cron
+ * GET|POST /api/cron/awardwallet-sync
+ * Scheduled sync for all active AwardWallet connections.
+ * Vercel Cron invokes the path with GET; POST stays for manual triggers.
  */
+export async function GET(request: NextRequest) {
+  return POST(request);
+}
+
 export async function POST(request: NextRequest) {
   // Validate cron secret
   const authHeader = request.headers.get('authorization');
