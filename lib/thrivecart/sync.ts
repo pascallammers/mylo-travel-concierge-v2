@@ -224,12 +224,12 @@ export async function runFullSync(budgetMs: number = SYNC_TIME_BUDGET_MS): Promi
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
         result.errors.push({ email: dbUser.email, error: errorMsg });
         result.totalErrors++;
+      } finally {
+        await db
+          .update(subscription)
+          .set({ lastSyncedAt: new Date() })
+          .where(eq(subscription.id, dbUser.subId));
       }
-
-      await db
-        .update(subscription)
-        .set({ lastSyncedAt: new Date() })
-        .where(eq(subscription.id, dbUser.subId));
 
       if (result.totalChecked % 50 === 0) {
         console.log(`[ThriveCart Sync] Progress: ${result.totalChecked}/${uniqueUsers.length}`);

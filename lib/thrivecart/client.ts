@@ -1,7 +1,8 @@
 import { thrivecartConfig } from './config';
 import type { ThriveCartApiCustomer, ThriveCartApiResponse, ThriveCartTransactionsResponse } from './types';
 
-const RATE_LIMIT_DELAY_MS = 1100; // ~55 requests/minute (safe margin under 60/min limit)
+const RATE_LIMIT_DELAY_MS = 1100;
+const REQUEST_TIMEOUT_MS = 20_000; // ~55 requests/minute (safe margin under 60/min limit)
 
 /**
  * Make an authenticated POST request to the ThriveCart API.
@@ -18,6 +19,7 @@ async function thriveCartRequest<T>(
         Authorization: `Bearer ${thrivecartConfig.apiKey}`,
       },
       body: body ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
 
     const responseText = await response.text();
@@ -62,6 +64,7 @@ async function thriveCartGetRequest<T>(
         Authorization: `Bearer ${thrivecartConfig.apiKey}`,
         'X-TC-Mode': 'live',
       },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
 
     const responseText = await response.text();

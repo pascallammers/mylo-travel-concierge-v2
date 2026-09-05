@@ -56,6 +56,37 @@ describe('orderUsersForSync', () => {
     assert.deepEqual(ordered.map((u) => u.userId), ['never', 'stale', 'recent']);
   });
 
+  it('rotates within the inconsistent group: unstamped before stamped', () => {
+    const expired = new Date('2026-08-01T00:00:00.000Z');
+    const ordered = orderUsersForSync(
+      [
+        candidate({ userId: 'inconsistent-stamped', currentPeriodEnd: expired, lastSyncedAt: new Date('2026-09-05T14:00:00.000Z') }),
+        candidate({ userId: 'consistent-never' }),
+        candidate({ userId: 'inconsistent-never', currentPeriodEnd: expired }),
+      ],
+      now,
+    );
+
+    assert.deepEqual(
+      ordered.map((u) => u.userId),
+      ['inconsistent-never', 'inconsistent-stamped', 'consistent-never'],
+    );
+  });
+
+  it('keeps the first row on a period-end tie', () => {
+    const sameEnd = new Date('2026-12-01T00:00:00.000Z');
+    const ordered = orderUsersForSync(
+      [
+        candidate({ userId: 'u1', subStatus: 'first', currentPeriodEnd: sameEnd }),
+        candidate({ userId: 'u1', subStatus: 'second', currentPeriodEnd: sameEnd }),
+      ],
+      now,
+    );
+
+    assert.equal(ordered.length, 1);
+    assert.equal(ordered[0].subStatus, 'first');
+  });
+
   it('keeps one row per user, the one with the latest period end', () => {
     const ordered = orderUsersForSync(
       [
