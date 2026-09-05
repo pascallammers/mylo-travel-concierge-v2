@@ -385,7 +385,7 @@ describe('formatAccount', () => {
         isBalanceVerified: true,
         owner: 'Erika Mustermann',
       },
-      'Erika Mustermann',
+      ['Erika Mustermann'],
     );
     assert.equal(acc.balance, null);
     assert.equal(acc.syncErrorCode, 2);
@@ -416,7 +416,7 @@ describe('formatAccount', () => {
         errorCode: 1,
         lastRetrieveDate: '2025-09-01T09:09:05+00:00',
       },
-      'Erika Mustermann',
+      ['Erika Mustermann'],
     );
     assert.equal(acc.programId, 'amex-mr');
     assert.equal(acc.balanceVerified, false);
@@ -438,5 +438,20 @@ describe('formatAccount', () => {
     });
     assert.equal(acc.providerName, 'Emirates Skywards');
     assert.equal(acc.eliteStatus, 'Silver & more');
+  });
+});
+
+describe('formatAccount owner matching', () => {
+  const raw = { accountId: 9, code: 'lufthansa', displayName: 'Lufthansa (Miles and More)', kind: 'Airlines', login: 'x', balanceRaw: 10, owner: 'Erika  Mustermann' };
+
+  it('accepts the MYLO profile name when AwardWallet omits fullName', () => {
+    assert.equal(formatAccount(raw, ['erika mustermann']).ownerIsConnectedUser, true);
+    assert.equal(formatAccount(raw, ['Max Mustermann']).ownerIsConnectedUser, false);
+    assert.equal(formatAccount(raw, ['Max Mustermann', 'Erika Mustermann']).ownerIsConnectedUser, true);
+  });
+
+  it('cannot tell without any holder name and assumes the user', () => {
+    assert.equal(formatAccount(raw, []).ownerIsConnectedUser, true);
+    assert.equal(formatAccount({ ...raw, owner: undefined }, ['Max Mustermann']).ownerIsConnectedUser, true);
   });
 });

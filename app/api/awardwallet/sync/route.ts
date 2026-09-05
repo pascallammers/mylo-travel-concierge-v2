@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     console.error('[AwardWallet] Manual sync started for user:', userId);
 
     // Fetch latest data from AwardWallet (may throw — rate limit NOT yet set)
-    const accounts = await getConnectedUser(connection.awUserId);
+    const accounts = await getConnectedUser(connection.awUserId, { userName: session.user.name });
 
     // Update database (may throw — rate limit NOT yet set)
     const accountCount = await syncLoyaltyAccounts(connection.id, accounts);

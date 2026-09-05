@@ -304,7 +304,10 @@ export async function getConnectionInfo(code: string): Promise<AWConnectionInfo>
  * @param awUserId - The AwardWallet userId
  * @returns Array of loyalty accounts
  */
-export async function getConnectedUser(awUserId: string): Promise<AWLoyaltyAccount[]> {
+export async function getConnectedUser(
+  awUserId: string,
+  options: { userName?: string | null } = {},
+): Promise<AWLoyaltyAccount[]> {
   const apiKey = serverEnv.AWARDWALLET_API_KEY;
 
   console.error('[AwardWallet] Fetching accounts for user:', awUserId);
@@ -336,7 +339,8 @@ export async function getConnectedUser(awUserId: string): Promise<AWLoyaltyAccou
 
     console.error(`[AwardWallet] Retrieved ${accounts.length} accounts`);
 
-    return accounts.map((raw) => formatAccount(raw, data.fullName));
+    const holderNames = [data.fullName, options.userName].filter((n): n is string => !!n);
+    return accounts.map((raw) => formatAccount(raw, holderNames));
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     console.error('[AwardWallet] getConnectedUser error:', error);
@@ -380,13 +384,17 @@ function normalizeName(name: string | undefined): string {
 
 /**
  * Formats raw AwardWallet account data to MYLO format.
- * @param connectedUserName - `fullName` of the connected user, to tell the
- *   user's own accounts from other people's accounts they track.
+ * @param holderNames - Names the connected user is known by (AwardWallet
+ *   `fullName`, MYLO profile name). An account whose `owner` matches none of
+ *   them belongs to someone else the user tracks. AwardWallet omits
+ *   `fullName` for some users, which is why the MYLO name rides along.
  */
-export function formatAccount(raw: AWRawAccount, connectedUserName?: string): AWLoyaltyAccount {
+export function formatAccount(raw: AWRawAccount, holderNames: readonly string[] = []): AWLoyaltyAccount {
   const eliteStatusProp = raw.properties?.find((p) => p.kind === 3);
   const program = resolveLoyaltyProgram({ code: raw.code, displayName: raw.displayName, kind: raw.kind });
   const ownerName = decodeHtmlEntities(raw.owner ?? '').trim() || null;
+  const knownNames = holderNames.map(normalizeName).filter(Boolean);
+  const ownerIsConnectedUser = !ownerName || knownNames.length === 0 || knownNames.includes(normalizeName(ownerName));
   const balance = typeof raw.balanceRaw === 'number' && Number.isFinite(raw.balanceRaw) ? Math.round(raw.balanceRaw) : null;
 
   return {
@@ -399,7 +407,7 @@ export function formatAccount(raw: AWRawAccount, connectedUserName?: string): AW
     balanceUnit: program.unit,
     balanceVerified: raw.isBalanceVerified !== false,
     ownerName,
-    ownerIsConnectedUser: !ownerName || !connectedUserName || normalizeName(ownerName) === normalizeName(connectedUserName),
+    ownerIsConnectedUser,
     syncErrorCode: typeof raw.errorCode === 'number' ? raw.errorCode : null,
     lastRetrievedAt: parseExpirationDate(raw.lastRetrieveDate ?? undefined),
     eliteStatus: eliteStatusProp?.value ? decodeHtmlEntities(eliteStatusProp.value) : null,

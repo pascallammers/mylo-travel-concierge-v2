@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
     for (const connection of connections) {
       try {
-        const accounts = await getConnectedUser(connection.awUserId);
+        const accounts = await getConnectedUser(connection.awUserId, { userName: connection.userName });
         const accountCount = await syncLoyaltyAccounts(connection.id, accounts);
 
         // If this was a recovery (was in 'error', sync just succeeded), flip
