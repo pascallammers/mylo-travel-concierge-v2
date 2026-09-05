@@ -3,11 +3,16 @@ import { serverEnv } from '@/env/server';
 import { runFullSync, deactivateExpiredUsers } from '@/lib/thrivecart/sync';
 
 /**
- * POST /api/cron/thrivecart-sync
+ * GET|POST /api/cron/thrivecart-sync
  * Scheduled sync for all ThriveCart subscriptions.
  * Also deactivates users with expired subscriptions.
- * Runs every 6 hours via Vercel Cron.
+ * Runs every 6 hours via Vercel Cron, which invokes the path with GET;
+ * POST stays for manual triggers.
  */
+export async function GET(request: NextRequest) {
+  return POST(request);
+}
+
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   const expectedToken = `Bearer ${serverEnv.CRON_SECRET}`;

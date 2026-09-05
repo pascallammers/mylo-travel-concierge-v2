@@ -9,11 +9,17 @@ import {
 import { sendDealDigestEmail } from '@/lib/email';
 
 /**
+ * GET|POST /api/cron/deal-digests
  * Send personalized deal digests to users with saved alert preferences.
+ * Vercel Cron invokes the path with GET; POST stays for manual triggers.
  *
  * @param request - Cron request carrying the shared bearer secret.
  * @returns Summary of sent and skipped digests.
  */
+export async function GET(request: NextRequest) {
+  return POST(request);
+}
+
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   const expectedToken = `Bearer ${serverEnv.CRON_SECRET}`;

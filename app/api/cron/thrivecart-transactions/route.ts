@@ -3,10 +3,15 @@ import { serverEnv } from '@/env/server';
 import { runIncrementalSync } from '@/lib/thrivecart/transaction-import';
 
 /**
- * POST /api/cron/thrivecart-transactions
+ * GET|POST /api/cron/thrivecart-transactions
  * Daily incremental sync of ThriveCart transactions for KPI dashboard.
- * Runs once per day via Vercel Cron.
+ * Runs once per day via Vercel Cron, which invokes the path with GET;
+ * POST stays for manual triggers.
  */
+export async function GET(request: NextRequest) {
+  return POST(request);
+}
+
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   const expectedToken = `Bearer ${serverEnv.CRON_SECRET}`;
