@@ -18,9 +18,11 @@ import { orderUsersForSync } from './sync-order';
  * Vercel kills the cron function at maxDuration (300 s). One ThriveCart lookup
  * plus rate-limit delay costs ~1.3 s, so a full pass over ~1000 users never
  * fits. Each run visits as many users as the budget allows and stamps them,
- * the next run continues with the oldest stamps.
+ * the next run continues with the oldest stamps. The route runs
+ * deactivateExpiredUsers afterwards, which took ~50 s for 124 users on the
+ * first live run (05.09.2026, total 292 s), so the loop keeps 100 s in reserve.
  */
-const SYNC_TIME_BUDGET_MS = 240_000;
+const SYNC_TIME_BUDGET_MS = 200_000;
 
 const RECENT_WEBHOOK_EVENTS = ['order.success', 'order.subscription_payment'] as const;
 
