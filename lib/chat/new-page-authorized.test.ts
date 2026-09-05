@@ -38,7 +38,7 @@ mock.module('@/lib/deals', {
 });
 mock.module('@/lib/deals/flight-deals-access', {
   namedExports: {
-    isFlightDealsAuthorizedEmail: () => true,
+    hasFlightDealsAccess: async () => true,
   },
 });
 
