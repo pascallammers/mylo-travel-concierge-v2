@@ -25,7 +25,7 @@ interface LoyaltyAccount {
   id: string;
   providerCode: string;
   providerName: string;
-  balance: number;
+  balance: number | null;
   balanceUnit: string;
   eliteStatus?: string | null;
   expirationDate?: string | null;
