@@ -12,6 +12,15 @@ import type { SyncResult } from './types';
 import { generateId } from 'ai';
 import { thrivecartConfig } from './config';
 import { decideSyncAction, resolvePeriodEndFromThriveCart, type SyncAction } from './sync-decision';
+import { orderUsersForSync } from './sync-order';
+
+/**
+ * Vercel kills the cron function at maxDuration (300 s). One ThriveCart lookup
+ * plus rate-limit delay costs ~1.3 s, so a full pass over ~1000 users never
+ * fits. Each run visits as many users as the budget allows and stamps them,
+ * the next run continues with the oldest stamps.
+ */
+const SYNC_TIME_BUDGET_MS = 240_000;
 
 const RECENT_WEBHOOK_EVENTS = ['order.success', 'order.subscription_payment'] as const;
 
@@ -98,10 +107,6 @@ async function applySyncAction(
       await applyActivePeriod(dbUser.subId, action.nextPaymentDate, now);
       return true;
     case 'touch_synced':
-      await db
-        .update(subscription)
-        .set({ lastSyncedAt: now })
-        .where(eq(subscription.id, dbUser.subId));
       return false;
     case 'none':
       return false;
@@ -113,13 +118,17 @@ async function applySyncAction(
 }
 
 /**
- * Run a full sync of ThriveCart subscriptions, including suspended/expired users.
+ * Sync ThriveCart subscriptions for as many users as the time budget allows,
+ * inconsistent and longest-unsynced users first. Every visited user gets a
+ * fresh `lastSyncedAt`, so consecutive runs cover the whole base.
  *
+ * @param budgetMs - Wall-clock budget for the user loop.
  * @returns Aggregate sync counters and discrepancies
  */
-export async function runFullSync(): Promise<SyncResult> {
+export async function runFullSync(budgetMs: number = SYNC_TIME_BUDGET_MS): Promise<SyncResult> {
   const syncId = generateId();
   const now = new Date();
+  const deadline = Date.now() + budgetMs;
 
   await db.insert(thrivecartSyncLog).values({
     id: syncId,
@@ -145,29 +154,24 @@ export async function runFullSync(): Promise<SyncResult> {
         subStatus: subscription.status,
         currentPeriodEnd: subscription.currentPeriodEnd,
         cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+        lastSyncedAt: subscription.lastSyncedAt,
       })
       .from(user)
       .innerJoin(subscription, eq(subscription.userId, user.id))
-      .where(ne(user.role, 'admin'))
-      .orderBy(desc(subscription.currentPeriodEnd));
+      .where(ne(user.role, 'admin'));
 
-    const seen = new Set<string>();
-    const uniqueUsers = usersWithSubs.filter((row) => {
-      if (seen.has(row.userId)) return false;
-      seen.add(row.userId);
-      return true;
-    });
+    const uniqueUsers = orderUsersForSync(
+      usersWithSubs.map((row) => ({ ...row, isActive: Boolean(row.isActive) })),
+      now,
+    );
 
-    uniqueUsers.sort((a, b) => {
-      const aNeedsHeal = !a.isActive || a.subStatus !== 'active' || a.currentPeriodEnd <= now;
-      const bNeedsHeal = !b.isActive || b.subStatus !== 'active' || b.currentPeriodEnd <= now;
-      if (aNeedsHeal === bNeedsHeal) return 0;
-      return aNeedsHeal ? -1 : 1;
-    });
-
-    console.log(`[ThriveCart Sync] Starting sync for ${uniqueUsers.length} users`);
+    console.log(`[ThriveCart Sync] Starting sync for ${uniqueUsers.length} users, budget ${budgetMs}ms`);
 
     for (const dbUser of uniqueUsers) {
+      if (Date.now() >= deadline) {
+        console.log(`[ThriveCart Sync] Budget exhausted after ${result.totalChecked}/${uniqueUsers.length}`);
+        break;
+      }
       result.totalChecked++;
 
       try {
@@ -220,6 +224,11 @@ export async function runFullSync(): Promise<SyncResult> {
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
         result.errors.push({ email: dbUser.email, error: errorMsg });
         result.totalErrors++;
+      } finally {
+        await db
+          .update(subscription)
+          .set({ lastSyncedAt: new Date() })
+          .where(eq(subscription.id, dbUser.subId));
       }
 
       if (result.totalChecked % 50 === 0) {
@@ -250,13 +259,14 @@ export async function runFullSync(): Promise<SyncResult> {
         details: {
           discrepancies: result.discrepancies,
           errors: result.errors,
+          progress: `${result.totalChecked}/${uniqueUsers.length}`,
         },
         status: 'completed',
       })
       .where(eq(thrivecartSyncLog.id, syncId));
 
     console.log(
-      `[ThriveCart Sync] Complete: ${result.totalChecked} checked, ${result.totalCorrected} corrected, ${result.totalErrors} errors`
+      `[ThriveCart Sync] Complete: ${result.totalChecked}/${uniqueUsers.length} checked, ${result.totalCorrected} corrected, ${result.totalErrors} errors`
     );
   } catch (error) {
     await db
