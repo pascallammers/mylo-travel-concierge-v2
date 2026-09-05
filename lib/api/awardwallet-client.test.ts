@@ -23,6 +23,7 @@ import {
   createAuthUrl,
   getConnectionInfo,
   getConnectedUser,
+  formatAccount,
   __resetAwardWalletDispatcherCacheForTests,
   __getAwardWalletDispatcherCacheForTests,
   __getProxyDispatcherForTests,
@@ -365,5 +366,77 @@ describe('AwardWallet Client', () => {
       const after = __getProxyDispatcherForTests();
       assert.strictEqual(after, undefined, 'no dispatcher when env var is unset');
     });
+  });
+});
+
+describe('formatAccount', () => {
+
+  it('keeps an unreadable balance as null instead of 0', () => {
+    const acc = formatAccount(
+      {
+        accountId: 1,
+        code: 'lufthansa',
+        displayName: 'Lufthansa (Miles and More)',
+        kind: 'Airlines',
+        login: 'x',
+        balance: 'nicht verfügbar',
+        balanceRaw: null,
+        errorCode: 2,
+        isBalanceVerified: true,
+        owner: 'Erika Mustermann',
+      },
+      'Erika Mustermann',
+    );
+    assert.equal(acc.balance, null);
+    assert.equal(acc.syncErrorCode, 2);
+    assert.equal(acc.programId, 'lufthansa');
+    assert.equal(acc.providerName, 'Miles & More');
+    assert.equal(acc.balanceUnit, 'miles');
+    assert.equal(acc.ownerIsConnectedUser, true);
+  });
+
+  it('a real zero stays zero', () => {
+    const acc = formatAccount({ accountId: 2, code: 'booking', displayName: 'Booking.com', kind: 'Hotels', login: 'x', balanceRaw: 0, errorCode: 1 });
+    assert.equal(acc.balance, 0);
+    assert.equal(acc.programId, 'aw:booking');
+    assert.equal(acc.balanceUnit, 'points');
+  });
+
+  it('flags hand-typed balances and accounts held by someone else', () => {
+    const acc = formatAccount(
+      {
+        accountId: 8502440,
+        code: null,
+        displayName: 'Amex Centurion',
+        kind: 'Credit Cards',
+        login: 'x',
+        balanceRaw: 4000000,
+        isBalanceVerified: false,
+        owner: 'Max Mustermann',
+        errorCode: 1,
+        lastRetrieveDate: '2025-09-01T09:09:05+00:00',
+      },
+      'Erika Mustermann',
+    );
+    assert.equal(acc.programId, 'amex-mr');
+    assert.equal(acc.balanceVerified, false);
+    assert.equal(acc.ownerIsConnectedUser, false);
+    assert.equal(acc.ownerName, 'Max Mustermann');
+    assert.equal(acc.lastRetrievedAt?.toISOString(), '2025-09-01T09:09:05.000Z');
+    assert.equal(acc.awAccountId, 8502440);
+  });
+
+  it('decodes HTML entities in names and status', () => {
+    const acc = formatAccount({
+      accountId: 3,
+      code: 'skywards',
+      displayName: 'Emirates (Skywards &amp; Business Rewards)',
+      kind: 'Airlines',
+      login: 'x',
+      balanceRaw: 100,
+      properties: [{ name: 'Status', value: 'Silver &amp; more', kind: 3 }],
+    });
+    assert.equal(acc.providerName, 'Emirates Skywards');
+    assert.equal(acc.eliteStatus, 'Silver & more');
   });
 });

@@ -193,10 +193,18 @@ export async function syncLoyaltyAccounts(
       await db.insert(loyaltyAccounts).values(
         accounts.map((acc) => ({
           connectionId,
+          awAccountId: acc.awAccountId,
+          programId: acc.programId,
           providerCode: acc.providerCode,
           providerName: acc.providerName,
+          providerKind: acc.providerKind,
           balance: acc.balance,
           balanceUnit: acc.balanceUnit,
+          balanceVerified: acc.balanceVerified,
+          ownerName: acc.ownerName,
+          ownerIsConnectedUser: acc.ownerIsConnectedUser,
+          syncErrorCode: acc.syncErrorCode,
+          lastRetrievedAt: acc.lastRetrievedAt,
           eliteStatus: acc.eliteStatus,
           expirationDate: acc.expirationDate,
           accountNumber: acc.accountNumber,
@@ -216,8 +224,8 @@ export async function syncLoyaltyAccounts(
     console.error(`[AwardWallet] Synced ${accounts.length} accounts for connection:`, connectionId);
     return accounts.length;
   } catch (error: unknown) {
-    const invalidBalances = accounts.filter((acc) => !Number.isFinite(acc.balance));
-    const oversizedBalances = accounts.filter((acc) => acc.balance > 2_147_483_647);
+    const invalidBalances = accounts.filter((acc) => acc.balance !== null && !Number.isFinite(acc.balance));
+    const oversizedBalances = accounts.filter((acc) => acc.balance !== null && acc.balance > 2_147_483_647);
     const missingProviders = accounts.filter((acc) => !acc.providerCode || !acc.providerName);
 
     if (invalidBalances.length || oversizedBalances.length || missingProviders.length) {

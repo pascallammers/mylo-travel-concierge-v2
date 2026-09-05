@@ -14,7 +14,7 @@ interface LoyaltyAccount {
   id: string;
   providerCode: string;
   providerName: string;
-  balance: number;
+  balance: number | null;
   balanceUnit: string;
   eliteStatus?: string | null;
   expirationDate?: string | null;
@@ -40,8 +40,8 @@ interface LoyaltyHeaderBannerProps {
 /**
  * Formats balance with locale-aware number formatting (full numbers, not abbreviated)
  */
-function formatFullBalance(num: number): string {
-  return num.toLocaleString('de-DE');
+function formatFullBalance(num: number | null): string {
+  return num === null ? '–' : num.toLocaleString('de-DE');
 }
 
 /**

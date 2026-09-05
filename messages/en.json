@@ -194,7 +194,8 @@
     "disconnecting": "Disconnecting...",
     "confirmDisconnect": "Yes, disconnect",
     "disconnected": "AwardWallet connection has been disconnected",
-    "disconnectError": "Could not disconnect"
+    "disconnectError": "Could not disconnect",
+    "balanceUnavailable": "unavailable"
   },
   "timeAgo": {
     "seconds": "{count}s ago",

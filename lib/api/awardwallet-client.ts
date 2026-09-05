@@ -3,6 +3,7 @@ import 'server-only';
 import { serverEnv } from '@/env/server';
 import { ChatSDKError } from '@/lib/errors';
 import type { LoyaltyBalanceUnit } from '@/lib/db/schema';
+import { decodeHtmlEntities, resolveLoyaltyProgram } from '@/lib/loyalty/programs';
 import { ProxyAgent } from 'undici';
 
 /**
@@ -113,14 +114,28 @@ interface AWAccountProperty {
  */
 interface AWRawAccount {
   accountId: number;
-  code: string;
+  /** Omitted by AwardWallet for some providers (seen: Amex Centurion). */
+  code?: string | null;
   displayName: string;
   kind: string;
   login: string;
   balance?: string;
-  balanceRaw?: number;
+  /** `null` (never 0) when AwardWallet could not read the balance. */
+  balanceRaw?: number | null;
+  /** `false` when the balance was typed in by hand on AwardWallet. */
+  isBalanceVerified?: boolean;
+  /** Full name of the account holder; may differ from the connected user. */
+  owner?: string;
+  /** 1 = last update succeeded, 9 = succeeded with warning, anything else failed. */
+  errorCode?: number;
+  lastRetrieveDate?: string | null;
   expirationDate?: string;
   properties?: AWAccountProperty[];
+}
+
+interface AWConnectedUserResponse {
+  fullName?: string;
+  accounts?: AWRawAccount[];
 }
 
 /**
@@ -134,10 +149,19 @@ export interface AWConnectionInfo {
  * Loyalty account data formatted for MYLO
  */
 export interface AWLoyaltyAccount {
+  awAccountId: number | null;
+  programId: string;
   providerCode: string;
   providerName: string;
-  balance: number;
+  providerKind: string | null;
+  /** `null` when AwardWallet could not read the balance; never coerced to 0. */
+  balance: number | null;
   balanceUnit: LoyaltyBalanceUnit;
+  balanceVerified: boolean;
+  ownerName: string | null;
+  ownerIsConnectedUser: boolean;
+  syncErrorCode: number | null;
+  lastRetrievedAt: Date | null;
   eliteStatus: string | null;
   expirationDate: Date | null;
   accountNumber: string | null;
@@ -307,13 +331,12 @@ export async function getConnectedUser(awUserId: string): Promise<AWLoyaltyAccou
       );
     }
 
-    const data = await response.json();
-    // API returns accounts array directly in the response
-    const accounts: AWRawAccount[] = data.accounts || [];
+    const data = (await response.json()) as AWConnectedUserResponse;
+    const accounts = data.accounts ?? [];
 
     console.error(`[AwardWallet] Retrieved ${accounts.length} accounts`);
 
-    return accounts.map(formatAccount);
+    return accounts.map((raw) => formatAccount(raw, data.fullName));
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     console.error('[AwardWallet] getConnectedUser error:', error);
@@ -348,45 +371,42 @@ function generateProviderCode(displayName: string): string {
     .replace(/^-|-$/g, '');
 }
 
-/**
- * Formats raw AwardWallet account data to MYLO format
- */
-function formatAccount(raw: AWRawAccount): AWLoyaltyAccount {
-  // Extract elite status from properties (kind=3 is elite status)
-  const eliteStatusProp = raw.properties?.find((p) => p.kind === 3);
-  const eliteStatus = eliteStatusProp?.value || null;
+function normalizeName(name: string | undefined): string {
+  return decodeHtmlEntities(name ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+}
 
-  // Generate fallback code from displayName if code is missing
-  const providerCode = raw.code || generateProviderCode(raw.displayName);
+/**
+ * Formats raw AwardWallet account data to MYLO format.
+ * @param connectedUserName - `fullName` of the connected user, to tell the
+ *   user's own accounts from other people's accounts they track.
+ */
+export function formatAccount(raw: AWRawAccount, connectedUserName?: string): AWLoyaltyAccount {
+  const eliteStatusProp = raw.properties?.find((p) => p.kind === 3);
+  const program = resolveLoyaltyProgram({ code: raw.code, displayName: raw.displayName, kind: raw.kind });
+  const ownerName = decodeHtmlEntities(raw.owner ?? '').trim() || null;
+  const balance = typeof raw.balanceRaw === 'number' && Number.isFinite(raw.balanceRaw) ? Math.round(raw.balanceRaw) : null;
 
   return {
-    providerCode,
-    providerName: raw.displayName,
-    balance: Math.round(raw.balanceRaw ?? 0),
-    balanceUnit: parseBalanceUnit(raw.kind),
-    eliteStatus,
+    awAccountId: typeof raw.accountId === 'number' ? raw.accountId : null,
+    programId: program.programId,
+    providerCode: raw.code || generateProviderCode(raw.displayName),
+    providerName: program.name,
+    providerKind: raw.kind || null,
+    balance,
+    balanceUnit: program.unit,
+    balanceVerified: raw.isBalanceVerified !== false,
+    ownerName,
+    ownerIsConnectedUser: !ownerName || !connectedUserName || normalizeName(ownerName) === normalizeName(connectedUserName),
+    syncErrorCode: typeof raw.errorCode === 'number' ? raw.errorCode : null,
+    lastRetrievedAt: parseExpirationDate(raw.lastRetrieveDate ?? undefined),
+    eliteStatus: eliteStatusProp?.value ? decodeHtmlEntities(eliteStatusProp.value) : null,
     expirationDate: parseExpirationDate(raw.expirationDate),
     accountNumber: raw.login || null,
     logoUrl: null,
   };
-}
-
-/**
- * Parses the balance unit from AwardWallet's kind field
- */
-function parseBalanceUnit(kind: string): LoyaltyBalanceUnit {
-  const lowerKind = (kind || '').toLowerCase();
-
-  if (lowerKind.includes('airline')) {
-    return 'miles';
-  }
-  if (lowerKind.includes('hotel')) {
-    return 'nights';
-  }
-  if (lowerKind.includes('credit')) {
-    return 'credits';
-  }
-  return 'points';
 }
 
 // ---------------------------------------------------------------------------

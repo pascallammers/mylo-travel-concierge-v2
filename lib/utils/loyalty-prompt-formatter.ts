@@ -27,6 +27,10 @@ User has an AwardWallet connection but the last sync failed on ${lastSync}. If t
   pointsMiles: { de: 'Punkte/Meilen', en: 'points/miles' },
   accounts: { de: 'Konten', en: 'Accounts' },
   expires: { de: 'Läuft ab', en: 'Expires' },
+  balanceUnavailable: {
+    de: 'Saldo nicht lesbar (AwardWallet konnte sich nicht einloggen)',
+    en: 'balance unavailable (AwardWallet could not log in)',
+  },
   loyaltyHint: {
     de: 'Bei Fragen zu Treuepunkten oder Meilen kannst du direkt aus diesen Daten antworten. Für Detail-Abfragen zu bestimmten Programmen nutze das get_loyalty_balances Tool.',
     en: 'When the user asks about their loyalty points or miles, you can directly answer from this data. For detailed queries about specific programs, use the get_loyalty_balances tool.',
@@ -64,12 +68,15 @@ export function formatLoyaltyDataForPrompt(data: UserLoyaltyData, locale: Prompt
     return promptI18n.notConnected[locale];
   }
 
-  const totalPoints = data.accounts.reduce((sum, acc) => sum + acc.balance, 0);
+  const totalPoints = data.accounts.reduce((sum, acc) => sum + (acc.balance ?? 0), 0);
   const lastSync = formatSyncDate(data.lastSyncedAt);
 
   const accountsSummary = data.accounts
     .map((acc) => {
-      let line = `- ${acc.providerName}: ${acc.balance.toLocaleString()} ${acc.balanceUnit}`;
+      let line =
+        acc.balance === null
+          ? `- ${acc.providerName}: ${promptI18n.balanceUnavailable[locale]}`
+          : `- ${acc.providerName}: ${acc.balance.toLocaleString()} ${acc.balanceUnit}`;
       if (acc.eliteStatus) {
         line += ` (${acc.eliteStatus})`;
       }

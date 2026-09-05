@@ -9,7 +9,7 @@ import { useTranslations } from 'next-intl';
 interface LoyaltyProgramCardProps {
   providerName: string;
   providerCode: string;
-  balance: number;
+  balance: number | null;
   balanceUnit: string;
   eliteStatus?: string | null;
   expirationDate?: Date | null;
@@ -21,8 +21,8 @@ interface LoyaltyProgramCardProps {
 /**
  * Formats balance with locale-aware number formatting
  */
-function formatBalance(balance: number): string {
-  return balance.toLocaleString('de-DE');
+function formatBalance(balance: number | null, unavailable: string): string {
+  return balance === null ? unavailable : balance.toLocaleString('de-DE');
 }
 
 /**
@@ -93,7 +93,7 @@ export function LoyaltyProgramCard({
         )}
         <span className="text-xs font-medium truncate">{providerName}</span>
         <span className="text-xs text-muted-foreground ml-auto">
-          {formatBalance(balance)} {balanceUnit}
+          {formatBalance(balance, t('balanceUnavailable'))} {balance !== null && balanceUnit}
         </span>
       </div>
     );
@@ -132,8 +132,8 @@ export function LoyaltyProgramCard({
         </div>
         <div className="flex items-center gap-2 mt-0.5">
           <p className="text-lg font-semibold">
-            {formatBalance(balance)}{' '}
-            <span className="text-sm font-normal text-muted-foreground">{balanceUnit}</span>
+            {formatBalance(balance, t('balanceUnavailable'))}{' '}
+            {balance !== null && <span className="text-sm font-normal text-muted-foreground">{balanceUnit}</span>}
           </p>
         </div>
         {formattedExpiration && (

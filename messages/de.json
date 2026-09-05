@@ -194,7 +194,8 @@
     "disconnecting": "Trennen...",
     "confirmDisconnect": "Ja, trennen",
     "disconnected": "AwardWallet-Verbindung wurde getrennt",
-    "disconnectError": "Verbindung konnte nicht getrennt werden"
+    "disconnectError": "Verbindung konnte nicht getrennt werden",
+    "balanceUnavailable": "nicht lesbar"
   },
   "timeAgo": {
     "seconds": "vor {count}s",

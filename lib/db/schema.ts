@@ -677,14 +677,17 @@ export const awardwalletConnections = pgTable('awardwallet_connections', {
 export type AwardWalletConnection = InferSelectModel<typeof awardwalletConnections>;
 
 /**
- * Balance unit types for loyalty programs
+ * Balance unit of a loyalty programme. AwardWallet has no unit field; the
+ * unit comes from the programme registry (`lib/loyalty/programs.ts`).
  */
-export const loyaltyBalanceUnit = ['miles', 'points', 'nights', 'credits'] as const;
+export const loyaltyBalanceUnit = ['miles', 'points'] as const;
 export type LoyaltyBalanceUnit = (typeof loyaltyBalanceUnit)[number];
 
 /**
  * Loyalty accounts table.
  * Stores individual loyalty program balances synced from AwardWallet.
+ * One row per AwardWallet account; several rows can share a `program_id`
+ * (a user tracking two Miles & More accounts, or KLM + Air France = Flying Blue).
  */
 export const loyaltyAccounts = pgTable('loyalty_accounts', {
   id: text('id')
@@ -693,10 +696,26 @@ export const loyaltyAccounts = pgTable('loyalty_accounts', {
   connectionId: text('connection_id')
     .notNull()
     .references(() => awardwalletConnections.id, { onDelete: 'cascade' }),
+  /** AwardWallet's stable account id; the same account can appear under two connections. */
+  awAccountId: integer('aw_account_id'),
+  /** Canonical programme id from the registry, or `aw:<code>` for unknown providers. */
+  programId: text('program_id').notNull(),
   providerCode: text('provider_code').notNull(),
   providerName: text('provider_name').notNull(),
-  balance: integer('balance').notNull().default(0),
+  /** AwardWallet provider category (Airlines, Hotels, Credit Cards, …). */
+  providerKind: text('provider_kind'),
+  /** `null` when AwardWallet could not read the balance (login/parse failure). */
+  balance: integer('balance'),
   balanceUnit: text('balance_unit').$type<LoyaltyBalanceUnit>().notNull().default('points'),
+  /** `false` when the holder typed the balance in by hand on AwardWallet. */
+  balanceVerified: boolean('balance_verified').notNull().default(true),
+  /** Account holder name as reported by AwardWallet; can differ from the connected user. */
+  ownerName: text('owner_name'),
+  ownerIsConnectedUser: boolean('owner_is_connected_user').notNull().default(true),
+  /** AwardWallet `errorCode` of the last update: 1 ok, 9 ok with warning, else failed. */
+  syncErrorCode: integer('sync_error_code'),
+  /** Last time AwardWallet actually logged in and read this account. */
+  lastRetrievedAt: timestamp('last_retrieved_at'),
   eliteStatus: text('elite_status'),
   expirationDate: timestamp('expiration_date'),
   accountNumber: text('account_number'),

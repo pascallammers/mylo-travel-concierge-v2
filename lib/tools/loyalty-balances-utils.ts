@@ -11,7 +11,8 @@ export interface LoyaltyAccount {
   connectionId: string;
   providerCode: string;
   providerName: string;
-  balance: number;
+  /** `null` when AwardWallet could not read the balance. */
+  balance: number | null;
   balanceUnit: string;
   eliteStatus: string | null;
   expirationDate: Date | null;
@@ -63,7 +64,8 @@ export interface LoyaltyBalancesResponse {
 export interface LoyaltyAccountSummary {
   providerCode: string;
   providerName: string;
-  balance: number;
+  /** `null` when AwardWallet could not read the balance. */
+  balance: number | null;
   balanceUnit: string;
   eliteStatus: string | null;
   expirationDate: string | null;
@@ -110,7 +112,7 @@ export function filterByProvider(accounts: LoyaltyAccount[], provider: string): 
  * @returns Total points/miles
  */
 export function calculateTotalPoints(accounts: LoyaltyAccount[]): number {
-  return accounts.reduce((sum, account) => sum + account.balance, 0);
+  return accounts.reduce((sum, account) => sum + (account.balance ?? 0), 0);
 }
 
 /**
