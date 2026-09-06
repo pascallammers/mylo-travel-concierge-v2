@@ -129,7 +129,7 @@ export const getComprehensiveUserData = cache(async (): Promise<ComprehensiveUse
     )[0];
 
     const activePolarSubscription = polarSubscriptions
-      .filter((sub) => doesSubscriptionGrantAccess(sub.status, sub.currentPeriodEnd, now))
+      .filter((sub) => doesSubscriptionGrantAccess(sub, now))
       .sort((a, b) => new Date(b.currentPeriodEnd).getTime() - new Date(a.currentPeriodEnd).getTime())[0];
 
     // Process DodoPayments

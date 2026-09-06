@@ -26,6 +26,21 @@ describe('determineSubscriptionStatus', () => {
     assert.equal(result.validUntil, '2026-09-01T00:00:00.000Z');
   });
 
+  it('shows past_due as active until the grace period ends', () => {
+    const graceEnd = new Date('2026-08-20T00:00:00.000Z');
+    const sub = {
+      status: 'past_due',
+      currentPeriodEnd: new Date('2026-08-13T00:00:00.000Z'),
+      cancelAtPeriodEnd: false,
+      gracePeriodEnd: graceEnd,
+    };
+    assert.deepEqual(determineSubscriptionStatus(sub, now), { status: 'active', validUntil: graceEnd.toISOString() });
+    assert.deepEqual(determineSubscriptionStatus(sub, new Date('2026-08-21T00:00:00.000Z')), {
+      status: 'inactive',
+      validUntil: null,
+    });
+  });
+
   it('returns cancelled when cancelAtPeriodEnd is set', () => {
     const result = determineSubscriptionStatus(
       {

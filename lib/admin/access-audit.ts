@@ -73,6 +73,7 @@ export async function getAccessAuditReport(): Promise<AccessAuditReport> {
       userId: subscription.userId,
       status: subscription.status,
       currentPeriodEnd: subscription.currentPeriodEnd,
+      gracePeriodEnd: subscription.gracePeriodEnd,
       createdAt: subscription.createdAt,
     })
     .from(subscription)
@@ -88,6 +89,7 @@ export async function getAccessAuditReport(): Promise<AccessAuditReport> {
     latestSubscriptionsByUserId.set(sub.userId, {
       status: sub.status,
       currentPeriodEnd: sub.currentPeriodEnd,
+      gracePeriodEnd: sub.gracePeriodEnd,
     });
   }
 

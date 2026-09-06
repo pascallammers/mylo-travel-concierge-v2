@@ -2,12 +2,15 @@
  * Admin badge and subscription-row selection for ThriveCart-backed access.
  */
 
+import { accessEndsAt } from '@/lib/subscription-access';
+
 export type SubscriptionStatusBadge = 'active' | 'inactive' | 'cancelled' | 'none';
 
 export type SubscriptionStatusInput = {
   status: string;
   currentPeriodEnd: Date;
   cancelAtPeriodEnd: boolean;
+  gracePeriodEnd?: Date | null;
 };
 
 /**
@@ -25,7 +28,7 @@ export function determineSubscriptionStatus(
     return { status: 'none', validUntil: null };
   }
 
-  const periodEnd = sub.currentPeriodEnd;
+  const periodEnd = accessEndsAt(sub) ?? sub.currentPeriodEnd;
 
   if (sub.status === 'active' && periodEnd > now) {
     return { status: 'active', validUntil: periodEnd.toISOString() };

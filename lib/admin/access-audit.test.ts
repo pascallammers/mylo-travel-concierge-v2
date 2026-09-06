@@ -37,6 +37,21 @@ describe('evaluateUserAccessState', () => {
     assert.deepEqual(result, { hasAccess: false, reason: 'subscription_expired' });
   });
 
+  it('grants access to a past_due subscription while its grace period runs', () => {
+    const grace = {
+      status: 'past_due',
+      currentPeriodEnd: new Date('2026-02-18T00:00:00.000Z'),
+      gracePeriodEnd: new Date('2026-02-25T00:00:00.000Z'),
+    };
+    const account = { isActive: true, activationStatus: 'active' };
+
+    assert.deepEqual(evaluateUserAccessState(account, grace, now), { hasAccess: true });
+    assert.deepEqual(evaluateUserAccessState(account, grace, new Date('2026-02-26T00:00:00.000Z')), {
+      hasAccess: false,
+      reason: 'subscription_expired',
+    });
+  });
+
   it('returns subscription_status_blocked for unpaid subscriptions with future end', () => {
     const result = evaluateUserAccessState(
       {

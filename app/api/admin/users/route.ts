@@ -155,6 +155,7 @@ export async function GET(request: NextRequest) {
             planName: subscription.planName,
             currentPeriodEnd: subscription.currentPeriodEnd,
             cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+            gracePeriodEnd: subscription.gracePeriodEnd,
             createdAt: subscription.createdAt,
           })
           .from(subscription)
@@ -183,6 +184,7 @@ export async function GET(request: NextRequest) {
           status: userSub.status,
           currentPeriodEnd: userSub.currentPeriodEnd,
           cancelAtPeriodEnd: userSub.cancelAtPeriodEnd,
+          gracePeriodEnd: userSub.gracePeriodEnd,
         } : null
       );
 

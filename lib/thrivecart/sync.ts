@@ -13,6 +13,7 @@ import { generateId } from 'ai';
 import { thrivecartConfig } from './config';
 import { decideSyncAction, resolvePeriodEndFromThriveCart, type SyncAction } from './sync-decision';
 import { orderUsersForSync } from './sync-order';
+import { accessEndsAt } from '@/lib/subscription-access';
 
 /**
  * Vercel kills the cron function at maxDuration (300 s). One ThriveCart lookup
@@ -287,7 +288,8 @@ export async function runFullSync(budgetMs: number = SYNC_TIME_BUDGET_MS): Promi
 }
 
 /**
- * Deactivate users whose latest subscription period has ended.
+ * Deactivate users whose latest subscription no longer grants access: the paid period
+ * has ended and, after a failed rebill, the grace period too.
  * Call after runFullSync so ThriveCart-active users are extended first.
  *
  * @returns Number of users suspended
@@ -300,6 +302,7 @@ export async function deactivateExpiredUsers(): Promise<number> {
       userId: user.id,
       subId: subscription.id,
       currentPeriodEnd: subscription.currentPeriodEnd,
+      gracePeriodEnd: subscription.gracePeriodEnd,
       subStatus: subscription.status,
     })
     .from(user)
@@ -314,7 +317,14 @@ export async function deactivateExpiredUsers(): Promise<number> {
     return true;
   });
 
-  const expired = latestPerUser.filter((row) => row.currentPeriodEnd <= now);
+  const expired = latestPerUser.filter((row) => {
+    const endsAt = accessEndsAt({
+      status: row.subStatus,
+      currentPeriodEnd: row.currentPeriodEnd,
+      gracePeriodEnd: row.gracePeriodEnd,
+    });
+    return endsAt !== null && endsAt <= now;
+  });
 
   let deactivated = 0;
   let archived = 0;
