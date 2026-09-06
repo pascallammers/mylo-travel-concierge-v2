@@ -172,7 +172,8 @@ export async function markSubscriptionCancelled(subscriptionId: string) {
 }
 
 /**
- * Mark subscription as past due (failed payment)
+ * Mark subscription as past due (failed payment). Every failed rebill restarts the
+ * grace period, so access ends GRACE_PERIOD_DAYS after the last failed attempt.
  * @param subscriptionId - Subscription ID
  * @returns Updated subscription
  */
