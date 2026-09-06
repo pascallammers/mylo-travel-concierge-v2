@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { session, subscription, user } from '@/lib/db/schema';
 import { and, desc, gt, inArray, ne, sql } from 'drizzle-orm';
+import { accessEndsAt } from '@/lib/subscription-access';
 import {
   evaluateUserAccessState,
   type AccessAuditReason,
@@ -146,7 +147,7 @@ export async function getAccessAuditReport(): Promise<AccessAuditReport> {
       isActive: account.isActive,
       activationStatus: account.activationStatus,
       subscriptionStatus: latestSubscription?.status ?? null,
-      subscriptionValidUntil: latestSubscription?.currentPeriodEnd.toISOString() ?? null,
+      subscriptionValidUntil: latestSubscription ? (accessEndsAt(latestSubscription) ?? latestSubscription.currentPeriodEnd).toISOString() : null,
     });
   }
 
