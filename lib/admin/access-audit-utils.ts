@@ -1,4 +1,4 @@
-import { doesSubscriptionGrantAccess } from '@/lib/subscription-access';
+import { accessEndsAt, doesSubscriptionGrantAccess } from '@/lib/subscription-access';
 
 export type AccessAuditReason =
   | 'account_inactive'
@@ -14,6 +14,7 @@ export type AccessAuditUserRecord = {
 export type LatestSubscriptionRecord = {
   status: string;
   currentPeriodEnd: Date;
+  gracePeriodEnd?: Date | null;
 };
 
 /**
@@ -40,11 +41,11 @@ export function evaluateUserAccessState(
     return { hasAccess: false, reason: 'no_subscription' };
   }
 
-  if (latestSubscription.currentPeriodEnd <= now) {
+  if ((accessEndsAt(latestSubscription) ?? latestSubscription.currentPeriodEnd) <= now) {
     return { hasAccess: false, reason: 'subscription_expired' };
   }
 
-  if (!doesSubscriptionGrantAccess(latestSubscription.status, latestSubscription.currentPeriodEnd, now)) {
+  if (!doesSubscriptionGrantAccess(latestSubscription, now)) {
     return { hasAccess: false, reason: 'subscription_status_blocked' };
   }
 

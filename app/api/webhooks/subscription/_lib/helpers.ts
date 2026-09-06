@@ -6,8 +6,9 @@ import type { BaseWebhookRequest, WebhookResponse } from './types';
 // Webhook secret from environment
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || '';
 
-// Grace period in days (0 = immediate suspension)
-const GRACE_PERIOD_DAYS = parseInt(process.env.GRACE_PERIOD_DAYS || '0');
+// Days a past_due subscription keeps access after a failed rebill (0 = immediate suspension).
+// Defaults to 7 so a missing variable never locks paying customers out on the first failure.
+const GRACE_PERIOD_DAYS = parseInt(process.env.GRACE_PERIOD_DAYS || '7');
 
 /**
  * Validate webhook secret from request
@@ -171,7 +172,8 @@ export async function markSubscriptionCancelled(subscriptionId: string) {
 }
 
 /**
- * Mark subscription as past due (failed payment)
+ * Mark subscription as past due (failed payment). Every failed rebill restarts the
+ * grace period, so access ends GRACE_PERIOD_DAYS after the last failed attempt.
  * @param subscriptionId - Subscription ID
  * @returns Updated subscription
  */

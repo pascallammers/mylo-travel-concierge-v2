@@ -1,7 +1,12 @@
 import { db } from '@/lib/db';
 import { subscription, user } from '@/lib/db/schema';
 import { desc, eq, inArray } from 'drizzle-orm';
-import { doesSubscriptionGrantAccess, evaluateAccountAccess, type AccessCheckResult } from './subscription-access';
+import {
+  doesSubscriptionGrantAccess,
+  evaluateAccountAccess,
+  type AccessCheckResult,
+  type AccessWindow,
+} from './subscription-access';
 
 export type { AccessCheckResult };
 
@@ -13,7 +18,7 @@ export type { AccessCheckResult };
  * Access Rules:
  * 1. Admins ALWAYS have access (bypass all checks)
  * 2. Inactive users are blocked
- * 3. Regular users need an active subscription with currentPeriodEnd > now()
+ * 3. Regular users need a subscription whose access window is still open (see accessEndsAt)
  */
 export async function checkUserAccess(userId: string): Promise<AccessCheckResult> {
   try {
@@ -33,7 +38,7 @@ export async function checkUserAccess(userId: string): Promise<AccessCheckResult
         ? null
         : ((await db.query.subscription.findFirst({
             where: eq(subscription.userId, userId),
-            columns: { currentPeriodEnd: true, status: true },
+            columns: { currentPeriodEnd: true, status: true, gracePeriodEnd: true },
             orderBy: [desc(subscription.currentPeriodEnd)],
           })) ?? null);
 
@@ -70,16 +75,20 @@ export async function filterUserIdsWithAccess(userIds: string[]): Promise<Set<st
     }),
     db.query.subscription.findMany({
       where: inArray(subscription.userId, uniqueIds),
-      columns: { userId: true, currentPeriodEnd: true, status: true },
+      columns: { userId: true, currentPeriodEnd: true, status: true, gracePeriodEnd: true },
       orderBy: [desc(subscription.currentPeriodEnd)],
     }),
   ]);
 
   // Ordered by currentPeriodEnd desc, so the first hit per user is the latest subscription.
-  const latestSubscriptions = new Map<string, { status: string | null; currentPeriodEnd: Date }>();
+  const latestSubscriptions = new Map<string, AccessWindow & { currentPeriodEnd: Date }>();
   for (const row of subscriptions) {
     if (row.userId && !latestSubscriptions.has(row.userId)) {
-      latestSubscriptions.set(row.userId, { status: row.status, currentPeriodEnd: row.currentPeriodEnd });
+      latestSubscriptions.set(row.userId, {
+        status: row.status,
+        currentPeriodEnd: row.currentPeriodEnd,
+        gracePeriodEnd: row.gracePeriodEnd,
+      });
     }
   }
 
@@ -103,11 +112,11 @@ export async function hasActiveSubscription(userId: string): Promise<boolean> {
   const now = new Date();
   const latestSubscription = await db.query.subscription.findFirst({
     where: eq(subscription.userId, userId),
-    columns: { status: true, currentPeriodEnd: true },
+    columns: { status: true, currentPeriodEnd: true, gracePeriodEnd: true },
     orderBy: [desc(subscription.currentPeriodEnd)],
   });
 
-  return doesSubscriptionGrantAccess(latestSubscription?.status, latestSubscription?.currentPeriodEnd, now);
+  return doesSubscriptionGrantAccess(latestSubscription, now);
 }
 
 /**
