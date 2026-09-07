@@ -1,18 +1,36 @@
 /**
- * DACH region (Germany, Austria, Switzerland) transfer partners.
+ * DACH transfer partners: German American Express Membership Rewards and
+ * PAYBACK Germany.
  *
- * Currently sources: American Express Membership Rewards Germany.
+ * IMPORTANT: These ratios differ significantly from US/UK markets where many
+ * partners offer 1:1. In DACH, the standard best ratio is 5:4 (80%), with some
+ * partners offering worse rates. Austrian and Swiss Amex cards run their own
+ * partner tables and are not modelled here.
  *
- * IMPORTANT: These ratios differ significantly from US/UK markets where many partners offer 1:1.
- * In DACH, the standard best ratio is 5:4 (80%), with some partners offering worse rates.
+ * Table date: `DACH_TRANSFER_TABLE_AS_OF` (single source of truth; tools quote
+ * it in their answers).
+ * Sources:
+ * - americanexpress.com/de-de/rewards/membership-rewards/travel/all
+ * - payback.de/partner/miles-and-more and payback.de/faq/miles-and-more-abo
+ * - PAYBACK -> Miles & More bonus history: meilenoptimieren.com/transferbonus-payback-miles-and-more/
+ *   (10 % 01.-31.07.2026, 25 % 01.-31.01.2026, 25 % 05/2025, 20 % 01/2025, 30 % 07/2024)
  *
- * Last updated: January 2026
- * Source: americanexpress.com/de-de/rewards/membership-rewards/travel/all
+ * Changes since January 2026 (MYLO-51):
+ * - Etihad Guest removed: Amex DE ended the transfer on 2026-06-15.
+ * - ALL Accor added: Amex DE partner since 2026-07-06 (3:1).
+ * - British Airways Executive Club and Iberia Plus renamed to British Airways
+ *   Club and Iberia Club (the programs renamed themselves; Amex lists the new
+ *   names).
+ * - PAYBACK -> Miles & More modelled as its own source program.
  */
 
 import type { PartnerMap } from './types';
 
-export const AMEX_DACH_TABLE_AS_OF = '2026-01';
+/**
+ * Month the DACH tables (Amex DE and PAYBACK) were last verified against the
+ * sources above. Format `YYYY-MM`.
+ */
+export const DACH_TRANSFER_TABLE_AS_OF = '2026-09';
 
 /**
  * Amex Membership Rewards transfer partners available in Germany.
@@ -63,7 +81,7 @@ export const AMEX_DACH_PARTNERS: PartnerMap = {
     },
   },
   britishAirways: {
-    name: 'British Airways Executive Club',
+    name: 'British Airways Club',
     brand: 'British Airways',
     amexPoints: 5,
     partnerMiles: 4,
@@ -75,12 +93,12 @@ export const AMEX_DACH_PARTNERS: PartnerMap = {
     type: 'airline',
     currencyUnit: { de: 'Avios', en: 'Avios' },
     notes: {
-      de: 'Sehr gut für Kurzstreckenflüge innerhalb Europas.',
-      en: 'Excellent for short-haul flights within Europe.',
+      de: 'Früher „Executive Club“. Sehr gut für Kurzstreckenflüge innerhalb Europas.',
+      en: 'Formerly "Executive Club". Excellent for short-haul flights within Europe.',
     },
   },
   iberia: {
-    name: 'Iberia Plus',
+    name: 'Iberia Club',
     brand: 'Iberia',
     amexPoints: 5,
     partnerMiles: 4,
@@ -92,8 +110,8 @@ export const AMEX_DACH_PARTNERS: PartnerMap = {
     type: 'airline',
     currencyUnit: { de: 'Avios', en: 'Avios' },
     notes: {
-      de: 'Sehr attraktiv für Business Class Flüge in die USA (Off-Peak ab 34.000 Avios OW).',
-      en: 'Very attractive for Business Class flights to the US (off-peak from 34,000 Avios OW).',
+      de: 'Früher „Iberia Plus“. Sehr attraktiv für Business Class Flüge in die USA (Off-Peak ab 34.000 Avios OW).',
+      en: 'Formerly "Iberia Plus". Very attractive for Business Class flights to the US (off-peak from 34,000 Avios OW).',
     },
   },
   sasEurobonus: {
@@ -166,23 +184,6 @@ export const AMEX_DACH_PARTNERS: PartnerMap = {
       en: 'Devalued on 01.08.2025 from 5:4 to 3:2. Avios family with BA/Iberia.',
     },
   },
-  etihadGuest: {
-    name: 'Etihad Guest',
-    brand: 'Etihad Airways',
-    amexPoints: 3,
-    partnerMiles: 2,
-    effectiveRate: 66.7,
-    minTransfer: 900,
-    transferIncrement: 300,
-    transferDuration: { de: '5 Werktage', en: '5 business days' },
-    alliance: null,
-    type: 'airline',
-    currencyUnit: { de: 'Meilen', en: 'Miles' },
-    notes: {
-      de: 'Abgewertet am 01.08.2025 von 5:4 auf 3:2. Dynamische Bepreisung macht Awards teuer.',
-      en: 'Devalued on 01.08.2025 from 5:4 to 3:2. Dynamic pricing makes awards expensive.',
-    },
-  },
   deltaSkyMiles: {
     name: 'Delta SkyMiles',
     brand: 'Delta Air Lines',
@@ -215,6 +216,24 @@ export const AMEX_DACH_PARTNERS: PartnerMap = {
     currencyUnit: { de: 'Punkte', en: 'Points' },
   },
 
+  // Hotels with 3:1 ratio
+  accor: {
+    name: 'ALL Accor',
+    brand: 'Accor',
+    amexPoints: 3,
+    partnerMiles: 1,
+    effectiveRate: 33.3,
+    minTransfer: 900,
+    transferIncrement: 3,
+    transferDuration: { de: 'bis zu 1 Werktag', en: 'up to 1 business day' },
+    type: 'hotel',
+    currencyUnit: { de: 'Punkte', en: 'Points' },
+    notes: {
+      de: 'Neuer Partner seit 06.07.2026 (nur Amex Deutschland). Fester Gegenwert: 2.000 ALL-Punkte = 40 € Hotelrechnung, also ca. 0,67 ct pro MR-Punkt.',
+      en: 'New partner since 06.07.2026 (Amex Germany only). Fixed value: 2,000 ALL points = EUR 40 off a hotel bill, about 0.67 cents per MR point.',
+    },
+  },
+
   // Worst rate - Emirates
   emiratesSkywards: {
     name: 'Emirates Skywards',
@@ -234,10 +253,10 @@ export const AMEX_DACH_PARTNERS: PartnerMap = {
     },
   },
 
-  // PAYBACK (indirect Miles & More)
+  // PAYBACK (indirect Miles & More, see PAYBACK_DACH_PARTNERS for the second hop)
   payback: {
     name: 'PAYBACK',
-    brand: 'PAYBACK (-> Miles & More)',
+    brand: 'PAYBACK (-> Lufthansa Miles & More)',
     amexPoints: 3,
     partnerMiles: 1,
     effectiveRate: 33.3,
@@ -247,8 +266,33 @@ export const AMEX_DACH_PARTNERS: PartnerMap = {
     type: 'other',
     currencyUnit: { de: 'Punkte', en: 'Points' },
     notes: {
-      de: 'Indirekter Weg zu Miles & More: MR -> PAYBACK (3:1) -> Miles & More (1:1). 2x jährlich bis zu 25% Transferbonus zu M&M.',
-      en: 'Indirect route to Miles & More: MR -> PAYBACK (3:1) -> Miles & More (1:1). 2x per year up to 25% transfer bonus to M&M.',
+      de: 'Indirekter Weg zu Miles & More: MR -> PAYBACK (3:1) -> Miles & More (1:1), effektiv 3 MR pro Meile. PAYBACK-Transferbonus zu M&M 1–2x jährlich (zuletzt 10 % im Juli 2026, 25 % im Januar 2026).',
+      en: 'Indirect route to Miles & More: MR -> PAYBACK (3:1) -> Miles & More (1:1), effectively 3 MR per mile. PAYBACK transfer bonus to M&M 1-2x per year (most recently 10% in July 2026, 25% in January 2026).',
+    },
+  },
+};
+
+/**
+ * PAYBACK Germany transfer partners. PAYBACK itself is a source program here:
+ * customers hold PAYBACK points (from shopping, the PAYBACK Amex, or an Amex
+ * MR transfer) and convert them 1:1 into Miles & More.
+ */
+export const PAYBACK_DACH_PARTNERS: PartnerMap = {
+  milesAndMore: {
+    name: 'Miles & More',
+    brand: 'Lufthansa Group',
+    amexPoints: 1,
+    partnerMiles: 1,
+    effectiveRate: 100,
+    minTransfer: 200,
+    transferIncrement: 1,
+    transferDuration: { de: 'bis zu 5 Werktage', en: 'up to 5 business days' },
+    alliance: 'Star Alliance',
+    type: 'airline',
+    currencyUnit: { de: 'Meilen', en: 'Miles' },
+    notes: {
+      de: 'Jederzeit manuell oder per Meilen-Abo (März und September automatisch). Max. 999.999 Punkte je Transaktion, keine Rückbuchung. Transferbonus 1–2x jährlich (zuletzt 10 % im Juli 2026, 25 % im Januar 2026).',
+      en: 'Manual any time or via the miles subscription (automatic in March and September). Max. 999,999 points per transaction, no reversal. Transfer bonus 1-2x per year (most recently 10% in July 2026, 25% in January 2026).',
     },
   },
 };

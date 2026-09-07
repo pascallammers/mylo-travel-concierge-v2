@@ -1,14 +1,15 @@
 // lib/tools/transfer-partner-optimizer.ts
 //
-// AI SDK tool for German Amex Membership Rewards transfers. The agent calls
-// this when a user asks "I have N points, where can I transfer them?" or
-// "what's the best way to get to airline X with my Amex MR?".
+// AI SDK tool for DACH point transfers: German Amex Membership Rewards and
+// PAYBACK. The agent calls this when a user asks "I have N points, where can I
+// transfer them?" or "what's the best way to get to airline X with my Amex MR?".
 
 import { tool } from 'ai';
 import { z } from 'zod';
 import {
   AMEX_DACH_PARTNERS,
-  AMEX_DACH_TABLE_AS_OF,
+  DACH_TRANSFER_TABLE_AS_OF,
+  PAYBACK_DACH_PARTNERS,
   calculatePartnerMilesIn,
   formatTransferRatio,
   getLocalizedValue,
@@ -20,13 +21,14 @@ import {
 
 const SOURCE_PROGRAM_MAP: Record<string, PartnerMap> = {
   amex_dach: AMEX_DACH_PARTNERS,
+  payback: PAYBACK_DACH_PARTNERS,
 };
 
 const inputSchema = z.object({
   sourceProgram: z
-    .enum(['amex_dach'])
+    .enum(['amex_dach', 'payback'])
     .describe(
-      'German American Express Membership Rewards. PAYBACK is available as a partner in the DACH transfer table.',
+      'amex_dach = German American Express Membership Rewards (PAYBACK is one of its partners). payback = PAYBACK points, which convert 1:1 into Miles & More.',
     ),
   sourcePoints: z
     .number()
@@ -84,7 +86,7 @@ type Result =
 
 export const transferPartnerOptimizerTool = tool({
   description:
-    'Find the best German Amex Membership Rewards transfer partners, including PAYBACK, optionally filtered by airline or hotel. Returns ratios, partner miles, alliance, transfer duration, minimum transfer amounts, and tableAsOf. The answer must state the table date from tableAsOf.',
+    'Find the best DACH transfer partners for German Amex Membership Rewards (including PAYBACK and ALL Accor) or for PAYBACK points (Miles & More 1:1), optionally filtered by airline or hotel. Returns ratios, partner miles, alliance, transfer duration, minimum transfer amounts, and tableAsOf. The answer must state the table date from tableAsOf.',
   inputSchema,
   execute: async (input): Promise<Result> => {
     const partnerMap = SOURCE_PROGRAM_MAP[input.sourceProgram];
@@ -110,7 +112,7 @@ export const transferPartnerOptimizerTool = tool({
       success: true,
       sourceProgram: input.sourceProgram,
       sourcePoints: input.sourcePoints,
-      tableAsOf: AMEX_DACH_TABLE_AS_OF,
+      tableAsOf: DACH_TRANSFER_TABLE_AS_OF,
       partners: topN.map((entry) => formatEntry(entry, partnerMap, input.sourcePoints, input.locale)),
     };
   },

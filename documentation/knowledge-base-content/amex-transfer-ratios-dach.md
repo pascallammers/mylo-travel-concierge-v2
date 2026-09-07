@@ -11,15 +11,15 @@ Bei der Beratung von DACH-Kunden müssen **immer die deutschen Ratios** verwende
 
 ---
 
-## Aktuelle Transfer-Ratios (Stand: Januar 2026)
+## Aktuelle Transfer-Ratios (Stand: September 2026)
 
 ### Beste Airlines (5:4 Ratio = 80%)
 
 | Programm | Ratio | Meilen pro 10.000 MR | Mindesttransfer | Dauer |
 |----------|-------|---------------------|-----------------|-------|
 | **Flying Blue** (Air France/KLM) | 5:4 | 8.000 Meilen | 625 Punkte | ~1 Tag |
-| **British Airways Executive Club** | 5:4 | 8.000 Avios | 1.000 Punkte | ~1 Tag |
-| **Iberia Plus** | 5:4 | 8.000 Avios | 1.000 Punkte | ~1 Tag |
+| **British Airways Club** (früher Executive Club) | 5:4 | 8.000 Avios | 1.000 Punkte | ~1 Tag |
+| **Iberia Club** (früher Iberia Plus) | 5:4 | 8.000 Avios | 1.000 Punkte | ~1 Tag |
 | **SAS EuroBonus** | 5:4 | 8.000 Punkte | 1.000 Punkte | 5 Tage |
 
 ### Mittlere Airlines (3:2 Ratio = 66,7%)
@@ -29,7 +29,6 @@ Bei der Beratung von DACH-Kunden müssen **immer die deutschen Ratios** verwende
 | **Cathay** (Asia Miles) | 3:2 | 6.667 Miles | 900 Punkte | 3 Tage |
 | **Singapore KrisFlyer** | 3:2 | 6.667 Meilen | 1.500 Punkte | bis 15 Tage |
 | **Qatar Privilege Club** | 3:2 | 6.667 Avios | 900 Punkte | 7 Tage |
-| **Etihad Guest** | 3:2 | 6.667 Meilen | 900 Punkte | 5 Tage |
 | **Delta SkyMiles** | 3:2 | 6.667 Meilen | 3.000 Punkte | 5 Tage |
 
 ### Schlechte Airlines (nicht empfohlen)
@@ -38,6 +37,12 @@ Bei der Beratung von DACH-Kunden müssen **immer die deutschen Ratios** verwende
 |----------|-------|---------------------|---------|
 | **Emirates Skywards** | **2:1** | **5.000 Meilen** | Stark abgewertet am 01.08.2025! Nicht empfehlenswert. |
 
+### Entfallene Partner
+
+| Programm | Status |
+|----------|--------|
+| **Etihad Guest** | **Kein Transferpartner mehr.** American Express Deutschland hat den Transfer zum 15.06.2026 eingestellt (vorher 3:2). Etihad-Flüge lassen sich weiterhin über Flying Blue (5:4) mit Meilen buchen. |
+
 ### Hotels
 
 | Programm | Ratio | Punkte pro 10.000 MR | Empfehlung |
@@ -45,6 +50,7 @@ Bei der Beratung von DACH-Kunden müssen **immer die deutschen Ratios** verwende
 | **Radisson Rewards** | 1:2 | 20.000 Punkte | Sehr gut |
 | **Hilton Honors** | 1:1 | 10.000 Punkte | Gut |
 | **Marriott Bonvoy** | 3:2 | 6.667 Punkte | Okay |
+| **ALL Accor** (neu seit 06.07.2026) | 3:1 | 3.333 Punkte | Fester Gegenwert: 2.000 ALL-Punkte = 40 € Hotelrechnung, also ca. 0,67 Cent pro MR-Punkt. Mindesttransfer 900 Punkte, ~1 Tag. Nur Amex Deutschland. |
 
 ### PAYBACK (Umweg zu Miles & More)
 
@@ -54,7 +60,7 @@ Bei der Beratung von DACH-Kunden müssen **immer die deutschen Ratios** verwende
 | PAYBACK → Miles & More | 1:1 | 3.333 Meilen |
 | **Gesamt** | **3:1** | **3.333 Meilen pro 10.000 MR** |
 
-*Hinweis: 2x jährlich gibt es bis zu 25% Transferbonus von PAYBACK zu Miles & More.*
+*Hinweis: PAYBACK → Miles & More ist ab 200 PAYBACK-Punkten möglich (1:1, bis zu 5 Werktage, max. 999.999 Punkte je Transaktion). 1–2x jährlich gibt es einen Transferbonus, zuletzt 10 % (Juli 2026) und 25 % (Januar 2026). Wer PAYBACK-Punkte direkt sammelt (PAYBACK-Karte, PAYBACK Amex), bekommt so 1 Meile pro Punkt.*
 
 ---
 
@@ -68,6 +74,14 @@ Am 1. August 2025 hat American Express Deutschland folgende Transfer-Ratios vers
 | Cathay (Asia Miles) | 5:4 (80%) | 3:2 (66,7%) | -13,3% |
 | Etihad Guest | 5:4 (80%) | 3:2 (66,7%) | -13,3% |
 | Qatar Privilege Club | 5:4 (80%) | 3:2 (66,7%) | -13,3% |
+
+## Änderungen 2026
+
+| Datum | Änderung |
+|-------|----------|
+| 15.06.2026 | Etihad Guest als Transferpartner eingestellt |
+| 06.07.2026 | ALL Accor neuer Hotelpartner (3:1) |
+| 2026 | Umbenennungen: British Airways Executive Club → British Airways Club, Iberia Plus → Iberia Club |
 
 ---
 
@@ -113,7 +127,7 @@ Am 1. August 2025 hat American Express Deutschland folgende Transfer-Ratios vers
 
 1. **Flying Blue Promo Awards** - 50% Rabatt auf viele Strecken, schneller Transfer
 2. **British Airways für Kurzstrecke** - Reward Flight Saver limitiert Zuzahlungen
-3. **Iberia Plus für USA** - Off-Peak Business Class ab 34.000 Avios OW
+3. **Iberia Club für USA** - Off-Peak Business Class ab 34.000 Avios OW
 4. **SAS EuroBonus** - Gut für Star Alliance Partner
 5. **Cathay für Qatar QSuites** - Oneworld Award (trotz 3:2 Ratio noch attraktiv)
 
@@ -157,4 +171,4 @@ Benötigte MR = Ziel-Meilen × (Amex-Zähler / Partner-Zähler)
 - Reisetopia.de: https://reisetopia.de/guides/die-besten-amex-rewards-einloesungen/
 - Meilenoptimieren.com: https://meilenoptimieren.com/membership-rewards-punkte-in-meilen-umwandeln/
 
-*Letzte Aktualisierung: Januar 2026*
+*Letzte Aktualisierung: September 2026 (gegen americanexpress.com/de-de geprüft)*

@@ -377,6 +377,9 @@ describe('formatFlightResults', () => {
         awardProgramDepsWithTransfers,
       );
       assert.match(deOut, /Lufthansa Miles & More.*über PAYBACK/);
+      const deLine =
+        deOut.split('\n').find((entry) => entry.startsWith('- **Lufthansa Miles & More')) ?? '';
+      assert.match(deLine, /: PAYBACK 1:1 \(100%\), Amex Membership Rewards \(DACH\) über PAYBACK 3:1/);
 
       const enOut = await formatFlightResults(
         result,

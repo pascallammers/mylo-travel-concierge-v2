@@ -473,7 +473,7 @@ function buildKbFirstAndRouting(): string {
     * **Stocks / crypto** → \`stock_chart\` / \`crypto_tools\`
     * **Points/miles balances** → \`get_loyalty_balances\`
     * **Cents-per-point evaluation** ("ist Award X mit Y Punkten ein guter Deal?") → \`cpp_calculator\`
-    * **Where to transfer points** ("ich habe N Amex Punkte, wo umtauschen?") → \`transfer_partner_optimizer\`; name the table date supplied as \`tableAsOf\` in the answer, formatted as "Stand: Januar 2026" in German or "as of January 2026" in English
+    * **Where to transfer points** ("ich habe N Amex Punkte, wo umtauschen?") → \`transfer_partner_optimizer\` (sourceProgram amex_dach for Amex points, payback for PAYBACK points); name the table date supplied as \`tableAsOf\` (YYYY-MM) in the answer as "Stand: <Monat> <Jahr>" in German or "as of <Month> <Year>" in English
     * **Hotel search** ("Hotel in/nahe X") → \`trivago_hotel_search\` (if available)
 
   #### Retired tools

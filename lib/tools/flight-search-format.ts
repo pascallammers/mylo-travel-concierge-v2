@@ -11,9 +11,10 @@ import {
   buildGoogleFlightsUrl,
   buildSkyscannerUrl,
 } from '@/lib/utils/flight-search-links';
-import type {
-  AwardProgramTransferSource,
-  TransferPartner,
+import {
+  DACH_SOURCE_PROGRAM_IDS,
+  type AwardProgramTransferSource,
+  type TransferPartner,
 } from '@/lib/config/transfer-engine';
 
 // Booking-session creator is injected to keep the renderer free of the
@@ -306,11 +307,11 @@ function renderTransferSources(
     const sources = dependencies.getTransferSourcesForAwardProgram(slug);
     if (sources.length === 0) return [];
 
-    const dach = sources.filter(
-      ({ sourceProgramId }) => sourceProgramId === 'amex_dach',
+    const dach = sources.filter(({ sourceProgramId }) =>
+      DACH_SOURCE_PROGRAM_IDS.has(sourceProgramId),
     );
     const others = sources.filter(
-      ({ sourceProgramId }) => sourceProgramId !== 'amex_dach',
+      ({ sourceProgramId }) => !DACH_SOURCE_PROGRAM_IDS.has(sourceProgramId),
     );
     const renderedSources = [...dach, ...others]
       .slice(0, 3)

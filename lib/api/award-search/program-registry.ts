@@ -25,7 +25,7 @@ const PROGRAM_NAMES: Record<string, LocalizedProgramName> = {
   alaska: { de: 'Alaska Mileage Plan', en: 'Alaska Mileage Plan' },
   american: { de: 'American AAdvantage', en: 'American AAdvantage' },
   azul: { de: 'Azul TudoAzul', en: 'Azul TudoAzul' },
-  british: { de: 'British Airways Executive Club', en: 'British Airways Executive Club' },
+  british: { de: 'British Airways Club', en: 'British Airways Club' },
   connectmiles: { de: 'Copa ConnectMiles', en: 'Copa ConnectMiles' },
   delta: { de: 'Delta SkyMiles', en: 'Delta SkyMiles' },
   emirates: { de: 'Emirates Skywards', en: 'Emirates Skywards' },
