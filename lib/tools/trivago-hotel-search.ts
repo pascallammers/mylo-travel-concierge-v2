@@ -20,7 +20,12 @@
 
 import { tool } from 'ai';
 import { z } from 'zod';
-import { callMcpTool, McpToolFailure, sanitizeMcpError } from '@/lib/mcp/http-mcp-tool';
+import {
+  callMcpTool,
+  McpToolFailure,
+  readMcpUpstreamError,
+  sanitizeMcpError,
+} from '@/lib/mcp/http-mcp-tool';
 import { sanitizeForCodeblock } from './mcp-output-sanitizer';
 
 const TRIVAGO_URL = 'https://mcp.trivago.com/mcp';
@@ -229,6 +234,8 @@ export function createTrivagoHotelSearchTool(deps: ToolDeps = {}) {
         fetchImpl: deps.fetchImpl,
       });
       if (!r.ok) throw trivagoFailure(r.error);
+      const upstreamError = readMcpUpstreamError(r.result);
+      if (upstreamError) throw trivagoFailure(upstreamError);
       return formatTrivagoResults(r.result);
     },
   });

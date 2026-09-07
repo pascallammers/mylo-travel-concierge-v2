@@ -26,6 +26,21 @@ describe('classifyToolCallOutcome', () => {
     assert.deepEqual(outcome, { status: 'failed', error: 'plain failure' });
   });
 
+  it('strips hosts and auth tokens from a generic error before it is persisted', () => {
+    const outcome = classifyToolCallOutcome('call-1', [
+      {
+        type: 'tool-error',
+        toolCallId: 'call-1',
+        error: new Error('fetch https://api.example.com/v1?key=abc failed: Bearer secret.token'),
+      },
+    ]);
+
+    assert.equal(outcome.status, 'failed');
+    assert.ok(outcome.status === 'failed');
+    assert.doesNotMatch(outcome.error, /https?:\/\/|example\.com|secret\.token/);
+    assert.match(outcome.error, /^fetch <url> failed: <auth>$/);
+  });
+
   it('classifies a matching tool result as succeeded', () => {
     const output = { flights: 2 };
     const outcome = classifyToolCallOutcome('call-1', [

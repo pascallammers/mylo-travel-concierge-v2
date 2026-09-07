@@ -93,6 +93,35 @@ export function sanitizeMcpError(input: string): string {
   return s.trim() || 'unknown error';
 }
 
+/**
+ * Reads an application-level failure out of a JSON-RPC `result` that arrived
+ * with `ok: true`. MCP servers flag those with `isError: true` and put the
+ * explanation into `content[].text`; Kiwi additionally sets
+ * `structuredContent.error`. Returns the raw explanation, callers sanitize.
+ *
+ * @param result - The `result` member of a successful tools/call envelope.
+ * @returns The upstream error text, or undefined for a real result.
+ */
+export function readMcpUpstreamError(result: unknown): string | undefined {
+  if (typeof result !== 'object' || result === null) return undefined;
+  const root = result as Record<string, unknown>;
+  const structured = root.structuredContent;
+  const structuredError =
+    typeof structured === 'object' && structured !== null
+      ? (structured as Record<string, unknown>).error
+      : undefined;
+  if (typeof structuredError === 'string' && structuredError.length > 0) {
+    return structuredError;
+  }
+  if (root.isError !== true) return undefined;
+  const content = Array.isArray(root.content) ? root.content : [];
+  const text = content.find(
+    (part): part is { text: string } =>
+      typeof part === 'object' && part !== null && typeof (part as { text?: unknown }).text === 'string',
+  );
+  return text?.text || 'unknown error';
+}
+
 export async function callMcpTool(params: CallMcpToolParams): Promise<McpToolResponse> {
   const { url, toolName, args, requiresSession } = params;
   const fetchImpl = params.fetchImpl ?? globalThis.fetch;

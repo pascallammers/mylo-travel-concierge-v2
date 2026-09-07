@@ -11,7 +11,12 @@
 
 import { tool } from 'ai';
 import { z } from 'zod';
-import { callMcpTool, McpToolFailure, sanitizeMcpError } from '@/lib/mcp/http-mcp-tool';
+import {
+  callMcpTool,
+  McpToolFailure,
+  readMcpUpstreamError,
+  sanitizeMcpError,
+} from '@/lib/mcp/http-mcp-tool';
 import { sanitizeForCodeblock } from './mcp-output-sanitizer';
 
 const KIWI_URL = 'https://mcp.kiwi.com';
@@ -292,13 +297,6 @@ function formatItinerary(
 
 const MAX_ITINERARIES = 10;
 
-function firstContentText(root: UnknownRecord | undefined): string | undefined {
-  const content = root?.content;
-  if (!Array.isArray(content)) return undefined;
-  const text = content.map(asRecord).find((c) => c && typeof c.text === 'string');
-  return text ? readText(text, 'text') : undefined;
-}
-
 function formatJsonFallback(raw: unknown): string {
   let body: string;
   try {
@@ -308,18 +306,6 @@ function formatJsonFallback(raw: unknown): string {
     body = String(sanitizeForCodeblock(String(raw)));
   }
   return ['## Kiwi.com Flights', '', '```json', body, '```'].join('\n');
-}
-
-function readKiwiUpstreamError(raw: unknown): string | undefined {
-  const root = asRecord(raw);
-  const structuredContent = asRecord(root?.structuredContent);
-  const upstreamError = readText(structuredContent, 'error');
-
-  if (upstreamError || root?.isError === true) {
-    return upstreamError ?? firstContentText(root) ?? 'unknown error';
-  }
-
-  return undefined;
 }
 
 export function formatKiwiResults(raw: unknown): string {
@@ -374,7 +360,7 @@ export function createKiwiFlightSearchTool(deps: ToolDeps = {}) {
         fetchImpl: deps.fetchImpl,
       });
       if (!r.ok) throw kiwiFailure(r.error);
-      const upstreamError = readKiwiUpstreamError(r.result);
+      const upstreamError = readMcpUpstreamError(r.result);
       if (upstreamError) throw kiwiFailure(upstreamError);
       return formatKiwiResults(r.result);
     },

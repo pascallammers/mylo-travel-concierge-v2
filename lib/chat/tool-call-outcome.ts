@@ -1,4 +1,4 @@
-import { McpToolFailure } from '@/lib/mcp/http-mcp-tool';
+import { McpToolFailure, sanitizeMcpError } from '@/lib/mcp/http-mcp-tool';
 
 export type ToolCallOutcome =
   | { status: 'succeeded'; response: unknown }
@@ -40,9 +40,7 @@ export function classifyToolCallOutcome(
       error:
         error instanceof McpToolFailure
           ? error.reason
-          : error instanceof Error
-            ? error.message
-            : String(error),
+          : sanitizeMcpError(error instanceof Error ? error.message : String(error)),
     };
   }
 

@@ -300,6 +300,37 @@ describe('trivagoHotelSearchTool', () => {
     );
   });
 
+  it('throws McpToolFailure when Trivago answers ok with isError: true', async () => {
+    const { fetchImpl } = mockFetch([
+      jsonResponse(
+        { jsonrpc: '2.0', id: 1, result: {} },
+        200,
+        { 'mcp-session-id': 's' },
+      ),
+      jsonResponse({
+        jsonrpc: '2.0',
+        id: 2,
+        result: { isError: true, content: [{ type: 'text', text: 'Rate limit exceeded' }] },
+      }),
+    ]);
+
+    await assert.rejects(
+      run(
+        {
+          latitude: 52.52,
+          longitude: 13.405,
+          arrival: '2026-06-15',
+          departure: '2026-06-18',
+        },
+        fetchImpl,
+      ),
+      (error: unknown) =>
+        error instanceof McpToolFailure &&
+        /## Trivago search unavailable/.test(error.message) &&
+        error.reason === 'Rate limit exceeded',
+    );
+  });
+
   it('throws a sanitized McpToolFailure when fetch throws during init', async () => {
     const fetchImpl: typeof fetch = async () => {
       throw new Error('ECONNREFUSED https://mcp.trivago.com/private');
