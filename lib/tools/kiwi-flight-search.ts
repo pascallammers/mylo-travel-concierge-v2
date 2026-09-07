@@ -282,12 +282,6 @@ function formatJsonFallback(raw: unknown): string {
   return ['## Kiwi.com Flights', '', '```json', body, '```'].join('\n');
 }
 
-/**
- * Renders Kiwi itineraries as compact Markdown.
- *
- * @param raw - Raw MCP tool result.
- * @returns Markdown results or a sanitized JSON fallback for unknown shapes.
- */
 export function formatKiwiResults(raw: unknown): string {
   const root = asRecord(raw);
   const structuredContent = asRecord(root?.structuredContent);
@@ -311,12 +305,6 @@ export function formatKiwiResults(raw: unknown): string {
   ].join('\n');
 }
 
-/**
- * Renders a sanitized Kiwi transport error.
- *
- * @param rawError - Raw transport error.
- * @returns User-readable Markdown error.
- */
 export function formatKiwiError(rawError: string): string {
   const reason = sanitizeMcpError(rawError);
   return [
@@ -330,12 +318,6 @@ interface ToolDeps {
   fetchImpl?: typeof fetch;
 }
 
-/**
- * Creates the Kiwi flight-search tool with optional transport dependencies.
- *
- * @param deps - Optional dependencies used by the MCP transport.
- * @returns Configured AI SDK tool.
- */
 export function createKiwiFlightSearchTool(deps: ToolDeps = {}) {
   return tool({
     description:

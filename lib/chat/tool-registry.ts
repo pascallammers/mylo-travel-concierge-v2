@@ -32,22 +32,12 @@ export const MODULE_TOOLS = {
 
 export type ModuleToolName = keyof typeof MODULE_TOOLS;
 
-/**
- * Returns module tools available to the model in stable registry order.
- *
- * @returns Active and beta module tool names.
- */
 export function enabledModuleToolNames(): ModuleToolName[] {
   return (Object.keys(MODULE_TOOLS) as ModuleToolName[]).filter(
     (name) => MODULE_TOOLS[name].state !== 'retired',
   );
 }
 
-/**
- * Returns retired module tools and their approved replacement guidance.
- *
- * @returns Retired tool names with replacement sentences.
- */
 export function retiredModuleTools(): Array<{
   name: ModuleToolName;
   replacement: string;
