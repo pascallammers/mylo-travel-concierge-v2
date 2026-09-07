@@ -7,6 +7,9 @@ import { ActivityChart } from '@/components/admin/activity-chart';
 import { FileText, Image, HardDrive, Activity, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import type { ToolFailureReport } from '@/lib/observability/tool-failure-alert';
 
 interface Stats {
   totalUsers: number;
@@ -40,6 +43,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [tokenAnalytics, setTokenAnalytics] = useState<TokenAnalytics | null>(null);
   const [activityAnalytics, setActivityAnalytics] = useState<ActivityAnalytics | null>(null);
+  const [toolHealth, setToolHealth] = useState<ToolFailureReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,10 +54,11 @@ export default function AdminDashboard() {
         setError(null);
 
         // Fetch all data in parallel
-        const [statsRes, tokensRes, activityRes] = await Promise.all([
+        const [statsRes, tokensRes, activityRes, toolHealthRes] = await Promise.all([
           fetch('/api/admin/stats'),
           fetch('/api/admin/analytics/tokens?days=30'),
           fetch('/api/admin/analytics/activity?days=30'),
+          fetch('/api/admin/tool-health').catch(() => null),
         ]);
 
         if (!statsRes.ok || !tokensRes.ok || !activityRes.ok) {
@@ -69,6 +74,10 @@ export default function AdminDashboard() {
         setStats(statsData);
         setTokenAnalytics(tokensData);
         setActivityAnalytics(activityData);
+        const toolHealthData = toolHealthRes?.ok
+          ? ((await toolHealthRes.json().catch(() => null)) as ToolFailureReport | null)
+          : null;
+        setToolHealth(toolHealthData);
       } catch (err) {
         console.error('Error fetching admin data:', err);
         setError(err instanceof Error ? err.message : 'Failed to load data');
@@ -79,6 +88,8 @@ export default function AdminDashboard() {
 
     fetchData();
   }, []);
+
+  const alertingTools = new Set(toolHealth?.alerting.map((tool) => tool.toolName) ?? []);
 
   if (error) {
     return (
@@ -157,6 +168,57 @@ export default function AdminDashboard() {
           </>
         ) : null}
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Werkzeuge (24 h)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <Skeleton className="h-24 w-full" />
+          ) : toolHealth ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Werkzeug</TableHead>
+                  <TableHead className="text-right">Aufrufe</TableHead>
+                  <TableHead className="text-right">Fehler</TableHead>
+                  <TableHead className="text-right">Quote</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {toolHealth.tools.length > 0 ? (
+                  toolHealth.tools.map((tool) => (
+                    <TableRow key={tool.toolName}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {tool.toolName}
+                          {alertingTools.has(tool.toolName) ? (
+                            <Badge variant="destructive">Ausfall</Badge>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">{tool.calls}</TableCell>
+                      <TableCell className="text-right">{tool.failed}</TableCell>
+                      <TableCell className="text-right">
+                        {Math.round(tool.failureRate * 100)} %
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                      Keine Werkzeug-Aufrufe in den letzten 24 Stunden
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          ) : (
+            <p className="text-sm text-muted-foreground">nicht verfügbar</p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Token Usage Section */}
       <div>
