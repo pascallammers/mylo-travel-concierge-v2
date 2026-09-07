@@ -1,8 +1,7 @@
 // lib/tools/kiwi-flight-search.ts
 //
 // AI SDK tool that wraps Kiwi.com's `search-flight` MCP via the shared
-// http-mcp-tool helper. Kiwi requires a session (initialize → mcp-session-id
-// header on every subsequent call). The helper handles the session dance.
+// http-mcp-tool helper.
 //
 // Schema translation: Kiwi's native API uses dd/mm/yyyy dates, single-letter
 // cabin codes (M/W/C/F), and a nested `passengers` object. We expose the same
@@ -128,29 +127,196 @@ function buildKiwiArgs(input: z.infer<typeof inputSchema>): Record<string, unkno
   return args;
 }
 
-// MCP best practice: tools return user-readable text content (markdown) even
-// on failure. The LLM (xAI Grok) handles markdown gracefully; an
-// `{ success: false }` JSON envelope confused it. Tool returns a string in
-// both success and failure cases.
-//
-// TODO: structured renderer — replace JSON-in-codeblock fallback with a real
-// markdown table renderer (airline / price / route / duration / source) once
-// Kiwi response shape is pinned down. This subagent's scope is error handling
-// only; the success path is a best-effort passthrough.
 export type KiwiToolResult = string;
 
-/** Render Kiwi raw JSON inside a fenced code block. Best-effort placeholder. */
-export function formatKiwiResults(raw: unknown): string {
+const SELF_TRANSFER_WARNING =
+  '⚠️ Selbst-Umstieg: Gepäck neu einchecken, Anschluss nicht von der Airline garantiert.';
+
+type UnknownRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function asRecord(value: unknown): UnknownRecord | undefined {
+  return isRecord(value) ? value : undefined;
+}
+
+function readText(record: UnknownRecord | undefined, key: string): string | undefined {
+  const value = record?.[key];
+  if (typeof value !== 'string') return undefined;
+  const sanitized = sanitizeForCodeblock(value);
+  return typeof sanitized === 'string'
+    ? sanitized.replace(/[\r\n]+/g, ' ').trim()
+    : undefined;
+}
+
+function readNumber(record: UnknownRecord | undefined, key: string): number | undefined {
+  const value = record?.[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function formatDuration(seconds: number | undefined): string {
+  if (seconds === undefined || seconds < 0) return '—';
+  const totalMinutes = Math.round(seconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours}:${String(minutes).padStart(2, '0')} h`;
+}
+
+function getSegments(leg: UnknownRecord | undefined): UnknownRecord[] {
+  const segments = leg?.segments;
+  return Array.isArray(segments) ? segments.filter(isRecord) : [];
+}
+
+function orderedAirlines(segments: UnknownRecord[]): string[] {
+  const airlines: string[] = [];
+  const seen = new Set<string>();
+
+  for (const segment of segments) {
+    const airline = readText(segment, 'carrierName') ?? readText(segment, 'carrier');
+    if (airline && !seen.has(airline)) {
+      seen.add(airline);
+      airlines.push(airline);
+    }
+  }
+
+  return airlines;
+}
+
+function hasAirlineChange(segments: UnknownRecord[]): boolean {
+  const carriers = segments
+    .map((segment) => readText(segment, 'carrier'))
+    .filter((carrier): carrier is string => carrier !== undefined);
+  return new Set(carriers).size > 1;
+}
+
+function formatRoute(leg: UnknownRecord | undefined, segments: UnknownRecord[]): string {
+  const route = leg?.route;
+  if (Array.isArray(route)) {
+    const airports = route.filter((airport): airport is string => typeof airport === 'string');
+    if (airports.length > 0) {
+      return airports.join(' → ');
+    }
+  }
+
+  const first = segments[0];
+  const last = segments.at(-1);
+  const from = readText(leg, 'from') ?? readText(first, 'from');
+  const to = readText(leg, 'to') ?? readText(last, 'to');
+  return from && to ? `${from} → ${to}` : '—';
+}
+
+function formatLeg(label: 'Hinflug' | 'Rückflug', value: unknown): {
+  line: string;
+  hasAirlineChange: boolean;
+} | null {
+  const leg = asRecord(value);
+  if (!leg) return null;
+
+  const segments = getSegments(leg);
+  const airlines = orderedAirlines(segments);
+  const route = formatRoute(leg, segments);
+  const stops = readNumber(leg, 'stops');
+  const departure = readText(leg, 'departureTime') ?? '—';
+  const arrival = readText(leg, 'arrivalTime') ?? '—';
+
+  return {
+    line: `- **${label}:** Route: ${route} · Stops: ${stops ?? '—'} · Airlines: ${airlines.join(', ') || '—'} · Abflug: ${departure} · Ankunft: ${arrival}`,
+    hasAirlineChange: hasAirlineChange(segments),
+  };
+}
+
+function formatBaggage(value: unknown): string {
+  const baggage = asRecord(value);
+  return [
+    `Persönlicher Gegenstand: ${readNumber(baggage, 'personalItem') ?? '—'}`,
+    `Handgepäck: ${readNumber(baggage, 'cabinBag') ?? '—'}`,
+    `Aufgabegepäck: ${readNumber(baggage, 'checkedBag') ?? '—'}`,
+  ].join(' · ');
+}
+
+function formatPrice(
+  itinerary: UnknownRecord,
+  currency: string,
+): string {
+  const formatted = readText(itinerary, 'priceFormatted');
+  if (formatted) return formatted;
+  const price = readNumber(itinerary, 'price');
+  return price === undefined ? '—' : `${price} ${currency}`;
+}
+
+function formatItinerary(
+  value: unknown,
+  index: number,
+  currency: string,
+): string {
+  const itinerary = asRecord(value) ?? {};
+  const outbound = formatLeg('Hinflug', itinerary.outbound);
+  const inbound = formatLeg('Rückflug', itinerary.inbound);
+  const bookingUrl = readText(itinerary, 'bookingUrl');
+  const lines = [
+    `### ${index + 1}. ${formatPrice(itinerary, currency)} · Gesamtdauer: ${formatDuration(readNumber(itinerary, 'totalDurationSeconds'))}`,
+  ];
+
+  if (outbound) lines.push(outbound.line);
+  if (inbound) lines.push(inbound.line);
+  lines.push(`- **Gepäck:** ${formatBaggage(itinerary.baggage)}`);
+  lines.push(bookingUrl ? `- [Bei Kiwi buchen](${bookingUrl})` : '- Buchungslink: —');
+
+  if (outbound?.hasAirlineChange || inbound?.hasAirlineChange) {
+    lines.push(SELF_TRANSFER_WARNING);
+  }
+
+  return lines.join('\n');
+}
+
+function formatJsonFallback(raw: unknown): string {
   let body: string;
   try {
-    body = JSON.stringify(raw, null, 2);
+    const sanitized = sanitizeForCodeblock(raw);
+    body = JSON.stringify(sanitized, null, 2) ?? String(sanitized);
   } catch {
-    body = String(raw);
+    body = String(sanitizeForCodeblock(String(raw)));
   }
   return ['## Kiwi.com Flights', '', '```json', body, '```'].join('\n');
 }
 
-/** Markdown error message returned when Kiwi is unreachable / errors out. */
+/**
+ * Renders Kiwi itineraries as compact Markdown.
+ *
+ * @param raw - Raw MCP tool result.
+ * @returns Markdown results or a sanitized JSON fallback for unknown shapes.
+ */
+export function formatKiwiResults(raw: unknown): string {
+  const root = asRecord(raw);
+  const structuredContent = asRecord(root?.structuredContent);
+  const itineraries = structuredContent?.itineraries;
+  if (!Array.isArray(itineraries)) {
+    return formatJsonFallback(raw);
+  }
+
+  const query = readText(structuredContent, 'query') ?? '—';
+  const currency = readText(structuredContent, 'currency') ?? '—';
+  const resultsCount = readNumber(structuredContent, 'resultsCount') ?? itineraries.length;
+  const blocks = itineraries
+    .slice(0, 10)
+    .map((itinerary, index) => formatItinerary(itinerary, index, currency));
+
+  return [
+    '## Kiwi.com Flights',
+    '',
+    `**Suche:** ${query} · **Ergebnisse:** ${resultsCount} · **Währung:** ${currency}`,
+    ...blocks.flatMap((block) => ['', block]),
+  ].join('\n');
+}
+
+/**
+ * Renders a sanitized Kiwi transport error.
+ *
+ * @param rawError - Raw transport error.
+ * @returns User-readable Markdown error.
+ */
 export function formatKiwiError(rawError: string): string {
   const reason = sanitizeMcpError(rawError);
   return [
@@ -164,10 +330,16 @@ interface ToolDeps {
   fetchImpl?: typeof fetch;
 }
 
+/**
+ * Creates the Kiwi flight-search tool with optional transport dependencies.
+ *
+ * @param deps - Optional dependencies used by the MCP transport.
+ * @returns Configured AI SDK tool.
+ */
 export function createKiwiFlightSearchTool(deps: ToolDeps = {}) {
   return tool({
     description:
-      "Search Kiwi.com for flights including standard schedules, multi-stop, and Kiwi's virtual interlining (combining tickets across airlines for cheaper routes). Use this alongside skiplagged_flight_search for cash-flight options — Kiwi's virtual interlining catches deals Skiplagged misses, especially Europe→Asia. Returns flights[] with airlines, segments, prices in chosen currency, and Kiwi deepLinks. Default sort is price (cheapest first).",
+      "Search Kiwi.com alongside search_flights for cash flights, including standard schedules, multi-stop routes, and virtual interlining that combines tickets from multiple airlines. Returns compact itineraries with prices, routes, airlines, baggage, and Kiwi booking links. Default sort is price.",
     inputSchema,
     execute: async (input): Promise<KiwiToolResult> => {
       const r = await callMcpTool({

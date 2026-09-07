@@ -9,9 +9,7 @@
  * the U+02CB homoglyph, which renders visually similar but is not a Markdown
  * fence character.
  *
- * This is a pragmatic mitigation, not a complete defense. The proper fix is
- * a strict DTO per tool that whitelists known fields — see the TODOs in
- * `formatKiwiResults`, `formatTrivagoResults`, and `formatFerryhopperResults`.
+ * This is a pragmatic fallback for response shapes without a strict renderer.
  */
 export function sanitizeForCodeblock(value: unknown): unknown {
   if (typeof value === 'string') {
