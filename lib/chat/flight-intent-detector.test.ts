@@ -133,11 +133,10 @@ describe('isFlightIntent — edge cases', () => {
 });
 
 describe('FLIGHT_TOOL_NAMES', () => {
-  it('contains the three expected tool names', () => {
+  it('contains the two expected tool names', () => {
     assert.deepStrictEqual([...FLIGHT_TOOL_NAMES].sort(), [
       'kiwi_flight_search',
       'search_flights',
-      'skiplagged_flight_search',
     ]);
   });
 });

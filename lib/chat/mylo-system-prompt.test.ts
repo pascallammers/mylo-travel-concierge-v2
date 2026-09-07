@@ -77,7 +77,7 @@ describe('buildMyloWebSystemPrompt', () => {
 
     it('still allows public booking links from flight tools', () => {
       const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
-      assert.match(prompt, /\[Skiplagged\]\(url\)/);
+      assert.doesNotMatch(prompt, /\[Skiplagged\]\(url\)/);
       assert.match(prompt, /\[Kiwi\]\(url\)/);
       assert.match(prompt, /\[Google\]\(url\)/);
       assert.match(prompt, /\[Skyscanner\]\(url\)/);
@@ -105,11 +105,37 @@ describe('buildMyloWebSystemPrompt', () => {
 
     it('overrides the 1-tool-per-turn limit for flight queries (call all flight tools in parallel)', () => {
       const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
-      // The default rule "Tool limit per turn: 1 by default" caused Test 2 to
-      // call only skiplagged_flight_search instead of also calling search_flights.
-      // The flight-tool exception must explicitly authorize parallel calls.
-      assert.match(prompt, /flight queries.*(call|run|execute).*all.*(flight tools|in parallel)/i);
-      assert.match(prompt, /search_flights.*\+.*skiplagged_flight_search/);
+      assert.match(prompt, /flight queries.*(call|run|execute).*(both flight tools|in parallel)/i);
+      assert.match(prompt, /search_flights.*\+.*kiwi_flight_search/);
+      assert.doesNotMatch(prompt, /call[^.\n]*`skiplagged_flight_search`/i);
+    });
+
+    it('includes the three approved retired-tool replacement sentences verbatim', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      const replacements = [
+        'Hidden-City-Tickets, also das Aussteigen beim Zwischenstopp, bietet MYLO nicht an. Airlines wie Lufthansa werten das als Verstoß gegen ihre Beförderungsbedingungen und können Meilen streichen oder Differenzen nachfordern. Günstige Verbindungen mit Umstieg zeige ich dir hier: [Kiwi-Ergebnisse].',
+        'Feste Sweet-Spot-Listen führt MYLO nicht mehr, sie stammen aus dem US-Markt und passen nicht zu deutschen Programmen. Die aktuell besten Prämien-Einlösungen findest du unter Deals.',
+        'Fährverbindungen sucht MYLO nicht direkt. Ich nenne dir Anbieter und Routen aus der Websuche.',
+      ];
+
+      for (const replacement of replacements) {
+        assert.ok(prompt.includes(replacement));
+      }
+    });
+
+    it('does not route to retired sweet-spot or ferry tools', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+
+      assert.doesNotMatch(prompt, /→ `sweet_spot_lookup`/);
+      assert.doesNotMatch(prompt, /→ `ferryhopper_search`/);
+    });
+
+    it('requires the transfer table date in German or English responses', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+
+      assert.match(prompt, /tableAsOf/);
+      assert.match(prompt, /Stand: Januar 2026/);
+      assert.match(prompt, /as of January 2026/);
     });
   });
 
@@ -133,6 +159,18 @@ describe('buildMyloWebSystemPrompt', () => {
       const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
       const expectedIso = FIXED_DATE.toISOString().split('T')[0];
       assert.ok(prompt.includes(`Today's date is: ${expectedIso}`));
+    });
+
+    it('limits the Kiwi self-transfer warning to itineraries with that output', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+
+      assert.match(
+        prompt,
+        /⚠️ Selbst-Umstieg: Gepäck neu einchecken, Anschluss nicht von der Airline garantiert\./,
+      );
+      assert.match(prompt, /unverändert/);
+      assert.match(prompt, /nur bei diesen Verbindungen/);
+      assert.match(prompt, /nie pauschal/);
     });
 
     it('mandates print() for the code_interpreter tool', () => {
