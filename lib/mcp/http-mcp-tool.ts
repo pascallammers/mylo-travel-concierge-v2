@@ -4,10 +4,8 @@
 // Trivago, Ferryhopper). Each ai-sdk tool wrapper calls into this module so we
 // don't reimplement the JSON-RPC plumbing four times.
 //
-// Two protocol flavors observed in MCP discovery:
-//   - Stateless (Skiplagged, Ferryhopper): no session, just POST tools/call.
-//   - Session (Kiwi, Trivago): MUST POST initialize first, capture
-//     `mcp-session-id` response header, send it on every subsequent request.
+// Servers that accept initialize without returning `mcp-session-id` are
+// stateless; caching that result avoids an initialize request for every call.
 //
 // Two response formats observed:
 //   - SSE: `event: message\ndata: {jsonrpc...}\n\n` (Skiplagged, Kiwi)
@@ -23,7 +21,7 @@ const REQUEST_TIMEOUT_MS = 15_000;
 const CLIENT_INFO = { name: 'mylo-travel-concierge', version: '0.1.0' };
 
 interface SessionEntry {
-  sessionId: string;
+  sessionId: string | null;
   expiresAt: number;
 }
 
@@ -103,7 +101,7 @@ export async function callMcpTool(params: CallMcpToolParams): Promise<McpToolRes
       signal: AbortSignal.timeout(timeoutMs),
     });
 
-    if (response.status === 404 && requiresSession) {
+    if (response.status === 404 && sessionId) {
       sessionCache.delete(url);
       sessionId = await getOrCreateSession(url, fetchImpl, now, timeoutMs);
       response = await fetchImpl(url, {
@@ -145,10 +143,10 @@ async function getOrCreateSession(
   fetchImpl: typeof fetch,
   now: () => number,
   timeoutMs: number,
-): Promise<string> {
+): Promise<string | undefined> {
   const cached = sessionCache.get(url);
   if (cached && cached.expiresAt > now()) {
-    return cached.sessionId;
+    return cached.sessionId ?? undefined;
   }
 
   const initBody = JSON.stringify({
@@ -173,19 +171,18 @@ async function getOrCreateSession(
     throw new Error(`MCP initialize failed: HTTP ${response.status}`);
   }
 
-  const sessionId = response.headers.get('mcp-session-id');
-  if (!sessionId) {
-    throw new Error('MCP initialize response missing mcp-session-id header');
+  const payload = await readJsonRpcResponse(response).catch(() => ({}) as JsonRpcEnvelope);
+  if (payload.error) {
+    throw new Error(`MCP initialize failed: ${payload.error.message ?? 'JSON-RPC error'}`);
   }
 
-  // Drain body to release the connection. Init result is not needed downstream.
-  await response.text().catch(() => {});
+  const sessionId = response.headers.get('mcp-session-id');
 
   sessionCache.set(url, {
     sessionId,
     expiresAt: now() + SESSION_TTL_MS,
   });
-  return sessionId;
+  return sessionId ?? undefined;
 }
 
 function buildHeaders(sessionId: string | undefined): Record<string, string> {

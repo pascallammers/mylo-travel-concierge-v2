@@ -1,5 +1,4 @@
 import { formatKiwiResults } from '@/lib/tools/kiwi-flight-search';
-import { formatSkiplaggedResults } from '@/lib/tools/skiplagged-flight-search';
 import type { CachedToolResult, ToolResultsByName } from './tool-result-cache';
 
 export type RecoveryLocale = 'de' | 'en';
@@ -34,8 +33,6 @@ const recoveryText = {
 const defaultRenderers: Record<string, RecoveryRenderer> = {
   search_flights: renderMarkdownOrJson,
   kiwi_flight_search: (result) => (typeof result === 'string' ? result : formatKiwiResults(result)),
-  skiplagged_flight_search: (result) =>
-    typeof result === 'string' ? result : formatSkiplaggedResults(result),
 };
 
 /**

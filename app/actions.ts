@@ -7,7 +7,7 @@ import { SearchGroupId } from '@/lib/utils';
 import { UIMessage, generateText } from 'ai';
 import type { ModelMessage } from 'ai';
 import { getUser } from '@/lib/auth-utils';
-import { PHASE_1_TOOL_NAMES, isPhase1ToolsEnabled } from '@/lib/chat/feature-flags';
+import { enabledModuleToolNames } from '@/lib/chat/tool-registry';
 import {
   buildSuggestedQuestionsPrompt,
   parseSuggestedQuestionsText,
@@ -256,8 +256,6 @@ const groupTools = {
     'datetime',
     'knowledge_base',
     'get_loyalty_balances',
-    // Phase 1 tools are appended dynamically inside getGroupConfig so the
-    // ENABLE_PHASE_1_TOOLS flag is read per request, not just at module init.
     // 'mcp_search',
   ] as const,
   academic: ['academic_search', 'code_interpreter', 'datetime'] as const,
@@ -274,6 +272,8 @@ const groupTools = {
   // Add legacy mapping for backward compatibility
   buddy: ['datetime', 'search_memories', 'add_memory'] as const,
 } as const;
+
+const enabledModuleTools = enabledModuleToolNames();
 
 const groupInstructions = {
   get web() { return buildMyloWebSystemPrompt(); },
@@ -1005,14 +1005,9 @@ export async function getGroupConfig(groupId: LegacyGroupId = 'web') {
   const baseTools = groupTools[groupId as keyof typeof groupTools];
   const instructions = groupInstructions[groupId as keyof typeof groupInstructions];
 
-  // Read ENABLE_PHASE_1_TOOLS per request, not at module init, so flipping the
-  // flag in production takes effect without restarting all server processes.
-  // Phase 1 tools (cpp_calculator, transfer_partner_optimizer, sweet_spot_lookup,
-  // skiplagged_flight_search, kiwi_flight_search, trivago_hotel_search,
-  // ferryhopper_search) only apply to the 'web' group today.
   const tools =
-    groupId === 'web' && isPhase1ToolsEnabled()
-      ? ([...baseTools, ...PHASE_1_TOOL_NAMES] as readonly string[])
+    groupId === 'web'
+      ? ([...baseTools, ...enabledModuleTools] as readonly string[])
       : baseTools;
 
   return {

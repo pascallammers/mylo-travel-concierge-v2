@@ -320,22 +320,63 @@ describe('callMcpTool', () => {
     }
   });
 
-  it('throws/errors when initialize response lacks mcp-session-id header', async () => {
-    const { fetchImpl } = mockFetch([
-      jsonResponse({ jsonrpc: '2.0', id: 1, result: {} }, 200), // no header
+  it('does not cache stateless mode when initialize answers 200 with a JSON-RPC error', async () => {
+    const { fetchImpl, calls } = mockFetch([
+      jsonResponse({ jsonrpc: '2.0', id: 1, error: { code: -32600, message: 'unsupported protocol' } }),
+      jsonResponse({ jsonrpc: '2.0', id: 2, error: { code: -32600, message: 'unsupported protocol' } }),
     ]);
 
-    const r = await callMcpTool({
+    const a = await callMcpTool({
       url: 'https://mcp.example.com',
-      toolName: 'x',
+      toolName: 't',
+      args: {},
+      requiresSession: true,
+      fetchImpl,
+    });
+    const b = await callMcpTool({
+      url: 'https://mcp.example.com',
+      toolName: 't',
       args: {},
       requiresSession: true,
       fetchImpl,
     });
 
-    assert.strictEqual(r.ok, false);
-    if (!r.ok) {
-      assert.match(r.error, /mcp-session-id/i);
-    }
+    assert.strictEqual(a.ok, false);
+    assert.match(a.ok ? '' : a.error, /unsupported protocol/);
+    assert.strictEqual(b.ok, false);
+    assert.strictEqual(calls.length, 2);
+    assert.strictEqual(readBody(calls[1]).method, 'initialize');
+  });
+
+  it('calls a stateless server without a session header and caches that mode', async () => {
+    const { fetchImpl, calls } = mockFetch([
+      jsonResponse({ jsonrpc: '2.0', id: 1, result: {} }, 200),
+      sseResponse({ jsonrpc: '2.0', id: 2, result: { ok: 1 } }),
+      sseResponse({ jsonrpc: '2.0', id: 3, result: { ok: 2 } }),
+    ]);
+
+    const first = await callMcpTool({
+      url: 'https://mcp.example.com',
+      toolName: 'x',
+      args: { call: 1 },
+      requiresSession: true,
+      fetchImpl,
+    });
+    const second = await callMcpTool({
+      url: 'https://mcp.example.com',
+      toolName: 'x',
+      args: { call: 2 },
+      requiresSession: true,
+      fetchImpl,
+    });
+
+    assert.strictEqual(first.ok, true);
+    assert.strictEqual(second.ok, true);
+    assert.strictEqual(calls.length, 3);
+    assert.strictEqual(readBody(calls[0]).method, 'initialize');
+    assert.strictEqual(readBody(calls[1]).method, 'tools/call');
+    assert.strictEqual(readBody(calls[2]).method, 'tools/call');
+    assert.strictEqual('mcp-session-id' in readHeaders(calls[1]), false);
+    assert.strictEqual('mcp-session-id' in readHeaders(calls[2]), false);
   });
 });

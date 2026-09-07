@@ -6,6 +6,8 @@
  * can be tested in isolation without coupling to the full prompt.
  */
 
+import { retiredModuleTools } from './tool-registry';
+
 export type BuildOptions = {
   now?: Date;
 };
@@ -81,6 +83,9 @@ function buildToolSpecificGuidelines(now: Date): string {
     * "What aircraft does Singapore Airlines fly the A380 on?" → web_search
     * "Was ist der Unterschied zwischen Business und First Class?" → knowledge_base
   - ⚠️ URGENT: Run search_flights tool IMMEDIATELY when intent IS flight search — origin, destination, dates, fare class, or "find/cheapest/award/book" verbs all signal search intent
+  - For every flight search, run \`search_flights\` + \`kiwi_flight_search\` IN PARALLEL; use both tools, never only one
+  - \`kiwi_flight_search\` covers cash flights including virtual interlining, where tickets from multiple airlines are combined
+  - Bei Kiwi-Ergebnissen übernimm die Warnzeile "⚠️ Selbst-Umstieg: Gepäck neu einchecken, Anschluss nicht von der Airline garantiert." unverändert und nur bei diesen Verbindungen, nie pauschal bei anderen Verbindungen
 
   **📅 CRITICAL - Date Validation (HARD RULE, checked BEFORE any tool call):**
   - Today's date is: ${now.toISOString().split('T')[0]}
@@ -409,7 +414,7 @@ function buildDataIntegrityRule(): string {
   - Wenn das Tool keinen Buchungslink liefert (z.B. weil die Buchungssession nicht erstellt werden konnte), erfinde KEINEN — auch keinen "plausiblen" Fallback wie \`https://duffel.com\` oder \`https://[airline].com\`
   - Übernimm Link-Text, URL und Anzahl der Links 1:1 (verbatim)
 
-  **Interne Provider-Namen bleiben intern.** Nenne in Endkunden-Antworten NIEMALS "Seats.aero", "Duffel", "Amadeus" oder andere API-/Datenbank-Namen. Wenn ein Tool solche Namen intern enthält, lasse die Spalte weg oder nutze neutrale Kategorien wie "Meilen/Punkte" oder "Cash". Öffentliche Buchungslinks wie \`[Skiplagged](url)\`, \`[Kiwi](url)\`, \`[Google](url)\` und \`[Skyscanner](url)\` darfst du 1:1 übernehmen, wenn sie im Tool-Output stehen.
+  **Interne Provider-Namen bleiben intern.** Nenne in Endkunden-Antworten NIEMALS "Seats.aero", "Duffel", "Amadeus" oder andere API-/Datenbank-Namen. Wenn ein Tool solche Namen intern enthält, lasse die Spalte weg oder nutze neutrale Kategorien wie "Meilen/Punkte" oder "Cash". Öffentliche Buchungslinks wie \`[Kiwi](url)\`, \`[Google](url)\` und \`[Skyscanner](url)\` darfst du 1:1 übernehmen, wenn sie im Tool-Output stehen.
 
   Wenn das Tool ein Feld nicht liefert: schreibe "—" oder lass die Spalte weg. Schreibe NIE einen geratenen Wert.
 
@@ -437,7 +442,7 @@ function buildDataIntegrityRule(): string {
   - If the tool emits no booking link (e.g. because the booking session could not be created), do NOT invent one — not even a "plausible" fallback like \`https://duffel.com\` or \`https://[airline].com\`. If a booking link is missing, the tool itself will print "Direct booking unavailable" or similar — pass that through verbatim.
   - Pass link text, URL, and link count through 1:1 (verbatim)
 
-  **Internal provider names stay internal.** NEVER mention "Seats.aero", "Duffel", "Amadeus", or other API/database names in customer-facing answers. If a tool output contains those names internally, omit that column or use neutral categories like "Miles/points" or "Cash". Public booking links such as \`[Skiplagged](url)\`, \`[Kiwi](url)\`, \`[Google](url)\`, and \`[Skyscanner](url)\` may be passed through 1:1 when they are present in the tool output.
+  **Internal provider names stay internal.** NEVER mention "Seats.aero", "Duffel", "Amadeus", or other API/database names in customer-facing answers. If a tool output contains those names internally, omit that column or use neutral categories like "Miles/points" or "Cash". Public booking links such as \`[Kiwi](url)\`, \`[Google](url)\`, and \`[Skyscanner](url)\` may be passed through 1:1 when they are present in the tool output.
 
   If the tool does not return a field: write "—" or omit the column. NEVER write a guessed value.
 
@@ -450,11 +455,15 @@ function buildDataIntegrityRule(): string {
 }
 
 function buildKbFirstAndRouting(): string {
+  const retiredToolLines = retiredModuleTools()
+    .map(({ name, replacement }) => `    * \`${name}\`: ${replacement}`)
+    .join('\n');
+
   return `
   ### 🔴 MANDATORY KNOWLEDGE BASE FIRST RULE (HIGHEST PRIORITY):
   - ⚠️ ALWAYS call \`knowledge_base\` FIRST for **informational queries** (general questions, company info, factual queries, "what is X", "when was X founded", travel tips, destination info, policies, FAQs)
   - ⚠️ DOMAIN TOOLS WIN — skip \`knowledge_base\` and call the right domain tool directly when the query has clear domain intent:
-    * **Flights/airfare booking with intent** (search, price, availability, award, booking) → call \`search_flights\` + \`skiplagged_flight_search\` + \`kiwi_flight_search\` IN PARALLEL (all available flight tools at once — combined results give the user a more complete picture; never pick just one)
+    * **Flights/airfare booking with intent** (search, price, availability, award, booking) → call \`search_flights\` + \`kiwi_flight_search\` IN PARALLEL (both tools, never only one)
     * **Weather** ("Wetter in X", "wie warm ist es") → \`get_weather_data\`
     * **Date/time** ("welcher Tag", "wieviel Uhr in Tokyo") → \`datetime\`
     * **Maps/places/nearby** ("Restaurants in der Nähe", "wo ist X") → \`find_place_on_map\` / \`nearby_places_search\`
@@ -464,14 +473,18 @@ function buildKbFirstAndRouting(): string {
     * **Stocks / crypto** → \`stock_chart\` / \`crypto_tools\`
     * **Points/miles balances** → \`get_loyalty_balances\`
     * **Cents-per-point evaluation** ("ist Award X mit Y Punkten ein guter Deal?") → \`cpp_calculator\`
-    * **Where to transfer points** ("ich habe N Amex Punkte, wo umtauschen?") → \`transfer_partner_optimizer\`
-    * **Award sweet spots** ("award sweet spot nach Japan") → \`sweet_spot_lookup\`
+    * **Where to transfer points** ("ich habe N Amex Punkte, wo umtauschen?") → \`transfer_partner_optimizer\`; name the table date supplied as \`tableAsOf\` in the answer, formatted as "Stand: Januar 2026" in German or "as of January 2026" in English
     * **Hotel search** ("Hotel in/nahe X") → \`trivago_hotel_search\` (if available)
-    * **Ferry routes** (Greek islands, Italy↔Croatia, Mediterranean ferries) → \`ferryhopper_search\` (if available)
+
+  #### Retired tools
+  - When a user asks for what one of these tools used to provide, answer with its approved German replacement sentence. If the user writes in English, translate the sentence faithfully.
+${retiredToolLines}
+  - For Hidden-City or Skiplagged requests, first call \`kiwi_flight_search\` for the same route, then return the approved sentence with \`[Kiwi-Ergebnisse]\` replaced by those results.
+  - For ferry requests, follow the approved sentence with provider and route results from a \`web_search\` call.
   - ⚠️ If \`knowledge_base\` returns __KB_NOT_FOUND__, __KB_LOW_CONFIDENCE__, or __KB_ERROR__ → THEN call \`web_search\` as fallback
   - ⚠️ NEVER call \`web_search\` directly without trying \`knowledge_base\` first (except for the domain-tool routes above)
 
-  - ⚠️ IMP: Tool limit per turn: 1 by default. **EXCEPTION for flight queries**: call all available flight tools in parallel (search_flights + skiplagged_flight_search + kiwi_flight_search). Also: 2 calls allowed when doing knowledge_base → web_search fallback. Never reverse the order.
+  - ⚠️ IMP: Tool limit per turn: 1 by default. **EXCEPTION for flight queries**: call both flight tools in parallel (search_flights + kiwi_flight_search). Also: 2 calls allowed when doing knowledge_base → web_search fallback. Never reverse the order.
   - ⚠️ IMP: As soon as you have the tool results, respond with the results in markdown format!
   - ⚠️ IMP: Always give citations for the information you provide (except for KB answers which are seamlessly integrated)!
   - ⚠️ IMP: Total Assistant function-call turns limit: 1 by default. **EXCEPTION for flight queries**: 1 turn with multiple parallel flight tool calls counts as a single turn. Also: 2 turns allowed for the knowledge_base → web_search fallback path.

@@ -25,16 +25,11 @@ describe('recoverPartialOutput', () => {
     const cache = new ToolResultCache();
     cache.set('stream-1', 'kiwi_flight_search', 'call-1', 'first');
     cache.set('stream-1', 'search_flights', 'call-2', 'second');
-    cache.set('stream-1', 'skiplagged_flight_search', 'call-3', 'third');
 
     const recovered = recoverPartialOutput(cache.get('stream-1'), 'error', 'en');
 
     assert.ok(recovered);
-    assert.ok(
-      recovered.content.indexOf('first') <
-        recovered.content.indexOf('second') &&
-        recovered.content.indexOf('second') < recovered.content.indexOf('third'),
-    );
+    assert.ok(recovered.content.indexOf('first') < recovered.content.indexOf('second'));
   });
 
   it('returns null for normal stop finish reason', () => {
@@ -101,32 +96,13 @@ describe('recoverPartialOutput', () => {
     assert.match(recovered.content, /custom-output/);
   });
 
-  it('uses dedicated Skiplagged renderer instead of JSON fallback', () => {
+  it('does not expose retired Skiplagged results', () => {
     const cache = new ToolResultCache();
-    cache.set('stream-1', 'skiplagged_flight_search', 'call-1', {
-      structuredContent: {
-        searchUrl: 'https://skiplagged.com/flights/FRA/JFK/2026-06-15',
-        flights: [
-          {
-            airlines: 'LH',
-            departure: { airport: 'FRA', dateTime: '2026-06-15T08:35:00+02:00' },
-            arrival: { airport: 'JFK', dateTime: '2026-06-15T11:20:00-04:00' },
-            duration: '8h 45m',
-            layovers: 0,
-            price: { amount: 399, currency: 'EUR' },
-            deepLink: 'https://skiplagged.com/deeplink',
-            hiddenCity: false,
-          },
-        ],
-      },
-    });
+    cache.set('stream-1', 'skiplagged_flight_search', 'call-1', { retired: true });
 
     const recovered = recoverPartialOutput(cache.get('stream-1'), 'error', 'en');
 
-    assert.ok(recovered);
-    assert.match(recovered.content, /Skiplagged Flights/);
-    assert.match(recovered.content, /LH/);
-    assert.doesNotMatch(recovered.content, /```json/);
+    assert.equal(recovered, null);
   });
 });
 

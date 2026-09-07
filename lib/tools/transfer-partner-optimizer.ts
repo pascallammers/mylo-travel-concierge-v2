@@ -1,22 +1,14 @@
 // lib/tools/transfer-partner-optimizer.ts
 //
-// AI SDK tool that wraps the multi-region transfer-engine. The agent calls
+// AI SDK tool for German Amex Membership Rewards transfers. The agent calls
 // this when a user asks "I have N points, where can I transfer them?" or
 // "what's the best way to get to airline X with my Amex MR?".
-//
-// Wraps the 6 source-program partner maps (Amex DACH, Amex US, Chase UR, Bilt,
-// Capital One, Citi TY). targetAirline does fuzzy substring matching against
-// partner brand/name.
 
 import { tool } from 'ai';
 import { z } from 'zod';
 import {
   AMEX_DACH_PARTNERS,
-  AMEX_US_PARTNERS,
-  BILT_PARTNERS,
-  CAPITAL_ONE_PARTNERS,
-  CHASE_PARTNERS,
-  CITI_PARTNERS,
+  AMEX_DACH_TABLE_AS_OF,
   calculatePartnerMilesIn,
   formatTransferRatio,
   getLocalizedValue,
@@ -28,18 +20,13 @@ import {
 
 const SOURCE_PROGRAM_MAP: Record<string, PartnerMap> = {
   amex_dach: AMEX_DACH_PARTNERS,
-  amex_us: AMEX_US_PARTNERS,
-  chase_ur: CHASE_PARTNERS,
-  bilt: BILT_PARTNERS,
-  capital_one: CAPITAL_ONE_PARTNERS,
-  citi_ty: CITI_PARTNERS,
 };
 
 const inputSchema = z.object({
   sourceProgram: z
-    .enum(['amex_dach', 'amex_us', 'chase_ur', 'bilt', 'capital_one', 'citi_ty'])
+    .enum(['amex_dach'])
     .describe(
-      'Which credit-card source program the user holds points in. amex_dach for German Amex MR (different ratios than US), amex_us for US Amex MR.',
+      'German American Express Membership Rewards. PAYBACK is available as a partner in the DACH transfer table.',
     ),
   sourcePoints: z
     .number()
@@ -86,12 +73,18 @@ interface PartnerEntry {
 }
 
 type Result =
-  | { success: true; sourceProgram: string; sourcePoints: number; partners: PartnerEntry[] }
+  | {
+      success: true;
+      sourceProgram: string;
+      sourcePoints: number;
+      tableAsOf: string;
+      partners: PartnerEntry[];
+    }
   | { success: false; error: string };
 
 export const transferPartnerOptimizerTool = tool({
   description:
-    'Find the best transfer partners for a credit-card points balance, optionally filtered by airline/hotel. Returns ratios, partner-program miles received, alliance, transfer duration, and minimum transfer amounts. Use when the user asks where to redeem their points or how many miles they get at a specific airline.',
+    'Find the best German Amex Membership Rewards transfer partners, including PAYBACK, optionally filtered by airline or hotel. Returns ratios, partner miles, alliance, transfer duration, minimum transfer amounts, and tableAsOf. The answer must state the table date from tableAsOf.',
   inputSchema,
   execute: async (input): Promise<Result> => {
     const partnerMap = SOURCE_PROGRAM_MAP[input.sourceProgram];
@@ -117,6 +110,7 @@ export const transferPartnerOptimizerTool = tool({
       success: true,
       sourceProgram: input.sourceProgram,
       sourcePoints: input.sourcePoints,
+      tableAsOf: AMEX_DACH_TABLE_AS_OF,
       partners: topN.map((entry) => formatEntry(entry, partnerMap, input.sourcePoints, input.locale)),
     };
   },

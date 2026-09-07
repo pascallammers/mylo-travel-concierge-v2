@@ -3,11 +3,25 @@ import { describe, it } from 'node:test';
 import { buildMockToolRegistry, WEB_GROUP_TOOL_NAMES } from './mock-tools';
 
 describe('buildMockToolRegistry', () => {
-  it('exposes exactly the 16 web group tool names', () => {
+  it('exposes exactly the web group tool names', () => {
     const registry = buildMockToolRegistry();
     const keys = Object.keys(registry).sort();
     const expected = [...WEB_GROUP_TOOL_NAMES].sort();
     assert.deepStrictEqual(keys, expected);
+  });
+
+  it('does not expose retired tools', () => {
+    const retiredNames = [
+      'skiplagged_flight_search',
+      'sweet_spot_lookup',
+      'ferryhopper_search',
+    ];
+    const registry = buildMockToolRegistry();
+
+    for (const name of retiredNames) {
+      assert.ok(!WEB_GROUP_TOOL_NAMES.includes(name as never));
+      assert.ok(!(name in registry));
+    }
   });
 
   it('every entry has an execute that returns a noop result', async () => {

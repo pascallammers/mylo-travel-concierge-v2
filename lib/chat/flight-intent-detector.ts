@@ -18,7 +18,6 @@
 /** Tools the LLM should be restricted to when flight intent is detected. */
 export const FLIGHT_TOOL_NAMES = [
   'search_flights',
-  'skiplagged_flight_search',
   'kiwi_flight_search',
 ] as const;
 

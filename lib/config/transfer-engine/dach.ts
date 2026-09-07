@@ -12,6 +12,8 @@
 
 import type { PartnerMap } from './types';
 
+export const AMEX_DACH_TABLE_AS_OF = '2026-01';
+
 /**
  * Amex Membership Rewards transfer partners available in Germany.
  * Sorted by effective rate (best first).
