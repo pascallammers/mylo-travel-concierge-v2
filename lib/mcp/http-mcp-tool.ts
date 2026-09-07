@@ -20,6 +20,24 @@ const SESSION_TTL_MS = 5 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 15_000;
 const CLIENT_INFO = { name: 'mylo-travel-concierge', version: '0.1.0' };
 
+/**
+ * Thrown by MCP-backed tools when the upstream server could not deliver a
+ * result. `message` is the Markdown the model reads (unchanged wording from
+ * the previous string return), `reason` is the short sanitized cause that
+ * lands in `tool_calls.error`.
+ */
+export class McpToolFailure extends Error {
+  override readonly name = 'McpToolFailure';
+
+  constructor(
+    readonly provider: string,
+    readonly reason: string,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
 interface SessionEntry {
   sessionId: string | null;
   expiresAt: number;

@@ -20,7 +20,7 @@
 
 import { tool } from 'ai';
 import { z } from 'zod';
-import { callMcpTool, sanitizeMcpError } from '@/lib/mcp/http-mcp-tool';
+import { callMcpTool, McpToolFailure, sanitizeMcpError } from '@/lib/mcp/http-mcp-tool';
 import { sanitizeForCodeblock } from './mcp-output-sanitizer';
 
 const TRIVAGO_URL = 'https://mcp.trivago.com/mcp';
@@ -178,10 +178,9 @@ function buildTrivagoArgs(input: Input): Record<string, unknown> {
   return args;
 }
 
-// MCP best practice: tools return user-readable text content (markdown) even
-// on failure. The LLM (xAI Grok) handles markdown gracefully; an
-// `{ success: false }` JSON envelope confused it. Tool returns a string in
-// both success and failure cases.
+// Successful calls return user-readable Markdown. Failures throw
+// McpToolFailure, and the model still reads the same Markdown through the AI
+// SDK's error-text channel.
 //
 // TODO: structured renderer — replace JSON-in-codeblock fallback with a real
 // markdown table renderer (hotel name / stars / price / distance / source)
@@ -202,14 +201,14 @@ export function formatTrivagoResults(raw: unknown): string {
   return ['## Trivago Hotels', '', '```json', body, '```'].join('\n');
 }
 
-/** Markdown error message returned when Trivago is unreachable / errors out. */
-export function formatTrivagoError(rawError: string): string {
+function trivagoFailure(rawError: string): McpToolFailure {
   const reason = sanitizeMcpError(rawError);
-  return [
+  const message = [
     '## Trivago search unavailable',
     '',
     `Trivago could not return results right now (reason: ${reason}). The user can try again in a moment, or we can fall back to other accommodation sources if available.`,
   ].join('\n');
+  return new McpToolFailure('Trivago', reason, message);
 }
 
 interface ToolDeps {
@@ -229,8 +228,8 @@ export function createTrivagoHotelSearchTool(deps: ToolDeps = {}) {
         requiresSession: true,
         fetchImpl: deps.fetchImpl,
       });
-      if (r.ok) return formatTrivagoResults(r.result);
-      return formatTrivagoError(r.error);
+      if (!r.ok) throw trivagoFailure(r.error);
+      return formatTrivagoResults(r.result);
     },
   });
 }

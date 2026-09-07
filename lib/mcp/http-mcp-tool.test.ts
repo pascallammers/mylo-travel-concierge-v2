@@ -1,7 +1,7 @@
 // lib/mcp/http-mcp-tool.test.ts
 import assert from 'node:assert';
 import { afterEach, describe, it } from 'node:test';
-import { _resetSessionCache, callMcpTool } from './http-mcp-tool';
+import { _resetSessionCache, callMcpTool, McpToolFailure } from './http-mcp-tool';
 
 function jsonResponse(
   payload: unknown,
@@ -30,6 +30,17 @@ interface FetchCall {
   url: string;
   init: RequestInit | undefined;
 }
+
+describe('McpToolFailure', () => {
+  it('keeps provider, short reason, and model-facing markdown separate', () => {
+    const failure = new McpToolFailure('Kiwi.com', 'timeout', '## Search unavailable');
+
+    assert.equal(failure.name, 'McpToolFailure');
+    assert.equal(failure.provider, 'Kiwi.com');
+    assert.equal(failure.reason, 'timeout');
+    assert.equal(failure.message, '## Search unavailable');
+  });
+});
 
 function mockFetch(responses: Response[]): {
   fetchImpl: typeof fetch;

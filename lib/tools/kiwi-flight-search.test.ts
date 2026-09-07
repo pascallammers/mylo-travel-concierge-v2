@@ -1,7 +1,7 @@
 // lib/tools/kiwi-flight-search.test.ts
 import assert from 'node:assert';
 import { afterEach, describe, it } from 'node:test';
-import { _resetSessionCache } from '@/lib/mcp/http-mcp-tool';
+import { _resetSessionCache, McpToolFailure } from '@/lib/mcp/http-mcp-tool';
 import {
   _kiwiInternals,
   createKiwiFlightSearchTool,
@@ -291,16 +291,35 @@ describe('kiwiFlightSearchTool', () => {
     assert.strictEqual(formatKiwiResults(returnChange).split(warning).length - 1, 1);
   });
 
-  it('renders an upstream Kiwi error instead of an empty result list', () => {
-    const markdown = formatKiwiResults({
-      content: [{ type: 'text', text: 'Invalid destination XXX' }],
-      structuredContent: { itineraries: [], resultsCount: 0, error: 'Invalid destination XXX' },
-      isError: true,
-    });
+  it('throws an upstream Kiwi error instead of rendering an empty result list', async () => {
+    const { fetchImpl } = mockFetch([
+      sseResponse(
+        { jsonrpc: '2.0', id: 1, result: {} },
+        200,
+        { 'mcp-session-id': 's' },
+      ),
+      sseResponse({
+        jsonrpc: '2.0',
+        id: 2,
+        result: {
+          content: [{ type: 'text', text: 'Invalid destination XXX' }],
+          structuredContent: {
+            itineraries: [],
+            resultsCount: 0,
+            error: 'Invalid destination XXX',
+          },
+          isError: true,
+        },
+      }),
+    ]);
 
-    assert.match(markdown, /search unavailable/);
-    assert.match(markdown, /Invalid destination XXX/);
-    assert.doesNotMatch(markdown, /Ergebnisse/);
+    await assert.rejects(
+      run({ flyFrom: 'XXX', flyTo: 'JFK', departureDate: '2026-06-15' }, fetchImpl),
+      (error: unknown) =>
+        error instanceof McpToolFailure &&
+        /## Kiwi\.com search unavailable/.test(error.message) &&
+        /Invalid destination XXX/.test(error.reason),
+    );
   });
 
   it('drops booking links outside https kiwi.com and keeps the markdown link intact', () => {
@@ -400,7 +419,7 @@ describe('kiwiFlightSearchTool', () => {
     assert.strictEqual(args.departureDateFlexRange, 0);
   });
 
-  it('returns markdown error string when MCP returns JSON-RPC error', async () => {
+  it('throws McpToolFailure when MCP returns JSON-RPC error', async () => {
     const { fetchImpl } = mockFetch([
       sseResponse(
         { jsonrpc: '2.0', id: 1, result: {} },
@@ -414,44 +433,45 @@ describe('kiwiFlightSearchTool', () => {
       }),
     ]);
 
-    const r = await run(
-      { flyFrom: 'XXX', flyTo: 'JFK', departureDate: '2026-06-15' },
-      fetchImpl,
+    await assert.rejects(
+      run({ flyFrom: 'XXX', flyTo: 'JFK', departureDate: '2026-06-15' }, fetchImpl),
+      (error: unknown) =>
+        error instanceof McpToolFailure &&
+        /## Kiwi\.com search unavailable/.test(error.message) &&
+        /Invalid airport/.test(error.reason),
     );
-
-    assert.strictEqual(typeof r, 'string');
-    assert.match(r, /## Kiwi\.com search unavailable/);
-    assert.match(r, /Invalid airport/);
   });
 
-  it('returns markdown error string when fetch throws', async () => {
+  it('throws a sanitized McpToolFailure when fetch throws', async () => {
     const fetchImpl: typeof fetch = async () => {
-      throw new Error('ECONNRESET');
+      throw new Error('ECONNRESET https://mcp.kiwi.com/private');
     };
-    const r = await run(
-      { flyFrom: 'FRA', flyTo: 'JFK', departureDate: '2026-06-15' },
-      fetchImpl,
+
+    await assert.rejects(
+      run({ flyFrom: 'FRA', flyTo: 'JFK', departureDate: '2026-06-15' }, fetchImpl),
+      (error: unknown) =>
+        error instanceof McpToolFailure &&
+        /## Kiwi\.com search unavailable/.test(error.message) &&
+        /ECONNRESET/.test(error.reason) &&
+        !/https?:\/\//.test(error.reason) &&
+        !/mcp\.kiwi\.com/.test(error.reason),
     );
-    assert.strictEqual(typeof r, 'string');
-    assert.match(r, /## Kiwi\.com search unavailable/);
-    assert.match(r, /ECONNRESET/);
   });
 
-  it('error response is a markdown string with user-readable language, no raw JSON object', async () => {
+  it('keeps user-readable markdown in the McpToolFailure message', async () => {
     const fetchImpl: typeof fetch = async () => {
       throw new Error('boom');
     };
 
-    const r = await run(
-      { flyFrom: 'FRA', flyTo: 'JFK', departureDate: '2026-06-15' },
-      fetchImpl,
+    await assert.rejects(
+      run({ flyFrom: 'FRA', flyTo: 'JFK', departureDate: '2026-06-15' }, fetchImpl),
+      (error: unknown) =>
+        error instanceof McpToolFailure &&
+        /##.*unavailable/i.test(error.message) &&
+        /Falling back|try again|temporarily/i.test(error.message) &&
+        !/"success"\s*:\s*false/.test(error.message) &&
+        !/^\s*\{/.test(error.message),
     );
-
-    assert.strictEqual(typeof r, 'string');
-    assert.match(r, /##.*unavailable/i);
-    assert.match(r, /Falling back|try again|temporarily/i);
-    assert.doesNotMatch(r, /"success"\s*:\s*false/);
-    assert.doesNotMatch(r, /^\s*\{/);
   });
 
   it('schema rejects malformed departureDate', () => {

@@ -1,7 +1,7 @@
 // lib/tools/trivago-hotel-search.test.ts
 import assert from 'node:assert';
 import { afterEach, describe, it } from 'node:test';
-import { _resetSessionCache } from '@/lib/mcp/http-mcp-tool';
+import { _resetSessionCache, McpToolFailure } from '@/lib/mcp/http-mcp-tool';
 import {
   _trivagoInternals,
   createTrivagoHotelSearchTool,
@@ -191,7 +191,6 @@ describe('trivagoHotelSearchTool', () => {
       fetchImpl,
     );
 
-    // Tool now returns a markdown string in both success and failure cases.
     assert.strictEqual(typeof r, 'string');
     assert.match(r, /## Trivago Hotels/);
     assert.match(r, /```json/);
@@ -270,7 +269,7 @@ describe('trivagoHotelSearchTool', () => {
     assert.strictEqual('hotel_rating' in args, false);
   });
 
-  it('returns markdown error string when Trivago returns JSON-RPC error', async () => {
+  it('throws McpToolFailure when Trivago returns JSON-RPC error', async () => {
     const { fetchImpl } = mockFetch([
       jsonResponse(
         { jsonrpc: '2.0', id: 1, result: {} },
@@ -284,59 +283,69 @@ describe('trivagoHotelSearchTool', () => {
       }),
     ]);
 
-    const r = await run(
-      {
-        latitude: 52.52,
-        longitude: 13.405,
-        arrival: '2026-06-15',
-        departure: '2026-06-18',
-      },
-      fetchImpl,
+    await assert.rejects(
+      run(
+        {
+          latitude: 52.52,
+          longitude: 13.405,
+          arrival: '2026-06-15',
+          departure: '2026-06-18',
+        },
+        fetchImpl,
+      ),
+      (error: unknown) =>
+        error instanceof McpToolFailure &&
+        /## Trivago search unavailable/.test(error.message) &&
+        /Internal Trivago failure/.test(error.reason),
     );
-
-    assert.strictEqual(typeof r, 'string');
-    assert.match(r, /## Trivago search unavailable/);
-    assert.match(r, /Internal Trivago failure/);
   });
 
-  it('returns markdown error string when fetch throws during init', async () => {
+  it('throws a sanitized McpToolFailure when fetch throws during init', async () => {
     const fetchImpl: typeof fetch = async () => {
-      throw new Error('ECONNREFUSED');
+      throw new Error('ECONNREFUSED https://mcp.trivago.com/private');
     };
-    const r = await run(
-      {
-        latitude: 52.52,
-        longitude: 13.405,
-        arrival: '2026-06-15',
-        departure: '2026-06-18',
-      },
-      fetchImpl,
+
+    await assert.rejects(
+      run(
+        {
+          latitude: 52.52,
+          longitude: 13.405,
+          arrival: '2026-06-15',
+          departure: '2026-06-18',
+        },
+        fetchImpl,
+      ),
+      (error: unknown) =>
+        error instanceof McpToolFailure &&
+        /## Trivago search unavailable/.test(error.message) &&
+        /ECONNREFUSED/.test(error.reason) &&
+        !/https?:\/\//.test(error.reason) &&
+        !/mcp\.trivago\.com/.test(error.reason),
     );
-    assert.strictEqual(typeof r, 'string');
-    assert.match(r, /## Trivago search unavailable/);
-    assert.match(r, /ECONNREFUSED/);
   });
 
-  it('error response is a markdown string with user-readable language, no raw JSON object', async () => {
+  it('keeps user-readable markdown in the McpToolFailure message', async () => {
     const fetchImpl: typeof fetch = async () => {
       throw new Error('boom');
     };
 
-    const r = await run(
-      {
-        latitude: 52.52,
-        longitude: 13.405,
-        arrival: '2026-06-15',
-        departure: '2026-06-18',
-      },
-      fetchImpl,
+    await assert.rejects(
+      run(
+        {
+          latitude: 52.52,
+          longitude: 13.405,
+          arrival: '2026-06-15',
+          departure: '2026-06-18',
+        },
+        fetchImpl,
+      ),
+      (error: unknown) =>
+        error instanceof McpToolFailure &&
+        /##.*unavailable/i.test(error.message) &&
+        /Falling back|try again|temporarily/i.test(error.message) &&
+        !/"success"\s*:\s*false/.test(error.message) &&
+        !/^\s*\{/.test(error.message),
     );
-
-    assert.strictEqual(typeof r, 'string');
-    assert.match(r, /##.*unavailable/i);
-    assert.match(r, /Falling back|try again|temporarily/i);
-    assert.doesNotMatch(r, /"success"\s*:\s*false/);
-    assert.doesNotMatch(r, /^\s*\{/);
   });
 
   it('schema rejects out-of-range latitude', () => {
