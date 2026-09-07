@@ -1,6 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  DACH_SOURCE_PROGRAM_IDS,
+  DACH_TRANSFER_TABLE_AS_OF,
   getTransferSourcesForAwardProgram,
   formatAmexDachTransferOptions,
   findDachTransferPartner,
@@ -21,8 +23,8 @@ describe('formatAmexDachTransferOptions (snapshot)', () => {
 ### Amex Transfer-Optionen (DACH-Region)
 Bei 50.000 Membership Rewards Punkten:
 - Flying Blue: 40.000 Meilen (5:4 Ratio)
-- British Airways Executive Club: 40.000 Avios (5:4 Ratio)
-- Iberia Plus: 40.000 Avios (5:4 Ratio)
+- British Airways Club: 40.000 Avios (5:4 Ratio)
+- Iberia Club: 40.000 Avios (5:4 Ratio)
 - Cathay: 33.333 Miles (3:2 Ratio)
 - Singapore Airlines KrisFlyer: 33.333 Meilen (3:2 Ratio)
 
@@ -36,8 +38,8 @@ Emirates (2:1) ist stark abgewertet und nicht empfehlenswert.`;
 ### Amex Transfer Options (DACH Region)
 With 50,000 Membership Rewards points:
 - Flying Blue: 40,000 Miles (5:4 Ratio)
-- British Airways Executive Club: 40,000 Avios (5:4 Ratio)
-- Iberia Plus: 40,000 Avios (5:4 Ratio)
+- British Airways Club: 40,000 Avios (5:4 Ratio)
+- Iberia Club: 40,000 Avios (5:4 Ratio)
 - Cathay: 33,333 Miles (3:2 Ratio)
 - Singapore Airlines KrisFlyer: 33,333 Miles (3:2 Ratio)
 
@@ -51,8 +53,8 @@ Emirates (2:1) is significantly devalued and not recommended.`;
 ### Amex Transfer-Optionen (DACH-Region)
 Bei 100.000 Membership Rewards Punkten:
 - Flying Blue: 80.000 Meilen (5:4 Ratio)
-- British Airways Executive Club: 80.000 Avios (5:4 Ratio)
-- Iberia Plus: 80.000 Avios (5:4 Ratio)
+- British Airways Club: 80.000 Avios (5:4 Ratio)
+- Iberia Club: 80.000 Avios (5:4 Ratio)
 - Cathay: 66.666 Miles (3:2 Ratio)
 - Singapore Airlines KrisFlyer: 66.666 Meilen (3:2 Ratio)
 
@@ -87,16 +89,18 @@ describe('findDachTransferPartner (keyword matching)', () => {
     assert.equal(findDachTransferPartner('KLM Frequent Flyer')?.name, 'Flying Blue');
   });
 
-  it('matches British Airways via "executive club" or "avios"', () => {
-    assert.equal(findDachTransferPartner('British Airways')?.name, 'British Airways Executive Club');
-    assert.equal(findDachTransferPartner('Executive Club')?.name, 'British Airways Executive Club');
+  it('matches British Airways via the old "executive club" name or "avios"', () => {
+    assert.equal(findDachTransferPartner('British Airways')?.name, 'British Airways Club');
+    assert.equal(findDachTransferPartner('British Airways Club')?.name, 'British Airways Club');
+    assert.equal(findDachTransferPartner('Executive Club')?.name, 'British Airways Club');
     // 'avios' resolves to britishAirways (first matched in keyword order)
-    assert.equal(findDachTransferPartner('Avios')?.name, 'British Airways Executive Club');
+    assert.equal(findDachTransferPartner('Avios')?.name, 'British Airways Club');
   });
 
-  it('matches Iberia Plus', () => {
-    assert.equal(findDachTransferPartner('Iberia')?.name, 'Iberia Plus');
-    assert.equal(findDachTransferPartner('iberia plus')?.name, 'Iberia Plus');
+  it('matches Iberia Club via the old "Iberia Plus" name too', () => {
+    assert.equal(findDachTransferPartner('Iberia')?.name, 'Iberia Club');
+    assert.equal(findDachTransferPartner('iberia plus')?.name, 'Iberia Club');
+    assert.equal(findDachTransferPartner('Iberia Club')?.name, 'Iberia Club');
   });
 
   it('matches SAS via "sas" or "eurobonus"', () => {
@@ -120,8 +124,15 @@ describe('findDachTransferPartner (keyword matching)', () => {
     assert.equal(findDachTransferPartner('privilege club')?.name, 'Qatar Airways Privilege Club');
   });
 
-  it('matches Etihad', () => {
-    assert.equal(findDachTransferPartner('Etihad Guest')?.name, 'Etihad Guest');
+  it('no longer matches Etihad Guest (Amex DE ended the transfer on 2026-06-15)', () => {
+    assert.equal(findDachTransferPartner('Etihad Guest'), null);
+    assert.equal(findDachTransferPartner('Etihad Airways'), null);
+  });
+
+  it('matches ALL Accor (Amex DE partner since 2026-07-06)', () => {
+    assert.equal(findDachTransferPartner('Accor')?.name, 'ALL Accor');
+    assert.equal(findDachTransferPartner('ALL - Accor Live Limitless')?.name, 'ALL Accor');
+    assert.equal(findDachTransferPartner('Accor ALL')?.name, 'ALL Accor');
   });
 
   it('matches Delta via name or skymiles', () => {
@@ -158,13 +169,71 @@ describe('TRANSFER_PARTNERS top-level shape', () => {
     assert.ok(TRANSFER_PARTNERS.us);
   });
 
-  it('dach contains amex source program with the 14 known partners', () => {
+  it('dach contains amex source program with the 14 partners listed by Amex DE (September 2026)', () => {
     const dachAmex = TRANSFER_PARTNERS.dach.amex;
     assert.ok(dachAmex);
     assert.equal(Object.keys(dachAmex).length, 14);
     assert.ok(dachAmex.flyingBlue);
     assert.ok(dachAmex.emiratesSkywards);
     assert.ok(dachAmex.payback);
+    assert.ok(dachAmex.accor, 'ALL Accor joined on 2026-07-06');
+    assert.equal(
+      (dachAmex as Record<string, unknown>).etihadGuest,
+      undefined,
+      'Etihad Guest left on 2026-06-15',
+    );
+  });
+
+  it('dach amex entries match americanexpress.com/de-de as of September 2026', () => {
+    const dachAmex = TRANSFER_PARTNERS.dach.amex;
+    const expected: Record<string, [number, number, number, number]> = {
+      // [amexPoints, partnerMiles, minTransfer, transferIncrement]
+      radisson: [1, 2, 1000, 2],
+      hilton: [1, 1, 2500, 25],
+      flyingBlue: [5, 4, 625, 5],
+      britishAirways: [5, 4, 1000, 5],
+      iberia: [5, 4, 1000, 500],
+      sasEurobonus: [5, 4, 1000, 500],
+      cathay: [3, 2, 900, 300],
+      singaporeKrisflyer: [3, 2, 1500, 3],
+      qatarPrivilegeClub: [3, 2, 900, 3],
+      deltaSkyMiles: [3, 2, 3000, 3],
+      marriottBonvoy: [3, 2, 900, 3],
+      accor: [3, 1, 900, 3],
+      emiratesSkywards: [2, 1, 1000, 2],
+      payback: [3, 1, 900, 3],
+    };
+    assert.deepEqual(Object.keys(dachAmex).sort(), Object.keys(expected).sort());
+    for (const [id, [amexPoints, partnerMiles, minTransfer, transferIncrement]] of Object.entries(expected)) {
+      const p = dachAmex[id as keyof typeof dachAmex];
+      assert.equal(p.amexPoints, amexPoints, `${id}.amexPoints`);
+      assert.equal(p.partnerMiles, partnerMiles, `${id}.partnerMiles`);
+      assert.equal(p.minTransfer, minTransfer, `${id}.minTransfer`);
+      assert.equal(p.transferIncrement, transferIncrement, `${id}.transferIncrement`);
+      assert.ok(
+        Math.abs(p.effectiveRate - (partnerMiles / amexPoints) * 100) < 0.1,
+        `${id}.effectiveRate`,
+      );
+    }
+  });
+
+  it('dach contains PAYBACK as a second source program with the Miles & More route', () => {
+    const payback = TRANSFER_PARTNERS.dach.payback;
+    assert.ok(payback);
+    assert.deepEqual(Object.keys(payback), ['milesAndMore']);
+    const mm = payback.milesAndMore;
+    assert.equal(mm.amexPoints, 1);
+    assert.equal(mm.partnerMiles, 1);
+    assert.equal(mm.effectiveRate, 100);
+    assert.equal(mm.minTransfer, 200);
+    assert.equal(mm.transferIncrement, 1);
+    assert.equal(mm.type, 'airline');
+    assert.equal(mm.alliance, 'Star Alliance');
+  });
+
+  it('carries one table date for the whole DACH table', () => {
+    assert.equal(DACH_TRANSFER_TABLE_AS_OF, '2026-09');
+    assert.deepEqual([...DACH_SOURCE_PROGRAM_IDS].sort(), ['amex_dach', 'payback']);
   });
 
   it('us contains all 5 source programs', () => {
@@ -272,11 +341,25 @@ describe('getTransferSourcesForAwardProgram', () => {
     assert.equal(chase.partner, TRANSFER_PARTNERS.us.chase.flyingBlue);
   });
 
-  it('resolves lufthansa to the indirect DACH PAYBACK route', () => {
+  it('resolves lufthansa to both DACH routes: PAYBACK direct and Amex via PAYBACK', () => {
     const sources = getTransferSourcesForAwardProgram('lufthansa');
-    const dach = sources.find((s) => s.sourceProgramId === 'amex_dach');
-    assert.ok(dach, 'Miles & More is reachable in DACH via PAYBACK');
-    assert.equal(dach.partner, TRANSFER_PARTNERS.dach.amex.payback);
+    assert.deepEqual(
+      sources.map((s) => s.sourceProgramId),
+      ['payback', 'amex_dach'],
+      'PAYBACK 1:1 ranks above Amex 3:1 via PAYBACK',
+    );
+    assert.equal(sources[0].partner, TRANSFER_PARTNERS.dach.payback.milesAndMore);
+    assert.equal(sources[0].sourceProgramLabel.de, 'PAYBACK');
+    assert.equal(sources[1].partner, TRANSFER_PARTNERS.dach.amex.payback);
+  });
+
+  it('no longer lists Amex DACH as a source for etihad, but keeps the US card programs', () => {
+    const sources = getTransferSourcesForAwardProgram('etihad');
+    assert.ok(sources.length > 0, 'Citi/Capital One/Bilt still transfer to Etihad Guest');
+    assert.equal(
+      sources.find((s) => s.sourceProgramId === 'amex_dach'),
+      undefined,
+    );
   });
 
   it('returns an empty list for award programs no card program transfers to', () => {

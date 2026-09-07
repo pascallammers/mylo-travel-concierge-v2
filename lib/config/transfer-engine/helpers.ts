@@ -200,8 +200,6 @@ const DACH_KEYWORD_TO_PARTNER_ID: Record<string, string> = {
   krisflyer: 'singaporeKrisflyer',
   qatar: 'qatarPrivilegeClub',
   'privilege club': 'qatarPrivilegeClub',
-  etihad: 'etihadGuest',
-  'etihad guest': 'etihadGuest',
   delta: 'deltaSkyMiles',
   skymiles: 'deltaSkyMiles',
   emirates: 'emiratesSkywards',
@@ -211,6 +209,8 @@ const DACH_KEYWORD_TO_PARTNER_ID: Record<string, string> = {
   marriott: 'marriottBonvoy',
   bonvoy: 'marriottBonvoy',
   radisson: 'radisson',
+  accor: 'accor',
+  'accor live limitless': 'accor',
 };
 
 /**

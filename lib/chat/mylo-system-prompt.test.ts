@@ -134,8 +134,9 @@ describe('buildMyloWebSystemPrompt', () => {
       const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
 
       assert.match(prompt, /tableAsOf/);
-      assert.match(prompt, /Stand: Januar 2026/);
-      assert.match(prompt, /as of January 2026/);
+      assert.match(prompt, /Stand: <Monat> <Jahr>/);
+      assert.match(prompt, /as of <Month> <Year>/);
+      assert.doesNotMatch(prompt, /Januar 2026|January 2026/);
     });
   });
 

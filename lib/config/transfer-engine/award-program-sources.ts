@@ -12,6 +12,7 @@ import type { LocalizedString, PartnerMap, TransferPartner } from './types';
 /** Source-program ids, aligned with the transfer-partner-optimizer tool enum. */
 export type SourceProgramId =
   | 'amex_dach'
+  | 'payback'
   | 'amex_us'
   | 'chase_ur'
   | 'bilt'
@@ -32,35 +33,36 @@ export interface AwardProgramSourceProgram {
 }
 
 /**
- * seats.aero `Source` slug -> partner-map key. Partner ids are consistent
- * across all regional maps, so one id per slug is enough; a slug matches a
- * source program only when that map actually contains the id.
+ * seats.aero `Source` slug -> partner-map keys. Partner ids are consistent
+ * across all regional maps; a slug matches a source program only when that
+ * map actually contains one of the ids.
  *
- * `lufthansa: 'payback'` is the indirect DACH route (MR -> PAYBACK -> Miles &
- * More); the partner entry's `type: 'other'` marks it as indirect for callers.
- * Slugs without any card transfer route (azul, connectmiles, ethiopian,
- * saudia, smiles, velocity) are intentionally absent.
+ * `lufthansa` has two DACH routes: `milesAndMore` is the direct PAYBACK ->
+ * Miles & More conversion, `payback` the indirect Amex route (MR -> PAYBACK ->
+ * Miles & More) whose partner entry carries `type: 'other'` so callers can mark
+ * it as indirect. Slugs without any card transfer route (azul, connectmiles,
+ * ethiopian, saudia, smiles, velocity) are intentionally absent.
  */
-const AWARD_PROGRAM_TO_PARTNER_ID: Record<string, string> = {
-  aeroplan: 'airCanadaAeroplan',
-  aeromexico: 'aeromexico',
-  alaska: 'atmos',
-  american: 'americanAirlines',
-  british: 'britishAirways',
-  delta: 'deltaSkyMiles',
-  emirates: 'emiratesSkywards',
-  etihad: 'etihadGuest',
-  eurobonus: 'sasEurobonus',
-  finnair: 'finnair',
-  flyingblue: 'flyingBlue',
-  jetblue: 'jetblueTrueBlue',
-  lifemiles: 'aviancaLifeMiles',
-  lufthansa: 'payback',
-  qantas: 'qantas',
-  qatar: 'qatarPrivilegeClub',
-  singapore: 'singaporeKrisflyer',
-  united: 'unitedMileagePlus',
-  virginatlantic: 'virginAtlantic',
+const AWARD_PROGRAM_TO_PARTNER_IDS: Record<string, readonly string[]> = {
+  aeroplan: ['airCanadaAeroplan'],
+  aeromexico: ['aeromexico'],
+  alaska: ['atmos'],
+  american: ['americanAirlines'],
+  british: ['britishAirways'],
+  delta: ['deltaSkyMiles'],
+  emirates: ['emiratesSkywards'],
+  etihad: ['etihadGuest'],
+  eurobonus: ['sasEurobonus'],
+  finnair: ['finnair'],
+  flyingblue: ['flyingBlue'],
+  jetblue: ['jetblueTrueBlue'],
+  lifemiles: ['aviancaLifeMiles'],
+  lufthansa: ['milesAndMore', 'payback'],
+  qantas: ['qantas'],
+  qatar: ['qatarPrivilegeClub'],
+  singapore: ['singaporeKrisflyer'],
+  united: ['unitedMileagePlus'],
+  virginatlantic: ['virginAtlantic'],
 };
 
 /**
@@ -73,19 +75,21 @@ export function createAwardProgramSourceResolver(
   sourcePrograms: ReadonlyArray<AwardProgramSourceProgram>,
 ): (slug: string) => AwardProgramTransferSource[] {
   return (slug) => {
-    const partnerId = AWARD_PROGRAM_TO_PARTNER_ID[slug];
-    if (!partnerId) return [];
+    const partnerIds = AWARD_PROGRAM_TO_PARTNER_IDS[slug];
+    if (!partnerIds) return [];
 
     const sources: AwardProgramTransferSource[] = [];
     for (const program of sourcePrograms) {
-      const partner = program.partners[partnerId];
-      if (!partner) continue;
-      sources.push({
-        sourceProgramId: program.id,
-        sourceProgramLabel: program.label,
-        partnerId,
-        partner,
-      });
+      for (const partnerId of partnerIds) {
+        const partner = program.partners[partnerId];
+        if (!partner) continue;
+        sources.push({
+          sourceProgramId: program.id,
+          sourceProgramLabel: program.label,
+          partnerId,
+          partner,
+        });
+      }
     }
 
     return sources.sort((a, b) => b.partner.effectiveRate - a.partner.effectiveRate);

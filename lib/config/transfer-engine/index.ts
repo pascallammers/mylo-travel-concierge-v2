@@ -2,7 +2,7 @@
  * Multi-region transfer engine — public API.
  *
  * Models loyalty-points transfer partners across regions (DACH, US) and
- * source programs (Amex MR, Chase UR, Bilt, Capital One, Citi TY).
+ * source programs (Amex MR, PAYBACK, Chase UR, Bilt, Capital One, Citi TY).
  *
  * Public surface:
  * - `TRANSFER_PARTNERS`: nested map of all partners by region/source program.
@@ -13,13 +13,17 @@
  * @module lib/config/transfer-engine
  */
 
-import { AMEX_DACH_PARTNERS } from './dach';
+import { AMEX_DACH_PARTNERS, PAYBACK_DACH_PARTNERS } from './dach';
 import { CHASE_PARTNERS } from './us-chase';
 import { AMEX_US_PARTNERS } from './us-amex';
 import { BILT_PARTNERS } from './us-bilt';
 import { CAPITAL_ONE_PARTNERS } from './us-capital-one';
 import { CITI_PARTNERS } from './us-citi';
-import { createAwardProgramSourceResolver, type AwardProgramTransferSource } from './award-program-sources';
+import {
+  createAwardProgramSourceResolver,
+  type AwardProgramTransferSource,
+  type SourceProgramId,
+} from './award-program-sources';
 
 // ============================================
 // Re-exports: types
@@ -39,7 +43,7 @@ export type {
 // Re-exports: regional partner maps
 // ============================================
 
-export { AMEX_DACH_PARTNERS, AMEX_DACH_TABLE_AS_OF } from './dach';
+export { AMEX_DACH_PARTNERS, PAYBACK_DACH_PARTNERS, DACH_TRANSFER_TABLE_AS_OF } from './dach';
 export { CHASE_PARTNERS } from './us-chase';
 export { AMEX_US_PARTNERS } from './us-amex';
 export { BILT_PARTNERS } from './us-bilt';
@@ -62,6 +66,11 @@ const SOURCE_PROGRAMS = [
     id: 'amex_dach',
     label: { de: 'Amex Membership Rewards (DACH)', en: 'Amex Membership Rewards (DACH)' },
     partners: AMEX_DACH_PARTNERS,
+  },
+  {
+    id: 'payback',
+    label: { de: 'PAYBACK', en: 'PAYBACK' },
+    partners: PAYBACK_DACH_PARTNERS,
   },
   {
     id: 'amex_us',
@@ -89,6 +98,12 @@ const SOURCE_PROGRAMS = [
     partners: CITI_PARTNERS,
   },
 ] as const;
+
+/** Source programs a DACH customer can actually hold; the rest are US card currencies. */
+export const DACH_SOURCE_PROGRAM_IDS: ReadonlySet<SourceProgramId> = new Set<SourceProgramId>([
+  'amex_dach',
+  'payback',
+]);
 
 const resolveAwardProgramSources = createAwardProgramSourceResolver(SOURCE_PROGRAMS);
 
@@ -133,7 +148,7 @@ export {
  * Shape:
  * ```
  * {
- *   dach: { amex: { ...partners } },
+ *   dach: { amex: { ...partners }, payback: { milesAndMore } },
  *   us:   { chase, amex, bilt, capitalOne, citi: { ...partners } },
  * }
  * ```
@@ -143,6 +158,7 @@ export {
 export const TRANSFER_PARTNERS = {
   dach: {
     amex: AMEX_DACH_PARTNERS,
+    payback: PAYBACK_DACH_PARTNERS,
   },
   us: {
     chase: CHASE_PARTNERS,

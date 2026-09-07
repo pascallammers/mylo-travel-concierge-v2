@@ -71,6 +71,46 @@ describe('transferPartnerOptimizerTool — listing', () => {
   });
 });
 
+describe('transferPartnerOptimizerTool — PAYBACK source', () => {
+  it('lists Miles & More 1:1 for PAYBACK points at or above 200', async () => {
+    const r = await run({ sourceProgram: 'payback', sourcePoints: 4_000, locale: 'de' });
+    assert.strictEqual(r.success, true);
+    if (r.success) {
+      assert.strictEqual(r.partners.length, 1);
+      assert.strictEqual(r.partners[0].partnerId, 'milesAndMore');
+      assert.strictEqual(r.partners[0].milesOut, 4_000);
+      assert.strictEqual(r.partners[0].ratio, '1:1 (100%)');
+      assert.strictEqual(r.tableAsOf, '2026-09');
+    }
+  });
+
+  it('returns no partner for PAYBACK balances below the 200-point minimum', async () => {
+    const r = await run({ sourceProgram: 'payback', sourcePoints: 199 });
+    assert.strictEqual(r.success, true);
+    if (r.success) {
+      assert.strictEqual(r.partners.length, 0);
+    }
+  });
+
+  it('no longer offers Etihad Guest for Amex DACH', async () => {
+    const r = await run({ sourceProgram: 'amex_dach', sourcePoints: 100_000, targetAirline: 'Etihad' });
+    assert.strictEqual(r.success, true);
+    if (r.success) {
+      assert.strictEqual(r.partners.length, 0);
+    }
+  });
+
+  it('offers ALL Accor for Amex DACH at 3:1', async () => {
+    const r = await run({ sourceProgram: 'amex_dach', sourcePoints: 9_000, targetAirline: 'Accor' });
+    assert.strictEqual(r.success, true);
+    if (r.success) {
+      assert.strictEqual(r.partners.length, 1);
+      assert.strictEqual(r.partners[0].milesOut, 3_000);
+      assert.strictEqual(r.partners[0].type, 'hotel');
+    }
+  });
+});
+
 describe('transferPartnerOptimizerTool — targeted lookup', () => {
   it('filters by targetAirline keyword (substring match on brand/name)', async () => {
     const r = await run({
@@ -116,7 +156,7 @@ describe('transferPartnerOptimizerTool — output shape', () => {
 
     assert.strictEqual(r.success, true);
     if (r.success) {
-      assert.strictEqual(r.tableAsOf, '2026-01');
+      assert.strictEqual(r.tableAsOf, '2026-09');
     }
   });
 
