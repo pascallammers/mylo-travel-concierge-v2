@@ -320,6 +320,34 @@ describe('callMcpTool', () => {
     }
   });
 
+  it('does not cache stateless mode when initialize answers 200 with a JSON-RPC error', async () => {
+    const { fetchImpl, calls } = mockFetch([
+      jsonResponse({ jsonrpc: '2.0', id: 1, error: { code: -32600, message: 'unsupported protocol' } }),
+      jsonResponse({ jsonrpc: '2.0', id: 2, error: { code: -32600, message: 'unsupported protocol' } }),
+    ]);
+
+    const a = await callMcpTool({
+      url: 'https://mcp.example.com',
+      toolName: 't',
+      args: {},
+      requiresSession: true,
+      fetchImpl,
+    });
+    const b = await callMcpTool({
+      url: 'https://mcp.example.com',
+      toolName: 't',
+      args: {},
+      requiresSession: true,
+      fetchImpl,
+    });
+
+    assert.strictEqual(a.ok, false);
+    assert.match(a.ok ? '' : a.error, /unsupported protocol/);
+    assert.strictEqual(b.ok, false);
+    assert.strictEqual(calls.length, 2);
+    assert.strictEqual(readBody(calls[1]).method, 'initialize');
+  });
+
   it('calls a stateless server without a session header and caches that mode', async () => {
     const { fetchImpl, calls } = mockFetch([
       jsonResponse({ jsonrpc: '2.0', id: 1, result: {} }, 200),

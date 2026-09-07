@@ -171,8 +171,12 @@ async function getOrCreateSession(
     throw new Error(`MCP initialize failed: HTTP ${response.status}`);
   }
 
+  const payload = await readJsonRpcResponse(response).catch(() => ({}) as JsonRpcEnvelope);
+  if (payload.error) {
+    throw new Error(`MCP initialize failed: ${payload.error.message ?? 'JSON-RPC error'}`);
+  }
+
   const sessionId = response.headers.get('mcp-session-id');
-  await response.text().catch(() => {});
 
   sessionCache.set(url, {
     sessionId,
