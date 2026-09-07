@@ -39,7 +39,7 @@ export type {
 // Re-exports: regional partner maps
 // ============================================
 
-export { AMEX_DACH_PARTNERS } from './dach';
+export { AMEX_DACH_PARTNERS, AMEX_DACH_TABLE_AS_OF } from './dach';
 export { CHASE_PARTNERS } from './us-chase';
 export { AMEX_US_PARTNERS } from './us-amex';
 export { BILT_PARTNERS } from './us-bilt';

@@ -14,6 +14,7 @@ describe('transferPartnerOptimizerTool — listing', () => {
   it('declares description and zod input schema', () => {
     assert.ok(transferPartnerOptimizerTool.description);
     assert.ok(transferPartnerOptimizerTool.inputSchema);
+    assert.match(transferPartnerOptimizerTool.description, /tableAsOf/);
   });
 
   it('returns top airline partners for amex_dach without filter', async () => {
@@ -59,15 +60,14 @@ describe('transferPartnerOptimizerTool — listing', () => {
     }
   });
 
-  it('supports all 6 source programs', async () => {
-    const programs = ['amex_dach', 'amex_us', 'chase_ur', 'bilt', 'capital_one', 'citi_ty'] as const;
-    for (const sp of programs) {
-      const r = await run({ sourceProgram: sp, sourcePoints: 50_000 });
-      assert.strictEqual(r.success, true, `${sp} should return success`);
-      if (r.success) {
-        assert.ok(r.partners.length > 0, `${sp} should have at least one partner`);
-      }
-    }
+  it('schema rejects non-DACH source programs', () => {
+    const schema = transferPartnerOptimizerTool.inputSchema as {
+      safeParse: (input: unknown) => { success: boolean };
+    };
+
+    const parsed = schema.safeParse({ sourceProgram: 'chase_ur', sourcePoints: 50_000 });
+
+    assert.strictEqual(parsed.success, false);
   });
 });
 
@@ -111,6 +111,15 @@ describe('transferPartnerOptimizerTool — targeted lookup', () => {
 });
 
 describe('transferPartnerOptimizerTool — output shape', () => {
+  it('result carries tableAsOf', async () => {
+    const r = await run({ sourceProgram: 'amex_dach', sourcePoints: 100_000 });
+
+    assert.strictEqual(r.success, true);
+    if (r.success) {
+      assert.strictEqual(r.tableAsOf, '2026-01');
+    }
+  });
+
   it('includes alliance and transferDuration in each entry', async () => {
     const r = await run({
       sourceProgram: 'amex_dach',
