@@ -12,6 +12,8 @@
  * Sources:
  * - americanexpress.com/de-de/rewards/membership-rewards/travel/all
  * - payback.de/partner/miles-and-more and payback.de/faq/miles-and-more-abo
+ * - PAYBACK -> Miles & More bonus history: meilenoptimieren.com/transferbonus-payback-miles-and-more/
+ *   (10 % 01.-31.07.2026, 25 % 01.-31.01.2026, 25 % 05/2025, 20 % 01/2025, 30 % 07/2024)
  *
  * Changes since January 2026 (MYLO-51):
  * - Etihad Guest removed: Amex DE ended the transfer on 2026-06-15.
@@ -254,7 +256,7 @@ export const AMEX_DACH_PARTNERS: PartnerMap = {
   // PAYBACK (indirect Miles & More, see PAYBACK_DACH_PARTNERS for the second hop)
   payback: {
     name: 'PAYBACK',
-    brand: 'PAYBACK (-> Miles & More)',
+    brand: 'PAYBACK (-> Lufthansa Miles & More)',
     amexPoints: 3,
     partnerMiles: 1,
     effectiveRate: 33.3,
@@ -264,8 +266,8 @@ export const AMEX_DACH_PARTNERS: PartnerMap = {
     type: 'other',
     currencyUnit: { de: 'Punkte', en: 'Points' },
     notes: {
-      de: 'Indirekter Weg zu Miles & More: MR -> PAYBACK (3:1) -> Miles & More (1:1), effektiv 3 MR pro Meile. Nur ein Transfer pro Tag. PAYBACK-Transferbonus zu M&M 1–2x jährlich (zuletzt 10 % im Juli 2026, 25 % im Januar 2026).',
-      en: 'Indirect route to Miles & More: MR -> PAYBACK (3:1) -> Miles & More (1:1), effectively 3 MR per mile. One transfer per day. PAYBACK transfer bonus to M&M 1-2x per year (most recently 10% in July 2026, 25% in January 2026).',
+      de: 'Indirekter Weg zu Miles & More: MR -> PAYBACK (3:1) -> Miles & More (1:1), effektiv 3 MR pro Meile. PAYBACK-Transferbonus zu M&M 1–2x jährlich (zuletzt 10 % im Juli 2026, 25 % im Januar 2026).',
+      en: 'Indirect route to Miles & More: MR -> PAYBACK (3:1) -> Miles & More (1:1), effectively 3 MR per mile. PAYBACK transfer bonus to M&M 1-2x per year (most recently 10% in July 2026, 25% in January 2026).',
     },
   },
 };

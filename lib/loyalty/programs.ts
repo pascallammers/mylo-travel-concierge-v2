@@ -60,7 +60,7 @@ export const LOYALTY_PROGRAMS: readonly LoyaltyProgram[] = [
   airline('emirates', 'Emirates Skywards', ['skywards']),
   airline('qatar', 'Qatar Airways Privilege Club', ['qmiles']),
   airline('british', 'British Airways Club', ['british']),
-  airline('iberia', 'Iberia Plus', ['iberia']),
+  airline('iberia', 'Iberia Club', ['iberia']),
   airline('aerlingus', 'Aer Lingus AerClub', ['aerlingus']),
   airline('singapore', 'Singapore Airlines KrisFlyer', ['singaporeair']),
   airline('cathay', 'Cathay', ['asia']),
