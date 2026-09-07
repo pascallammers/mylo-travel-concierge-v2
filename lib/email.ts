@@ -1,4 +1,6 @@
 import { Resend } from 'resend';
+import type { ToolFailureReport } from '@/lib/observability/tool-failure-alert';
+import { renderToolFailureAlertHtml } from '@/lib/observability/tool-failure-email';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = 'MYLO <support@never-economy-again.com>'; // TODO: Update domain after deployment
@@ -514,4 +516,25 @@ export async function sendDealDigestEmail(
       </html>
     `,
   });
+}
+
+/**
+ * Sends the daily MCP tool-failure report to the MYLO admin inbox.
+ *
+ * @param report - Tool failure report for the preceding 24 hours.
+ * @returns Promise that resolves after Resend accepts the email.
+ */
+export async function sendToolFailureAdminAlert(report: ToolFailureReport): Promise<void> {
+  const ADMIN_EMAIL = 'support@never-economy-again.com';
+  const toolNames = report.alerting.map((tool) => tool.toolName).join(', ');
+  const result = await resend.emails.send({
+    from: FROM_EMAIL,
+    to: ADMIN_EMAIL,
+    subject: `⚠️ Werkzeug-Ausfall: ${toolNames} - MYLO`,
+    html: renderToolFailureAlertHtml(report),
+  });
+
+  if (result.error) {
+    throw new Error(result.error.message);
+  }
 }

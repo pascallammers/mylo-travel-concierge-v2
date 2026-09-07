@@ -20,6 +20,24 @@ const SESSION_TTL_MS = 5 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 15_000;
 const CLIENT_INFO = { name: 'mylo-travel-concierge', version: '0.1.0' };
 
+/**
+ * Thrown by MCP-backed tools when the upstream server could not deliver a
+ * result. `message` is the Markdown the model reads (unchanged wording from
+ * the previous string return), `reason` is the short sanitized cause that
+ * lands in `tool_calls.error`.
+ */
+export class McpToolFailure extends Error {
+  override readonly name = 'McpToolFailure';
+
+  constructor(
+    readonly provider: string,
+    readonly reason: string,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
 interface SessionEntry {
   sessionId: string | null;
   expiresAt: number;
@@ -73,6 +91,35 @@ export function sanitizeMcpError(input: string): string {
   // Cap length so bad upstream errors can't blow up the prompt.
   if (s.length > 240) s = `${s.slice(0, 240)}…`;
   return s.trim() || 'unknown error';
+}
+
+/**
+ * Reads an application-level failure out of a JSON-RPC `result` that arrived
+ * with `ok: true`. MCP servers flag those with `isError: true` and put the
+ * explanation into `content[].text`; Kiwi additionally sets
+ * `structuredContent.error`. Returns the raw explanation, callers sanitize.
+ *
+ * @param result - The `result` member of a successful tools/call envelope.
+ * @returns The upstream error text, or undefined for a real result.
+ */
+export function readMcpUpstreamError(result: unknown): string | undefined {
+  if (typeof result !== 'object' || result === null) return undefined;
+  const root = result as Record<string, unknown>;
+  const structured = root.structuredContent;
+  const structuredError =
+    typeof structured === 'object' && structured !== null
+      ? (structured as Record<string, unknown>).error
+      : undefined;
+  if (typeof structuredError === 'string' && structuredError.length > 0) {
+    return structuredError;
+  }
+  if (root.isError !== true) return undefined;
+  const content = Array.isArray(root.content) ? root.content : [];
+  const text = content.find(
+    (part): part is { text: string } =>
+      typeof part === 'object' && part !== null && typeof (part as { text?: unknown }).text === 'string',
+  );
+  return text?.text || 'unknown error';
 }
 
 export async function callMcpTool(params: CallMcpToolParams): Promise<McpToolResponse> {

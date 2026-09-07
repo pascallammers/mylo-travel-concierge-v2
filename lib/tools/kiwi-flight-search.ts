@@ -11,7 +11,12 @@
 
 import { tool } from 'ai';
 import { z } from 'zod';
-import { callMcpTool, sanitizeMcpError } from '@/lib/mcp/http-mcp-tool';
+import {
+  callMcpTool,
+  McpToolFailure,
+  readMcpUpstreamError,
+  sanitizeMcpError,
+} from '@/lib/mcp/http-mcp-tool';
 import { sanitizeForCodeblock } from './mcp-output-sanitizer';
 
 const KIWI_URL = 'https://mcp.kiwi.com';
@@ -292,13 +297,6 @@ function formatItinerary(
 
 const MAX_ITINERARIES = 10;
 
-function firstContentText(root: UnknownRecord | undefined): string | undefined {
-  const content = root?.content;
-  if (!Array.isArray(content)) return undefined;
-  const text = content.map(asRecord).find((c) => c && typeof c.text === 'string');
-  return text ? readText(text, 'text') : undefined;
-}
-
 function formatJsonFallback(raw: unknown): string {
   let body: string;
   try {
@@ -318,11 +316,6 @@ export function formatKiwiResults(raw: unknown): string {
     return formatJsonFallback(raw);
   }
 
-  const upstreamError = readText(structuredContent, 'error');
-  if (upstreamError || root?.isError === true) {
-    return formatKiwiError(upstreamError ?? firstContentText(root) ?? 'unknown error');
-  }
-
   const query = readText(structuredContent, 'query') ?? '—';
   const currency = readText(structuredContent, 'currency') ?? '—';
   const resultsCount = readNumber(structuredContent, 'resultsCount') ?? itineraries.length;
@@ -339,13 +332,14 @@ export function formatKiwiResults(raw: unknown): string {
   ].join('\n');
 }
 
-export function formatKiwiError(rawError: string): string {
+function kiwiFailure(rawError: string): McpToolFailure {
   const reason = sanitizeMcpError(rawError);
-  return [
+  const message = [
     '## Kiwi.com search unavailable',
     '',
     `Kiwi.com could not return results right now (reason: ${reason}). Falling back to other flight providers if available; the user can also try again in a moment.`,
   ].join('\n');
+  return new McpToolFailure('Kiwi.com', reason, message);
 }
 
 interface ToolDeps {
@@ -365,8 +359,10 @@ export function createKiwiFlightSearchTool(deps: ToolDeps = {}) {
         requiresSession: true,
         fetchImpl: deps.fetchImpl,
       });
-      if (r.ok) return formatKiwiResults(r.result);
-      return formatKiwiError(r.error);
+      if (!r.ok) throw kiwiFailure(r.error);
+      const upstreamError = readMcpUpstreamError(r.result);
+      if (upstreamError) throw kiwiFailure(upstreamError);
+      return formatKiwiResults(r.result);
     },
   });
 }

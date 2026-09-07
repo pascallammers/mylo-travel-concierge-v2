@@ -46,6 +46,7 @@ import { after } from 'next/server';
 import { CustomInstructions } from '@/lib/db/schema';
 import { v4 as uuidv4 } from 'uuid';
 import { geolocation } from '@vercel/functions';
+import { classifyToolCallOutcome } from '@/lib/chat/tool-call-outcome';
 
 import {
   stockChartTool,
@@ -731,13 +732,9 @@ export async function POST(req: Request) {
                     toolName: toolCall.toolName,
                     request: toolCall.input as unknown,
                   });
-                  const matchingResult = event.toolResults?.find(
-                    (tr) => tr.toolCallId === toolCall.toolCallId,
-                  );
+                  const outcome = classifyToolCallOutcome(toolCall.toolCallId, event.content);
                   await updateToolCall(recorded.id, {
-                    status: matchingResult ? 'succeeded' : 'failed',
-                    response: matchingResult?.output as unknown,
-                    error: matchingResult ? undefined : 'no tool result returned',
+                    ...outcome,
                     startedAt: new Date(),
                     finishedAt: new Date(),
                   });

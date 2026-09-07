@@ -31,6 +31,10 @@
     {
       "path": "/api/cron/failover-alert",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/tool-failure-alert",
+      "schedule": "0 7 * * *"
     }
   ]
 }
