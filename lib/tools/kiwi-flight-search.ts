@@ -191,10 +191,30 @@ function hasAirlineChange(segments: UnknownRecord[]): boolean {
   return new Set(carriers).size > 1;
 }
 
+const AIRPORT_CODE = /^[A-Z0-9]{3,4}$/i;
+
+function bookingLink(itinerary: UnknownRecord): string {
+  const raw = itinerary.bookingUrl;
+  if (typeof raw !== 'string') return '- Buchungslink: —';
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return '- Buchungslink: —';
+  }
+  const host = url.hostname.toLowerCase();
+  if (url.protocol !== 'https:' || (host !== 'kiwi.com' && !host.endsWith('.kiwi.com'))) {
+    return '- Buchungslink: —';
+  }
+  return `- [Bei Kiwi buchen](${url.href.replace(/[()]/g, (c) => (c === '(' ? '%28' : '%29'))})`;
+}
+
 function formatRoute(leg: UnknownRecord | undefined, segments: UnknownRecord[]): string {
   const route = leg?.route;
   if (Array.isArray(route)) {
-    const airports = route.filter((airport): airport is string => typeof airport === 'string');
+    const airports = route.filter(
+      (airport): airport is string => typeof airport === 'string' && AIRPORT_CODE.test(airport),
+    );
     if (airports.length > 0) {
       return airports.join(' → ');
     }
@@ -254,7 +274,6 @@ function formatItinerary(
   const itinerary = asRecord(value) ?? {};
   const outbound = formatLeg('Hinflug', itinerary.outbound);
   const inbound = formatLeg('Rückflug', itinerary.inbound);
-  const bookingUrl = readText(itinerary, 'bookingUrl');
   const lines = [
     `### ${index + 1}. ${formatPrice(itinerary, currency)} · Gesamtdauer: ${formatDuration(readNumber(itinerary, 'totalDurationSeconds'))}`,
   ];
@@ -262,13 +281,22 @@ function formatItinerary(
   if (outbound) lines.push(outbound.line);
   if (inbound) lines.push(inbound.line);
   lines.push(`- **Gepäck:** ${formatBaggage(itinerary.baggage)}`);
-  lines.push(bookingUrl ? `- [Bei Kiwi buchen](${bookingUrl})` : '- Buchungslink: —');
+  lines.push(bookingLink(itinerary));
 
   if (outbound?.hasAirlineChange || inbound?.hasAirlineChange) {
     lines.push(SELF_TRANSFER_WARNING);
   }
 
   return lines.join('\n');
+}
+
+const MAX_ITINERARIES = 10;
+
+function firstContentText(root: UnknownRecord | undefined): string | undefined {
+  const content = root?.content;
+  if (!Array.isArray(content)) return undefined;
+  const text = content.map(asRecord).find((c) => c && typeof c.text === 'string');
+  return text ? readText(text, 'text') : undefined;
 }
 
 function formatJsonFallback(raw: unknown): string {
@@ -290,17 +318,23 @@ export function formatKiwiResults(raw: unknown): string {
     return formatJsonFallback(raw);
   }
 
+  const upstreamError = readText(structuredContent, 'error');
+  if (upstreamError || root?.isError === true) {
+    return formatKiwiError(upstreamError ?? firstContentText(root) ?? 'unknown error');
+  }
+
   const query = readText(structuredContent, 'query') ?? '—';
   const currency = readText(structuredContent, 'currency') ?? '—';
   const resultsCount = readNumber(structuredContent, 'resultsCount') ?? itineraries.length;
-  const blocks = itineraries
-    .slice(0, 10)
-    .map((itinerary, index) => formatItinerary(itinerary, index, currency));
+  const shown = itineraries.slice(0, MAX_ITINERARIES);
+  const blocks = shown.map((itinerary, index) => formatItinerary(itinerary, index, currency));
+  const countLabel =
+    resultsCount > shown.length ? `${resultsCount} (${shown.length} gezeigt)` : `${resultsCount}`;
 
   return [
     '## Kiwi.com Flights',
     '',
-    `**Suche:** ${query} · **Ergebnisse:** ${resultsCount} · **Währung:** ${currency}`,
+    `**Suche:** ${query} · **Ergebnisse:** ${countLabel} · **Währung:** ${currency}`,
     ...blocks.flatMap((block) => ['', block]),
   ].join('\n');
 }
