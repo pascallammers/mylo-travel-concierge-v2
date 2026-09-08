@@ -232,7 +232,6 @@
 - Vercel - Primary deployment platform
   - Configuration: `vercel.json`
   - Analytics & Speed Insights packages integrated
-  - Edge config: @vercel/edge-config 1.4.0
   - Functions: @vercel/functions 3.1.0
 
 **Build System:**

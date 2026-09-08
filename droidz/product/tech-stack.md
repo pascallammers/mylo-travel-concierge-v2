@@ -226,7 +226,7 @@ type AccessLevel = 'basic' | 'pro';
 ## Infrastructure & Deployment
 
 ### Hosting: Vercel
-- **Features Used**: Edge Functions, Analytics, Speed Insights, Blob Storage, Edge Config
+- **Features Used**: Edge Functions, Analytics, Speed Insights, Blob Storage
 - **Deployment**: Automatic via Git
 - **Regions**: Global edge network
 
@@ -235,7 +235,6 @@ type AccessLevel = 'basic' | 'pro';
 {
   "@vercel/analytics": "^1.5.0",
   "@vercel/blob": "^2.0.0",
-  "@vercel/edge-config": "^1.4.0",
   "@vercel/functions": "^3.1.0",
   "@vercel/speed-insights": "^1.2.0"
 }
