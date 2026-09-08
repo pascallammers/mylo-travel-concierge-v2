@@ -474,7 +474,7 @@ function buildKbFirstAndRouting(): string {
     * **Points/miles balances** → \`get_loyalty_balances\`
     * **Cents-per-point evaluation** ("ist Award X mit Y Punkten ein guter Deal?") → \`cpp_calculator\`
     * **Where to transfer points** ("ich habe N Amex Punkte, wo umtauschen?") → \`transfer_partner_optimizer\` (sourceProgram amex_dach for Amex points, payback for PAYBACK points); name the table date supplied as \`tableAsOf\` (YYYY-MM) in the answer as "Stand: <Monat> <Jahr>" in German or "as of <Month> <Year>" in English
-    * **Hotel search** ("Hotel in/nahe X") → \`trivago_hotel_search\` (if available)
+    * **Hotel search** ("Hotel in/nahe X") → \`trivago_hotel_search\` (if available); results are already in EUR and German, show each hotel as its own card with its trivago link and quote prices exactly as returned
 
   #### Retired tools
   - When a user asks for what one of these tools used to provide, answer with its approved German replacement sentence. If the user writes in English, translate the sentence faithfully.
