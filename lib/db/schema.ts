@@ -109,7 +109,7 @@ export const stream = pgTable('stream', {
   createdAt: timestamp('createdAt').notNull().defaultNow(),
 });
 
-// Subscription table for Polar webhook data (extended for ThriveCard migration)
+// Subscription table, filled by the ThriveCart webhook and sync (column names date from the Polar era)
 export const subscription = pgTable('subscription', {
   id: text('id').primaryKey(),
   createdAt: timestamp('createdAt').notNull(),
@@ -244,7 +244,7 @@ export const customInstructions = pgTable('custom_instructions', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
-// Payment table for Dodo Payments webhook data
+// Payment table, filled by the ThriveCart webhook and transaction import (column names date from the DodoPayments era)
 export const payment = pgTable('payment', {
   id: text('id').primaryKey(), // payment_id from webhook
   createdAt: timestamp('created_at').notNull(),
@@ -282,7 +282,7 @@ export const payment = pgTable('payment', {
   // ThriveCard migration fields (for Phase 2)
   thrivecardPaymentId: text('thrivecard_payment_id'),
   thrivecardCustomerId: text('thrivecard_customer_id'),
-  paymentProvider: text('payment_provider').default('thrivecard'), // 'thrivecard', 'polar', 'dodo'
+  paymentProvider: text('payment_provider').default('thrivecard'), // 'thrivecart' in production; the default is a legacy typo
   webhookSource: text('webhook_source'), // 'zapier', 'direct', etc.
   syncSource: text('sync_source'), // 'webhook' | 'sync' | 'manual'
 });

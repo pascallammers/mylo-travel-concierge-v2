@@ -1171,10 +1171,10 @@ export async function getSubDetails() {
 
   if (!userData) return { hasSubscription: false };
 
-  return userData.polarSubscription
+  return userData.subscription
     ? {
       hasSubscription: true,
-      subscription: userData.polarSubscription,
+      subscription: userData.subscription,
     }
     : { hasSubscription: false };
 }
@@ -1424,38 +1424,6 @@ export async function getPaymentHistory() {
     console.error('Error getting payment history:', error);
     return null;
   }
-}
-
-export async function getDodoPaymentsProStatus() {
-  'use server';
-
-  // Import here to avoid issues with SSR
-  const { getComprehensiveUserData } = await import('@/lib/user-data-server');
-  const userData = await getComprehensiveUserData();
-
-  if (!userData) return { isProUser: false, hasPayments: false };
-
-  const isDodoProUser = userData.proSource === 'dodo' && userData.isProUser;
-
-  return {
-    isProUser: isDodoProUser,
-    hasPayments: Boolean(userData.dodoPayments?.hasPayments),
-    expiresAt: userData.dodoPayments?.expiresAt,
-    source: userData.proSource,
-    daysUntilExpiration: userData.dodoPayments?.daysUntilExpiration,
-    isExpired: userData.dodoPayments?.isExpired,
-    isExpiringSoon: userData.dodoPayments?.isExpiringSoon,
-  };
-}
-
-export async function getDodoExpirationDate() {
-  'use server';
-
-  // Import here to avoid issues with SSR
-  const { getComprehensiveUserData } = await import('@/lib/user-data-server');
-  const userData = await getComprehensiveUserData();
-
-  return userData?.dodoPayments?.expiresAt || null;
 }
 
 // Server action to get user's geolocation using Vercel

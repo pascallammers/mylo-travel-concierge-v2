@@ -35,76 +35,40 @@ export function useCachedUserData() {
 
   // Recalculate derived properties based on current user data
   const isProUser = Boolean(user?.isProUser);
-  const proSource = user?.proSource || 'none';
   const subscriptionStatus = user?.subscriptionStatus || 'none';
 
-  // Helper function to check if user should have unlimited access for specific models
   const shouldBypassLimitsForModel = (selectedModel: string) => {
     return shouldBypassRateLimits(selectedModel, user);
   };
 
   return {
-    // Core user data
     user,
     isLoading,
     error,
     refetch,
     isRefetching,
 
-    // Quick access to commonly used properties
     isProUser,
-    proSource,
     subscriptionStatus,
-
-    // Polar subscription details
-    polarSubscription: user?.polarSubscription,
-    hasPolarSubscription: Boolean(user?.polarSubscription),
-
-    // DodoPayments details
-    dodoPayments: user?.dodoPayments,
-    hasDodoPayments: Boolean(user?.dodoPayments?.hasPayments),
-    dodoExpiresAt: user?.dodoPayments?.expiresAt,
-    isDodoExpiring: Boolean(user?.dodoPayments?.isExpiringSoon),
-    isDodoExpired: Boolean(user?.dodoPayments?.isExpired),
-
-    // Payment history
+    subscription: user?.subscription,
     paymentHistory: user?.paymentHistory || [],
 
-    // Rate limiting helpers
     shouldCheckLimits: Boolean(!isLoading && user && !user.isProUser),
     shouldBypassLimitsForModel,
 
-    // Subscription status checks
     hasActiveSubscription: user?.subscriptionStatus === 'active',
     isSubscriptionCanceled: user?.subscriptionStatus === 'canceled',
     isSubscriptionExpired: user?.subscriptionStatus === 'expired',
     hasNoSubscription: user?.subscriptionStatus === 'none',
 
-    // Legacy compatibility helpers
-    subscriptionData: user?.polarSubscription
+    // Legacy shape still read by navbar, chat-interface, form-component and settings-dialog
+    subscriptionData: user?.subscription
       ? {
           hasSubscription: true,
-          subscription: user.polarSubscription,
+          subscription: user.subscription,
         }
       : { hasSubscription: false },
 
-    // Map dodoPayments to legacy dodoProStatus structure for settings dialog
-    dodoProStatus: user?.dodoPayments
-      ? {
-          isProUser: proSource === 'dodo' && isProUser,
-          hasPayments: user.dodoPayments.hasPayments,
-          expiresAt: user.dodoPayments.expiresAt,
-          mostRecentPayment: user.dodoPayments.mostRecentPayment,
-          daysUntilExpiration: user.dodoPayments.daysUntilExpiration,
-          isExpired: user.dodoPayments.isExpired,
-          isExpiringSoon: user.dodoPayments.isExpiringSoon,
-          source: proSource,
-        }
-      : null,
-
-    expiresAt: user?.dodoPayments?.expiresAt,
-
-    // Additional utilities
     isCached: Boolean(cachedUser),
     clearCache: () => setCachedUser(null),
   };
@@ -120,7 +84,6 @@ export function useCachedIsProUser() {
 export function useCachedSubscriptionStatus() {
   const {
     subscriptionStatus,
-    proSource,
     hasActiveSubscription,
     isSubscriptionCanceled,
     isSubscriptionExpired,
@@ -130,7 +93,6 @@ export function useCachedSubscriptionStatus() {
 
   return {
     subscriptionStatus,
-    proSource,
     hasActiveSubscription,
     isSubscriptionCanceled,
     isSubscriptionExpired,

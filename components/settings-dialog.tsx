@@ -30,7 +30,7 @@ import {
   getConnectorSyncStatusAction,
 } from '@/app/actions';
 
-import { authClient, betterauthClient } from '@/lib/auth-client';
+import { authClient } from '@/lib/auth-client';
 import {
   MagnifyingGlassIcon,
   LightningIcon,
@@ -99,7 +99,7 @@ function ProfileSection({ user, subscriptionData, isProUser, isProStatusLoading 
   const tSettings = useTranslations('settings');
   const tCommon = useTranslations('common');
 
-  // Use comprehensive Pro status from user data (includes both Polar + DodoPayments)
+  // Use comprehensive Pro status from user data
   const isProUserActive: boolean = user?.isProUser || fastProStatus || false;
   const showProLoading: boolean = Boolean(fastProLoading || isProStatusLoading);
 
@@ -836,35 +836,16 @@ function UsageSection({ user }: any) {
 }
 
 // Component for Subscription Information
-function SubscriptionSection({ subscriptionData, isProUser, user }: any) {
+function SubscriptionSection({ subscriptionData }: any) {
   const isMobile = useMediaQuery('(max-width: 768px)');
 
-  // Use data from user object (already cached)
-  const dodoProStatus = user?.dodoProStatus || null;
-
-  // Check for active status from either source
   const hasActiveSubscription =
     subscriptionData?.hasSubscription && subscriptionData?.subscription?.status === 'active';
-  const hasDodoProStatus = dodoProStatus?.isProUser || (user?.proSource === 'dodo' && user?.isProUser);
-  const isProUserActive = hasActiveSubscription || hasDodoProStatus;
   const subscription = subscriptionData?.subscription;
-
-  // Check if DodoPayments Pro is expiring soon (within 7 days)
-  const getDaysUntilExpiration = () => {
-    if (!dodoProStatus?.expiresAt) return null;
-    const now = new Date();
-    const expiresAt = new Date(dodoProStatus.expiresAt);
-    const diffTime = expiresAt.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
-
-  const daysUntilExpiration = getDaysUntilExpiration();
-  const isExpiringSoon = daysUntilExpiration !== null && daysUntilExpiration <= 7 && daysUntilExpiration > 0;
 
   return (
     <div className={isMobile ? 'space-y-3' : 'space-y-4'}>
-      {isProUserActive ? (
+      {hasActiveSubscription ? (
         <div className={isMobile ? 'space-y-2' : 'space-y-3'}>
           <div className={cn('bg-primary text-primary-foreground rounded-lg', isMobile ? 'p-3' : 'p-4')}>
             <div className={cn('flex items-start justify-between', isMobile ? 'mb-2' : 'mb-3')}>
@@ -873,15 +854,9 @@ function SubscriptionSection({ subscriptionData, isProUser, user }: any) {
                   <HugeiconsIcon icon={Crown02Icon} size={isMobile ? 14 : 16} color="currentColor" strokeWidth={1.5} />
                 </div>
                 <div>
-                  <h3 className={cn('font-semibold', isMobile ? 'text-xs' : 'text-sm')}>
-                    PRO {hasActiveSubscription ? 'Subscription' : 'Membership'}
-                  </h3>
+                  <h3 className={cn('font-semibold', isMobile ? 'text-xs' : 'text-sm')}>PRO Subscription</h3>
                   <p className={cn('opacity-90', isMobile ? 'text-[10px]' : 'text-xs')}>
-                    {hasActiveSubscription
-                      ? subscription?.status === 'active'
-                        ? 'Active'
-                        : subscription?.status || 'Unknown'
-                      : 'Active (DodoPayments)'}
+                    {subscription?.status === 'active' ? 'Active' : subscription?.status || 'Unknown'}
                   </p>
                 </div>
               </div>
@@ -896,84 +871,14 @@ function SubscriptionSection({ subscriptionData, isProUser, user }: any) {
             </div>
             <div className={cn('opacity-90 mb-3', isMobile ? 'text-[11px]' : 'text-xs')}>
               <p className="mb-1">Unlimitierter Zugang zu allen Premium Features</p>
-              {hasDodoProStatus && !hasActiveSubscription && (
-                <div className="space-y-1">
-                  <div className="flex gap-4 text-[10px] opacity-75">
-                    <span>₹1500 (One-time payment)</span>
-                    <span>🇮🇳 Indian pricing</span>
-                  </div>
-                  {dodoProStatus?.expiresAt && (
-                    <div className="text-[10px] opacity-75">
-                      <span>Expires: {new Date(dodoProStatus.expiresAt).toLocaleDateString()}</span>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
-            {(hasActiveSubscription || hasDodoProStatus) && (
-              <Button
-                variant="secondary"
-                asChild
-                className={cn('w-full', isMobile ? 'h-7 text-xs' : 'h-8')}
-              >
-                <Link href="https://never-economy-again.thrivecart.com/updateinfo/" target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className={isMobile ? 'h-3 w-3 mr-1.5' : 'h-3.5 w-3.5 mr-2'} />
-                  Zahlungsinformationen aufrufen
-                </Link>
-              </Button>
-            )}
+            <Button variant="secondary" asChild className={cn('w-full', isMobile ? 'h-7 text-xs' : 'h-8')}>
+              <Link href="https://never-economy-again.thrivecart.com/updateinfo/" target="_blank" rel="noopener noreferrer">
+                <ExternalLink className={isMobile ? 'h-3 w-3 mr-1.5' : 'h-3.5 w-3.5 mr-2'} />
+                Zahlungsinformationen aufrufen
+              </Link>
+            </Button>
           </div>
-
-          {/* Expiration Warning for DodoPayments */}
-          {isExpiringSoon && (
-            <div
-              className={cn(
-                'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg',
-                isMobile ? 'p-3' : 'p-4',
-              )}
-            >
-              <div className="flex items-start gap-2">
-                <div className={cn('bg-yellow-100 dark:bg-yellow-900/40 rounded', isMobile ? 'p-1' : 'p-1.5')}>
-                  <HugeiconsIcon
-                    icon={Crown02Icon}
-                    size={isMobile ? 14 : 16}
-                    color="currentColor"
-                    strokeWidth={1.5}
-                    className={cn('text-yellow-600 dark:text-yellow-500')}
-                  />
-                </div>
-                <div className="flex-1">
-                  <h4
-                    className={cn(
-                      'font-semibold text-yellow-800 dark:text-yellow-200',
-                      isMobile ? 'text-xs' : 'text-sm',
-                    )}
-                  >
-                    Pro Access Expiring Soon
-                  </h4>
-                  <p
-                    className={cn(
-                      'text-yellow-700 dark:text-yellow-300',
-                      isMobile ? 'text-[11px] mt-1' : 'text-xs mt-1',
-                    )}
-                  >
-                    Your Pro access expires in {daysUntilExpiration} {daysUntilExpiration === 1 ? 'day' : 'days'}. Renew
-                    now to continue enjoying unlimited features.
-                  </p>
-                  <Button
-                    asChild
-                    size="sm"
-                    className={cn(
-                      'mt-2 bg-yellow-600 hover:bg-yellow-700 text-white',
-                      isMobile ? 'h-7 text-xs' : 'h-8',
-                    )}
-                  >
-                    <Link href="/pricing">Renew Pro Access</Link>
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       ) : (
         <div className={isMobile ? 'space-y-2' : 'space-y-3'}>

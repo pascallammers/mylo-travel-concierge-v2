@@ -77,6 +77,17 @@
     "renewButton": "Subscription verlängern",
     "contactSupport": "Support kontaktieren"
   },
+  "pricing": {
+    "activeTitle": "Dein MYLO-Abo ist aktiv",
+    "activeDescription": "Du hast vollen Zugang zu MYLO. Zahlungsdaten und Kündigung verwaltest du bei unserem Zahlungsanbieter ThriveCart.",
+    "inactiveTitle": "Kein aktives Abo",
+    "inactiveDescription": "MYLO Pro kostet 49 € im Monat. Wenn dein Abo abgelaufen ist, aktualisiere deine Zahlungsdaten bei ThriveCart oder schreib dem Support.",
+    "renewsAt": "Nächste Abrechnung am {date}",
+    "endsAt": "Gekündigt, Zugang endet am {date}",
+    "manageBilling": "Zahlungsinformationen verwalten",
+    "contactSupport": "Support kontaktieren",
+    "backToChat": "Zurück zum Chat"
+  },
   "settings": {
     "emailAddress": "E-Mail-Adresse",
     "passwordSection": "Passwort",
