@@ -12,7 +12,7 @@ interface UserCacheStatusProps {
 }
 
 export function UserCacheStatus({ className }: UserCacheStatusProps) {
-  const { user, isLoading, isProUser, isCached, clearCache, refetch, isRefetching, subscriptionStatus, proSource } =
+  const { user, isLoading, isProUser, isCached, clearCache, refetch, isRefetching, subscriptionStatus } =
     useUser();
 
   const handleClearCache = () => {
@@ -65,12 +65,6 @@ export function UserCacheStatus({ className }: UserCacheStatusProps) {
 
             {isProUser && (
               <>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Source:</span>
-                  <Badge variant="outline" className="text-xs">
-                    {proSource}
-                  </Badge>
-                </div>
 
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Subscription:</span>

@@ -77,6 +77,17 @@
     "renewButton": "Renew subscription",
     "contactSupport": "Contact support"
   },
+  "pricing": {
+    "activeTitle": "Your MYLO subscription is active",
+    "activeDescription": "You have full access to MYLO. Payment details and cancellation are managed with our payment provider ThriveCart.",
+    "inactiveTitle": "No active subscription",
+    "inactiveDescription": "MYLO Pro costs €49 per month. If your subscription has lapsed, update your payment details at ThriveCart or contact support.",
+    "renewsAt": "Next billing on {date}",
+    "endsAt": "Cancelled, access ends on {date}",
+    "manageBilling": "Manage payment details",
+    "contactSupport": "Contact support",
+    "backToChat": "Back to chat"
+  },
   "settings": {
     "emailAddress": "Email address",
     "passwordSection": "Password",

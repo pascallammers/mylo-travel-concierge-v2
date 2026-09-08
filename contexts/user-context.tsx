@@ -14,21 +14,8 @@ interface UserContextType {
 
   // Quick access to commonly used properties
   isProUser: boolean;
-  proSource: string;
   subscriptionStatus: string;
-
-  // Polar subscription details
-  polarSubscription: any;
-  hasPolarSubscription: boolean;
-
-  // DodoPayments details
-  dodoPayments: any;
-  hasDodoPayments: boolean;
-  dodoExpiresAt: Date | null | undefined;
-  isDodoExpiring: boolean;
-  isDodoExpired: boolean;
-
-  // Payment history
+  subscription: ComprehensiveUserData['subscription'];
   paymentHistory: any[];
 
   // Rate limiting helpers
@@ -41,10 +28,8 @@ interface UserContextType {
   isSubscriptionExpired: boolean;
   hasNoSubscription: boolean;
 
-  // Legacy compatibility helpers
+  // Legacy shape still read by navbar, chat-interface, form-component and settings-dialog
   subscriptionData: any;
-  dodoProStatus: any;
-  expiresAt: Date | null | undefined;
 
   // Additional utilities
   isCached: boolean;
@@ -82,7 +67,6 @@ export function useIsProUser() {
 export function useSubscriptionStatus() {
   const {
     subscriptionStatus,
-    proSource,
     hasActiveSubscription,
     isSubscriptionCanceled,
     isSubscriptionExpired,
@@ -92,7 +76,6 @@ export function useSubscriptionStatus() {
 
   return {
     subscriptionStatus,
-    proSource,
     hasActiveSubscription,
     isSubscriptionCanceled,
     isSubscriptionExpired,

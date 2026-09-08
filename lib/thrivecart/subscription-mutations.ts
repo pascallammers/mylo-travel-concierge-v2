@@ -1,27 +1,10 @@
 import { dbUncached as db } from '@/lib/db';
 import { user, subscription, session, archiveSubscription } from '@/lib/db/schema';
 import { eq, desc, and, lt } from 'drizzle-orm';
-import type { BaseWebhookRequest, WebhookResponse } from './types';
-
-// Webhook secret from environment
-const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || '';
 
 // Days a past_due subscription keeps access after a failed rebill (0 = immediate suspension).
 // Defaults to 7 so a missing variable never locks paying customers out on the first failure.
 const GRACE_PERIOD_DAYS = parseInt(process.env.GRACE_PERIOD_DAYS || '7');
-
-/**
- * Validate webhook secret from request
- * @param webhookSecret - Secret from request body
- * @returns true if valid, false otherwise
- */
-export function validateWebhookSecret(webhookSecret: string): boolean {
-  if (!WEBHOOK_SECRET) {
-    console.error('❌ WEBHOOK_SECRET not configured in environment');
-    return false;
-  }
-  return webhookSecret === WEBHOOK_SECRET;
-}
 
 /**
  * Find user by email address
@@ -291,36 +274,4 @@ export async function archiveExpiredSubscription(
   }
 
   return true;
-}
-
-/**
- * Validate required fields in webhook request
- * @param body - Request body
- * @returns Validation result with error message if invalid
- */
-export function validateRequiredFields(
-  body: Partial<BaseWebhookRequest>
-): { valid: boolean; error?: string } {
-  if (!body.email || !body.email.includes('@')) {
-    return { valid: false, error: 'Invalid or missing email address' };
-  }
-  if (!body.webhookSecret) {
-    return { valid: false, error: 'Missing webhookSecret' };
-  }
-  return { valid: true };
-}
-
-/**
- * Create a standardized webhook response
- */
-export function createWebhookResponse(
-  success: boolean,
-  message: string,
-  data?: Partial<WebhookResponse>
-): WebhookResponse {
-  return {
-    success,
-    message,
-    ...data,
-  };
 }

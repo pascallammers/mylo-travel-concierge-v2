@@ -1,7 +1,3 @@
-// Import tools from individual modules rather than the @/lib/tools barrel.
-// The barrel re-exports stock-chart -> @/lib/subscription -> @/lib/auth ->
-// @dodopayments/better-auth which has a broken transitive `buildCheckoutUrl`
-// export at install time. Individual imports avoid pulling that chain in.
 import { flightSearchTool } from '@/lib/tools/flight-search';
 import { flightTrackerTool } from '@/lib/tools/flight-tracker';
 import { knowledgeBaseTool } from '@/lib/tools/knowledge-base';

@@ -4,14 +4,7 @@ export const SEARCH_LIMITS = {
   EXTREME_SEARCH_LIMIT: 5,
 } as const;
 
-export const PRICING = {
-  PRO_MONTHLY: 15, // USD
-  PRO_MONTHLY_INR: 1299, // INR for Indian users
-} as const;
-
-export const CURRENCIES = {
-  USD: 'USD',
-  INR: 'INR',
-} as const;
+/** ThriveCart customer page for payment details and cancellation (the legacy customer base bills there permanently). */
+export const THRIVECART_BILLING_URL = 'https://never-economy-again.thrivecart.com/updateinfo/';
 
 export const SNAPSHOT_NAME = 'scira-analysis:1752127473';
