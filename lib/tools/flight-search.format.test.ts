@@ -281,9 +281,15 @@ describe('formatFlightResults', () => {
   });
 
   describe('transfer hint under the award table (MYLO-22)', () => {
+    function makeDachReachableAwardResult() {
+      const result = makeAwardResult();
+      result.seats.flights[0].program = 'flyingblue';
+      return result;
+    }
+
     it('explains that miles can be transferred at booking time', async () => {
       const deOut = await formatFlightResults(
-        makeAwardResult(),
+        makeDachReachableAwardResult(),
         baseParams,
         'de',
         awardProgramDepsWithTransfers,
@@ -292,7 +298,7 @@ describe('formatFlightResults', () => {
       assert.match(deOut, /Transfer.*Buchung/i);
 
       const enOut = await formatFlightResults(
-        makeAwardResult(),
+        makeDachReachableAwardResult(),
         baseParams,
         'en',
         awardProgramDepsWithTransfers,
@@ -311,15 +317,9 @@ describe('formatFlightResults', () => {
       assert.doesNotMatch(out, /noch nicht haben/i);
     });
 
-    it('pins DACH first and caps each program at three sources', async () => {
-      const result = makeAwardResult();
-      result.seats.count = 2;
-      result.seats.flights.push({
-        ...result.seats.flights[0],
-        program: 'flyingblue',
-      });
+    it('lists only DACH sources and never US card currencies (MYLO-55)', async () => {
       const out = await formatFlightResults(
-        result,
+        makeDachReachableAwardResult(),
         baseParams,
         'de',
         awardProgramDepsWithTransfers,
@@ -327,17 +327,28 @@ describe('formatFlightResults', () => {
       const line =
         out.split('\n').find((entry) => entry.startsWith('- **Flying Blue')) ??
         '';
-      assert.match(line, /Amex Membership Rewards \(DACH\) 5:4/);
-      assert.match(line, /Amex Membership Rewards \(US\) 1:1/);
-      assert.ok(
-        line.indexOf('Amex Membership Rewards (DACH)') <
-          line.indexOf('Amex Membership Rewards (US)'),
+      assert.strictEqual(
+        line,
+        '- **Flying Blue (Air France/KLM)**: Amex Membership Rewards (DACH) 5:4 (80%)',
       );
-      assert.doesNotMatch(line, /Bilt|Capital One|Citi/);
+      assert.doesNotMatch(out, /\(US\)|Chase|Bilt|Capital One|Citi/);
+    });
+
+    it('omits programs without a DACH source and the hint itself when none remain (MYLO-55)', async () => {
+      // Aeroplan is reachable only from US card programs (Amex US, Chase, ...).
+      const out = await formatFlightResults(
+        makeAwardResult(),
+        baseParams,
+        'de',
+        awardProgramDepsWithTransfers,
+      );
+      assert.doesNotMatch(out, /^- \*\*Air Canada Aeroplan/m);
+      assert.doesNotMatch(out, /noch nicht haben/i);
+      assert.doesNotMatch(out, /\(US\)|Chase|Bilt|Capital One|Citi/);
     });
 
     it('deduplicates programs and omits unknown transfer routes', async () => {
-      const duplicateResult = makeAwardResult();
+      const duplicateResult = makeDachReachableAwardResult();
       duplicateResult.seats.count = 2;
       duplicateResult.seats.flights.push({
         ...duplicateResult.seats.flights[0],
@@ -351,7 +362,7 @@ describe('formatFlightResults', () => {
       assert.strictEqual(
         duplicateOut
           .split('\n')
-          .filter((line) => line.startsWith('- **Air Canada Aeroplan')).length,
+          .filter((line) => line.startsWith('- **Flying Blue')).length,
         1,
       );
 
@@ -363,7 +374,7 @@ describe('formatFlightResults', () => {
         'de',
         awardProgramDepsWithTransfers,
       );
-      assert.match(unsupportedOut, /noch nicht haben/i);
+      assert.doesNotMatch(unsupportedOut, /noch nicht haben/i);
       assert.doesNotMatch(unsupportedOut, /^- \*\*GOL Smiles/m);
     });
 
@@ -391,8 +402,10 @@ describe('formatFlightResults', () => {
     });
 
     it('includes return-leg programs in the transfer sources', async () => {
+      const outboundResult = makeAwardResult();
+      outboundResult.seats.flights[0].program = 'lufthansa';
       const result = {
-        ...makeAwardResult(),
+        ...outboundResult,
         seatsReturn: {
           count: 1,
           error: false,
@@ -421,7 +434,7 @@ describe('formatFlightResults', () => {
         'de',
         awardProgramDepsWithTransfers,
       );
-      assert.match(out, /^- \*\*Air Canada Aeroplan\*\*:/m);
+      assert.match(out, /^- \*\*Lufthansa Miles & More\*\*:/m);
       assert.match(out, /^- \*\*Flying Blue \(Air France\/KLM\)\*\*:/m);
     });
   });
