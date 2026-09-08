@@ -7,7 +7,7 @@ import {
   markSubscriptionCancelled,
   suspendUser,
   archiveExpiredSubscription,
-} from '@/app/api/webhooks/subscription/_lib/helpers';
+} from './subscription-mutations';
 import type { SyncResult } from './types';
 import { generateId } from 'ai';
 import { thrivecartConfig } from './config';

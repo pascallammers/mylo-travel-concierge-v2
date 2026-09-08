@@ -21,7 +21,7 @@ import {
   getGracePeriodDays,
   findUserByEmail,
   findUserSubscription,
-} from '@/app/api/webhooks/subscription/_lib/helpers';
+} from './subscription-mutations';
 import type { ThriveCartWebhookPayload, WebhookProcessingResult } from './types';
 import { generateId } from 'ai';
 import { logAdminActivity } from '@/lib/admin/activity-logger';

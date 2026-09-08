@@ -13,7 +13,7 @@ config({ path: '.env.local' });
 import { dbUncached as db } from '@/lib/db';
 import { subscription, user } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { findUserByEmail, findUserSubscription, reactivateUser } from '@/app/api/webhooks/subscription/_lib/helpers';
+import { findUserByEmail, findUserSubscription, reactivateUser } from '@/lib/thrivecart/subscription-mutations';
 import { logAdminActivity } from '@/lib/admin/activity-logger';
 import { SUPPORT_RECOVERY_EMAILS } from '../lib/thrivecart/support-recovery-emails';
 

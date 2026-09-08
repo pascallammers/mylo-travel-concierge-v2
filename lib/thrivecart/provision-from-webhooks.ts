@@ -11,7 +11,7 @@ import { eq, and, sql as drizzleSql } from 'drizzle-orm';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { sendWelcomeEmail } from '@/lib/email';
-import { findUserByEmail, findUserSubscription } from '@/app/api/webhooks/subscription/_lib/helpers';
+import { findUserByEmail, findUserSubscription } from './subscription-mutations';
 import { generateId } from 'ai';
 import { logAdminActivity } from '@/lib/admin/activity-logger';
 import { thrivecartConfig } from './config';
