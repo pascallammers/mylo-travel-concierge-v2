@@ -1,13 +1,10 @@
-import { get } from '@vercel/edge-config';
 import { and, gte, lt } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
 import { serverEnv } from '@/env/server';
 import { dbUncached } from '@/lib/db';
 import { failoverEvents } from '@/lib/db/schema';
-import {
-  postFailoverWebhook,
-  runFailoverAlertCheck,
-} from '@/lib/observability/failover-alert';
+import { sendFailoverAdminAlert } from '@/lib/email';
+import { runFailoverAlertCheck } from '@/lib/observability/failover-alert';
 import type { RecordedFailoverEvent } from '@/lib/observability/failover-aggregator';
 
 /**
@@ -21,7 +18,9 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * Handles manual invocations for local alert testing.
+ * Handles manual probes. The query parameters `threshold`, `minRequests`, and
+ * `hours` override the defaults so a probe can alert on real traffic, e.g.
+ * `?hours=24&threshold=0&minRequests=1`.
  *
  * @param request - Manual request with the CRON_SECRET bearer token.
  * @returns JSON alert result.
@@ -34,9 +33,11 @@ async function handleRequest(request: NextRequest) {
   const result = await runFailoverAlertCheck({
     authHeader: request.headers.get('authorization'),
     cronSecret: serverEnv.CRON_SECRET,
-    getConfig: get,
     loadEvents,
-    postWebhook: postFailoverWebhook,
+    sendAlert: sendFailoverAdminAlert,
+    threshold: request.nextUrl.searchParams.get('threshold'),
+    minimumRequests: request.nextUrl.searchParams.get('minRequests'),
+    windowHours: request.nextUrl.searchParams.get('hours'),
   });
 
   return NextResponse.json(result.body, { status: result.status });

@@ -1,9 +1,12 @@
 import { Resend } from 'resend';
+import type { FailoverAlertReport } from '@/lib/observability/failover-alert';
+import { formatPercentage, renderFailoverAlertHtml } from '@/lib/observability/failover-email';
 import type { ToolFailureReport } from '@/lib/observability/tool-failure-alert';
 import { renderToolFailureAlertHtml } from '@/lib/observability/tool-failure-email';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = 'MYLO <support@never-economy-again.com>'; // TODO: Update domain after deployment
+const ADMIN_ALERT_EMAIL = 'pascal.lammers@stay-digital.de';
 
 export type EmailLocale = 'de' | 'en';
 
@@ -525,13 +528,31 @@ export async function sendDealDigestEmail(
  * @returns Promise that resolves after Resend accepts the email.
  */
 export async function sendToolFailureAdminAlert(report: ToolFailureReport): Promise<void> {
-  const ADMIN_EMAIL = 'pascal.lammers@stay-digital.de';
   const toolNames = report.alerting.map((tool) => tool.toolName).join(', ');
   const result = await resend.emails.send({
     from: FROM_EMAIL,
-    to: ADMIN_EMAIL,
+    to: ADMIN_ALERT_EMAIL,
     subject: `⚠️ Werkzeug-Ausfall: ${toolNames} - MYLO`,
     html: renderToolFailureAlertHtml(report),
+  });
+
+  if (result.error) {
+    throw new Error(result.error.message);
+  }
+}
+
+/**
+ * Sends the AI Gateway failover report to the MYLO admin inbox.
+ *
+ * @param report - Failover report for the checked period.
+ * @returns Promise that resolves after Resend accepts the email.
+ */
+export async function sendFailoverAdminAlert(report: FailoverAlertReport): Promise<void> {
+  const result = await resend.emails.send({
+    from: FROM_EMAIL,
+    to: ADMIN_ALERT_EMAIL,
+    subject: `⚠️ AI-Gateway-Failover: ${formatPercentage(report.failoverRate)} von ${report.totalRequests} Anfragen - MYLO`,
+    html: renderFailoverAlertHtml(report),
   });
 
   if (result.error) {

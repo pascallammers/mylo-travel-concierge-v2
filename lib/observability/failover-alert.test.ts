@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  DEFAULT_FAILOVER_THRESHOLD,
   runFailoverAlertCheck,
-  type FailoverAlertPayload,
   type FailoverAlertDependencies,
+  type FailoverAlertReport,
 } from './failover-alert';
 import type { RecordedFailoverEvent } from './failover-aggregator';
 
@@ -12,33 +13,36 @@ describe('runFailoverAlertCheck', () => {
     const result = await runFailoverAlertCheck(deps({ authHeader: 'Bearer wrong' }));
 
     assert.equal(result.status, 401);
+    assert.equal(result.body.reason, 'unauthorized');
   });
 
-  it('sends a webhook when failover rate exceeds the threshold', async () => {
-    const calls: Array<{ url: string; payload: FailoverAlertPayload }> = [];
+  it('sends an alert report when failover rate exceeds the threshold', async () => {
+    const reports: FailoverAlertReport[] = [];
     const result = await runFailoverAlertCheck(
       deps({
         events: makeEvents([false, false, false, true, true, true]),
-        postWebhook: async (url, payload) => {
-          calls.push({ url, payload });
+        sendAlert: async (report) => {
+          reports.push(report);
         },
       }),
     );
 
     assert.equal(result.status, 200);
     assert.equal(result.body.alerted, true);
-    assert.equal(calls.length, 1);
-    assert.equal(calls[0].url, 'https://example.com/webhook');
-    assert.equal(calls[0].payload.totalRequests, 6);
+    assert.equal(reports.length, 1);
+    assert.equal(reports[0].totalRequests, 6);
+    assert.equal(reports[0].threshold, DEFAULT_FAILOVER_THRESHOLD);
+    assert.equal(reports[0].periodStart, '2026-05-08T11:00:00.000Z');
+    assert.equal(reports[0].periodEnd, '2026-05-08T12:00:00.000Z');
   });
 
-  it('does not send a webhook below the threshold', async () => {
+  it('does not send an alert below the threshold', async () => {
     let callCount = 0;
     const result = await runFailoverAlertCheck(
       deps({
         threshold: '0.75',
         events: makeEvents([false, true, true, true, true, true]),
-        postWebhook: async () => {
+        sendAlert: async () => {
           callCount += 1;
         },
       }),
@@ -49,11 +53,11 @@ describe('runFailoverAlertCheck', () => {
     assert.equal(callCount, 0);
   });
 
-  it('returns 502 + success:false when webhook delivery fails', async () => {
+  it('returns 502 when alert delivery fails', async () => {
     const result = await runFailoverAlertCheck(
       deps({
         events: makeEvents([false, false, false, true, true, true]),
-        postWebhook: async () => {
+        sendAlert: async () => {
           throw new Error('timeout');
         },
       }),
@@ -62,16 +66,15 @@ describe('runFailoverAlertCheck', () => {
     assert.equal(result.status, 502);
     assert.equal(result.body.success, false);
     assert.equal(result.body.alerted, false);
-    assert.equal(result.body.reason, 'webhook_failed');
+    assert.equal(result.body.reason, 'alert_failed');
   });
 
-  it('skips alerting when total requests are below the minimum threshold', async () => {
+  it('skips alerting below the default minimum request count', async () => {
     let callCount = 0;
     const result = await runFailoverAlertCheck(
       deps({
-        // 1 of 1 = 100% failover rate, but only 1 request — below default min of 5
         events: makeEvents([false]),
-        postWebhook: async () => {
+        sendAlert: async () => {
           callCount += 1;
         },
       }),
@@ -82,69 +85,112 @@ describe('runFailoverAlertCheck', () => {
     assert.equal(callCount, 0);
   });
 
-  it('respects FAILOVER_ALERT_MIN_REQUESTS override', async () => {
-    const calls: Array<{ url: string }> = [];
+  it('alerts for one request when minimumRequests is overridden to one', async () => {
+    const reports: FailoverAlertReport[] = [];
     const result = await runFailoverAlertCheck(
       deps({
-        // 1 of 1 = 100% failover rate; with minRequests=1 this should alert
         events: makeEvents([false]),
         minimumRequests: '1',
-        postWebhook: async (url) => {
-          calls.push({ url });
+        sendAlert: async (report) => {
+          reports.push(report);
         },
       }),
     );
 
     assert.equal(result.body.alerted, true);
-    assert.equal(calls.length, 1);
+    assert.equal(reports.length, 1);
+    assert.equal(reports[0].totalRequests, 1);
   });
 
-  it('rejects non-https webhook urls', async () => {
-    let callCount = 0;
+  it('falls back to the default threshold for an invalid override', async () => {
+    for (const threshold of ['abc', '-0.1', '5', '0invalid', '']) {
+      const result = await runFailoverAlertCheck(
+        deps({
+          threshold,
+          events: makeEvents([false, ...Array<boolean>(19).fill(true)]),
+        }),
+      );
+
+      assert.equal(result.body.skipped, true, `threshold ${threshold}`);
+      assert.equal(result.body.reason, 'below_threshold', `threshold ${threshold}`);
+    }
+  });
+
+  it('widens the lookback window when windowHours is overridden', async () => {
+    const reports: FailoverAlertReport[] = [];
+    const loaded: Array<{ start: Date; end: Date }> = [];
+    const staleEvents = [event({ primarySucceeded: false, createdAt: new Date('2026-05-07T20:00:00.000Z') })];
     const result = await runFailoverAlertCheck(
       deps({
-        webhookUrl: 'http://example.com/webhook',
-        events: makeEvents([false, false, false, true, true, true]),
-        postWebhook: async () => {
-          callCount += 1;
+        windowHours: '24',
+        minimumRequests: '1',
+        loadEvents: async (start, end) => {
+          loaded.push({ start, end });
+          return staleEvents.filter((item) => item.createdAt >= start && item.createdAt < end);
+        },
+        sendAlert: async (report) => {
+          reports.push(report);
         },
       }),
     );
 
-    assert.equal(result.body.skipped, true);
-    assert.equal(result.body.reason, 'missing_webhook_url');
-    assert.equal(callCount, 0);
+    assert.equal(result.body.alerted, true);
+    assert.equal(loaded[0].start.toISOString(), '2026-05-07T12:00:00.000Z');
+    assert.equal(reports[0].periodStart, '2026-05-07T12:00:00.000Z');
+    assert.equal(reports[0].totalRequests, 1);
+  });
+
+  it('falls back to a one-hour window for an invalid windowHours override', async () => {
+    const loaded: Array<{ start: Date; end: Date }> = [];
+    for (const windowHours of ['0', '169', 'abc', '1.5', '24invalid']) {
+      await runFailoverAlertCheck(
+        deps({
+          windowHours,
+          loadEvents: async (start, end) => {
+            loaded.push({ start, end });
+            return [];
+          },
+        }),
+      );
+    }
+
+    assert.deepEqual(
+      loaded.map((item) => item.start.toISOString()),
+      Array<string>(5).fill('2026-05-08T11:00:00.000Z'),
+    );
+  });
+
+  it('falls back to the default minimum request count for an invalid override', async () => {
+    for (const minimumRequests of ['0', '1invalid', '2.5']) {
+      const result = await runFailoverAlertCheck(
+        deps({
+          minimumRequests,
+          events: makeEvents([false]),
+        }),
+      );
+
+      assert.equal(result.body.skipped, true, `minimumRequests ${minimumRequests}`);
+      assert.equal(result.body.reason, 'below_minimum_requests', `minimumRequests ${minimumRequests}`);
+    }
   });
 });
 
 function deps(
   overrides: Partial<FailoverAlertDependencies> & {
-    threshold?: unknown;
-    minimumRequests?: unknown;
-    webhookUrl?: unknown;
     events?: RecordedFailoverEvent[];
   } = {},
 ): FailoverAlertDependencies {
-  const now = new Date('2026-05-08T12:00:00.000Z');
-  const threshold = overrides.threshold ?? '0.05';
-  const minimumRequests = overrides.minimumRequests ?? '5';
-  const webhookUrl = overrides.webhookUrl ?? 'https://example.com/webhook';
   const events = overrides.events ?? [];
 
   return {
     authHeader: overrides.authHeader ?? 'Bearer secret',
     cronSecret: overrides.cronSecret ?? 'secret',
-    now: overrides.now ?? (() => now),
-    getConfig:
-      overrides.getConfig ??
-      (async (key) => {
-        if (key === 'FAILOVER_ALERT_THRESHOLD') return threshold;
-        if (key === 'FAILOVER_ALERT_MIN_REQUESTS') return minimumRequests;
-        if (key === 'FAILOVER_ALERT_WEBHOOK_URL') return webhookUrl;
-        return undefined;
-      }),
     loadEvents: overrides.loadEvents ?? (async () => events),
-    postWebhook: overrides.postWebhook ?? (async () => undefined),
+    sendAlert: overrides.sendAlert ?? (async () => undefined),
+    now: overrides.now ?? (() => new Date('2026-05-08T12:00:00.000Z')),
+    threshold: overrides.threshold,
+    minimumRequests: overrides.minimumRequests,
+    windowHours: overrides.windowHours,
   };
 }
 

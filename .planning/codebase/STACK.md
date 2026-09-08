@@ -146,7 +146,6 @@
 **Edge/Vercel:**
 - @vercel/analytics 1.5.0 - Vercel web analytics
 - @vercel/speed-insights 1.2.0 - Vercel speed metrics
-- @vercel/edge-config 1.4.0 - Vercel edge configuration
 - @vercel/functions 3.1.0 - Vercel Functions
 
 **Observability:**
