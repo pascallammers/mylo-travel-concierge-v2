@@ -138,6 +138,15 @@ describe('buildMyloWebSystemPrompt', () => {
       assert.match(prompt, /as of <Month> <Year>/);
       assert.doesNotMatch(prompt, /Januar 2026|January 2026/);
     });
+
+    it('tells the model to preserve German EUR Trivago hotel cards and links', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+
+      assert.match(
+        prompt,
+        /Hotel search.*results are already in EUR and German, show each hotel as its own card with its trivago link and quote prices exactly as returned/,
+      );
+    });
   });
 
   describe('TOOL_SPECIFIC_GUIDELINES section', () => {
