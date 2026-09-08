@@ -4,14 +4,9 @@
 // via the shared http-mcp-tool helper. Trivago requires session init and
 // returns raw JSON (not SSE). The helper handles both transparently.
 //
-// Tool selection note: the original Phase 1b plan called for
-// `trivago-accommodation-search`, but after pulling the live schema we found
-// it requires (ns, id) which can only be obtained via the separate
-// `trivago-search-suggestions` tool — meaning a 2-call flow per query. The
-// radius-search tool takes (lat, lon, radius) directly. LLMs reliably know
-// coordinates for major cities and landmarks from training data, and this
-// tool also unlocks "hotels near {landmark/neighborhood}" queries that the
-// city-ID flow can't express. One HTTP call beats two.
+// Requests always use the German market, EUR, and German text. Trivago's
+// system_message and photos are deliberately dropped because the model must
+// follow MYLO's prompt, not provider-supplied instructions.
 //
 // Filter translation: Trivago's hotel_rating, review_rating, and filters
 // are nested objects with per-key booleans. We expose a flat, LLM-friendly
@@ -29,6 +24,9 @@ import {
 import { sanitizeForCodeblock } from './mcp-output-sanitizer';
 
 const TRIVAGO_URL = 'https://mcp.trivago.com/mcp';
+const TRIVAGO_MARKET = { country: 'DE', currency: 'EUR', language: 'DE_DE' } as const;
+const MAX_ACCOMMODATIONS = 10;
+const TRIVAGO_HOSTNAME = /^([a-z0-9-]+\.)*trivago\.[a-z]{2,}$/;
 
 const REVIEW_TIERS = ['7.0', '7.5', '8.0', '8.5'] as const;
 
@@ -46,13 +44,6 @@ const inputSchema = z
     .min(-180)
     .max(180)
     .describe('Longitude of the search target. E.g. Berlin: 13.405, Brandenburg Gate: 13.378.'),
-  radiusMeters: z
-    .number()
-    .int()
-    .min(500)
-    .max(50000)
-    .default(5000)
-    .describe('Search radius in meters around the coordinates. Defaults to 5km; max 50km.'),
   arrival: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD format')
@@ -156,9 +147,9 @@ function buildReviewRating(min: (typeof REVIEW_TIERS)[number] | undefined):
 
 function buildTrivagoArgs(input: Input): Record<string, unknown> {
   const args: Record<string, unknown> = {
+    ...TRIVAGO_MARKET,
     latitude: input.latitude,
     longitude: input.longitude,
-    radius: input.radiusMeters,
     arrival: input.arrival,
     departure: input.departure,
     adults: input.adults,
@@ -183,27 +174,157 @@ function buildTrivagoArgs(input: Input): Record<string, unknown> {
   return args;
 }
 
-// Successful calls return user-readable Markdown. Failures throw
-// McpToolFailure, and the model still reads the same Markdown through the AI
-// SDK's error-text channel.
-//
-// TODO: structured renderer — replace JSON-in-codeblock fallback with a real
-// markdown table renderer (hotel name / stars / price / distance / source)
-// once we agree on the columns. This subagent's scope is error handling only.
 export type TrivagoToolResult = string;
 
-/** Render Trivago raw JSON inside a fenced code block. Best-effort placeholder. */
-export function formatTrivagoResults(raw: unknown): string {
+type UnknownRecord = Record<string, unknown>;
+
+interface TrivagoAccommodation {
+  name?: string;
+  stars?: number;
+  reviewRating?: string;
+  reviewCount?: string;
+  pricePerNight?: string;
+  pricePerStay?: string;
+  currency?: string;
+  advertiser?: string;
+  distance?: string;
+  amenities?: string;
+  url?: string;
+}
+
+function asRecord(value: unknown): UnknownRecord | undefined {
+  return value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as UnknownRecord) : undefined;
+}
+
+function readText(record: UnknownRecord | undefined, key: string, maxLength = 80): string | undefined {
+  const value = record?.[key];
+  if (typeof value !== 'string') return undefined;
+  const sanitized = sanitizeForCodeblock(value);
+  if (typeof sanitized !== 'string') return undefined;
+  const text = sanitized
+    .replace(/[\r\n]+/g, ' ')
+    .trim()
+    .slice(0, maxLength);
+  return text || undefined;
+}
+
+function readNumber(record: UnknownRecord | undefined, key: string): number | undefined {
+  const value = record?.[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function readTrivagoUrl(record: UnknownRecord): string | undefined {
+  const raw = readText(record, 'accommodation_url', 2_048);
+  if (!raw) return undefined;
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return undefined;
+  }
+  return url.protocol === 'https:' && TRIVAGO_HOSTNAME.test(url.hostname.toLowerCase()) ? url.href : undefined;
+}
+
+function parseAccommodation(value: unknown): TrivagoAccommodation | undefined {
+  const record = asRecord(value);
+  if (!record) return undefined;
+  return {
+    name: readText(record, 'accommodation_name', 120),
+    stars: readNumber(record, 'hotel_rating'),
+    reviewRating: readText(record, 'review_rating'),
+    reviewCount: readText(record, 'review_count'),
+    pricePerNight: readText(record, 'price_per_night'),
+    pricePerStay: readText(record, 'price_per_stay'),
+    currency: readText(record, 'currency'),
+    advertiser: readText(record, 'advertisers'),
+    distance: readText(record, 'distance'),
+    amenities: readText(record, 'top_amenities', 200),
+    url: readTrivagoUrl(record),
+  };
+}
+
+function bookingLink(accommodation: TrivagoAccommodation): string {
+  if (!accommodation.url) return '- Buchungslink: —';
+  const href = accommodation.url
+    .replace(/\]/g, '%5D')
+    .replace(/[()]/g, (character) => (character === '(' ? '%28' : '%29'));
+  return `- [Bei trivago ansehen](${href})`;
+}
+
+function formatRating(accommodation: TrivagoAccommodation): string {
+  const stars = accommodation.stars;
+  const starLabel = stars === undefined || stars <= 0 ? 'ohne Sterne' : stars === 1 ? '1 Stern' : `${stars} Sterne`;
+  if (!accommodation.reviewRating) return starLabel;
+  const reviewCount = accommodation.reviewCount ? ` (${accommodation.reviewCount} Bewertungen)` : '';
+  return `${starLabel} · ${accommodation.reviewRating}/10${reviewCount}`;
+}
+
+function formatAccommodation(accommodation: TrivagoAccommodation, index: number): string {
+  return [
+    `### ${index + 1}. ${accommodation.name ?? '—'}`,
+    `- **Preis:** ${accommodation.pricePerNight ?? '—'} pro Nacht · ${accommodation.pricePerStay ?? '—'} gesamt · Anbieter: ${accommodation.advertiser ?? '—'}`,
+    `- **Bewertung:** ${formatRating(accommodation)}`,
+    `- **Lage:** ${accommodation.distance ?? '—'}`,
+    `- **Ausstattung:** ${accommodation.amenities ?? '—'}`,
+    bookingLink(accommodation),
+  ].join('\n');
+}
+
+function withoutTrivagoPayload(raw: unknown): unknown {
+  const root = asRecord(raw);
+  if (!root) return raw;
+  const fallback: UnknownRecord = { ...root };
+  delete fallback.content;
+
+  const structuredContent = asRecord(fallback.structuredContent);
+  if (structuredContent) {
+    const safeStructuredContent = { ...structuredContent };
+    delete safeStructuredContent.system_message;
+    fallback.structuredContent = safeStructuredContent;
+  }
+  return fallback;
+}
+
+function formatJsonFallback(raw: unknown): string {
   let body: string;
   try {
-    // sanitizeForCodeblock neutralizes triple-backticks inside string values
-    // so a compromised provider can't escape the fence and inject markdown
-    // directives or fake assistant turns into the LLM context.
-    body = JSON.stringify(sanitizeForCodeblock(raw), null, 2);
+    const sanitized = sanitizeForCodeblock(withoutTrivagoPayload(raw));
+    body = JSON.stringify(sanitized, null, 2) ?? String(sanitized);
   } catch {
-    body = String(raw);
+    body = String(sanitizeForCodeblock(String(withoutTrivagoPayload(raw))));
   }
   return ['## Trivago Hotels', '', '```json', body, '```'].join('\n');
+}
+
+/**
+ * Renders a Trivago MCP response as compact, sanitized hotel cards.
+ *
+ * @param raw - Unknown JSON-RPC result returned by Trivago.
+ * @returns Markdown containing at most ten ranked accommodations.
+ */
+export function formatTrivagoResults(raw: unknown): string {
+  const root = asRecord(raw);
+  const structuredContent = asRecord(root?.structuredContent);
+  const rawAccommodations = structuredContent?.accommodations;
+  if (!Array.isArray(rawAccommodations)) return formatJsonFallback(raw);
+
+  const accommodations = rawAccommodations
+    .map(parseAccommodation)
+    .filter((value): value is TrivagoAccommodation => value !== undefined);
+  const shown = accommodations.slice(0, MAX_ACCOMMODATIONS);
+  const countLabel =
+    rawAccommodations.length > shown.length
+      ? `${rawAccommodations.length} (${shown.length} gezeigt)`
+      : `${rawAccommodations.length}`;
+  const currency = accommodations[0]?.currency ?? '—';
+  const blocks = shown.map(formatAccommodation);
+
+  return [
+    '## Trivago Hotels',
+    '',
+    `**Ergebnisse:** ${countLabel} · **Währung:** ${currency}`,
+    ...blocks.flatMap((block) => ['', block]),
+  ].join('\n');
 }
 
 function trivagoFailure(rawError: string): McpToolFailure {
@@ -220,10 +341,16 @@ interface ToolDeps {
   fetchImpl?: typeof fetch;
 }
 
+/**
+ * Creates the Trivago hotel-search tool with optional request dependencies.
+ *
+ * @param deps - Injectable dependencies used by the MCP request.
+ * @returns An AI SDK tool that returns sanitized hotel cards.
+ */
 export function createTrivagoHotelSearchTool(deps: ToolDeps = {}) {
   return tool({
     description:
-      'Search Trivago for hotels and accommodations within a radius around given coordinates (city center, landmark, or address). Use when the user asks "find me a hotel in/near X" — derive lat/lon from the place. Defaults to 5km radius, 2 adults, 1 room. Filter by minimum stars, minimum guest rating, free cancellation, and breakfast included. Returns hotel cards with name, address, price per night/stay, advertiser, deepLink, image, distance to city center, and amenities.',
+      'Search Trivago for hotels around given coordinates (city centre, landmark, or address); derive lat/lon from the place the user names. Prices come back in EUR for the German market, texts in German. Filter by minimum stars, minimum guest rating, free cancellation, and breakfast. Returns up to 10 hotels as Markdown cards (name, stars, guest rating, price per night and per stay, distance, amenities, trivago link). Present each hotel as its own card with its trivago link; never invent prices or links that are not in the result.',
     inputSchema,
     execute: async (input): Promise<TrivagoToolResult> => {
       const r = await callMcpTool({
