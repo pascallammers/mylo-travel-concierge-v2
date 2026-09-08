@@ -525,7 +525,7 @@ export async function sendDealDigestEmail(
  * @returns Promise that resolves after Resend accepts the email.
  */
 export async function sendToolFailureAdminAlert(report: ToolFailureReport): Promise<void> {
-  const ADMIN_EMAIL = 'support@never-economy-again.com';
+  const ADMIN_EMAIL = 'pascal.lammers@stay-digital.de';
   const toolNames = report.alerting.map((tool) => tool.toolName).join(', ');
   const result = await resend.emails.send({
     from: FROM_EMAIL,
