@@ -1,11 +1,12 @@
-import { get } from '@vercel/edge-config';
 import { and, gte, lt } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
 import { serverEnv } from '@/env/server';
 import { dbUncached } from '@/lib/db';
 import { failoverEvents } from '@/lib/db/schema';
+import { sendFailoverAdminAlert } from '@/lib/email';
 import {
-  postFailoverWebhook,
+  DEFAULT_FAILOVER_MIN_REQUESTS,
+  DEFAULT_FAILOVER_THRESHOLD,
   runFailoverAlertCheck,
 } from '@/lib/observability/failover-alert';
 import type { RecordedFailoverEvent } from '@/lib/observability/failover-aggregator';
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
 /**
  * Handles manual invocations for local alert testing.
  *
- * @param request - Manual request with the CRON_SECRET bearer token.
+ * @param request - Manual request with the CRON_SECRET bearer token and optional threshold/minRequests query overrides.
  * @returns JSON alert result.
  */
 export async function POST(request: NextRequest) {
@@ -34,9 +35,12 @@ async function handleRequest(request: NextRequest) {
   const result = await runFailoverAlertCheck({
     authHeader: request.headers.get('authorization'),
     cronSecret: serverEnv.CRON_SECRET,
-    getConfig: get,
     loadEvents,
-    postWebhook: postFailoverWebhook,
+    sendAlert: sendFailoverAdminAlert,
+    threshold:
+      request.nextUrl.searchParams.get('threshold') ?? DEFAULT_FAILOVER_THRESHOLD,
+    minimumRequests:
+      request.nextUrl.searchParams.get('minRequests') ?? DEFAULT_FAILOVER_MIN_REQUESTS,
   });
 
   return NextResponse.json(result.body, { status: result.status });
