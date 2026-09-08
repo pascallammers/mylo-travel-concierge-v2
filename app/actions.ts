@@ -1,7 +1,6 @@
 // app/actions.ts
 'use server';
 
-import { geolocation } from '@vercel/functions';
 import { serverEnv } from '@/env/server';
 import { SearchGroupId } from '@/lib/utils';
 import { UIMessage, generateText } from 'ai';
@@ -33,8 +32,6 @@ import {
   deleteCustomInstructions,
   getPaymentsByUserId,
 } from '@/lib/db/queries';
-import { getDiscountConfig } from '@/lib/discount';
-import { get } from '@vercel/edge-config';
 import { groq } from '@ai-sdk/groq';
 import { usageCountCache, createMessageCountKey, createExtremeCountKey } from '@/lib/performance-cache';
 import { getComprehensiveUserData } from '@/lib/user-data-server';
@@ -1263,21 +1260,6 @@ export async function getExtremeSearchUsageCount(providedUser?: any) {
   }
 }
 
-export async function getDiscountConfigAction() {
-  'use server';
-
-  try {
-    const user = await getCurrentUser();
-    const userEmail = user?.email;
-    return await getDiscountConfig(userEmail);
-  } catch (error) {
-    console.error('Error getting discount configuration:', error);
-    return {
-      enabled: false,
-    };
-  }
-}
-
 export async function getHistoricalUsage(providedUser?: any, months: number = 9) {
   'use server';
 
@@ -1426,42 +1408,6 @@ export async function getPaymentHistory() {
   }
 }
 
-// Server action to get user's geolocation using Vercel
-export async function getUserLocation() {
-  'use server';
-
-  try {
-    const { headers } = await import('next/headers');
-    const headersList = await headers();
-
-    // Create a mock request object with headers for geolocation
-    const request = {
-      headers: headersList,
-    } as any;
-
-    const locationData = geolocation(request);
-
-    return {
-      country: locationData.country || '',
-      countryCode: locationData.country || '',
-      city: locationData.city || '',
-      region: locationData.region || '',
-      isIndia: locationData.country === 'IN',
-      loading: false,
-    };
-  } catch (error) {
-    console.error('Failed to get location from Vercel:', error);
-    return {
-      country: 'Unknown',
-      countryCode: '',
-      city: '',
-      region: '',
-      isIndia: false,
-      loading: false,
-    };
-  }
-}
-
 // Connector management actions
 export async function createConnectorAction(provider: ConnectorProvider) {
   'use server';
@@ -1556,46 +1502,3 @@ export async function getConnectorSyncStatusAction(provider: ConnectorProvider) 
   }
 }
 
-// Server action to get supported student domains from Edge Config
-export async function getStudentDomainsAction() {
-  'use server';
-
-  try {
-    const studentDomainsConfig = await get('student_domains');
-    if (studentDomainsConfig && typeof studentDomainsConfig === 'string') {
-      // Parse CSV string to array, trim whitespace, and sort alphabetically
-      const domains = studentDomainsConfig
-        .split(',')
-        .map((domain) => domain.trim())
-        .filter((domain) => domain.length > 0)
-        .sort();
-
-      return {
-        success: true,
-        domains,
-        count: domains.length,
-      };
-    }
-
-    // Fallback to hardcoded domains if Edge Config fails
-    const fallbackDomains = ['.edu', '.ac.in'].sort();
-    return {
-      success: true,
-      domains: fallbackDomains,
-      count: fallbackDomains.length,
-      fallback: true,
-    };
-  } catch (error) {
-    console.error('Failed to fetch student domains from Edge Config:', error);
-
-    // Return fallback domains on error
-    const fallbackDomains = ['.edu', '.ac.in'].sort();
-    return {
-      success: false,
-      domains: fallbackDomains,
-      count: fallbackDomains.length,
-      fallback: true,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
-  }
-}

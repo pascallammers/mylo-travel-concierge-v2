@@ -6,8 +6,8 @@ import { getCurrentUser } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from '@/i18n/navigation';
+import { THRIVECART_BILLING_URL } from '@/lib/constants';
 
-const THRIVECART_BILLING_URL = 'https://never-economy-again.thrivecart.com/updateinfo/';
 const SUPPORT_EMAIL = 'support@never-economy-again.com';
 
 export default async function PricingPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -15,7 +15,7 @@ export default async function PricingPage({ params }: { params: Promise<{ locale
   const [t, user] = await Promise.all([getTranslations({ locale, namespace: 'pricing' }), getCurrentUser()]);
 
   const subscription = user?.subscription;
-  const isActive = user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'canceled';
+  const isActive = Boolean(subscription);
   const periodEnd = subscription
     ? new Intl.DateTimeFormat(locale, { dateStyle: 'long' }).format(new Date(subscription.currentPeriodEnd))
     : null;

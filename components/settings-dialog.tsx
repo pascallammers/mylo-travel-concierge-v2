@@ -31,6 +31,7 @@ import {
 } from '@/app/actions';
 
 import { authClient } from '@/lib/auth-client';
+import { THRIVECART_BILLING_URL } from '@/lib/constants';
 import {
   MagnifyingGlassIcon,
   LightningIcon,
@@ -873,7 +874,7 @@ function SubscriptionSection({ subscriptionData }: any) {
               <p className="mb-1">Unlimitierter Zugang zu allen Premium Features</p>
             </div>
             <Button variant="secondary" asChild className={cn('w-full', isMobile ? 'h-7 text-xs' : 'h-8')}>
-              <Link href="https://never-economy-again.thrivecart.com/updateinfo/" target="_blank" rel="noopener noreferrer">
+              <Link href={THRIVECART_BILLING_URL} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className={isMobile ? 'h-3 w-3 mr-1.5' : 'h-3.5 w-3.5 mr-2'} />
                 Zahlungsinformationen aufrufen
               </Link>
@@ -1646,7 +1647,7 @@ export function SettingsDialog({
       </TabsContent>
 
       <TabsContent value="subscription" className="mt-0">
-        <SubscriptionSection subscriptionData={subscriptionData} isProUser={isProUser} user={user} />
+        <SubscriptionSection subscriptionData={subscriptionData} />
       </TabsContent>
 
       <TabsContent value="loyalty" className="mt-0">

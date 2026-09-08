@@ -19,9 +19,7 @@ import { track } from '@vercel/analytics';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ComprehensiveUserData } from '@/hooks/use-user-data';
 import { useSession } from '@/lib/auth-client';
-import { enhancePrompt, getDiscountConfigAction } from '@/app/actions';
-import { DiscountConfig } from '@/lib/discount';
-import { PRICING } from '@/lib/constants';
+import { enhancePrompt } from '@/app/actions';
 import { LockIcon, Eye, Brain } from '@phosphor-icons/react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
@@ -39,7 +37,6 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from 
 import { Switch } from '@/components/ui/switch';
 import { UseChatHelpers } from '@ai-sdk/react';
 import { ChatMessage, Attachment } from '@/lib/types';
-import { useLocation } from '@/hooks/use-location';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { CONNECTOR_CONFIGS, CONNECTOR_ICONS, type ConnectorProvider } from '@/lib/connectors';
@@ -137,9 +134,7 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = React.memo(
     const [selectedProModel, setSelectedProModel] = useState<(typeof models)[0] | null>(null);
     const [selectedAuthModel, setSelectedAuthModel] = useState<(typeof models)[0] | null>(null);
     const [open, setOpen] = useState(false);
-    const [discountConfig, setDiscountConfig] = useState<DiscountConfig | null>(null);
 
-    const location = useLocation();
     const isMobile = useIsMobile();
 
     const [searchQuery, setSearchQuery] = useState('');
@@ -259,97 +254,6 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = React.memo(
       },
       [searchQuery, escapeHtml, escapeRegExp],
     );
-
-    // Fetch discount config when needed
-    const fetchDiscountConfig = useCallback(async () => {
-      if (discountConfig) return; // Already fetched
-
-      try {
-        const config = await getDiscountConfigAction();
-        setDiscountConfig(config);
-      } catch (error) {
-        console.error('Failed to fetch discount config:', error);
-      }
-    }, [discountConfig]);
-
-    // Calculate pricing with discounts
-    const calculatePricing = useCallback(() => {
-      const defaultUSDPrice = PRICING.PRO_MONTHLY;
-      const defaultINRPrice = PRICING.PRO_MONTHLY_INR;
-
-      // Check if discount should be applied
-      const isDevMode = discountConfig?.dev || process.env.NODE_ENV === 'development';
-      const shouldApplyDiscount = isDevMode
-        ? discountConfig?.code && discountConfig?.message
-        : discountConfig?.enabled && discountConfig?.code && discountConfig?.message;
-
-      if (!discountConfig || !shouldApplyDiscount) {
-        return {
-          usd: { originalPrice: defaultUSDPrice, finalPrice: defaultUSDPrice, hasDiscount: false },
-          inr: location.isIndia
-            ? { originalPrice: defaultINRPrice, finalPrice: defaultINRPrice, hasDiscount: false }
-            : null,
-        };
-      }
-
-      // USD pricing: prefer explicit finalPrice over percentage
-      let usdPricing: { originalPrice: number; finalPrice: number; hasDiscount: boolean } = {
-        originalPrice: defaultUSDPrice,
-        finalPrice: defaultUSDPrice,
-        hasDiscount: false,
-      };
-      if (typeof discountConfig.finalPrice === 'number') {
-        const original =
-          typeof discountConfig.originalPrice === 'number' ? discountConfig.originalPrice : defaultUSDPrice;
-        usdPricing = {
-          originalPrice: original,
-          finalPrice: discountConfig.finalPrice,
-          hasDiscount: true,
-        };
-      } else if (typeof discountConfig.percentage === 'number') {
-        const base = typeof discountConfig.originalPrice === 'number' ? discountConfig.originalPrice : defaultUSDPrice;
-        const usdSavings = (base * discountConfig.percentage) / 100;
-        const usdFinalPrice = base - usdSavings;
-        usdPricing = {
-          originalPrice: base,
-          finalPrice: usdFinalPrice,
-          hasDiscount: true,
-        };
-      }
-
-      // INR pricing: prefer explicit inrPrice, otherwise derive from percentage
-      let inrPricing: { originalPrice: number; finalPrice: number; hasDiscount: boolean } | null = null;
-      if (location.isIndia) {
-        if (typeof discountConfig.inrPrice === 'number') {
-          inrPricing = {
-            originalPrice: defaultINRPrice,
-            finalPrice: discountConfig.inrPrice,
-            hasDiscount: true,
-          };
-        } else if (typeof discountConfig.percentage === 'number') {
-          const inrSavings = (defaultINRPrice * discountConfig.percentage) / 100;
-          const inrFinalPrice = defaultINRPrice - inrSavings;
-          inrPricing = {
-            originalPrice: defaultINRPrice,
-            finalPrice: inrFinalPrice,
-            hasDiscount: true,
-          };
-        } else {
-          inrPricing = {
-            originalPrice: defaultINRPrice,
-            finalPrice: defaultINRPrice,
-            hasDiscount: false,
-          };
-        }
-      }
-
-      return {
-        usd: usdPricing,
-        inr: inrPricing,
-      };
-    }, [discountConfig, location.isIndia]);
-
-    const pricing = calculatePricing();
 
     const isFilePart = useCallback((p: unknown): p is { type: 'file'; mediaType?: string } => {
       return (
@@ -491,7 +395,6 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = React.memo(
 
         if (requiresPro && !isProUser) {
           setSelectedProModel(model);
-          fetchDiscountConfig();
           setShowUpgradeDialog(true);
           return;
         }
@@ -554,7 +457,6 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = React.memo(
                             setShowSignInDialog(true);
                           } else if (requiresPro && !isProUser) {
                             setSelectedProModel(model);
-                            fetchDiscountConfig();
                             setShowUpgradeDialog(true);
                           }
                           setOpen(false);
@@ -798,7 +700,6 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = React.memo(
                             setShowSignInDialog(true);
                           } else if (requiresPro && !isProUser) {
                             setSelectedProModel(model);
-                            fetchDiscountConfig();
                             setShowUpgradeDialog(true);
                           }
                           setOpen(false);
@@ -1106,42 +1007,6 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = React.memo(
                     </div>
                   </DialogTitle>
                   <DialogDescription className="text-white/90">
-                    {discountConfig &&
-                      (() => {
-                        const isDevMode = discountConfig.dev || process.env.NODE_ENV === 'development';
-                        const shouldShowDiscount = isDevMode
-                          ? discountConfig.code && discountConfig.message && discountConfig.percentage
-                          : discountConfig.enabled &&
-                            discountConfig.code &&
-                            discountConfig.message &&
-                            discountConfig.percentage;
-
-                        if (shouldShowDiscount && discountConfig.showPrice && discountConfig.finalPrice) {
-                          return (
-                            <div className="flex items-center gap-2 mb-2">
-                              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 backdrop-blur-sm border border-white/20 text-white text-sm font-medium">
-                                {discountConfig.showPrice && discountConfig.finalPrice
-                                  ? `$${PRICING.PRO_MONTHLY - discountConfig.finalPrice} OFF for a year`
-                                  : discountConfig.percentage
-                                    ? `${discountConfig.percentage}% OFF`
-                                    : 'DISCOUNT'}
-                              </div>
-                            </div>
-                          );
-                        }
-                        return null;
-                      })()}
-                    <div className="flex items-center gap-2">
-                      {pricing.usd.hasDiscount ? (
-                        <>
-                          <span className="text-lg text-white/60 line-through">${pricing.usd.originalPrice}</span>
-                          <span className="text-2xl font-bold">${pricing.usd.finalPrice.toFixed(2)}</span>
-                        </>
-                      ) : (
-                        <span className="text-2xl font-bold">${pricing.usd.finalPrice}</span>
-                      )}
-                      <span className="text-sm text-white/80">/month</span>
-                    </div>
                     <p className="text-sm text-white/80 text-left mt-2">
                       {selectedProModel?.label
                         ? 'Upgrade to access premium AI models and features'
@@ -1898,7 +1763,6 @@ const FormComponent: React.FC<FormComponentProps> = ({
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [isTypewriting, setIsTypewriting] = useState(false);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
-  const [discountConfig, setDiscountConfig] = useState<DiscountConfig | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploadQueue, setUploadQueue] = useState<string[]>([]);
@@ -1912,7 +1776,6 @@ const FormComponent: React.FC<FormComponentProps> = ({
   const recordingAnimationFrameRef = useRef<number | null>(null);
   const recordingLevelDataRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
 
-  const location = useLocation();
   const isMobile = useIsMobile();
 
   const isProUser = useMemo(
@@ -1974,97 +1837,6 @@ const FormComponent: React.FC<FormComponentProps> = ({
       cleanupMediaRecorder();
     };
   }, [cleanupMediaRecorder]);
-
-  // Fetch discount config when needed
-  const fetchDiscountConfigForm = useCallback(async () => {
-    if (discountConfig) return; // Already fetched
-
-    try {
-      const config = await getDiscountConfigAction();
-      setDiscountConfig(config);
-    } catch (error) {
-      console.error('Failed to fetch discount config:', error);
-    }
-  }, [discountConfig]);
-
-  // Calculate pricing with discounts
-  const calculatePricing = useCallback(() => {
-    const defaultUSDPrice = PRICING.PRO_MONTHLY;
-    const defaultINRPrice = PRICING.PRO_MONTHLY_INR;
-
-    // Check if discount should be applied
-    const isDevMode = discountConfig?.dev || process.env.NODE_ENV === 'development';
-    const shouldApplyDiscount = isDevMode
-      ? discountConfig?.code && discountConfig?.message
-      : discountConfig?.enabled && discountConfig?.code && discountConfig?.message;
-
-    if (!discountConfig || !shouldApplyDiscount) {
-      return {
-        usd: { originalPrice: defaultUSDPrice, finalPrice: defaultUSDPrice, hasDiscount: false },
-        inr: location.isIndia
-          ? { originalPrice: defaultINRPrice, finalPrice: defaultINRPrice, hasDiscount: false }
-          : null,
-      };
-    }
-
-    // USD pricing: prefer explicit finalPrice over percentage
-    let usdPricing: { originalPrice: number; finalPrice: number; hasDiscount: boolean } = {
-      originalPrice: defaultUSDPrice,
-      finalPrice: defaultUSDPrice,
-      hasDiscount: false,
-    };
-    if (typeof discountConfig.finalPrice === 'number') {
-      const original =
-        typeof discountConfig.originalPrice === 'number' ? discountConfig.originalPrice : defaultUSDPrice;
-      usdPricing = {
-        originalPrice: original,
-        finalPrice: discountConfig.finalPrice,
-        hasDiscount: true,
-      };
-    } else if (typeof discountConfig.percentage === 'number') {
-      const base = typeof discountConfig.originalPrice === 'number' ? discountConfig.originalPrice : defaultUSDPrice;
-      const usdSavings = (base * discountConfig.percentage) / 100;
-      const usdFinalPrice = base - usdSavings;
-      usdPricing = {
-        originalPrice: base,
-        finalPrice: usdFinalPrice,
-        hasDiscount: true,
-      };
-    }
-
-    // INR pricing: prefer explicit inrPrice, otherwise derive from percentage
-    let inrPricing: { originalPrice: number; finalPrice: number; hasDiscount: boolean } | null = null;
-    if (location.isIndia) {
-      if (typeof discountConfig.inrPrice === 'number') {
-        inrPricing = {
-          originalPrice: defaultINRPrice,
-          finalPrice: discountConfig.inrPrice,
-          hasDiscount: true,
-        };
-      } else if (typeof discountConfig.percentage === 'number') {
-        const inrSavings = (defaultINRPrice * discountConfig.percentage) / 100;
-        const inrFinalPrice = defaultINRPrice - inrSavings;
-        inrPricing = {
-          originalPrice: defaultINRPrice,
-          finalPrice: inrFinalPrice,
-          hasDiscount: true,
-        };
-      } else {
-        inrPricing = {
-          originalPrice: defaultINRPrice,
-          finalPrice: defaultINRPrice,
-          hasDiscount: false,
-        };
-      }
-    }
-
-    return {
-      usd: usdPricing,
-      inr: inrPricing,
-    };
-  }, [discountConfig, location.isIndia]);
-
-  const pricing = calculatePricing();
 
   // Control grip icon animation using combined state to avoid restarts
   useEffect(() => {
@@ -2169,7 +1941,6 @@ const FormComponent: React.FC<FormComponentProps> = ({
 
   const handleEnhance = useCallback(async () => {
     if (!isProUser) {
-      fetchDiscountConfigForm();
       setShowUpgradeDialog(true);
       return;
     }
@@ -2214,7 +1985,6 @@ const FormComponent: React.FC<FormComponentProps> = ({
     typewriterText,
     isEnhancing,
     setShowUpgradeDialog,
-    fetchDiscountConfigForm,
   ]);
 
   const handleRecord = useCallback(async () => {
@@ -3480,17 +3250,6 @@ const FormComponent: React.FC<FormComponentProps> = ({
                     </div>
                   </DialogTitle>
                   <DialogDescription className="text-white/90">
-                    <div className="flex items-center gap-2 mb-2">
-                      {pricing.usd.hasDiscount ? (
-                        <>
-                          <span className="text-lg text-white/60 line-through">${pricing.usd.originalPrice}</span>
-                          <span className="text-2xl font-bold">${pricing.usd.finalPrice.toFixed(2)}</span>
-                        </>
-                      ) : (
-                        <span className="text-2xl font-bold">${pricing.usd.finalPrice}</span>
-                      )}
-                      <span className="text-sm text-white/80">/month</span>
-                    </div>
                     <p className="text-sm text-white/80 text-left">
                       Get enhanced capabilities including prompt enhancement and unlimited features
                     </p>
@@ -3501,7 +3260,7 @@ const FormComponent: React.FC<FormComponentProps> = ({
                     }}
                     className="backdrop-blur-md bg-white/90 border border-white/20 text-black hover:bg-white w-full font-medium mt-3"
                   >
-                    {discountConfig?.buttonText || 'Upgrade to Pro'}
+                    Upgrade to Pro
                   </Button>
                 </div>
               </div>

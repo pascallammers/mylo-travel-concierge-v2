@@ -45,7 +45,6 @@ import { models } from '@/ai/providers';
 import { VercelLogo } from '@/components/logos/vercel-logo';
 import { ExaLogo } from '@/components/logos/exa-logo';
 import { ElevenLabsLogo } from '@/components/logos/elevenlabs-logo';
-import { PRICING } from '@/lib/constants';
 
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { MyloLogo } from '@/components/logos/mylo-logo';
@@ -935,15 +934,9 @@ export default function AboutPage() {
                   </span>
                 </div>
                 <p className="text-muted-foreground/70 mb-4">Everything you need for serious work</p>
-                <div className="space-y-1">
-                  <div className="flex items-baseline">
-                    <span className="text-3xl font-light tracking-tight">${PRICING.PRO_MONTHLY}</span>
-                    <span className="text-muted-foreground/70 ml-2">/month</span>
-                  </div>
-                  <div className="flex items-baseline">
-                    <span className="text-2xl font-medium text-muted-foreground/60">₹{PRICING.PRO_MONTHLY_INR}</span>
-                    <span className="text-muted-foreground/60 ml-2 text-sm">1 month access</span>
-                  </div>
+                <div className="flex items-baseline">
+                  <span className="text-3xl font-light tracking-tight">49 €</span>
+                  <span className="text-muted-foreground/70 ml-2">/month</span>
                 </div>
               </div>
 
@@ -993,7 +986,7 @@ export default function AboutPage() {
             <ProAccordionItem value="item-2">
               <ProAccordionTrigger>What does MYLO Pro include?</ProAccordionTrigger>
               <ProAccordionContent>
-                MYLO Pro ($15/month) provides unlimited searches, access to all AI models, PDF document analysis, and priority support.
+                MYLO Pro (€49/month) provides unlimited searches, access to all AI models, PDF document analysis, and priority support.
               </ProAccordionContent>
             </ProAccordionItem>
 
