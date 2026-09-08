@@ -279,7 +279,11 @@ function renderAwardTable(
 }
 
 /**
- * Render transfer sources for every distinct award program.
+ * Render DACH transfer sources for every distinct award program.
+ *
+ * Only sources a DACH customer can hold (`DACH_SOURCE_PROGRAM_IDS`) are shown;
+ * US card currencies stay in the tables but are never rendered. Programs
+ * without a DACH source are left out entirely.
  *
  * @param flights - Award flights from all rendered legs.
  * @param locale - Locale for labels and program names.
@@ -304,17 +308,14 @@ function renderTransferSources(
   ];
 
   return slugs.flatMap((slug) => {
-    const sources = dependencies.getTransferSourcesForAwardProgram(slug);
+    const sources = dependencies
+      .getTransferSourcesForAwardProgram(slug)
+      .filter(({ sourceProgramId }) =>
+        DACH_SOURCE_PROGRAM_IDS.has(sourceProgramId),
+      );
     if (sources.length === 0) return [];
 
-    const dach = sources.filter(({ sourceProgramId }) =>
-      DACH_SOURCE_PROGRAM_IDS.has(sourceProgramId),
-    );
-    const others = sources.filter(
-      ({ sourceProgramId }) => !DACH_SOURCE_PROGRAM_IDS.has(sourceProgramId),
-    );
-    const renderedSources = [...dach, ...others]
-      .slice(0, 3)
+    const renderedSources = sources
       .map(({ sourceProgramLabel, partner }) => {
         const via =
           partner.type === 'other'
@@ -468,16 +469,17 @@ export async function formatFlightResults(
       ...result.seats.flights,
       ...(result.seatsReturn?.flights ?? []),
     ];
-    sections.push(flightI18n.transferHintIntro[locale]);
-    sections.push(
-      ...renderTransferSources(
-        awardFlights,
-        locale,
-        getProgramDisplayName,
-        transferHints,
-      ),
+    const transferSourceLines = renderTransferSources(
+      awardFlights,
+      locale,
+      getProgramDisplayName,
+      transferHints,
     );
-    sections.push('');
+    if (transferSourceLines.length > 0) {
+      sections.push(flightI18n.transferHintIntro[locale]);
+      sections.push(...transferSourceLines);
+      sections.push('');
+    }
   }
 
   // Cash Flights Section
