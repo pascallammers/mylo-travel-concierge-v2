@@ -1,6 +1,6 @@
 import { Resend } from 'resend';
 import type { FailoverAlertReport } from '@/lib/observability/failover-alert';
-import { renderFailoverAlertHtml } from '@/lib/observability/failover-email';
+import { formatPercentage, renderFailoverAlertHtml } from '@/lib/observability/failover-email';
 import type { ToolFailureReport } from '@/lib/observability/tool-failure-alert';
 import { renderToolFailureAlertHtml } from '@/lib/observability/tool-failure-email';
 
@@ -542,17 +542,16 @@ export async function sendToolFailureAdminAlert(report: ToolFailureReport): Prom
 }
 
 /**
- * Sends the hourly AI Gateway failover report to the MYLO admin inbox.
+ * Sends the AI Gateway failover report to the MYLO admin inbox.
  *
- * @param report - Failover report for the preceding hour.
+ * @param report - Failover report for the checked period.
  * @returns Promise that resolves after Resend accepts the email.
  */
 export async function sendFailoverAdminAlert(report: FailoverAlertReport): Promise<void> {
-  const failoverPercent = (report.failoverRate * 100).toFixed(1).replace('.', ',');
   const result = await resend.emails.send({
     from: FROM_EMAIL,
     to: ADMIN_ALERT_EMAIL,
-    subject: `⚠️ AI-Gateway-Failover: ${failoverPercent} % in der letzten Stunde - MYLO`,
+    subject: `⚠️ AI-Gateway-Failover: ${formatPercentage(report.failoverRate)} von ${report.totalRequests} Anfragen - MYLO`,
     html: renderFailoverAlertHtml(report),
   });
 

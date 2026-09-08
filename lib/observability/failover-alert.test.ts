@@ -103,27 +103,75 @@ describe('runFailoverAlertCheck', () => {
   });
 
   it('falls back to the default threshold for an invalid override', async () => {
+    for (const threshold of ['abc', '-0.1', '5', '0invalid', '']) {
+      const result = await runFailoverAlertCheck(
+        deps({
+          threshold,
+          events: makeEvents([false, ...Array<boolean>(19).fill(true)]),
+        }),
+      );
+
+      assert.equal(result.body.skipped, true, `threshold ${threshold}`);
+      assert.equal(result.body.reason, 'below_threshold', `threshold ${threshold}`);
+    }
+  });
+
+  it('widens the lookback window when windowHours is overridden', async () => {
+    const reports: FailoverAlertReport[] = [];
+    const loaded: Array<{ start: Date; end: Date }> = [];
+    const staleEvents = [event({ primarySucceeded: false, createdAt: new Date('2026-05-07T20:00:00.000Z') })];
     const result = await runFailoverAlertCheck(
       deps({
-        threshold: 'abc',
-        events: makeEvents([false, ...Array<boolean>(19).fill(true)]),
+        windowHours: '24',
+        minimumRequests: '1',
+        loadEvents: async (start, end) => {
+          loaded.push({ start, end });
+          return staleEvents.filter((item) => item.createdAt >= start && item.createdAt < end);
+        },
+        sendAlert: async (report) => {
+          reports.push(report);
+        },
       }),
     );
 
-    assert.equal(result.body.skipped, true);
-    assert.equal(result.body.reason, 'below_threshold');
+    assert.equal(result.body.alerted, true);
+    assert.equal(loaded[0].start.toISOString(), '2026-05-07T12:00:00.000Z');
+    assert.equal(reports[0].periodStart, '2026-05-07T12:00:00.000Z');
+    assert.equal(reports[0].totalRequests, 1);
+  });
+
+  it('falls back to a one-hour window for an invalid windowHours override', async () => {
+    const loaded: Array<{ start: Date; end: Date }> = [];
+    for (const windowHours of ['0', '169', 'abc', '1.5', '24invalid']) {
+      await runFailoverAlertCheck(
+        deps({
+          windowHours,
+          loadEvents: async (start, end) => {
+            loaded.push({ start, end });
+            return [];
+          },
+        }),
+      );
+    }
+
+    assert.deepEqual(
+      loaded.map((item) => item.start.toISOString()),
+      Array<string>(5).fill('2026-05-08T11:00:00.000Z'),
+    );
   });
 
   it('falls back to the default minimum request count for an invalid override', async () => {
-    const result = await runFailoverAlertCheck(
-      deps({
-        minimumRequests: '0',
-        events: makeEvents([false]),
-      }),
-    );
+    for (const minimumRequests of ['0', '1invalid', '2.5']) {
+      const result = await runFailoverAlertCheck(
+        deps({
+          minimumRequests,
+          events: makeEvents([false]),
+        }),
+      );
 
-    assert.equal(result.body.skipped, true);
-    assert.equal(result.body.reason, 'below_minimum_requests');
+      assert.equal(result.body.skipped, true, `minimumRequests ${minimumRequests}`);
+      assert.equal(result.body.reason, 'below_minimum_requests', `minimumRequests ${minimumRequests}`);
+    }
   });
 });
 
@@ -142,6 +190,7 @@ function deps(
     now: overrides.now ?? (() => new Date('2026-05-08T12:00:00.000Z')),
     threshold: overrides.threshold,
     minimumRequests: overrides.minimumRequests,
+    windowHours: overrides.windowHours,
   };
 }
 

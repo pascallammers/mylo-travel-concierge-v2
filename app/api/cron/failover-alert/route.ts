@@ -4,11 +4,7 @@ import { serverEnv } from '@/env/server';
 import { dbUncached } from '@/lib/db';
 import { failoverEvents } from '@/lib/db/schema';
 import { sendFailoverAdminAlert } from '@/lib/email';
-import {
-  DEFAULT_FAILOVER_MIN_REQUESTS,
-  DEFAULT_FAILOVER_THRESHOLD,
-  runFailoverAlertCheck,
-} from '@/lib/observability/failover-alert';
+import { runFailoverAlertCheck } from '@/lib/observability/failover-alert';
 import type { RecordedFailoverEvent } from '@/lib/observability/failover-aggregator';
 
 /**
@@ -22,9 +18,11 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * Handles manual invocations for local alert testing.
+ * Handles manual probes. The query parameters `threshold`, `minRequests`, and
+ * `hours` override the defaults so a probe can alert on real traffic, e.g.
+ * `?hours=24&threshold=0&minRequests=1`.
  *
- * @param request - Manual request with the CRON_SECRET bearer token and optional threshold/minRequests query overrides.
+ * @param request - Manual request with the CRON_SECRET bearer token.
  * @returns JSON alert result.
  */
 export async function POST(request: NextRequest) {
@@ -37,10 +35,9 @@ async function handleRequest(request: NextRequest) {
     cronSecret: serverEnv.CRON_SECRET,
     loadEvents,
     sendAlert: sendFailoverAdminAlert,
-    threshold:
-      request.nextUrl.searchParams.get('threshold') ?? DEFAULT_FAILOVER_THRESHOLD,
-    minimumRequests:
-      request.nextUrl.searchParams.get('minRequests') ?? DEFAULT_FAILOVER_MIN_REQUESTS,
+    threshold: request.nextUrl.searchParams.get('threshold'),
+    minimumRequests: request.nextUrl.searchParams.get('minRequests'),
+    windowHours: request.nextUrl.searchParams.get('hours'),
   });
 
   return NextResponse.json(result.body, { status: result.status });

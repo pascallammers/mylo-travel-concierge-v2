@@ -24,7 +24,7 @@ describe('renderFailoverAlertHtml', () => {
 
     assert.match(
       html,
-      /In der letzten Stunde gingen 12,5 % von 8 Anfragen in den Failover \(Schwelle 5,0 %\)\./,
+      /Zwischen 2026-09-08T10:00:00\.000Z und 2026-09-08T11:00:00\.000Z gingen 12,5 % von 8 Anfragen in den Failover \(Schwelle 5,0 %\)\./,
     );
     assert.match(html, /Recovery: 2 \(25,0 %\)/);
     assert.match(html, /Endgültiger Provider/);

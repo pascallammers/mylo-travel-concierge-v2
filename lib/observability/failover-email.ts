@@ -11,9 +11,7 @@ const HEADER_STYLE = `${CELL_STYLE}font-size:12px;color:#4b5563;`;
  */
 export function renderFailoverAlertHtml(report: FailoverAlertReport): string {
   const providerRows = Object.entries(report.providerBreakdown)
-    .sort(([providerA, countA], [providerB, countB]) =>
-      countB - countA || providerA.localeCompare(providerB),
-    )
+    .sort(([providerA, countA], [providerB, countB]) => countB - countA || providerA.localeCompare(providerB))
     .map(
       ([provider, count]) => `
         <tr>
@@ -41,10 +39,7 @@ export function renderFailoverAlertHtml(report: FailoverAlertReport): string {
           <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:24px;">
             <h1 style="margin:0 0 8px;font-size:24px;">⚠️ AI-Gateway-Failover</h1>
             <p style="margin:0 0 8px;color:#111827;font-size:14px;">
-              In der letzten Stunde gingen ${formatPercentage(report.failoverRate)} von ${report.totalRequests} Anfragen in den Failover (Schwelle ${formatPercentage(report.threshold)}).
-            </p>
-            <p style="margin:0 0 8px;color:#4b5563;font-size:14px;">
-              Zeitraum: ${escapeHtml(report.periodStart)} bis ${escapeHtml(report.periodEnd)}
+              Zwischen ${escapeHtml(report.periodStart)} und ${escapeHtml(report.periodEnd)} gingen ${formatPercentage(report.failoverRate)} von ${report.totalRequests} Anfragen in den Failover (Schwelle ${formatPercentage(report.threshold)}).
             </p>
             <p style="margin:0 0 20px;color:#4b5563;font-size:14px;">
               Recovery: ${report.recoveryCount} (${formatPercentage(report.recoveryRate)})
@@ -75,7 +70,13 @@ export function renderFailoverAlertHtml(report: FailoverAlertReport): string {
     </html>`;
 }
 
-function formatPercentage(rate: number): string {
+/**
+ * Formats a rate as a German percentage with one decimal, e.g. `12,5 %`.
+ *
+ * @param rate - Ratio between 0 and 1.
+ * @returns Percentage string with a comma decimal separator.
+ */
+export function formatPercentage(rate: number): string {
   return `${(rate * 100).toFixed(1).replace('.', ',')} %`;
 }
 
