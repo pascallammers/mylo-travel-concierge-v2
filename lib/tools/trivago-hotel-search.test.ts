@@ -209,6 +209,11 @@ describe('trivagoHotelSearchTool — internals', () => {
   });
 });
 
+const renderLink = (url: string) =>
+  formatTrivagoResults({
+    structuredContent: { accommodations: [{ accommodation_name: 'Hotel', accommodation_url: url }] },
+  });
+
 describe('trivagoHotelSearchTool', () => {
   afterEach(() => _resetSessionCache());
 
@@ -249,7 +254,6 @@ describe('trivagoHotelSearchTool', () => {
         ...BASE_INPUT,
         latitude: 48.137,
         longitude: 11.575,
-        radiusMeters: 3000,
         arrival: '2026-09-01',
         departure: '2026-09-05',
         adults: 2,
@@ -494,11 +498,6 @@ describe('trivagoHotelSearchTool', () => {
   });
 
   it('accepts only secure Trivago booking links and encodes parentheses', () => {
-    const renderLink = (url: string) =>
-      formatTrivagoResults({
-        structuredContent: { accommodations: [{ accommodation_name: 'Hotel', accommodation_url: url }] },
-      });
-
     assert.match(renderLink('http://www.trivago.de/x'), /Buchungslink: —/);
     assert.match(renderLink('https://evil.example/trivago.de'), /Buchungslink: —/);
     assert.match(renderLink('https://www.trivago.de/a(b)'), /https:\/\/www\.trivago\.de\/a%28b%29/);
@@ -535,5 +534,57 @@ describe('trivagoHotelSearchTool', () => {
     assert.doesNotMatch(markdown, new RegExp('x'.repeat(121)));
     assert.doesNotMatch(markdown, new RegExp('a'.repeat(201)));
     assert.match(markdown, /ohne Sterne/);
+  });
+
+  it('escapes Markdown link syntax in text fields so only the validated trivago link is clickable', () => {
+    const markdown = formatTrivagoResults({
+      structuredContent: {
+        accommodations: [
+          {
+            accommodation_name: '[Jetzt buchen](https://evil.example/phish)',
+            top_amenities: '![img](https://evil.example/pixel.png)',
+            distance: '[x](javascript:alert(1))',
+            accommodation_url: 'https://www.trivago.de/de/lm/hotel-x?dealId=1',
+          },
+        ],
+      },
+    });
+
+    assert.doesNotMatch(markdown, /\]\(https:\/\/evil\.example/);
+    assert.doesNotMatch(markdown, /!\[img\]/);
+    assert.doesNotMatch(markdown, /\]\(javascript:/);
+    assert.match(markdown, /### 1\. \\\[Jetzt buchen\\\]\\\(https:\/\/evil\.example\/phish\\\)/);
+    assert.strictEqual(markdown.match(/\]\(https?:/g)?.length, 1);
+    assert.match(markdown, /\[Bei trivago ansehen\]\(https:\/\/www\.trivago\.de\/de\/lm\/hotel-x\?dealId=1\)/);
+  });
+
+  it('accepts two-level trivago country domains', () => {
+    assert.match(renderLink('https://www.trivago.co.uk/x'), /\[Bei trivago ansehen\]/);
+    assert.match(renderLink('https://trivago.com.au/x'), /\[Bei trivago ansehen\]/);
+    assert.match(renderLink('https://trivago.de.evil.com/x'), /Buchungslink: —/);
+  });
+
+  it('counts only parsed accommodations and explains an empty result', () => {
+    const mixed = formatTrivagoResults({
+      structuredContent: { accommodations: ['junk', null, { accommodation_name: 'A', currency: 'EUR' }] },
+    });
+    assert.match(mixed, /Ergebnisse:\*\* 1 · \*\*Währung:\*\* EUR/);
+
+    const empty = formatTrivagoResults({ structuredContent: { accommodations: [] } });
+    assert.match(empty, /Ergebnisse:\*\* 0/);
+    assert.match(empty, /Keine Hotels für diese Suche gefunden/);
+  });
+
+  it('writes grouped review counts with German thousands separators', () => {
+    const markdown = formatTrivagoResults({
+      structuredContent: {
+        accommodations: [
+          { accommodation_name: 'A', hotel_rating: 4, review_rating: '9.0', review_count: '9,911' },
+          { accommodation_name: 'B', hotel_rating: 3, review_rating: '8.1', review_count: '812' },
+        ],
+      },
+    });
+    assert.match(markdown, /9\.0\/10 \(9\.911 Bewertungen\)/);
+    assert.match(markdown, /8\.1\/10 \(812 Bewertungen\)/);
   });
 });

@@ -26,7 +26,9 @@ import { sanitizeForCodeblock } from './mcp-output-sanitizer';
 const TRIVAGO_URL = 'https://mcp.trivago.com/mcp';
 const TRIVAGO_MARKET = { country: 'DE', currency: 'EUR', language: 'DE_DE' } as const;
 const MAX_ACCOMMODATIONS = 10;
-const TRIVAGO_HOSTNAME = /^([a-z0-9-]+\.)*trivago\.[a-z]{2,}$/;
+const TRIVAGO_HOSTNAME = /^([a-z0-9-]+\.)*trivago\.[a-z]{2,}(\.[a-z]{2})?$/;
+const MARKDOWN_SYNTAX = /[\\[\]()<>*_!#`]/g;
+const GROUPED_COUNT = /^\d{1,3}(,\d{3})+$/;
 
 const REVIEW_TIERS = ['7.0', '7.5', '8.0', '8.5'] as const;
 
@@ -208,6 +210,15 @@ function readText(record: UnknownRecord | undefined, key: string, maxLength = 80
   return text || undefined;
 }
 
+function readMarkdownText(record: UnknownRecord | undefined, key: string, maxLength = 80): string | undefined {
+  return readText(record, key, maxLength)?.replace(MARKDOWN_SYNTAX, (character) => `\\${character}`);
+}
+
+function readReviewCount(record: UnknownRecord): string | undefined {
+  const count = readMarkdownText(record, 'review_count');
+  return count && GROUPED_COUNT.test(count) ? count.replace(/,/g, '.') : count;
+}
+
 function readNumber(record: UnknownRecord | undefined, key: string): number | undefined {
   const value = record?.[key];
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
@@ -229,16 +240,16 @@ function parseAccommodation(value: unknown): TrivagoAccommodation | undefined {
   const record = asRecord(value);
   if (!record) return undefined;
   return {
-    name: readText(record, 'accommodation_name', 120),
+    name: readMarkdownText(record, 'accommodation_name', 120),
     stars: readNumber(record, 'hotel_rating'),
-    reviewRating: readText(record, 'review_rating'),
-    reviewCount: readText(record, 'review_count'),
-    pricePerNight: readText(record, 'price_per_night'),
-    pricePerStay: readText(record, 'price_per_stay'),
-    currency: readText(record, 'currency'),
-    advertiser: readText(record, 'advertisers'),
-    distance: readText(record, 'distance'),
-    amenities: readText(record, 'top_amenities', 200),
+    reviewRating: readMarkdownText(record, 'review_rating'),
+    reviewCount: readReviewCount(record),
+    pricePerNight: readMarkdownText(record, 'price_per_night'),
+    pricePerStay: readMarkdownText(record, 'price_per_stay'),
+    currency: readMarkdownText(record, 'currency'),
+    advertiser: readMarkdownText(record, 'advertisers'),
+    distance: readMarkdownText(record, 'distance'),
+    amenities: readMarkdownText(record, 'top_amenities', 200),
     url: readTrivagoUrl(record),
   };
 }
@@ -296,12 +307,6 @@ function formatJsonFallback(raw: unknown): string {
   return ['## Trivago Hotels', '', '```json', body, '```'].join('\n');
 }
 
-/**
- * Renders a Trivago MCP response as compact, sanitized hotel cards.
- *
- * @param raw - Unknown JSON-RPC result returned by Trivago.
- * @returns Markdown containing at most ten ranked accommodations.
- */
 export function formatTrivagoResults(raw: unknown): string {
   const root = asRecord(raw);
   const structuredContent = asRecord(root?.structuredContent);
@@ -313,9 +318,9 @@ export function formatTrivagoResults(raw: unknown): string {
     .filter((value): value is TrivagoAccommodation => value !== undefined);
   const shown = accommodations.slice(0, MAX_ACCOMMODATIONS);
   const countLabel =
-    rawAccommodations.length > shown.length
-      ? `${rawAccommodations.length} (${shown.length} gezeigt)`
-      : `${rawAccommodations.length}`;
+    accommodations.length > shown.length
+      ? `${accommodations.length} (${shown.length} gezeigt)`
+      : `${accommodations.length}`;
   const currency = accommodations[0]?.currency ?? '—';
   const blocks = shown.map(formatAccommodation);
 
@@ -323,6 +328,7 @@ export function formatTrivagoResults(raw: unknown): string {
     '## Trivago Hotels',
     '',
     `**Ergebnisse:** ${countLabel} · **Währung:** ${currency}`,
+    ...(shown.length === 0 ? ['', 'Keine Hotels für diese Suche gefunden. Andere Daten, ein größerer Umkreis oder weniger Filter können helfen.'] : []),
     ...blocks.flatMap((block) => ['', block]),
   ].join('\n');
 }
@@ -341,12 +347,6 @@ interface ToolDeps {
   fetchImpl?: typeof fetch;
 }
 
-/**
- * Creates the Trivago hotel-search tool with optional request dependencies.
- *
- * @param deps - Injectable dependencies used by the MCP request.
- * @returns An AI SDK tool that returns sanitized hotel cards.
- */
 export function createTrivagoHotelSearchTool(deps: ToolDeps = {}) {
   return tool({
     description:
