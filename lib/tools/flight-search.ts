@@ -22,6 +22,8 @@ import {
   resolveIATACode,
 } from '@/lib/utils/airport-codes';
 import { createDuffelBookingSession } from '@/lib/utils/duffel-links';
+import { loadAwardProgramSourceResolver } from '@/lib/transfer-table/award-sources';
+import { readDachPartnerMaps } from '@/lib/transfer-table/runtime';
 import {
   createFlightSearchTool,
   flightI18n,
@@ -51,4 +53,5 @@ export const flightSearchTool = createFlightSearchTool({
   getProgramCaveat,
   formatTransferRatio,
   getTransferSourcesForAwardProgram,
+  loadTransferSourceResolver: () => loadAwardProgramSourceResolver(readDachPartnerMaps),
 });

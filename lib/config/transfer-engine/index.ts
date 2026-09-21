@@ -61,7 +61,7 @@ export {
   type SourceProgramId,
 } from './award-program-sources';
 
-const SOURCE_PROGRAMS = [
+export const SOURCE_PROGRAMS = [
   {
     id: 'amex_dach',
     label: { de: 'Amex Membership Rewards (DACH)', en: 'Amex Membership Rewards (DACH)' },

@@ -40,4 +40,5 @@ export interface FlightSearchToolDependencies {
   getProgramCaveat: typeof getProgramCaveat;
   formatTransferRatio: typeof formatTransferRatio;
   getTransferSourcesForAwardProgram: typeof getTransferSourcesForAwardProgram;
+  loadTransferSourceResolver?: () => Promise<typeof getTransferSourcesForAwardProgram>;
 }
