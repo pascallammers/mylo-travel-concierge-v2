@@ -47,6 +47,8 @@ export interface DealsPageModel {
   staleHours: number | null;
 }
 
+export const MAX_ORIGIN_FILTERS = 10;
+
 export interface BuildDealsPageModelInput {
   deals: DealsPageModelDeal[];
   filters: DealsPageFilters;
@@ -72,9 +74,9 @@ export function parseDealsFilters(
     kind: first(searchParams.kind) === 'cash' ? 'cash' : 'award',
     origins: origin === undefined
       ? [...preferredOrigins]
-      : origin === 'all'
+      : origin.trim().toLowerCase() === 'all'
         ? []
-        : [...new Set(origin.split(',').map((code) => code.trim().toUpperCase()).filter((code) => /^[A-Z]{3}$/.test(code)))],
+        : [...new Set(origin.split(',').map((code) => code.trim().toUpperCase()).filter((code) => /^[A-Z]{3}$/.test(code)))].slice(0, MAX_ORIGIN_FILTERS),
     range: range === 'europe' || range === 'long_haul' ? range : undefined,
     sort: sort === 'price' || sort === 'date' ? sort : 'score',
   };

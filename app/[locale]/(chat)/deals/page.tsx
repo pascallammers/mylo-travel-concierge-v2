@@ -77,11 +77,18 @@ export default async function DealsPage({
       hydrateSelectedAirports(preferenceSnapshot.originAirports),
       hydrateSelectedAirports(preferenceSnapshot.preferredDestinations),
     ]);
+    // Origins and kind are filtered in memory so the tab counts stay exact; above 300 active deals this needs its own query.
     const deals = await getActiveDeals({
       minScore: 60,
       limit: 300,
     });
     const model = await buildDealsPageData(deals, filters, new Date(), preferenceSnapshot, locale);
+    const allOriginsQuery = new URLSearchParams({
+      origin: 'all',
+      kind: filters.kind,
+      sort: filters.sort,
+      ...(filters.range ? { range: filters.range } : {}),
+    }).toString();
 
     return (
       <div className="mx-auto max-w-5xl px-4 py-8">
@@ -117,11 +124,13 @@ export default async function DealsPage({
           />
         </div>
 
-        <DealDigestLine
-          locale={locale}
-          originAirports={filters.origins}
-          emailDigest={preferenceSnapshot.emailDigest}
-        />
+        {filters.origins.length > 0 || preferenceSnapshot.originAirports.length > 0 ? (
+          <DealDigestLine
+            locale={locale}
+            originAirports={filters.origins}
+            emailDigest={preferenceSnapshot.emailDigest}
+          />
+        ) : null}
 
         {model.deals.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-16 text-center">
@@ -130,6 +139,11 @@ export default async function DealsPage({
             <p className="mt-1 max-w-sm text-sm text-muted-foreground">
               {t('empty.description')}
             </p>
+            {filters.origins.length > 0 && model.kindCounts.award + model.kindCounts.cash === 0 ? (
+              <Button asChild variant="outline" className="mt-6 min-h-11">
+                <a href={`/${locale}/deals?${allOriginsQuery}`}>{t('empty.showAllOrigins')}</a>
+              </Button>
+            ) : null}
           </div>
         ) : (
           <div className="space-y-4">

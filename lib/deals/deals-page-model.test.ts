@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  MAX_ORIGIN_FILTERS,
   buildDealsPageModel,
   parseDealsFilters,
   type DealsPageFilters,
@@ -52,9 +53,14 @@ describe('parseDealsFilters', () => {
 
   it('unterscheidet fehlendes origin von all, leerem Wert und ungültiger Liste', () => {
     assert.deepEqual(parseDealsFilters({}, ['FRA']).origins, ['FRA']);
-    for (const origin of ['all', '', '12,AB,ABCD,!!,MÜC']) {
+    for (const origin of ['all', 'ALL', ' All ', '', '12,AB,ABCD,!!,MÜC']) {
       assert.deepEqual(parseDealsFilters({ origin }, ['FRA']).origins, []);
     }
+  });
+
+  it('begrenzt die Liste auf die Menge, die das Wochenabo speichern darf', () => {
+    const origin = 'FRA,MUC,BER,DUS,HAM,VIE,ZRH,CGN,STR,NUE,LEJ,HAJ';
+    assert.equal(parseDealsFilters({ origin }, []).origins.length, MAX_ORIGIN_FILTERS);
   });
 
   it('normalisiert, validiert und dedupliziert kommagetrennte IATA-Codes', () => {

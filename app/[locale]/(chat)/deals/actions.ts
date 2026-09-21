@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { getUser } from '@/lib/auth-utils';
 import { upsertUserDealPreferences } from '@/lib/db/deal-queries';
-import { resolveAirportCodeList } from '@/lib/deals';
+import { MAX_ORIGIN_FILTERS, resolveAirportCodeList } from '@/lib/deals';
 import { hasFlightDealsAccess } from '@/lib/deals/flight-deals-access';
 
 const saveDealPreferencesSchema = z.object({
@@ -18,7 +18,7 @@ const saveDealPreferencesSchema = z.object({
 
 const subscribeWeeklyDigestSchema = z.object({
   locale: z.string().min(2).max(8),
-  originAirports: z.array(z.string().regex(/^[A-Z]{3}$/)).max(10),
+  originAirports: z.array(z.string().regex(/^[A-Z]{3}$/)).max(MAX_ORIGIN_FILTERS),
 });
 
 export interface SaveDealPreferencesInput {

@@ -122,6 +122,13 @@ describe('sortPresentedDeals', () => {
     assert.deepEqual(sortPresentedDeals([fresh, old], 'date').map((deal) => deal.destination), ['JFK', 'ATH']);
   });
 
+  it('unterscheidet Preis- und Datumssortierung, wenn der günstigere Deal später fliegt', () => {
+    const cheapLate = createDeal({ destination: 'LIS', price: 100, departureDate: new Date('2026-08-01T10:00:00.000Z') });
+    const pricyEarly = createDeal({ destination: 'BCN', price: 300, departureDate: new Date('2026-02-01T10:00:00.000Z') });
+    assert.deepEqual(sortPresentedDeals([pricyEarly, cheapLate], 'price').map((deal) => deal.destination), ['LIS', 'BCN']);
+    assert.deepEqual(sortPresentedDeals([cheapLate, pricyEarly], 'date').map((deal) => deal.destination), ['BCN', 'LIS']);
+  });
+
   it('lässt bevorzugte Abflughäfen weder Preis- noch Datumssortierung überschreiben', () => {
     const preferred = { ...fresh, preferredOriginMatch: true };
     const cheaper = { ...old, preferredOriginMatch: false };

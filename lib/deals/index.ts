@@ -14,6 +14,7 @@ export {
   type PriceHistoryStats,
 } from './deal-presenter';
 export {
+  MAX_ORIGIN_FILTERS,
   buildDealsPageModel,
   parseDealsFilters,
   type BuildDealsPageModelInput,

@@ -352,6 +352,7 @@
     },
     "empty": {
       "title": "Keine Deals gefunden",
+      "showAllOrigins": "Alle Flughäfen anzeigen",
       "description": "Aktuell keine Deals für deine Filter. Probiere andere Filter oder schau später nochmal vorbei."
     },
     "restricted": {

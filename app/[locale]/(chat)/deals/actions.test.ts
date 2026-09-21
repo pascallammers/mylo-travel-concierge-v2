@@ -14,6 +14,7 @@ mock.module('@/lib/db/deal-queries', { namedExports: { upsertUserDealPreferences
 mock.module('@/lib/deals/flight-deals-access', { namedExports: { hasFlightDealsAccess: checkAccess } });
 mock.module('@/lib/deals', {
   namedExports: {
+    MAX_ORIGIN_FILTERS: 10,
     resolveAirportCodeList: async (value: string) => value.split(',').map((code) => code.trim()).filter(Boolean),
   },
 });
