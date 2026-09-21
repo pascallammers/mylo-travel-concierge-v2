@@ -3,10 +3,27 @@ import type { FailoverAlertReport } from '@/lib/observability/failover-alert';
 import { formatPercentage, renderFailoverAlertHtml } from '@/lib/observability/failover-email';
 import type { ToolFailureReport } from '@/lib/observability/tool-failure-alert';
 import { renderToolFailureAlertHtml } from '@/lib/observability/tool-failure-email';
+import { renderTransferTableEmail } from '@/lib/transfer-table/email';
+import type { TransferCheck } from '@/lib/transfer-table/types';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = 'MYLO <support@never-economy-again.com>'; // TODO: Update domain after deployment
 const ADMIN_ALERT_EMAIL = 'pascal.lammers@stay-digital.de';
+
+/**
+ * Send transfer-table changes or source failures to the administrator.
+ * @param check - Persisted source check.
+ * @returns Completion after the mail provider accepts the message.
+ */
+export async function sendTransferTableAdminAlert(check: TransferCheck): Promise<void> {
+  const result = await resend.emails.send({
+    from: FROM_EMAIL,
+    to: ADMIN_ALERT_EMAIL,
+    subject: 'Transfertabelle: Quellenprüfung – MYLO',
+    html: renderTransferTableEmail(check),
+  });
+  if (result.error) throw new Error(result.error.message);
+}
 
 export type EmailLocale = 'de' | 'en';
 
