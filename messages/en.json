@@ -302,6 +302,14 @@
       "veryGood": "Very good",
       "good": "Good"
     },
+    "digest": {
+      "withOrigins": "Weekly deals from {airports} by email",
+      "generic": "Weekly deals by email",
+      "subscribe": "Get weekly deals",
+      "subscribing": "Subscribing…",
+      "subscribed": "You will now receive your deals by email each week.",
+      "error": "Could not subscribe to weekly deals. Please try again."
+    },
     "preferences": {
       "eyebrow": "Phase 2 active",
       "title": "Your deal preferences",

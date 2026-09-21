@@ -12,6 +12,7 @@ import {
 } from '@/lib/deals';
 import { getAirportDetails } from '@/lib/utils/airport-database';
 import { DealCard } from './components/deal-card';
+import { DealDigestLine } from './components/deal-digest-line';
 import { DealFilters } from './components/deal-filters';
 import { DealPreferencesPanel } from './components/deal-preferences-panel';
 
@@ -98,6 +99,7 @@ export default async function DealsPage({
 
         <div className="mb-8">
           <DealPreferencesPanel
+            key={`${preferenceSnapshot.emailDigest}:${preferenceSnapshot.originAirports.join(',')}`}
             locale={locale}
             initialOriginAirports={originAirportOptions}
             initialPreferredDestinations={preferredDestinationOptions}
@@ -114,6 +116,12 @@ export default async function DealsPage({
             preferredOrigins={preferenceSnapshot.originAirports}
           />
         </div>
+
+        <DealDigestLine
+          locale={locale}
+          originAirports={filters.origins}
+          emailDigest={preferenceSnapshot.emailDigest}
+        />
 
         {model.deals.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-16 text-center">

@@ -16,6 +16,11 @@ const saveDealPreferencesSchema = z.object({
   emailDigest: z.enum(['none', 'weekly', 'daily']).default('none'),
 });
 
+const subscribeWeeklyDigestSchema = z.object({
+  locale: z.string().min(2).max(8),
+  originAirports: z.array(z.string().regex(/^[A-Z]{3}$/)).max(10),
+});
+
 export interface SaveDealPreferencesInput {
   locale: string;
   originAirports: string;
@@ -59,6 +64,31 @@ export async function saveDealPreferencesAction(input: SaveDealPreferencesInput)
   revalidatePath(`/${parsed.locale}`);
   revalidatePath(`/${parsed.locale}/deals`);
   revalidatePath(`/${parsed.locale}/new`);
+
+  return { success: true };
+}
+
+/**
+ * Subscribe the authenticated member to weekly deals from the active airports.
+ * @param input - Locale and selected IATA codes; an empty list preserves saved origins.
+ * @returns Success result after saving the digest and refreshing the deals page.
+ */
+export async function subscribeWeeklyDigestAction(input: { locale: string; originAirports: string[] }) {
+  const user = await getUser();
+
+  if (!user) {
+    throw new Error('Unauthorized');
+  }
+  if (!(await hasFlightDealsAccess(user.id))) {
+    throw new Error('Forbidden');
+  }
+
+  const parsed = subscribeWeeklyDigestSchema.parse(input);
+  await upsertUserDealPreferences(user.id, {
+    emailDigest: 'weekly',
+    ...(parsed.originAirports.length > 0 ? { originAirports: parsed.originAirports } : {}),
+  });
+  revalidatePath(`/${parsed.locale}/deals`);
 
   return { success: true };
 }
