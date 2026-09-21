@@ -252,9 +252,23 @@
     "staleNotice": "Last updated {hours}h ago",
     "filters": {
       "origin": "Departure airport",
-      "allDeals": "All deals",
+      "anywhere": "All airports",
+      "kinds": {
+        "award": "Award deals",
+        "cash": "Cash deals"
+      },
+      "range": "Range",
+      "allRanges": "All routes",
+      "ranges": {
+        "europe": "Europe",
+        "long_haul": "Long haul"
+      },
+      "sort": "Sort",
+      "sortScore": "Quality",
+      "sortPrice": "Price",
+      "sortDate": "Departure date",
+      "reset": "Reset",
       "destination": "Destination",
-      "anywhere": "Anywhere",
       "anytime": "Anytime",
       "month": "Month",
       "cabinClass": "Class",
@@ -262,44 +276,12 @@
       "premiumEconomy": "Premium Economy",
       "business": "Business",
       "first": "First",
-      "stops": "Stops",
-      "anyStops": "Any",
-      "nonstop": "Nonstop",
-      "maxOne": "Max 1 stop",
-      "tripType": "Trip type",
-      "allTripTypes": "All trip types",
-      "roundtrip": "Round trip",
-      "oneway": "One way",
-      "sort": "Sort",
-      "sortScore": "By score",
-      "sortPrice": "By price",
-      "sortSavings": "By savings",
-      "buckets": {
-        "weekend_escape": "Weekend",
-        "long_haul": "Long-haul",
-        "points": "Points"
-      },
-      "apply": "Apply",
-      "reset": "Reset"
-    },
-    "bucketsMeta": {
-      "weekend_escape": {
-        "title": "Weekend Escape",
-        "description": "Short trips with standout value for quick getaways.",
-        "empty": "No weekend deals right now. Check back later."
-      },
-      "long_haul": {
-        "title": "Long-Haul Deal",
-        "description": "Longer routes with standout cash pricing for bigger trips.",
-        "empty": "No long-haul deals right now. Check back later."
-      },
-      "points": {
-        "title": "Points Sweet Spot",
-        "description": "Award options that stand out for miles and points collectors.",
-        "empty": "No points deals right now. Check back later."
-      }
+      "apply": "Apply"
     },
     "card": {
+      "fresh": "New · members only",
+      "lastSeenNow": "Last seen: just now",
+      "lastSeenHours": "Last seen: {hours} h ago",
       "from": "from",
       "savings": "Savings",
       "avgPrice": "Average price",
@@ -310,26 +292,15 @@
       "oneway": "One way",
       "book": "Book",
       "checkWithMylo": "Check with MYLO",
-      "why": "Why it stands out",
-      "forWhom": "Best for",
       "pointsUnit": "points",
       "priceHistory": "Price history",
       "personalized": "Matches you:",
       "moreDetails": "More details",
       "lessDetails": "Less details",
-      "recommendationBook": "Book recommended ({percent}%)",
-      "recommendationWatch": "Keep watching ({percent}%)",
       "dealScore": "AI Deal Score",
       "exceptional": "Exceptional",
       "veryGood": "Very good",
       "good": "Good"
-    },
-    "featured": {
-      "eyebrow": "Personalized pick",
-      "title": "{destination} stands out for you right now",
-      "description": "MYLO ranked this deal to the top based on your saved preferences.",
-      "cta": "Discuss with MYLO",
-      "points": "points"
     },
     "preferences": {
       "eyebrow": "Phase 2 active",

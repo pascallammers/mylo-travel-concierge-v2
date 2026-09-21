@@ -1,5 +1,10 @@
-export type DealBucket = 'weekend_escape' | 'long_haul' | 'points';
-export type DealSortOption = 'score' | 'price' | 'savings';
+export type DealKind = 'award' | 'cash';
+export type DealRange = 'europe' | 'long_haul';
+export type DealSortOption = 'score' | 'price' | 'date';
+
+export const EUROPE_MAX_DISTANCE_KM = 4000;
+const EUROPE_MAX_DURATION_MINUTES = 300;
+const HOUR_MS = 1000 * 60 * 60;
 
 export interface PresentableDeal {
   origin: string;
@@ -22,19 +27,6 @@ export interface PresentableDeal {
   preferredOriginMatch?: boolean;
 }
 
-export interface DealBucketOptions {
-  routeDistanceKm?: number | null;
-}
-
-export interface DealInsight {
-  why: string;
-  forWhom: string;
-  recommendation: {
-    kind: 'book' | 'watch';
-    confidence: number;
-  };
-}
-
 export interface PriceHistoryStats {
   min: number;
   max: number;
@@ -48,80 +40,71 @@ export interface PriceHistoryBar {
 }
 
 /**
- * Classify a deal into one of the three product buckets.
- *
- * @param deal - Minimal deal data required for bucket assignment.
- * @param options - Optional route metadata like computed distance.
- * @returns Bucket identifier used for UI grouping and filtering.
+ * Identify the deal kind from its source.
+ * @param source - Scanner source identifier.
+ * @returns Award for seats.aero, otherwise cash.
  */
-export function classifyDealBucket(
-  deal: PresentableDeal,
-  options: DealBucketOptions = {},
-): DealBucket {
-  if (isPointsDealSource(deal.source)) {
-    return 'points';
-  }
-
-  const routeDistanceKm = options.routeDistanceKm ?? null;
-  const tripDurationDays = getTripDurationDays(deal.departureDate, deal.returnDate);
-  const isShortDistance =
-    (routeDistanceKm !== null && routeDistanceKm <= 2500) ||
-    (deal.flightDurationMinutes !== null && deal.flightDurationMinutes <= 240);
-
-  if (isShortDistance && (tripDurationDays === null || tripDurationDays <= 5)) {
-    return 'weekend_escape';
-  }
-
-  return 'long_haul';
+export function getDealKind(source: string): DealKind {
+  return source === 'seats_aero' ? 'award' : 'cash';
 }
 
 /**
- * Build the explanatory copy used on deal cards.
- *
- * @param deal - Minimal deal data required for the copy.
- * @param bucket - Resolved bucket for this deal.
- * @returns Why-text, audience-text, and booking recommendation.
+ * Classify route range, falling back to duration only when distance is unknown.
+ * @param input - Route distance and flight duration, if available.
+ * @returns Europe, long haul, or null when neither measurement is known.
  */
-export function buildDealInsight(
-  deal: PresentableDeal,
-  bucket: DealBucket,
-): DealInsight {
-  const why = isPointsDealSource(deal.source)
-    ? `Sweet Spot bei ${deal.airline ?? 'Miles & More'}.`
-    : buildCashDealWhy(deal);
-  const recommendation =
-    deal.dealScore >= 85
-      ? { kind: 'book' as const, confidence: clampPercentage(deal.dealScore) }
-      : { kind: 'watch' as const, confidence: clampPercentage(100 - deal.dealScore) };
-
-  return {
-    why,
-    forWhom: buildAudienceText(bucket),
-    recommendation,
-  };
+export function classifyDealRange(input: {
+  routeDistanceKm: number | null;
+  flightDurationMinutes: number | null;
+}): DealRange | null {
+  if (input.routeDistanceKm !== null) {
+    return input.routeDistanceKm <= EUROPE_MAX_DISTANCE_KM ? 'europe' : 'long_haul';
+  }
+  if (input.flightDurationMinutes !== null) {
+    return input.flightDurationMinutes <= EUROPE_MAX_DURATION_MINUTES ? 'europe' : 'long_haul';
+  }
+  return null;
 }
 
 /**
- * Build the compact price-history bar state for the UI.
- *
+ * Identify deals in their first 24 hours after discovery.
+ * @param createdAt - First discovery timestamp.
+ * @param now - Current timestamp supplied by the caller.
+ * @returns Whether the deal is less than 24 hours old.
+ */
+export function isFreshDeal(createdAt: Date, now: Date): boolean {
+  const ageMs = now.getTime() - createdAt.getTime();
+  return ageMs >= 0 && ageMs < 24 * HOUR_MS;
+}
+
+/**
+ * Compute whole hours since a scanner last saw a deal.
+ * @param updatedAt - Last discovery timestamp.
+ * @param now - Current timestamp supplied by the caller.
+ * @returns Floored elapsed hours, never negative.
+ */
+export function getLastSeenHours(updatedAt: Date, now: Date): number {
+  return Math.max(0, Math.floor((now.getTime() - updatedAt.getTime()) / HOUR_MS));
+}
+
+/**
+ * Build the compact price-history bar state for cash deals.
+ * @param kind - Deal kind whose prices were measured.
  * @param price - Current displayed price.
  * @param stats - Historical min/max/count data for the route.
  * @returns Normalized bar visibility, position, and color tone.
  */
 export function buildPriceHistoryBar(
+  kind: DealKind,
   price: number,
   stats: PriceHistoryStats,
 ): PriceHistoryBar {
-  if (stats.count < 5 || stats.max <= stats.min) {
-    return {
-      visible: false,
-      percent: 0,
-      tone: 'neutral',
-    };
+  if (kind !== 'cash' || stats.count < 3 || stats.max <= stats.min) {
+    return { visible: false, percent: 0, tone: 'neutral' };
   }
 
   const rawPercent = ((price - stats.min) / (stats.max - stats.min)) * 100;
-  const percent = clampPercentage(Math.round(rawPercent));
+  const percent = Math.max(0, Math.min(100, Math.round(rawPercent)));
 
   return {
     visible: true,
@@ -131,29 +114,31 @@ export function buildPriceHistoryBar(
 }
 
 /**
- * Sort deal arrays for the page-level filters.
- *
- * @param deals - Presentable deals to sort.
- * @param sort - Sort option selected in the UI.
- * @returns A new, sorted array without mutating the input.
+ * Sort deals, prioritizing fresh discoveries only when sorting by score.
+ * @param deals - Presented deals with their computed freshness.
+ * @param sort - Selected sort option.
+ * @returns A new sorted array preserving the input's deal type and contents.
  */
-export function sortPresentedDeals(
-  deals: PresentableDeal[],
+export function sortPresentedDeals<T extends PresentableDeal & { isFresh: boolean }>(
+  deals: T[],
   sort: DealSortOption,
-): PresentableDeal[] {
+): T[] {
   return [...deals].sort((left, right) => {
+    if (sort === 'price') {
+      return left.price - right.price;
+    }
+    if (sort === 'date') {
+      return left.departureDate.getTime() - right.departureDate.getTime();
+    }
+
+    const freshDelta = Number(right.isFresh) - Number(left.isFresh);
+    if (freshDelta !== 0) {
+      return freshDelta;
+    }
     const preferredOriginDelta =
       Number(right.preferredOriginMatch === true) - Number(left.preferredOriginMatch === true);
     if (preferredOriginDelta !== 0) {
       return preferredOriginDelta;
-    }
-
-    if (sort === 'price') {
-      return left.price - right.price;
-    }
-
-    if (sort === 'savings') {
-      return (right.priceDifference ?? 0) - (left.priceDifference ?? 0);
     }
 
     const scoreDelta =
@@ -164,56 +149,6 @@ export function sortPresentedDeals(
 
     const personalizationDelta =
       right.personalizationReasons.length - left.personalizationReasons.length;
-    if (personalizationDelta !== 0) {
-      return personalizationDelta;
-    }
-
-    return right.dealScore - left.dealScore;
+    return personalizationDelta || right.dealScore - left.dealScore;
   });
-}
-
-function buildCashDealWhy(deal: PresentableDeal): string {
-  if (deal.priceChangePercent !== null && deal.priceChangePercent > 0) {
-    return `${Math.round(deal.priceChangePercent)}% günstiger als üblich.`;
-  }
-
-  if (deal.averagePrice !== null && deal.averagePrice > deal.price) {
-    return 'Deutlich unter dem Durchschnittspreis dieser Route.';
-  }
-
-  return 'Aktuell ein auffällig starker Preis für diese Route.';
-}
-
-function buildAudienceText(bucket: DealBucket): string {
-  if (bucket === 'weekend_escape') {
-    return 'Ideal für ein langes Wochenende.';
-  }
-
-  if (bucket === 'points') {
-    return 'Für Meilensammler mit flexiblem Reisedatum.';
-  }
-
-  return 'Perfekt für Fernreise-Entdecker.';
-}
-
-function getTripDurationDays(
-  departureDate: Date,
-  returnDate: Date | null,
-): number | null {
-  if (!returnDate) {
-    return null;
-  }
-
-  const diffMs = returnDate.getTime() - departureDate.getTime();
-  const diffDays = diffMs / (1000 * 60 * 60 * 24);
-
-  return diffDays > 0 ? diffDays : null;
-}
-
-function isPointsDealSource(source: string): boolean {
-  return source.toLowerCase().includes('seats');
-}
-
-function clampPercentage(value: number): number {
-  return Math.max(0, Math.min(100, Math.round(value)));
 }

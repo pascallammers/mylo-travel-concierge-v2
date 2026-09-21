@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { track } from '@vercel/analytics';
-import { ChevronDown, ChevronUp, ExternalLink, Search, Plane, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink, Search, Plane } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
@@ -14,17 +14,23 @@ import type { PresentedDeal } from '@/lib/deals';
 interface DealCardProps {
   deal: PresentedDeal;
   showScore?: boolean;
+  showFreshLabel?: boolean;
   locale: string;
 }
 
-export function DealCard({ deal, showScore = false, locale }: DealCardProps) {
+/**
+ * Render a deal with its last sighting, available history, and existing actions.
+ * @param props - Presented deal, badge visibility, and active locale.
+ * @returns A responsive member deal card.
+ */
+export function DealCard({ deal, showScore = false, showFreshLabel = false, locale }: DealCardProps) {
   const t = useTranslations('deals');
   const [isExpanded, setIsExpanded] = useState(false);
   const hasTrackedViewRef = useRef(false);
   const departureDate = new Date(deal.departureDate);
   const monthFormatter = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' });
   const travelMonth = monthFormatter.format(departureDate);
-  const isPointsDeal = deal.source.toLowerCase().includes('seats');
+  const isPointsDeal = deal.kind === 'award';
   const priceFormatter =
     !isPointsDeal && deal.currency === 'EUR'
       ? new Intl.NumberFormat(locale, {
@@ -54,13 +60,13 @@ export function DealCard({ deal, showScore = false, locale }: DealCardProps) {
     travelMonthLabel: travelMonth,
   });
   const chatHref = `/${locale}/new?prefill=${encodeURIComponent(prefillMessage)}`;
-  const stops = deal.stops ?? 0;
+  const stops = deal.stops;
   const stopsLabel =
     stops === 0
       ? t('card.stops_zero')
       : stops === 1
         ? t('card.stops_one')
-        : t('card.stops_other', { count: stops });
+        : t('card.stops_other', { count: stops ?? 0 });
   const historyToneClass =
     deal.priceHistoryBar.tone === 'good'
       ? 'bg-emerald-500'
@@ -77,16 +83,23 @@ export function DealCard({ deal, showScore = false, locale }: DealCardProps) {
     track('deal_view', {
       destination: deal.destination,
       source: deal.source,
-      bucket: deal.bucket,
+      kind: deal.kind,
     });
-  }, [deal.bucket, deal.destination, deal.source]);
+  }, [deal.kind, deal.destination, deal.source]);
 
   return (
     <div className="group rounded-2xl border bg-card p-4 shadow-sm transition-shadow hover:shadow-md sm:p-5">
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-2">
-            {showScore && <DealScoreBadge score={deal.dealScore} className="w-fit" />}
+            <div className="flex flex-wrap items-center gap-2">
+              {showScore && <DealScoreBadge score={deal.dealScore} className="w-fit" />}
+              {showFreshLabel && deal.isFresh && (
+                <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                  {t('card.fresh')}
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <span className="font-mono text-sm text-muted-foreground">{deal.origin}</span>
               <Plane className="size-3.5 text-muted-foreground" />
@@ -96,8 +109,12 @@ export function DealCard({ deal, showScore = false, locale }: DealCardProps) {
             </div>
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <span>{travelMonth}</span>
-              <span>·</span>
-              <span>{stopsLabel}</span>
+              {stops !== null && (
+                <>
+                  <span>·</span>
+                  <span>{stopsLabel}</span>
+                </>
+              )}
               {deal.airline && (
                 <>
                   <span>·</span>
@@ -116,7 +133,7 @@ export function DealCard({ deal, showScore = false, locale }: DealCardProps) {
               </div>
             )}
             <div className="text-2xl font-bold">{priceLabel}</div>
-            {deal.priceChangePercent && deal.priceChangePercent > 0 && (
+            {!isPointsDeal && deal.priceChangePercent !== null && deal.priceChangePercent > 0 && (
               <div className="text-sm font-medium text-emerald-600">
                 -{Math.round(deal.priceChangePercent)}% {t('card.savings')}
               </div>
@@ -124,20 +141,11 @@ export function DealCard({ deal, showScore = false, locale }: DealCardProps) {
           </div>
         </div>
 
-        <div className="grid gap-3 rounded-2xl border bg-background/60 p-3 sm:grid-cols-2">
-          <div className="space-y-1">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {t('card.why')}
-            </p>
-            <p className="text-sm font-medium">{deal.insight.why}</p>
-          </div>
-          <div className="space-y-1">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {t('card.forWhom')}
-            </p>
-            <p className="text-sm font-medium">{deal.insight.forWhom}</p>
-          </div>
-        </div>
+        <p className="text-xs text-muted-foreground">
+          {deal.lastSeenHours === 0
+            ? t('card.lastSeenNow')
+            : t('card.lastSeenHours', { hours: deal.lastSeenHours })}
+        </p>
 
         {deal.personalizationReasons.length > 0 ? (
           <div className="rounded-2xl bg-primary/5 px-3 py-2 text-sm text-muted-foreground">
@@ -147,38 +155,38 @@ export function DealCard({ deal, showScore = false, locale }: DealCardProps) {
         ) : null}
 
         <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-          <Collapsible
-            open={isExpanded}
-            onOpenChange={(open) => {
-              setIsExpanded(open);
-              if (open) {
-                track('deal_expand', {
-                  destination: deal.destination,
-                  source: deal.source,
-                  bucket: deal.bucket,
-                });
-              }
-            }}
-            className="space-y-3"
-          >
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm" className="w-fit px-0">
-                {isExpanded ? (
-                  <>
-                    <ChevronUp className="mr-1.5 size-4" />
-                    {t('card.lessDetails')}
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="mr-1.5 size-4" />
-                    {t('card.moreDetails')}
-                  </>
-                )}
-              </Button>
-            </CollapsibleTrigger>
+          {deal.priceHistoryBar.visible ? (
+            <Collapsible
+              open={isExpanded}
+              onOpenChange={(open) => {
+                setIsExpanded(open);
+                if (open) {
+                  track('deal_expand', {
+                    destination: deal.destination,
+                    source: deal.source,
+                    kind: deal.kind,
+                  });
+                }
+              }}
+              className="space-y-3"
+            >
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="w-fit px-0">
+                  {isExpanded ? (
+                    <>
+                      <ChevronUp className="mr-1.5 size-4" />
+                      {t('card.lessDetails')}
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="mr-1.5 size-4" />
+                      {t('card.moreDetails')}
+                    </>
+                  )}
+                </Button>
+              </CollapsibleTrigger>
 
-            <CollapsibleContent className="space-y-3">
-              {deal.priceHistoryBar.visible && (
+              <CollapsibleContent className="space-y-3">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     <span>{t('card.priceHistory')}</span>
@@ -191,20 +199,11 @@ export function DealCard({ deal, showScore = false, locale }: DealCardProps) {
                     />
                   </div>
                 </div>
-              )}
+              </CollapsibleContent>
+            </Collapsible>
+          ) : null}
 
-              <div className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1.5 text-sm font-medium">
-                <Sparkles className="size-4 text-amber-500" />
-                <span>
-                  {deal.insight.recommendation.kind === 'book'
-                    ? t('card.recommendationBook', { percent: deal.insight.recommendation.confidence })
-                    : t('card.recommendationWatch', { percent: deal.insight.recommendation.confidence })}
-                </span>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-
-          <div className="flex flex-col gap-2 sm:min-w-52">
+          <div className="flex flex-col gap-2 sm:col-start-2 sm:min-w-52">
             <Button size="sm" asChild>
               <a
                 href={chatHref}

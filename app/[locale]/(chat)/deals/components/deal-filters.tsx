@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { useCallback } from 'react';
+import { useTransition } from 'react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { DealBucket } from '@/lib/deals';
+import type { DealKind, DealsPageFilters } from '@/lib/deals';
 
 const DACH_AIRPORTS = [
   { code: 'FRA', label: 'Frankfurt (FRA)' },
@@ -26,114 +26,127 @@ const DACH_AIRPORTS = [
   { code: 'STR', label: 'Stuttgart (STR)' },
 ];
 
-const BUCKETS: DealBucket[] = ['weekend_escape', 'long_haul', 'points'];
+const KINDS: DealKind[] = ['award', 'cash'];
 
 interface DealFiltersProps {
-  bucketCounts: Record<DealBucket, number>;
+  filters: DealsPageFilters;
+  kindCounts: Record<DealKind, number>;
+  preferredOrigins: string[];
 }
 
-export function DealFilters({ bucketCounts }: DealFiltersProps) {
+/**
+ * Render kind tabs and compact filters from the server's validated selection.
+ * @param props - Active filters, counts before kind filtering, and preferred airports.
+ * @returns Mobile-friendly controls that persist the selection in the URL.
+ */
+export function DealFilters({ filters, kindCounts, preferredOrigins }: DealFiltersProps) {
   const t = useTranslations('deals.filters');
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const currentOrigin = searchParams.get('origin') || 'all';
-  const currentStops = searchParams.get('stops') || 'all';
-  const currentTripType = searchParams.get('tripType') || 'all';
-  const currentSort = searchParams.get('sort') || 'score';
-  const currentBucket = searchParams.get('bucket') || 'all';
+  const [isPending, startTransition] = useTransition();
+  const airports = [
+    ...DACH_AIRPORTS,
+    ...[...new Set([...preferredOrigins, ...filters.origins])]
+      .filter((code) => !DACH_AIRPORTS.some((airport) => airport.code === code))
+      .map((code) => ({ code, label: code })),
+  ];
 
-  const updateFilter = useCallback(
-    (key: string, value: string) => {
-      const params = new URLSearchParams(searchParams.toString());
+  const updateFilter = (key: string, value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const removed of ['bucket', 'stops', 'tripType']) {
+      params.delete(removed);
+    }
+    if (value === 'all' && key !== 'origin') {
+      params.delete(key);
+    } else {
+      params.set(key, value);
+    }
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    });
+  };
 
-      if (value && value !== 'all') {
-        params.set(key, value);
-      } else {
-        params.delete(key);
-      }
-
-      const nextSearch = params.toString();
-      router.push(nextSearch ? `${pathname}?${nextSearch}` : pathname);
-    },
-    [pathname, router, searchParams],
-  );
-
-  const resetFilters = useCallback(() => {
-    router.push(pathname);
-  }, [pathname, router]);
+  const toggleOrigin = (code: string) => {
+    const origins = filters.origins.includes(code)
+      ? filters.origins.filter((origin) => origin !== code)
+      : [...filters.origins, code];
+    updateFilter('origin', origins.length > 0 ? origins.join(',') : 'all');
+  };
 
   return (
-    <div className="space-y-4">
-      <Tabs value={currentBucket} onValueChange={(value) => updateFilter('bucket', value)}>
-        <TabsList className="h-auto w-full flex-wrap justify-start gap-2 rounded-2xl bg-transparent p-0">
-          <TabsTrigger
-            value="all"
-            className="rounded-full border px-4 py-2 data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-          >
-            {t('allDeals')}
-          </TabsTrigger>
-          {BUCKETS.map((bucket) => (
+    <div className="space-y-4" aria-busy={isPending}>
+      <Tabs value={filters.kind} onValueChange={(value) => updateFilter('kind', value)}>
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-2xl bg-transparent p-0 sm:w-fit">
+          {KINDS.map((kind) => (
             <TabsTrigger
-              key={bucket}
-              value={bucket}
-              className="rounded-full border px-4 py-2 data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              key={kind}
+              value={kind}
+              disabled={isPending}
+              className="min-h-11 rounded-full border px-3 py-2 data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:px-4"
             >
-              {t(`buckets.${bucket}`)} ({bucketCounts[bucket]})
+              {t(`kinds.${kind}`)} ({kindCounts[kind]})
             </TabsTrigger>
           ))}
         </TabsList>
       </Tabs>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Select value={currentOrigin} onValueChange={(value) => updateFilter('origin', value)}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder={t('origin')} />
+      <fieldset disabled={isPending} className="space-y-2">
+        <legend className="mb-2 text-sm font-medium">{t('origin')}</legend>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant={filters.origins.length === 0 ? 'default' : 'outline'}
+            className="min-h-11 rounded-full"
+            aria-pressed={filters.origins.length === 0}
+            onClick={() => updateFilter('origin', 'all')}
+          >
+            {t('anywhere')}
+          </Button>
+          {airports.map((airport) => (
+            <Button
+              key={airport.code}
+              variant={filters.origins.includes(airport.code) ? 'default' : 'outline'}
+              className="min-h-11 rounded-full px-3"
+              aria-pressed={filters.origins.includes(airport.code)}
+              aria-label={airport.label}
+              title={airport.label}
+              onClick={() => toggleOrigin(airport.code)}
+            >
+              {airport.code}
+            </Button>
+          ))}
+        </div>
+      </fieldset>
+
+      <div className="grid grid-cols-2 items-center gap-3 sm:flex sm:flex-wrap">
+        <Select value={filters.range ?? 'all'} onValueChange={(value) => updateFilter('range', value)} disabled={isPending}>
+          <SelectTrigger className="min-h-11 w-full sm:w-44" aria-label={t('range')}>
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">{t('anywhere')}</SelectItem>
-            {DACH_AIRPORTS.map((airport) => (
-              <SelectItem key={airport.code} value={airport.code}>
-                {airport.label}
-              </SelectItem>
-            ))}
+            <SelectItem value="all">{t('allRanges')}</SelectItem>
+            <SelectItem value="europe">{t('ranges.europe')}</SelectItem>
+            <SelectItem value="long_haul">{t('ranges.long_haul')}</SelectItem>
           </SelectContent>
         </Select>
 
-        <Select value={currentTripType} onValueChange={(value) => updateFilter('tripType', value)}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder={t('tripType')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('allTripTypes')}</SelectItem>
-            <SelectItem value="roundtrip">{t('roundtrip')}</SelectItem>
-            <SelectItem value="oneway">{t('oneway')}</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={currentStops} onValueChange={(value) => updateFilter('stops', value)}>
-          <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder={t('stops')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('anyStops')}</SelectItem>
-            <SelectItem value="0">{t('nonstop')}</SelectItem>
-            <SelectItem value="1">{t('maxOne')}</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={currentSort} onValueChange={(value) => updateFilter('sort', value)}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder={t('sort')} />
+        <Select value={filters.sort} onValueChange={(value) => updateFilter('sort', value)} disabled={isPending}>
+          <SelectTrigger className="min-h-11 w-full sm:w-44" aria-label={t('sort')}>
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="score">{t('sortScore')}</SelectItem>
             <SelectItem value="price">{t('sortPrice')}</SelectItem>
-            <SelectItem value="savings">{t('sortSavings')}</SelectItem>
+            <SelectItem value="date">{t('sortDate')}</SelectItem>
           </SelectContent>
         </Select>
 
-        <Button variant="ghost" size="sm" onClick={resetFilters}>
+        <Button
+          variant="ghost"
+          className="min-h-11"
+          disabled={isPending}
+          onClick={() => startTransition(() => router.push(pathname, { scroll: false }))}
+        >
           {t('reset')}
         </Button>
       </div>

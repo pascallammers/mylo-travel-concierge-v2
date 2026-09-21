@@ -1,10 +1,13 @@
 export {
-  buildDealInsight,
   buildPriceHistoryBar,
-  classifyDealBucket,
+  classifyDealRange,
+  EUROPE_MAX_DISTANCE_KM,
+  getDealKind,
+  getLastSeenHours,
+  isFreshDeal,
   sortPresentedDeals,
-  type DealBucket,
-  type DealInsight,
+  type DealKind,
+  type DealRange,
   type DealSortOption,
   type PresentableDeal,
   type PriceHistoryBar,
@@ -12,6 +15,7 @@ export {
 } from './deal-presenter';
 export {
   buildDealsPageModel,
+  parseDealsFilters,
   type BuildDealsPageModelInput,
   type DealsPageFilters,
   type DealsPageModel,
