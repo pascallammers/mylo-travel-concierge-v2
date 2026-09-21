@@ -1,5 +1,11 @@
 import assert from 'node:assert';
 import { describe, it, mock } from 'node:test';
+import { redirect } from 'next/dist/client/components/redirect';
+
+// Use the real redirect primitive without loading client React contexts in RSC tests.
+mock.module('next/navigation', {
+  namedExports: { redirect },
+});
 
 // Regression: Ein eingeloggter, Deal-berechtigter User mit aktiven Präferenzen
 // klickt "Neuer Chat" (bare /new). Bis 2026-07 injizierte die Seite hier
@@ -23,8 +29,10 @@ mock.module('@/lib/deals', {
     createDealPreferenceSnapshot: (p: unknown) => p,
     hasActiveDealPreferences: () => true,
     buildDealsPageData: async () => ({
-      hasPersonalization: true,
-      featuredDeal: {
+      activeKind: 'cash',
+      kindCounts: { award: 0, cash: 1 },
+      staleHours: 0,
+      deals: [{
         origin: 'DUS',
         destination: 'FAO',
         destinationName: 'Faro',
@@ -32,7 +40,7 @@ mock.module('@/lib/deals', {
         currency: 'EUR',
         departureDate: '2026-09-10',
         personalizationReasons: ['du oft ab Düsseldorf fliegst'],
-      },
+      }],
     }),
   },
 });

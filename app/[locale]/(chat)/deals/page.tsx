@@ -8,15 +8,19 @@ import { hasFlightDealsAccess } from '@/lib/deals/flight-deals-access';
 import {
   buildDealsPageData,
   createDealPreferenceSnapshot,
-  type DealBucket,
-  type DealsPageFilters,
+  parseDealsFilters,
 } from '@/lib/deals';
 import { getAirportDetails } from '@/lib/utils/airport-database';
 import { DealCard } from './components/deal-card';
+import { DealDigestLine } from './components/deal-digest-line';
 import { DealFilters } from './components/deal-filters';
 import { DealPreferencesPanel } from './components/deal-preferences-panel';
-import { FeaturedDealHero } from './components/featured-deal-hero';
 
+/**
+ * Build localized metadata for the deals page.
+ * @param props - Promised locale route parameters.
+ * @returns Page title and description.
+ */
 export async function generateMetadata({
   params,
 }: {
@@ -31,6 +35,11 @@ export async function generateMetadata({
   };
 }
 
+/**
+ * Render the member deals feed with personalized filters.
+ * @param props - Promised locale and URL search parameters.
+ * @returns The deals page, access notice, or loading error.
+ */
 export default async function DealsPage({
   params,
   searchParams,
@@ -41,10 +50,6 @@ export default async function DealsPage({
   const { locale } = await params;
   const rawSearchParams = await searchParams;
   const t = await getTranslations({ locale, namespace: 'deals' });
-  const normalizedSearchParams = Object.fromEntries(
-    Object.entries(rawSearchParams).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]),
-  );
-  const filters = parseDealsFilters(normalizedSearchParams);
 
   try {
     const user = await getUser();
@@ -67,20 +72,23 @@ export default async function DealsPage({
 
     const userPreferences = user ? await getUserDealPreferences(user.id) : null;
     const preferenceSnapshot = createDealPreferenceSnapshot(userPreferences);
+    const filters = parseDealsFilters(rawSearchParams, preferenceSnapshot.originAirports);
     const [originAirportOptions, preferredDestinationOptions] = await Promise.all([
       hydrateSelectedAirports(preferenceSnapshot.originAirports),
       hydrateSelectedAirports(preferenceSnapshot.preferredDestinations),
     ]);
+    // Origins and kind are filtered in memory so the tab counts stay exact; above 300 active deals this needs its own query.
     const deals = await getActiveDeals({
-      origin: filters.origin,
       minScore: 60,
-      limit: 120,
+      limit: 300,
     });
     const model = await buildDealsPageData(deals, filters, new Date(), preferenceSnapshot, locale);
-    const visibleSections = model.activeBucket === 'all'
-      ? (['weekend_escape', 'long_haul', 'points'] as DealBucket[])
-      : [model.activeBucket];
-    const hasVisibleDeals = visibleSections.some((bucket) => model.visibleBuckets[bucket].length > 0);
+    const allOriginsQuery = new URLSearchParams({
+      origin: 'all',
+      kind: filters.kind,
+      sort: filters.sort,
+      ...(filters.range ? { range: filters.range } : {}),
+    }).toString();
 
     return (
       <div className="mx-auto max-w-5xl px-4 py-8">
@@ -98,6 +106,7 @@ export default async function DealsPage({
 
         <div className="mb-8">
           <DealPreferencesPanel
+            key={`${preferenceSnapshot.emailDigest}:${preferenceSnapshot.originAirports.join(',')}`}
             locale={locale}
             initialOriginAirports={originAirportOptions}
             initialPreferredDestinations={preferredDestinationOptions}
@@ -107,54 +116,45 @@ export default async function DealsPage({
           />
         </div>
 
-        {model.hasPersonalization && model.featuredDeal ? (
-          <div className="mb-8">
-            <FeaturedDealHero locale={locale} deal={model.featuredDeal} />
-          </div>
-        ) : null}
-
         <div className="mb-8">
-          <DealFilters bucketCounts={model.bucketCounts} />
+          <DealFilters
+            filters={filters}
+            kindCounts={model.kindCounts}
+            preferredOrigins={preferenceSnapshot.originAirports}
+          />
         </div>
 
-        {!hasVisibleDeals ? (
+        {filters.origins.length > 0 || preferenceSnapshot.originAirports.length > 0 ? (
+          <DealDigestLine
+            locale={locale}
+            originAirports={filters.origins}
+            emailDigest={preferenceSnapshot.emailDigest}
+          />
+        ) : null}
+
+        {model.deals.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-16 text-center">
             <Plane className="mb-4 size-10 text-muted-foreground" />
             <h2 className="text-lg font-semibold">{t('empty.title')}</h2>
             <p className="mt-1 max-w-sm text-sm text-muted-foreground">
               {t('empty.description')}
             </p>
+            {filters.origins.length > 0 && model.kindCounts.award + model.kindCounts.cash === 0 ? (
+              <Button asChild variant="outline" className="mt-6 min-h-11">
+                <a href={`/${locale}/deals?${allOriginsQuery}`}>{t('empty.showAllOrigins')}</a>
+              </Button>
+            ) : null}
           </div>
         ) : (
-          <div className="space-y-8">
-            {visibleSections.map((bucket) => (
-              <section key={bucket} className="space-y-4">
-                <div className="space-y-1">
-                  <h2 className="text-xl font-semibold tracking-tight">
-                    {t(`bucketsMeta.${bucket}.title`)}
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    {t(`bucketsMeta.${bucket}.description`)}
-                  </p>
-                </div>
-
-                {model.visibleBuckets[bucket].length === 0 ? (
-                  <div className="rounded-2xl border border-dashed px-4 py-10 text-sm text-muted-foreground">
-                    {t(`bucketsMeta.${bucket}.empty`)}
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {model.visibleBuckets[bucket].map((deal) => (
-                      <DealCard
-                        key={deal.id}
-                        deal={deal}
-                        showScore={true}
-                        locale={locale}
-                      />
-                    ))}
-                  </div>
-                )}
-              </section>
+          <div className="space-y-4">
+            {model.deals.map((deal) => (
+              <DealCard
+                key={deal.id}
+                deal={deal}
+                showScore={true}
+                showFreshLabel={filters.sort === 'score'}
+                locale={locale}
+              />
             ))}
           </div>
         )}
@@ -176,31 +176,6 @@ export default async function DealsPage({
       </div>
     );
   }
-}
-
-function parseDealsFilters(
-  searchParams: Record<string, string | undefined>,
-): DealsPageFilters {
-  const bucket = searchParams.bucket;
-  const sort = searchParams.sort;
-  const tripType = searchParams.tripType;
-  const stops = searchParams.stops ? Number.parseInt(searchParams.stops, 10) : undefined;
-
-  return {
-    origin: searchParams.origin || undefined,
-    bucket: isDealBucket(bucket) ? bucket : 'all',
-    sort: isSortOption(sort) ? sort : 'score',
-    tripType: tripType === 'roundtrip' || tripType === 'oneway' ? tripType : undefined,
-    stops: Number.isFinite(stops) ? stops : undefined,
-  };
-}
-
-function isDealBucket(value: string | undefined): value is DealBucket | 'all' {
-  return value === 'all' || value === 'weekend_escape' || value === 'long_haul' || value === 'points';
-}
-
-function isSortOption(value: string | undefined): value is DealsPageFilters['sort'] {
-  return value === 'score' || value === 'price' || value === 'savings';
 }
 
 /**

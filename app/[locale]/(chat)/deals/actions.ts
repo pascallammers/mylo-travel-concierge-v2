@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { getUser } from '@/lib/auth-utils';
 import { upsertUserDealPreferences } from '@/lib/db/deal-queries';
-import { resolveAirportCodeList } from '@/lib/deals';
+import { MAX_ORIGIN_FILTERS, resolveAirportCodeList } from '@/lib/deals';
 import { hasFlightDealsAccess } from '@/lib/deals/flight-deals-access';
 
 const saveDealPreferencesSchema = z.object({
@@ -14,6 +14,11 @@ const saveDealPreferencesSchema = z.object({
   cabinClass: z.enum(['any', 'economy', 'premium_economy', 'business', 'first']).default('any'),
   maxPrice: z.string().default(''),
   emailDigest: z.enum(['none', 'weekly', 'daily']).default('none'),
+});
+
+const subscribeWeeklyDigestSchema = z.object({
+  locale: z.string().min(2).max(8),
+  originAirports: z.array(z.string().regex(/^[A-Z]{3}$/)).max(MAX_ORIGIN_FILTERS),
 });
 
 export interface SaveDealPreferencesInput {
@@ -59,6 +64,31 @@ export async function saveDealPreferencesAction(input: SaveDealPreferencesInput)
   revalidatePath(`/${parsed.locale}`);
   revalidatePath(`/${parsed.locale}/deals`);
   revalidatePath(`/${parsed.locale}/new`);
+
+  return { success: true };
+}
+
+/**
+ * Subscribe the authenticated member to weekly deals from the active airports.
+ * @param input - Locale and selected IATA codes; an empty list preserves saved origins.
+ * @returns Success result after saving the digest and refreshing the deals page.
+ */
+export async function subscribeWeeklyDigestAction(input: { locale: string; originAirports: string[] }) {
+  const user = await getUser();
+
+  if (!user) {
+    throw new Error('Unauthorized');
+  }
+  if (!(await hasFlightDealsAccess(user.id))) {
+    throw new Error('Forbidden');
+  }
+
+  const parsed = subscribeWeeklyDigestSchema.parse(input);
+  await upsertUserDealPreferences(user.id, {
+    emailDigest: 'weekly',
+    ...(parsed.originAirports.length > 0 ? { originAirports: parsed.originAirports } : {}),
+  });
+  revalidatePath(`/${parsed.locale}/deals`);
 
   return { success: true };
 }

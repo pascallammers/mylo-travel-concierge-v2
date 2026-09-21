@@ -174,6 +174,8 @@ export async function upsertUserDealPreferences(
   } else {
     await db.insert(userDealPreferences).values({
       userId,
+      // The column default is 'economy'; a partial first write must not invent a cabin preference.
+      cabinClass: null,
       ...prefs,
     });
   }

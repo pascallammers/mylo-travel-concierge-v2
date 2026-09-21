@@ -1,9 +1,12 @@
 import {
-  buildDealInsight,
   buildPriceHistoryBar,
-  classifyDealBucket,
+  classifyDealRange,
+  getDealKind,
+  getLastSeenHours,
+  isFreshDeal,
   sortPresentedDeals,
-  type DealBucket,
+  type DealKind,
+  type DealRange,
   type DealSortOption,
   type PresentableDeal,
   type PriceHistoryBar,
@@ -15,6 +18,7 @@ export interface DealsPageModelDeal extends PresentableDeal {
   affiliateLink: string | null;
   stops: number | null;
   tripType: 'roundtrip' | 'oneway';
+  createdAt: Date;
   updatedAt: Date;
   preferredOriginMatch: boolean;
   routeDistanceKm?: number | null;
@@ -22,27 +26,28 @@ export interface DealsPageModelDeal extends PresentableDeal {
 }
 
 export interface DealsPageFilters {
-  origin?: string;
-  stops?: number;
-  tripType?: 'roundtrip' | 'oneway';
-  bucket?: DealBucket | 'all';
-  sort?: DealSortOption;
+  kind: DealKind;
+  origins: string[];
+  range?: DealRange;
+  sort: DealSortOption;
 }
 
 export interface PresentedDeal extends DealsPageModelDeal {
-  bucket: DealBucket;
-  insight: ReturnType<typeof buildDealInsight>;
+  kind: DealKind;
+  range: DealRange | null;
+  isFresh: boolean;
+  lastSeenHours: number;
   priceHistoryBar: PriceHistoryBar;
 }
 
 export interface DealsPageModel {
-  activeBucket: DealBucket | 'all';
-  bucketCounts: Record<DealBucket, number>;
-  visibleBuckets: Record<DealBucket, PresentedDeal[]>;
-  featuredDeal: PresentedDeal | null;
-  hasPersonalization: boolean;
+  activeKind: DealKind;
+  kindCounts: Record<DealKind, number>;
+  deals: PresentedDeal[];
   staleHours: number | null;
 }
+
+export const MAX_ORIGIN_FILTERS = 10;
 
 export interface BuildDealsPageModelInput {
   deals: DealsPageModelDeal[];
@@ -51,139 +56,81 @@ export interface BuildDealsPageModelInput {
 }
 
 /**
- * Build the server-side page model for the deals experience.
- *
- * @param input - Raw deals, active filters, and current time.
- * @returns Grouped, filtered, and presentation-ready deal data.
+ * Parse untrusted URL parameters once at the deals page boundary.
+ * @param searchParams - Next.js search parameters; repeated keys use the first value.
+ * @param preferredOrigins - Persisted origins used only when origin is absent.
+ * @returns Validated filters with award and score as defaults.
  */
-export function buildDealsPageModel(
-  input: BuildDealsPageModelInput,
-): DealsPageModel {
-  const activeBucket = input.filters.bucket ?? 'all';
-  const sort = input.filters.sort ?? 'score';
-  const presentableDeals = input.deals.map((deal) => presentDeal(deal));
-  const filteredDeals = filterDeals(presentableDeals, input.filters);
-  const bucketCounts = countDealsByBucket(filteredDeals);
-  const visibleBuckets = createEmptyDealBuckets();
-
-  for (const bucket of getOrderedBuckets()) {
-    if (activeBucket !== 'all' && activeBucket !== bucket) {
-      visibleBuckets[bucket] = [];
-      continue;
-    }
-
-    visibleBuckets[bucket] = sortPresentedDeals(
-      filteredDeals.filter((deal) => deal.bucket === bucket),
-      sort,
-    ) as PresentedDeal[];
-  }
+export function parseDealsFilters(
+  searchParams: Record<string, string | string[] | undefined>,
+  preferredOrigins: string[],
+): DealsPageFilters {
+  const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
+  const origin = first(searchParams.origin);
+  const range = first(searchParams.range);
+  const sort = first(searchParams.sort);
 
   return {
-    activeBucket,
-    bucketCounts,
-    visibleBuckets,
-    featuredDeal: getFeaturedDeal(filteredDeals),
-    hasPersonalization: filteredDeals.some((deal) => deal.personalizationReasons.length > 0),
-    staleHours: getStaleHours(input.deals, input.now),
+    kind: first(searchParams.kind) === 'cash' ? 'cash' : 'award',
+    origins: origin === undefined
+      ? [...preferredOrigins]
+      : origin.trim().toLowerCase() === 'all'
+        ? []
+        : [...new Set(origin.split(',').map((code) => code.trim().toUpperCase()).filter((code) => /^[A-Z]{3}$/.test(code)))].slice(0, MAX_ORIGIN_FILTERS),
+    range: range === 'europe' || range === 'long_haul' ? range : undefined,
+    sort: sort === 'price' || sort === 'date' ? sort : 'score',
   };
 }
 
-function presentDeal(deal: DealsPageModelDeal): PresentedDeal {
-  const bucket = classifyDealBucket(deal, {
-    routeDistanceKm: deal.routeDistanceKm ?? null,
-  });
+/**
+ * Build the server-side page model for the deals experience.
+ * @param input - Raw deals, typed filters, and current time.
+ * @returns One filtered list and counts for both kinds before the kind filter.
+ */
+export function buildDealsPageModel(input: BuildDealsPageModelInput): DealsPageModel {
+  const { filters, now } = input;
+  const filteredDeals = input.deals.map((deal) => presentDeal(deal, now)).filter((deal) => (
+    (filters.origins.length === 0 || filters.origins.includes(deal.origin)) &&
+    (filters.range === undefined || deal.range === filters.range)
+  ));
+  const kindCounts: Record<DealKind, number> = { award: 0, cash: 0 };
+  for (const deal of filteredDeals) {
+    kindCounts[deal.kind] += 1;
+  }
 
   return {
+    activeKind: filters.kind,
+    kindCounts,
+    deals: sortPresentedDeals(filteredDeals.filter((deal) => deal.kind === filters.kind), filters.sort),
+    staleHours: getStaleHours(input.deals, now),
+  };
+}
+
+function presentDeal(deal: DealsPageModelDeal, now: Date): PresentedDeal {
+  const kind = getDealKind(deal.source);
+  return {
     ...deal,
-    bucket,
-    insight: buildDealInsight(deal, bucket),
+    kind,
+    range: classifyDealRange({
+      routeDistanceKm: deal.routeDistanceKm ?? null,
+      flightDurationMinutes: deal.flightDurationMinutes,
+    }),
+    isFresh: isFreshDeal(deal.createdAt, now),
+    lastSeenHours: getLastSeenHours(deal.updatedAt, now),
     priceHistoryBar: buildPriceHistoryBar(
+      kind,
       deal.price,
-      deal.priceHistoryStats ?? {
-        min: deal.price,
-        max: deal.price,
-        count: 0,
-      },
+      deal.priceHistoryStats ?? { min: deal.price, max: deal.price, count: 0 },
     ),
   };
 }
 
-function filterDeals(
-  deals: PresentedDeal[],
-  filters: DealsPageFilters,
-): PresentedDeal[] {
-  return deals.filter((deal) => {
-    if (filters.origin && deal.origin !== filters.origin) {
-      return false;
-    }
-
-    if (filters.tripType && deal.tripType !== filters.tripType) {
-      return false;
-    }
-
-    if (filters.stops !== undefined && (deal.stops ?? 0) > filters.stops) {
-      return false;
-    }
-
-    return true;
-  });
-}
-
-function countDealsByBucket(
-  deals: PresentedDeal[],
-): Record<DealBucket, number> {
-  const counts = createEmptyBucketCounts();
-
-  for (const deal of deals) {
-    counts[deal.bucket] += 1;
-  }
-
-  return counts;
-}
-
-function createEmptyDealBuckets(): Record<DealBucket, PresentedDeal[]> {
-  return {
-    weekend_escape: [],
-    long_haul: [],
-    points: [],
-  };
-}
-
-function getOrderedBuckets(): DealBucket[] {
-  return ['weekend_escape', 'long_haul', 'points'];
-}
-
-function getFeaturedDeal(deals: PresentedDeal[]): PresentedDeal | null {
+function getStaleHours(deals: DealsPageModelDeal[], now: Date): number | null {
   if (deals.length === 0) {
     return null;
   }
-
-  const sorted = sortPresentedDeals(deals, 'score') as PresentedDeal[];
-  return sorted[0] ?? null;
-}
-
-function createEmptyBucketCounts(): Record<DealBucket, number> {
-  return {
-    weekend_escape: 0,
-    long_haul: 0,
-    points: 0,
-  };
-}
-
-function getStaleHours(
-  deals: DealsPageModelDeal[],
-  now: Date,
-): number | null {
-  if (deals.length === 0) {
-    return null;
-  }
-
-  const latestUpdateMs = deals.reduce((latest, deal) => {
-    const updatedAtMs = deal.updatedAt.getTime();
-    return updatedAtMs > latest ? updatedAtMs : latest;
-  }, 0);
-
-  const diffMs = now.getTime() - latestUpdateMs;
-
-  return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60)));
+  const latestUpdate = deals.reduce((latest, deal) => (
+    deal.updatedAt > latest ? deal.updatedAt : latest
+  ), deals[0].updatedAt);
+  return getLastSeenHours(latestUpdate, now);
 }

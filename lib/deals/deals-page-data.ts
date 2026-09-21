@@ -29,7 +29,7 @@ import {
  * @param now - Current timestamp used for stale calculation.
  * @param preferences - Normalized user preferences for personalization.
  * @param locale - Active locale used for affiliate redirects.
- * @returns Presentation-ready page model with grouping and filters applied.
+ * @returns Presentation-ready page model with kind counts and filters applied.
  */
 export async function buildDealsPageData(
   deals: FlightDeal[],
@@ -82,6 +82,7 @@ export async function buildDealsPageData(
       affiliateLink: getDealAffiliateLink(deal, affiliateLocalization),
       stops: deal.stops,
       tripType: deal.tripType,
+      createdAt: deal.createdAt,
       updatedAt: deal.updatedAt,
       preferredOriginMatch: matchesPreferredOrigin(deal.origin, preferences),
       routeDistanceKm: routeDistanceByKey.get(routeKey) ?? null,
