@@ -3,6 +3,8 @@ import { generateId } from 'ai';
 import { InferSelectModel } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 
+export { transferCheckOutcome, transferRates, transferTableChecks } from '../transfer-table/schema';
+
 export const user = pgTable('user', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),

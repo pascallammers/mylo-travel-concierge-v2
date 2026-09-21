@@ -162,6 +162,13 @@
       "when": 1788635962761,
       "tag": "0022_loyalty_program_layer",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790000065609,
+      "tag": "0023_transfer_table",
+      "breakpoints": true
     }
   ]
 }
