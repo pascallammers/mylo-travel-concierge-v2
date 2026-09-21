@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { StatsCard } from '@/components/admin/stats-card';
 import { TokenUsageChart } from '@/components/admin/token-usage-chart';
 import { ActivityChart } from '@/components/admin/activity-chart';
+import { TransferTableCard } from '@/components/admin/transfer-table-card';
 import { FileText, Image, HardDrive, Activity, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -169,56 +170,60 @@ export default function AdminDashboard() {
         ) : null}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Werkzeuge (24 h)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <Skeleton className="h-24 w-full" />
-          ) : toolHealth ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Werkzeug</TableHead>
-                  <TableHead className="text-right">Aufrufe</TableHead>
-                  <TableHead className="text-right">Fehler</TableHead>
-                  <TableHead className="text-right">Quote</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {toolHealth.tools.length > 0 ? (
-                  toolHealth.tools.map((tool) => (
-                    <TableRow key={tool.toolName}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          {tool.toolName}
-                          {alertingTools.has(tool.toolName) ? (
-                            <Badge variant="destructive">Ausfall</Badge>
-                          ) : null}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">{tool.calls}</TableCell>
-                      <TableCell className="text-right">{tool.failed}</TableCell>
-                      <TableCell className="text-right">
-                        {Math.round(tool.failureRate * 100)} %
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Card className="min-w-0">
+          <CardHeader>
+            <CardTitle>Werkzeuge (24 h)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Skeleton className="h-24 w-full" />
+            ) : toolHealth ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Werkzeug</TableHead>
+                    <TableHead className="text-right">Aufrufe</TableHead>
+                    <TableHead className="text-right">Fehler</TableHead>
+                    <TableHead className="text-right">Quote</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {toolHealth.tools.length > 0 ? (
+                    toolHealth.tools.map((tool) => (
+                      <TableRow key={tool.toolName}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            {tool.toolName}
+                            {alertingTools.has(tool.toolName) ? (
+                              <Badge variant="destructive">Ausfall</Badge>
+                            ) : null}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">{tool.calls}</TableCell>
+                        <TableCell className="text-right">{tool.failed}</TableCell>
+                        <TableCell className="text-right">
+                          {Math.round(tool.failureRate * 100)} %
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground">
+                        Keine Werkzeug-Aufrufe in den letzten 24 Stunden
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">
-                      Keine Werkzeug-Aufrufe in den letzten 24 Stunden
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          ) : (
-            <p className="text-sm text-muted-foreground">nicht verfügbar</p>
-          )}
-        </CardContent>
-      </Card>
+                  )}
+                </TableBody>
+              </Table>
+            ) : (
+              <p className="text-sm text-muted-foreground">nicht verfügbar</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <TransferTableCard />
+      </div>
 
       {/* Token Usage Section */}
       <div>
