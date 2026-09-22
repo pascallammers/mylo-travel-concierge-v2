@@ -2,7 +2,7 @@ import 'server-only';
 
 import { serverEnv } from '@/env/server';
 import { ChatSDKError } from '@/lib/errors';
-import type { LoyaltyBalanceUnit } from '@/lib/db/schema';
+import type { AwardWalletPlan, LoyaltyBalanceUnit } from '@/lib/db/schema';
 import { decodeHtmlEntities, resolveLoyaltyProgram } from '@/lib/loyalty/programs';
 import { ProxyAgent } from 'undici';
 
@@ -135,7 +135,23 @@ interface AWRawAccount {
 
 interface AWConnectedUserResponse {
   fullName?: string;
+  status?: string;
   accounts?: AWRawAccount[];
+}
+
+export type AWConnectedUser = {
+  plan: AwardWalletPlan | null;
+  accounts: AWLoyaltyAccount[];
+};
+
+/**
+ * Normalizes AwardWallet's plan without guessing an unknown subscription tier.
+ * @param status - User status returned by AwardWallet
+ * @returns Recognized plan, or null for a missing or unknown status
+ */
+export function parseAwardWalletPlan(status: string | undefined): AwardWalletPlan | null {
+  const plan = status?.toLowerCase();
+  return plan === 'free' || plan === 'plus' ? plan : null;
 }
 
 /**
@@ -299,15 +315,16 @@ export async function getConnectionInfo(code: string): Promise<AWConnectionInfo>
 }
 
 /**
- * Fetches all loyalty accounts for a connected user
+ * Fetches the plan and all loyalty accounts for a connected user
  * @see https://awardwallet.com/api/account#method-Connected%20Users_2
  * @param awUserId - The AwardWallet userId
- * @returns Array of loyalty accounts
+ * @param options - MYLO profile name used to recognize the account holder
+ * @returns Connected user's plan and loyalty accounts
  */
 export async function getConnectedUser(
   awUserId: string,
   options: { userName?: string | null } = {},
-): Promise<AWLoyaltyAccount[]> {
+): Promise<AWConnectedUser> {
   const apiKey = serverEnv.AWARDWALLET_API_KEY;
 
   console.error('[AwardWallet] Fetching accounts for user:', awUserId);
@@ -340,7 +357,10 @@ export async function getConnectedUser(
     console.error(`[AwardWallet] Retrieved ${accounts.length} accounts`);
 
     const holderNames = [data.fullName, options.userName].filter((n): n is string => !!n);
-    return accounts.map((raw) => formatAccount(raw, holderNames));
+    return {
+      plan: parseAwardWalletPlan(data.status),
+      accounts: accounts.map((raw) => formatAccount(raw, holderNames)),
+    };
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     console.error('[AwardWallet] getConnectedUser error:', error);

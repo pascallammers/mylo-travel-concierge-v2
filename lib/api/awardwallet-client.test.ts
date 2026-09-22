@@ -23,6 +23,7 @@ import {
   createAuthUrl,
   getConnectionInfo,
   getConnectedUser,
+  parseAwardWalletPlan,
   formatAccount,
   __resetAwardWalletDispatcherCacheForTests,
   __getAwardWalletDispatcherCacheForTests,
@@ -50,6 +51,47 @@ describe('AwardWallet Client', () => {
     global.fetch = originalFetch;
     setProxyUrl(ORIGINAL_PROXY_URL);
     __resetAwardWalletDispatcherCacheForTests();
+  });
+
+  it('returns the Free plan and formatted accounts from a successful response', async () => {
+    setProxyUrl(undefined);
+    global.fetch = mock.fn(async () => Response.json({
+      status: 'Free',
+      fullName: 'Erika Mustermann',
+      accounts: [{
+        accountId: 123,
+        code: 'lufthansa',
+        displayName: 'Lufthansa (Miles and More)',
+        kind: 'Airlines',
+        login: 'member-123',
+        balanceRaw: 12000,
+        owner: 'Erika Mustermann',
+        errorCode: 1,
+        lastRetrieveDate: '2026-03-12T12:00:00Z',
+      }],
+    }));
+
+    assert.deepStrictEqual(await getConnectedUser('aw-user-123'), {
+      plan: 'free',
+      accounts: [{
+        awAccountId: 123,
+        programId: 'lufthansa',
+        providerCode: 'lufthansa',
+        providerName: 'Miles & More',
+        providerKind: 'Airlines',
+        balance: 12000,
+        balanceUnit: 'miles',
+        balanceVerified: true,
+        ownerName: 'Erika Mustermann',
+        ownerIsConnectedUser: true,
+        syncErrorCode: 1,
+        lastRetrievedAt: new Date('2026-03-12T12:00:00Z'),
+        eliteStatus: null,
+        expirationDate: null,
+        accountNumber: 'member-123',
+        logoUrl: null,
+      }],
+    });
   });
 
   // -----------------------------------------------------------------------
@@ -367,6 +409,20 @@ describe('AwardWallet Client', () => {
       assert.strictEqual(after, undefined, 'no dispatcher when env var is unset');
     });
   });
+});
+
+describe('parseAwardWalletPlan', () => {
+  for (const [status, expected] of [
+    ['Plus', 'plus'],
+    ['Free', 'free'],
+    ['plus', 'plus'],
+    [undefined, null],
+    ['Business', null],
+  ] as const) {
+    it(`maps ${String(status)} to ${String(expected)}`, () => {
+      assert.strictEqual(parseAwardWalletPlan(status), expected);
+    });
+  }
 });
 
 describe('formatAccount', () => {

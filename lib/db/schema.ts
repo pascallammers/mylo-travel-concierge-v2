@@ -656,6 +656,9 @@ export type ThriveCartSyncLog = InferSelectModel<typeof thrivecartSyncLog>;
 export const awardwalletConnectionStatus = ['connected', 'disconnected', 'error'] as const;
 export type AwardWalletConnectionStatus = (typeof awardwalletConnectionStatus)[number];
 
+export const awardwalletPlan = ['free', 'plus'] as const;
+export type AwardWalletPlan = (typeof awardwalletPlan)[number];
+
 /**
  * AwardWallet connections table.
  * Stores OAuth connection state for each user's AwardWallet account.
@@ -669,6 +672,11 @@ export const awardwalletConnections = pgTable('awardwallet_connections', {
     .references(() => user.id, { onDelete: 'cascade' })
     .unique(),
   awUserId: text('aw_user_id').notNull(),
+  /**
+   * AwardWallet `status` of the connected user: Plus gets background refreshes,
+   * Free does not. Null until the first sync after this column exists.
+   */
+  awPlan: text('aw_plan').$type<AwardWalletPlan>(),
   connectedAt: timestamp('connected_at').notNull().defaultNow(),
   lastSyncedAt: timestamp('last_synced_at'),
   status: text('status').$type<AwardWalletConnectionStatus>().notNull().default('connected'),

@@ -239,6 +239,7 @@ export async function POST(req: Request) {
         return {
           status: 'disconnected' as const,
           connected: false,
+          awPlan: null,
           lastSyncedAt: null,
           lastError: null,
           accounts: [],
@@ -247,6 +248,7 @@ export async function POST(req: Request) {
     : Promise.resolve({
         status: 'disconnected' as const,
         connected: false,
+        awPlan: null,
         lastSyncedAt: null,
         lastError: null,
         accounts: [],
