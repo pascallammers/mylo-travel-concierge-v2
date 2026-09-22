@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createFetchHtml, TRANSFER_FETCH_TIMEOUT_MS, TRANSFER_USER_AGENT } from './fetch';
 
-test('source fetch uses desktop user agent, no cache and a 20-second deadline', async () => {
+test('source fetch uses desktop user agent, no cache and a 15-second deadline', async () => {
   let options: RequestInit | undefined;
   const loader = createFetchHtml(async (_url, init) => {
     options = init;
@@ -13,31 +13,52 @@ test('source fetch uses desktop user agent, no cache and a 20-second deadline', 
   assert.match(TRANSFER_USER_AGENT, /Mozilla.*Chrome.*Safari/);
   assert.equal(options?.cache, 'no-store');
   assert.ok(options?.signal instanceof AbortSignal);
-  assert.equal(TRANSFER_FETCH_TIMEOUT_MS, 20_000);
+  assert.equal(TRANSFER_FETCH_TIMEOUT_MS, 15_000);
 });
 
 test('status, content type and network failures reject rather than parse an error page', async () => {
   await assert.rejects(
-    createFetchHtml(async () => new Response('', { status: 403 }))('https://source.example'),
+    createFetchHtml(async () => new Response('', { status: 403 }), 0)('https://source.example'),
     /HTTP 403/,
   );
   await assert.rejects(
-    createFetchHtml(async () => new Response('{}', { headers: { 'content-type': 'application/json' } }))(
-      'https://source.example',
-    ),
+    createFetchHtml(
+      async () => new Response('{}', { headers: { 'content-type': 'application/json' } }),
+      0,
+    )('https://source.example'),
     /keine HTML/,
   );
   await assert.rejects(
     createFetchHtml(async () => {
       throw new Error('timeout');
-    })('https://source.example'),
+    }, 0)('https://source.example'),
     /Verbindungsfehler oder Zeitüberschreitung/,
   );
-  const failedBody = new ReadableStream({ start: (controller) => controller.error(new Error('stream aborted')) });
+  // Each attempt needs its own failing stream: a consumed stream cannot be reused.
+  const failedBody = () => new ReadableStream({ start: (controller) => controller.error(new Error('stream aborted')) });
   await assert.rejects(
-    createFetchHtml(async () => new Response(failedBody, { headers: { 'content-type': 'text/html' } }))(
-      'https://source.example',
-    ),
+    createFetchHtml(
+      async () => new Response(failedBody(), { headers: { 'content-type': 'text/html' } }),
+      0,
+    )('https://source.example'),
     /nicht vollständig gelesen/,
   );
+});
+
+test('a stalled connection is retried before the source counts as failed', async () => {
+  let calls = 0;
+  const flaky = createFetchHtml(async () => {
+    calls += 1;
+    if (calls < 3) throw new DOMException('stalled', 'TimeoutError');
+    return new Response('<html>ok</html>', { headers: { 'content-type': 'text/html' } });
+  }, 0);
+  assert.equal(await flaky('https://source.example'), '<html>ok</html>');
+  assert.equal(calls, 3);
+  calls = 0;
+  const dead = createFetchHtml(async () => {
+    calls += 1;
+    throw new DOMException('stalled', 'TimeoutError');
+  }, 0);
+  await assert.rejects(dead('https://source.example'), /Zeitüberschreitung: TimeoutError/);
+  assert.equal(calls, 3);
 });

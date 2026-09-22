@@ -10,6 +10,7 @@ export interface CheckDependencies {
   seeds: Record<SourceProgramId, PartnerMap>;
   fetchHtml: (url: string) => Promise<string>;
   sendMail: (check: TransferCheck) => Promise<void>;
+  reportFailure: (source: SourceProgramId, message: string) => Promise<void>;
   now: () => Date;
 }
 
@@ -21,56 +22,72 @@ export interface CheckDependencies {
 export async function runTransferTableCheck(deps: CheckDependencies): Promise<CheckSummary[]> {
   const summaries: CheckSummary[] = [];
   for (const source of ['amex_dach', 'payback'] as const) {
-    await deps.repository.withSourceTransaction(source, async (tx) => {
-      // History, rather than current rows, prevents resurrecting an intentionally removed source.
-      if (!(await tx.hasHistory())) await tx.insertRates(seedRows(deps.seeds[source]), deps.now(), 'seed', null);
-    });
-    let observations: Observation[] = [];
-    let sourceError: string | null = null;
     try {
-      const html = await deps.fetchHtml(SOURCE_URLS[source]);
-      observations = (source === 'amex_dach' ? parseAmexDePartners(html) : parsePaybackMilesAndMore(html)).map(
-        (item) => ({ ...item, partnerKey: findSeedKey(item, deps.seeds[source]) }),
-      );
-      const keys = observations.flatMap((item) => (item.partnerKey ? [item.partnerKey] : []));
-      if (new Set(keys).size !== keys.length) {
-        throw new TransferParseError('Die Quelle enthält mehrere Einträge für denselben Partner.');
-      }
+      summaries.push(await checkSource(source, deps));
     } catch (error) {
-      sourceError = error instanceof Error ? error.message : 'Die Quelle konnte nicht gelesen werden.';
-    }
-    const check = await deps.repository.withSourceTransaction(source, async (tx) => {
-      const checkedAt = deps.now();
-      const changes = sourceError === null ? diffTransferTable(await tx.currentRows(), observations) : [];
-      const classification = classifyChanges(changes);
-      const outcome =
-        sourceError !== null
-          ? 'source_error'
-          : classification === 'apply'
-            ? 'applied'
-            : classification === 'hold'
-              ? 'held'
-              : 'unchanged';
-      // A fresh reading replaces an older open proposal; an unreadable source leaves it open.
-      if (sourceError === null) await tx.supersedeOpenHeldChecks(checkedAt);
-      const saved = await tx.insertCheck({ sourceProgramId: source, checkedAt, outcome, changes, error: sourceError });
-      if (outcome === 'applied') await applyChanges(tx, changes, deps.seeds[source], checkedAt, saved.id);
-      return saved;
-    });
-    const summary: CheckSummary = {
-      sourceProgramId: source,
-      checkId: check.id,
-      outcome: check.outcome,
-      changeCount: check.changes.length,
-    };
-    if (check.outcome !== 'unchanged') {
+      // Vercel never retries a cron: a persistence failure must reach the administrator and spare the other source.
+      const failure = error instanceof Error ? error.message : 'Unbekannter Fehler.';
+      const summary: CheckSummary = { sourceProgramId: source, checkId: null, outcome: 'check_failed', changeCount: 0 };
       try {
-        await deps.sendMail(check);
+        await deps.reportFailure(source, failure);
       } catch {
         summary.mailError = 'Die Benachrichtigung konnte nicht versendet werden.';
       }
+      summaries.push(summary);
     }
-    summaries.push(summary);
   }
   return summaries;
+}
+
+async function checkSource(source: SourceProgramId, deps: CheckDependencies): Promise<CheckSummary> {
+  await deps.repository.withSourceTransaction(source, async (tx) => {
+    // History, rather than current rows, prevents resurrecting an intentionally removed source.
+    if (!(await tx.hasHistory())) await tx.insertRates(seedRows(deps.seeds[source]), deps.now(), 'seed', null);
+  });
+  let observations: Observation[] = [];
+  let sourceError: string | null = null;
+  try {
+    const html = await deps.fetchHtml(SOURCE_URLS[source]);
+    observations = (source === 'amex_dach' ? parseAmexDePartners(html) : parsePaybackMilesAndMore(html)).map(
+      (item) => ({ ...item, partnerKey: findSeedKey(item, deps.seeds[source]) }),
+    );
+    const keys = observations.flatMap((item) => (item.partnerKey ? [item.partnerKey] : []));
+    if (new Set(keys).size !== keys.length) {
+      throw new TransferParseError('Die Quelle enthält mehrere Einträge für denselben Partner.');
+    }
+  } catch (error) {
+    sourceError = error instanceof Error ? error.message : 'Die Quelle konnte nicht gelesen werden.';
+  }
+  const check = await deps.repository.withSourceTransaction(source, async (tx) => {
+    const checkedAt = deps.now();
+    const changes = sourceError === null ? diffTransferTable(await tx.currentRows(), observations) : [];
+    const classification = classifyChanges(changes);
+    const outcome =
+      sourceError !== null
+        ? 'source_error'
+        : classification === 'apply'
+          ? 'applied'
+          : classification === 'hold'
+            ? 'held'
+            : 'unchanged';
+    // A fresh reading replaces an older open proposal; an unreadable source leaves it open.
+    if (sourceError === null) await tx.supersedeOpenHeldChecks(checkedAt);
+    const saved = await tx.insertCheck({ sourceProgramId: source, checkedAt, outcome, changes, error: sourceError });
+    if (outcome === 'applied') await applyChanges(tx, changes, deps.seeds[source], checkedAt, saved.id);
+    return saved;
+  });
+  const summary: CheckSummary = {
+    sourceProgramId: source,
+    checkId: check.id,
+    outcome: check.outcome,
+    changeCount: check.changes.length,
+  };
+  if (check.outcome !== 'unchanged') {
+    try {
+      await deps.sendMail(check);
+    } catch {
+      summary.mailError = 'Die Benachrichtigung konnte nicht versendet werden.';
+    }
+  }
+  return summary;
 }

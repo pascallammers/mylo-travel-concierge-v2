@@ -74,8 +74,9 @@ export interface TransferRepository {
 
 export interface CheckSummary {
   sourceProgramId: SourceProgramId;
-  checkId: string;
-  outcome: CheckOutcome;
+  /** `null` when the check could not be persisted at all. */
+  checkId: string | null;
+  outcome: CheckOutcome | 'check_failed';
   changeCount: number;
   mailError?: string;
 }

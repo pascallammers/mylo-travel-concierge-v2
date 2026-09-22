@@ -103,3 +103,24 @@ test('a newer reading supersedes an open held check, an unreadable source leaves
   const open = state.checks.filter((check) => check.outcome === 'held' && check.resolution === null);
   assert.equal(open.length, 1);
 });
+
+test('a persistence failure is mailed and the other source is still checked', async () => {
+  const { state, deps } = createHarness();
+  state.failPersistenceFor = 'amex_dach';
+  const result = await runTransferTableCheck(deps);
+  assert.deepEqual(
+    result.map((item) => item.outcome),
+    ['check_failed', 'unchanged'],
+  );
+  assert.deepEqual(state.failures, [{ source: 'amex_dach', message: 'Datenbank nicht erreichbar.' }]);
+});
+
+test('an applied check also supersedes an open held check', async () => {
+  const { state, deps } = createHarness();
+  state.paybackHtml = state.paybackHtml.replace('1:1', '2:1');
+  await runTransferTableCheck(deps);
+  state.paybackHtml = state.paybackHtml.replace('2:1', '1:1').replace('Ab 200', 'Ab 300');
+  const result = await runTransferTableCheck(deps);
+  assert.equal(result[1].outcome, 'applied');
+  assert.equal(state.checks.filter((check) => check.outcome === 'held' && check.resolution === null).length, 0);
+});

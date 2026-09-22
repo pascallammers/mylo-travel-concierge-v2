@@ -1,5 +1,5 @@
 import { serverEnv } from '@/env/server';
-import { sendTransferTableAdminAlert } from '@/lib/email';
+import { sendTransferCheckFailureAlert, sendTransferTableAdminAlert } from '@/lib/email';
 import { createFetchHtml, runTransferTableCheck, TRANSFER_SEEDS } from '@/lib/transfer-table';
 import { handleTransferCron } from '@/lib/transfer-table/http';
 import { getTransferRepository } from '@/lib/transfer-table/runtime';
@@ -16,9 +16,10 @@ export async function GET(request: Request) {
       seeds: TRANSFER_SEEDS,
       fetchHtml: createFetchHtml(fetch),
       sendMail: sendTransferTableAdminAlert,
+      reportFailure: sendTransferCheckFailureAlert,
       now: () => new Date(),
     }),
   );
 }
 
-export const maxDuration = 120;
+export const maxDuration = 180;

@@ -17,6 +17,8 @@ export function createHarness() {
     rows: [] as RateVersion[],
     checks: [] as TransferCheck[],
     mails: [] as TransferCheck[],
+    failures: [] as { source: string; message: string }[],
+    failPersistenceFor: null as string | null,
     amexHtml,
     paybackHtml,
     now: new Date('2026-10-02T05:00:00Z'),
@@ -26,6 +28,7 @@ export function createHarness() {
   let pending = Promise.resolve();
   const repository: TransferRepository = {
     async withSourceTransaction(source, work) {
+      if (state.failPersistenceFor === source) throw new Error('Datenbank nicht erreichbar.');
       const predecessor = pending;
       let release = () => {};
       pending = new Promise<void>((resolve) => {
@@ -119,6 +122,9 @@ export function createHarness() {
     fetchHtml: async (url) => {
       if (state.failSource) throw new Error('Quelle nicht erreichbar.');
       return url.includes('americanexpress') ? state.amexHtml : state.paybackHtml;
+    },
+    reportFailure: async (source, message) => {
+      state.failures.push({ source, message });
     },
     sendMail: async (check) => {
       if (state.failMail) throw new Error('Mail nicht verfügbar.');

@@ -7,4 +7,4 @@ export { TransferConflictError } from './apply';
 export { loadDachPartnerMaps, type DachPartnerMaps } from './reader';
 export { TRANSFER_SEEDS, SOURCE_URLS } from './seeds';
 export { createFetchHtml } from './fetch';
-export { renderTransferTableEmail } from './email';
+export { renderTransferTableEmail, renderTransferCheckFailureEmail } from './email';

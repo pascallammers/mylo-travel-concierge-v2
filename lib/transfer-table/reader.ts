@@ -35,11 +35,13 @@ export async function loadDachPartnerMaps(deps: ReaderDependencies): Promise<Dac
       }
       const map: PartnerMap = {};
       for (const row of current) {
-        const seed = TRANSFER_SEEDS[source][row.partnerKey];
-        if (!seed) {
+        if (!TRANSFER_SEEDS[source][row.partnerKey])
           deps.warn(`Transfertabelle ${source}: Metadaten in dach.ts ergänzen (${row.partnerKey}).`);
-          continue;
-        }
+      }
+      // Seed order keeps tie-breaks between equal rates stable across row versions.
+      for (const [partnerKey, seed] of Object.entries(TRANSFER_SEEDS[source])) {
+        const row = current.find((item) => item.partnerKey === partnerKey);
+        if (!row) continue;
         map[row.partnerKey] = {
           ...seed,
           amexPoints: row.sourcePoints,

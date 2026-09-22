@@ -1,18 +1,20 @@
 import { getUser, isCurrentUserAdmin } from '@/lib/auth-utils';
 import { resolveHeldCheck, TRANSFER_SEEDS } from '@/lib/transfer-table';
 import { handleTransferAdminGet, handleTransferAdminPost, type AdminDependencies } from '@/lib/transfer-table/http';
-import { getTransferRepository } from '@/lib/transfer-table/runtime';
+import { getTransferRepository, resetDachPartnerMapsCache } from '@/lib/transfer-table/runtime';
 
 const dependencies: AdminDependencies = {
   isAdmin: isCurrentUserAdmin,
   getUserId: async () => (await getUser())?.id ?? null,
   loadDashboard: () => getTransferRepository().loadDashboard(),
-  resolve: (checkId, resolution, userId) =>
-    resolveHeldCheck(checkId, resolution, userId, {
+  resolve: async (checkId, resolution, userId) => {
+    await resolveHeldCheck(checkId, resolution, userId, {
       repository: getTransferRepository(),
       seeds: TRANSFER_SEEDS,
       now: () => new Date(),
-    }),
+    });
+    resetDachPartnerMapsCache();
+  },
 };
 
 /**

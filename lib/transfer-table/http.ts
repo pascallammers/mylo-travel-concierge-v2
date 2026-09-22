@@ -28,7 +28,16 @@ export async function handleTransferCron(
     return Response.json({ error: 'Nicht autorisiert.' }, { status: 401 });
   try {
     const sources = await run();
-    return Response.json({ sources }, { status: sources.some((source) => source.mailError) ? 502 : 200 });
+    return Response.json(
+      { sources },
+      {
+        status: sources.some((source) => source.outcome === 'check_failed')
+          ? 500
+          : sources.some((source) => source.mailError)
+            ? 502
+            : 200,
+      },
+    );
   } catch {
     return Response.json({ error: 'Die Transfertabelle konnte nicht geprüft werden.' }, { status: 500 });
   }
