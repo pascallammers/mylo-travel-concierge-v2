@@ -12,6 +12,7 @@ function createScanResult(overrides: Partial<ScanResult> = {}): ScanResult {
     dealsFound: 12,
     priceHistoryEntries: 34,
     expiredDealsRemoved: 0,
+    staleDealsRemoved: 0,
     errors: [],
     ...overrides,
   };

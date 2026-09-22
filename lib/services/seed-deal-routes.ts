@@ -16,6 +16,11 @@ const BASE_ROUTES: Array<{ origin: string; destination: string }> = [
   { origin: 'FRA', destination: 'BKK' },
   { origin: 'FRA', destination: 'JFK' },
   { origin: 'FRA', destination: 'DXB' },
+  { origin: 'FRA', destination: 'SIN' },
+  { origin: 'FRA', destination: 'LAX' },
+  { origin: 'FRA', destination: 'MLE' },
+  { origin: 'FRA', destination: 'CPT' },
+  { origin: 'FRA', destination: 'HND' },
   // Munich (MUC)
   { origin: 'MUC', destination: 'BCN' },
   { origin: 'MUC', destination: 'ATH' },
@@ -23,6 +28,13 @@ const BASE_ROUTES: Array<{ origin: string; destination: string }> = [
   { origin: 'MUC', destination: 'FCO' },
   { origin: 'MUC', destination: 'LIS' },
   { origin: 'MUC', destination: 'BKK' },
+  { origin: 'MUC', destination: 'SIN' },
+  { origin: 'MUC', destination: 'LAX' },
+  { origin: 'MUC', destination: 'MLE' },
+  { origin: 'MUC', destination: 'CPT' },
+  { origin: 'MUC', destination: 'HND' },
+  { origin: 'MUC', destination: 'JFK' },
+  { origin: 'MUC', destination: 'DXB' },
   // Berlin (BER)
   { origin: 'BER', destination: 'BCN' },
   { origin: 'BER', destination: 'ATH' },
@@ -48,6 +60,11 @@ const BASE_ROUTES: Array<{ origin: string; destination: string }> = [
   { origin: 'ZRH', destination: 'ATH' },
   { origin: 'ZRH', destination: 'LIS' },
   { origin: 'ZRH', destination: 'JFK' },
+  { origin: 'ZRH', destination: 'SIN' },
+  { origin: 'ZRH', destination: 'LAX' },
+  { origin: 'ZRH', destination: 'MLE' },
+  { origin: 'ZRH', destination: 'CPT' },
+  { origin: 'ZRH', destination: 'HND' },
 ];
 
 export async function seedDealRoutes(): Promise<number> {

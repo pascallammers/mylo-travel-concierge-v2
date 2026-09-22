@@ -10,19 +10,64 @@ import {
   type TravelpayoutsCheapTicket,
 } from '@/lib/api/travelpayouts-client';
 import { computePriceStats, calculateDealScore } from './deal-score';
-import { scanPointsDealsForRoute, shouldScanSeatsAero } from './deal-scanner-points';
+import {
+  scanPointsDealsForRoute,
+  shouldScanSeatsAero,
+  type ScanPointsDependencies,
+} from './deal-scanner-points';
+import { scanBusinessCashReference } from './deal-scanner-cash-reference';
+import { fetchEurRates } from './eur-rates';
+import { DACH_SOURCE_PROGRAM_IDS } from '@/lib/config/transfer-engine';
+import { loadAwardProgramSourceResolver } from '@/lib/transfer-table/award-sources';
+import { readDachPartnerMaps } from '@/lib/transfer-table/runtime';
+import { readValuationTable } from '@/lib/valuation/runtime';
+import { getAirportDetails } from '@/lib/utils/airport-database';
 import {
   getActiveRoutes,
+  getCashReference,
+  getLatestPriceHistoryScan,
   getPriceHistoryForRoute,
   insertPriceHistory,
   upsertDeal,
   deleteExpiredDeals,
+  deleteStaleDealsForRoute,
 } from '@/lib/db/deal-queries';
 
 const MIN_DEAL_SCORE = 60;
 const DEAL_EXPIRY_HOURS = 72;
 
 type CabinClass = 'economy' | 'premium_economy' | 'business' | 'first';
+
+type PointsScanDeps = Pick<
+  ScanPointsDependencies,
+  'valuation' | 'isReachableDach' | 'eurRates' | 'getCashReference' | 'resolveDestinationName'
+>;
+
+/**
+ * Load the scan-wide valuation inputs once: FX rates, the valuation table,
+ * and the DACH transfer-source resolver.
+ *
+ * @returns Dependencies shared by every route's points scan.
+ */
+async function loadPointsScanDeps(): Promise<PointsScanDeps> {
+  const [eurRates, valuation, sourceResolver] = await Promise.all([
+    fetchEurRates(fetch),
+    readValuationTable(),
+    loadAwardProgramSourceResolver(readDachPartnerMaps),
+  ]);
+
+  return {
+    eurRates,
+    valuation,
+    isReachableDach: (slug) =>
+      sourceResolver(slug).some((source) =>
+        DACH_SOURCE_PROGRAM_IDS.has(source.sourceProgramId),
+      ),
+    getCashReference,
+    resolveDestinationName: async (code) =>
+      (await getAirportDetails(code))?.airport ?? null,
+  };
+}
 
 interface PriceHistoryEntry {
   origin: string;
@@ -38,6 +83,7 @@ export interface ScanResult {
   dealsFound: number;
   priceHistoryEntries: number;
   expiredDealsRemoved: number;
+  staleDealsRemoved: number;
   errors: string[];
 }
 
@@ -56,19 +102,37 @@ export async function runDealScan(): Promise<ScanResult> {
     dealsFound: 0,
     priceHistoryEntries: 0,
     expiredDealsRemoved: 0,
+    staleDealsRemoved: 0,
     errors: [],
   };
 
-  const now = new Date();
+  const runStartedAt = new Date();
+  const now = runStartedAt;
   const routes = await getActiveRoutes();
   const shouldScanPointsDeals = Boolean(process.env.SEATSAERO_API_KEY) && shouldScanSeatsAero(now);
+  const pointsDeps = shouldScanPointsDeals ? await loadPointsScanDeps() : null;
   console.log(`[DealScanner] Scanning ${routes.length} routes`);
 
   for (const route of routes) {
     try {
-      await processRoute(route.origin, route.destination, result);
+      await processRoute(route.origin, route.destination, result, runStartedAt);
 
-      if (shouldScanPointsDeals && route.destination) {
+      if (pointsDeps && route.destination) {
+        try {
+          result.priceHistoryEntries += await scanBusinessCashReference(
+            { origin: route.origin, destination: route.destination },
+            {
+              getLatestPrices,
+              insertPriceHistory,
+              getLatestScan: getLatestPriceHistoryScan,
+            },
+          );
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : 'Unknown error';
+          console.error(`[DealScanner] Cash reference failed ${route.origin}->${route.destination}:`, msg);
+          result.errors.push(`${route.origin}->${route.destination} cash-reference: ${msg}`);
+        }
+
         const pointsResult = await scanPointsDealsForRoute(
           {
             origin: route.origin,
@@ -80,12 +144,22 @@ export async function runDealScan(): Promise<ScanResult> {
             upsertDeal,
             insertPriceHistory,
             generateId,
+            ...pointsDeps,
           },
         );
 
         result.dealsFound += pointsResult.dealsFound;
         result.priceHistoryEntries += pointsResult.priceHistoryEntries;
         result.errors.push(...pointsResult.errors);
+
+        if (pointsResult.errors.length === 0) {
+          result.staleDealsRemoved += await deleteStaleDealsForRoute({
+            origin: route.origin,
+            destination: route.destination,
+            source: 'seats_aero',
+            notSeenSince: runStartedAt,
+          });
+        }
       }
 
       result.routesScanned++;
@@ -106,9 +180,10 @@ async function processRoute(
   origin: string,
   destination: string | null,
   result: ScanResult,
+  runStartedAt: Date,
 ): Promise<void> {
   if (destination) {
-    await processSpecificRoute(origin, destination, result);
+    await processSpecificRoute(origin, destination, result, runStartedAt);
   } else {
     await processOpenRoute(origin, result);
   }
@@ -118,6 +193,7 @@ async function processSpecificRoute(
   origin: string,
   destination: string,
   result: ScanResult,
+  runStartedAt: Date,
 ): Promise<void> {
   const response = await getCheapTickets({
     origin,
@@ -188,6 +264,13 @@ async function processSpecificRoute(
 
     result.dealsFound++;
   }
+
+  result.staleDealsRemoved += await deleteStaleDealsForRoute({
+    origin,
+    destination,
+    source: 'travelpayouts',
+    notSeenSince: runStartedAt,
+  });
 }
 
 function buildStatsCacheKey(origin: string, destination: string, cabinClass: CabinClass): string {

@@ -1,6 +1,15 @@
 import type { SeatsAeroFlight, SeatsAeroSearchParams } from '@/lib/api/seats-aero-client';
+import {
+  valueAward,
+  type AwardValuation,
+  type CashReference,
+  type EurRates,
+} from '@/lib/deals/award-valuation';
+import type { ValuationTable } from '@/lib/valuation/types';
 
 type CabinClass = 'economy' | 'premium_economy' | 'business' | 'first';
+
+const POINTS_CABIN: CabinClass = 'business';
 
 interface PriceHistoryEntry {
   origin: string;
@@ -11,7 +20,7 @@ interface PriceHistoryEntry {
   source: string;
 }
 
-interface PointDealUpsertInput {
+export interface PointDealUpsertInput {
   id: string;
   origin: string;
   destination: string;
@@ -31,7 +40,24 @@ interface PointDealUpsertInput {
   tripType: 'roundtrip' | 'oneway';
   affiliateLink: string | null;
   source: string;
+  programId: string | null;
+  programReachableDach: boolean | null;
+  taxesAmount: number | null;
+  taxesCurrency: string | null;
+  taxesEur: number | null;
+  seatsLeft: number | null;
+  cashReferencePrice: number | null;
+  cashReferenceSamples: number | null;
+  valuationRateCt: number | null;
+  valuationRateValidFrom: Date | null;
+  savingsPercent: number | null;
   expiresAt: Date;
+}
+
+/** One award flight together with its computed valuation. */
+export interface ValuedFlight {
+  flight: SeatsAeroFlight;
+  valuation: AwardValuation;
 }
 
 interface ScanPointsRouteInput {
@@ -39,13 +65,22 @@ interface ScanPointsRouteInput {
   destination: string;
 }
 
-interface ScanPointsDependencies {
+export interface ScanPointsDependencies {
   searchSeatsAero: (params: SeatsAeroSearchParams) => Promise<SeatsAeroFlight[]>;
   upsertDeal: (deal: PointDealUpsertInput) => Promise<void>;
   insertPriceHistory: (entries: PriceHistoryEntry[]) => Promise<void>;
   generateId: () => string;
   now: Date;
   monthsAhead?: number;
+  valuation: ValuationTable;
+  isReachableDach: (slug: string) => boolean;
+  eurRates: EurRates;
+  getCashReference: (
+    origin: string,
+    destination: string,
+    cabinClass: CabinClass,
+  ) => Promise<CashReference | null>;
+  resolveDestinationName: (code: string) => Promise<string | null>;
 }
 
 export interface PointsScanResult {
@@ -136,6 +171,8 @@ export async function scanPointsDealsForRoute(
   deps: ScanPointsDependencies,
 ): Promise<PointsScanResult> {
   const dates = buildPointsScanDepartureDates(deps.now, deps.monthsAhead ?? 3);
+  const cashRef = await deps.getCashReference(route.origin, route.destination, POINTS_CABIN);
+  const destinationName = await deps.resolveDestinationName(route.destination);
   const dealsToUpsert: PointDealUpsertInput[] = [];
   const historyEntries: PriceHistoryEntry[] = [];
   const errors: string[] = [];
@@ -150,13 +187,14 @@ export async function scanPointsDealsForRoute(
         flexibility: 3,
         maxResults: 3,
       });
-      const bestFlight = pickBestFlight(results);
+      const valued = results.map((flight) => valueFlight(flight, cashRef, deps));
+      const best = pickBestFlight(valued, deps.isReachableDach);
 
-      if (!bestFlight || bestFlight.miles === null) {
+      if (!best || best.flight.miles === null) {
         continue;
       }
 
-      const mapped = mapFlightToPointDeal(route, bestFlight, deps.generateId(), deps.now);
+      const mapped = mapFlightToPointDeal(route, best, cashRef, destinationName, deps);
       dealsToUpsert.push(mapped.deal);
       historyEntries.push(mapped.historyEntry);
     } catch (error) {
@@ -180,35 +218,93 @@ export async function scanPointsDealsForRoute(
   };
 }
 
-function pickBestFlight(results: SeatsAeroFlight[]): SeatsAeroFlight | null {
-  if (results.length === 0) {
+function valueFlight(
+  flight: SeatsAeroFlight,
+  cashRef: CashReference | null,
+  deps: Pick<ScanPointsDependencies, 'valuation' | 'eurRates'>,
+): ValuedFlight {
+  const cabin = mapSeatsCabinToDealCabin(flight.cabin);
+  const rate = deps.valuation.rateFor(flight.program, 'travel', cabin) ?? null;
+  const valuation =
+    flight.miles === null
+      ? {
+          taxesEur:
+            flight.taxes.amount === null || !flight.taxes.currency
+              ? null
+              : deps.eurRates.toEur(flight.taxes.amount, flight.taxes.currency),
+          redemptionCostEur: null,
+          savingsPercent: null,
+          rate,
+        }
+      : valueAward(
+          {
+            miles: flight.miles,
+            taxesAmount: flight.taxes.amount,
+            taxesCurrency: flight.taxes.currency,
+          },
+          rate,
+          cashRef,
+          deps.eurRates,
+        );
+
+  return { flight, valuation };
+}
+
+/**
+ * Pick the best award of one month: DACH-reachable programs first, then the
+ * cheapest redemption (miles at rate plus taxes); flights without a computed
+ * cost rank behind, ties fall back to mileage.
+ *
+ * @param candidates - Award flights with their valuations.
+ * @param isReachableDach - Whether a program is payable from the DACH region.
+ * @returns The best candidate, or null for an empty month.
+ */
+export function pickBestFlight(
+  candidates: ValuedFlight[],
+  isReachableDach: (slug: string) => boolean,
+): ValuedFlight | null {
+  if (candidates.length === 0) {
     return null;
   }
 
-  return [...results].sort((left, right) => {
-    const leftMiles = left.miles ?? Number.MAX_SAFE_INTEGER;
-    const rightMiles = right.miles ?? Number.MAX_SAFE_INTEGER;
+  const reachable = candidates.filter((candidate) =>
+    isReachableDach(candidate.flight.program),
+  );
+  const pool = reachable.length > 0 ? reachable : candidates;
+
+  return [...pool].sort((left, right) => {
+    const leftCost = left.valuation.redemptionCostEur;
+    const rightCost = right.valuation.redemptionCostEur;
+    if (leftCost !== null && rightCost !== null && leftCost !== rightCost) {
+      return leftCost - rightCost;
+    }
+    if (leftCost !== null && rightCost === null) return -1;
+    if (leftCost === null && rightCost !== null) return 1;
+    const leftMiles = left.flight.miles ?? Number.MAX_SAFE_INTEGER;
+    const rightMiles = right.flight.miles ?? Number.MAX_SAFE_INTEGER;
     return leftMiles - rightMiles;
   })[0] ?? null;
 }
 
 function mapFlightToPointDeal(
   route: ScanPointsRouteInput,
-  flight: SeatsAeroFlight,
-  id: string,
-  now: Date,
+  best: ValuedFlight,
+  cashRef: CashReference | null,
+  destinationName: string | null,
+  deps: Pick<ScanPointsDependencies, 'generateId' | 'now' | 'isReachableDach'>,
 ): { deal: PointDealUpsertInput; historyEntry: PriceHistoryEntry } {
+  const { flight, valuation } = best;
   const cabinClass = mapSeatsCabinToDealCabin(flight.cabin);
   const departureDate = new Date(flight.outbound.departure.time);
-  const expiresAt = new Date(now);
+  const expiresAt = new Date(deps.now);
   expiresAt.setHours(expiresAt.getHours() + 72);
 
   return {
     deal: {
-      id,
+      id: deps.generateId(),
       origin: route.origin,
       destination: route.destination,
-      destinationName: null,
+      destinationName,
       departureDate,
       returnDate: null,
       price: flight.miles ?? 0,
@@ -230,6 +326,17 @@ function mapFlightToPointDeal(
       tripType: 'oneway',
       affiliateLink: getFirstBookingLink(flight.bookingLinks),
       source: POINTS_SOURCE,
+      programId: flight.program,
+      programReachableDach: deps.isReachableDach(flight.program),
+      taxesAmount: flight.taxes.amount,
+      taxesCurrency: flight.taxes.currency,
+      taxesEur: valuation.taxesEur,
+      seatsLeft: flight.seatsLeft,
+      cashReferencePrice: cashRef?.meanEur ?? null,
+      cashReferenceSamples: cashRef?.samples ?? null,
+      valuationRateCt: valuation.rate?.centsPerUnit ?? null,
+      valuationRateValidFrom: valuation.rate?.validFrom ?? null,
+      savingsPercent: valuation.savingsPercent,
       expiresAt,
     },
     historyEntry: {
