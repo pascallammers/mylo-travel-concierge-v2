@@ -10,6 +10,10 @@ import type { ValuationTable } from '@/lib/valuation/types';
 type CabinClass = 'economy' | 'premium_economy' | 'business' | 'first';
 
 const POINTS_CABIN: CabinClass = 'business';
+// take=25 with order_by=lowest_mileage keeps the cheap end of every program in
+// the response; 3 truncated to the three lowest-mileage trips overall, which
+// pushed all DACH-reachable programs out of the candidate set.
+const POINTS_SCAN_CANDIDATES = 25;
 
 interface PriceHistoryEntry {
   origin: string;
@@ -185,7 +189,7 @@ export async function scanPointsDealsForRoute(
         departureDate,
         travelClass: 'BUSINESS',
         flexibility: 3,
-        maxResults: 3,
+        maxResults: POINTS_SCAN_CANDIDATES,
       });
       const valued = results.map((flight) => valueFlight(flight, cashRef, deps));
       const best = pickBestFlight(valued, deps.isReachableDach);
