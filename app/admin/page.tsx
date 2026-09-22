@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { StatsCard } from '@/components/admin/stats-card';
 import { TokenUsageChart } from '@/components/admin/token-usage-chart';
 import { ActivityChart } from '@/components/admin/activity-chart';
+import { ValuationTableCard } from '@/components/admin/valuation-table-card';
 import { TransferTableCard } from '@/components/admin/transfer-table-card';
 import { FileText, Image, HardDrive, Activity, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -223,6 +224,7 @@ export default function AdminDashboard() {
         </Card>
 
         <TransferTableCard />
+        <ValuationTableCard />
       </div>
 
       {/* Token Usage Section */}

@@ -17,3 +17,4 @@ export { createValuationRepository } from './repository';
 export { loadValuationTable } from './reader';
 export { runValuationTableCheck } from './check';
 export { renderValuationStaleEmail } from './email';
+export { handleValuationAdminGet, handleValuationAdminPost } from './admin';
