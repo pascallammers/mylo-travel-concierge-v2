@@ -15,6 +15,11 @@
 
 import assert from 'node:assert';
 import { beforeEach, describe, it, mock } from 'node:test';
+import {
+  AMEX_DACH_PARTNERS,
+  DACH_TRANSFER_TABLE_AS_OF,
+  PAYBACK_DACH_PARTNERS,
+} from '@/lib/config/transfer-engine/dach';
 
 type SeatsAeroCall = {
   origin: string;
@@ -100,6 +105,16 @@ mock.module('@/lib/utils/airport-codes', {
 mock.module('@/lib/utils/duffel-links', {
   namedExports: {
     createDuffelBookingSession: async () => ({ url: 'https://booking.example.com/x' }),
+  },
+});
+
+mock.module('@/lib/transfer-table/runtime', {
+  namedExports: {
+    readDachPartnerMaps: async () => ({
+      amex: AMEX_DACH_PARTNERS,
+      payback: PAYBACK_DACH_PARTNERS,
+      tableAsOf: DACH_TRANSFER_TABLE_AS_OF,
+    }),
   },
 });
 

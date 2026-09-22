@@ -1,7 +1,12 @@
 // lib/tools/transfer-partner-optimizer.test.ts
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
-import { transferPartnerOptimizerTool } from './transfer-partner-optimizer';
+import { createTransferPartnerOptimizerTool } from './transfer-partner-optimizer';
+import { AMEX_DACH_PARTNERS, PAYBACK_DACH_PARTNERS, DACH_TRANSFER_TABLE_AS_OF } from '../config/transfer-engine';
+
+const transferPartnerOptimizerTool = createTransferPartnerOptimizerTool(async () => ({
+  amex: AMEX_DACH_PARTNERS, payback: PAYBACK_DACH_PARTNERS, tableAsOf: DACH_TRANSFER_TABLE_AS_OF,
+}));
 
 async function run(rawInput: unknown) {
   // biome-ignore lint/suspicious/noExplicitAny: schema typing irrelevant for behavior tests
@@ -316,4 +321,24 @@ describe('transferPartnerOptimizerTool — minTransfer + transferIncrement', () 
       }
     }
   });
+});
+
+it('loads accepted DB terms and freshness once for each optimizer execution', async () => {
+  let loads = 0;
+  const optimizer = createTransferPartnerOptimizerTool(async () => {
+    loads++;
+    return {
+      amex: { flyingBlue: { ...AMEX_DACH_PARTNERS.flyingBlue, amexPoints: 2, partnerMiles: 1, effectiveRate: 50, minTransfer: 1000, transferIncrement: 10, transferDuration: { de: '3 Werktage', en: 'up to 1 business day' } } },
+      payback: PAYBACK_DACH_PARTNERS,
+      tableAsOf: '2026-10',
+    };
+  });
+  const result = await optimizer.execute!({ sourceProgram: 'amex_dach', sourcePoints: 1000, limit: 5, locale: 'de' }, { toolCallId: 'test', messages: [] });
+  assert.ok(result.success);
+  if (!result.success) return;
+  assert.equal(result.tableAsOf, '2026-10');
+  assert.equal(result.partners.length, 1);
+  assert.equal(result.partners[0].milesOut, 500);
+  assert.equal(result.partners[0].transferDuration, '3 Werktage');
+  assert.equal(loads, 1);
 });

@@ -501,6 +501,9 @@ Examples of queries that should trigger this tool:
 
       // Format response for LLM (inject real booking-session creator;
       // flight-search-format keeps the renderer free of the server env graph)
+      const transferSourceResolver = dependencies.loadTransferSourceResolver
+        ? await dependencies.loadTransferSourceResolver()
+        : getTransferSourcesForAwardProgram;
       const formatted = await formatFlightResults(result, params, locale, {
         createBookingSession: createDuffelBookingSession,
         getProgramDisplayName,
@@ -508,7 +511,7 @@ Examples of queries that should trigger this tool:
         getProgramCaveat,
         transferHints: {
           formatTransferRatio,
-          getTransferSourcesForAwardProgram,
+          getTransferSourcesForAwardProgram: transferSourceResolver,
         },
       });
       return awardFilterNotes.length > 0

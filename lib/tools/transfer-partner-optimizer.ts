@@ -7,9 +7,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import {
-  AMEX_DACH_PARTNERS,
-  DACH_TRANSFER_TABLE_AS_OF,
-  PAYBACK_DACH_PARTNERS,
   calculatePartnerMilesIn,
   formatTransferRatio,
   getLocalizedValue,
@@ -18,11 +15,8 @@ import {
   type TransferLocale,
   type TransferPartner,
 } from '@/lib/config/transfer-engine';
-
-const SOURCE_PROGRAM_MAP: Record<string, PartnerMap> = {
-  amex_dach: AMEX_DACH_PARTNERS,
-  payback: PAYBACK_DACH_PARTNERS,
-};
+import type { DachPartnerMaps } from '@/lib/transfer-table/reader';
+import { readDachPartnerMaps } from '@/lib/transfer-table/runtime';
 
 const inputSchema = z.object({
   sourceProgram: z
@@ -84,39 +78,49 @@ type Result =
     }
   | { success: false; error: string };
 
-export const transferPartnerOptimizerTool = tool({
-  description:
-    'Find the best DACH transfer partners for German Amex Membership Rewards (including PAYBACK and ALL Accor) or for PAYBACK points (Miles & More 1:1), optionally filtered by airline or hotel. Returns ratios, partner miles, alliance, transfer duration, minimum transfer amounts, and tableAsOf. The answer must state the table date from tableAsOf.',
-  inputSchema,
-  execute: async (input): Promise<Result> => {
-    const partnerMap = SOURCE_PROGRAM_MAP[input.sourceProgram];
-    if (!partnerMap) {
+/**
+ * Create the optimizer with an injected snapshot reader.
+ * @param loadPartners - Load current accepted DACH transfer maps once per execution.
+ * @returns Configured transfer optimizer tool.
+ */
+export function createTransferPartnerOptimizerTool(loadPartners: () => Promise<DachPartnerMaps>) {
+  return tool({
+    description:
+      'Find the best DACH transfer partners for German Amex Membership Rewards (including PAYBACK and ALL Accor) or for PAYBACK points (Miles & More 1:1), optionally filtered by airline or hotel. Returns ratios, partner miles, alliance, transfer duration, minimum transfer amounts, and tableAsOf. The answer must state the table date from tableAsOf.',
+    inputSchema,
+    execute: async (input): Promise<Result> => {
+      const maps = await loadPartners();
+      const partnerMap = input.sourceProgram === 'amex_dach' ? maps.amex : maps.payback;
+      if (!partnerMap) {
+        return {
+          success: false,
+          error: `Unknown sourceProgram "${input.sourceProgram}".`,
+        };
+      }
+
+      const filtered = filterByAirline(partnerMap, input.targetAirline);
+      // Drop partners the user cannot actually transfer to with this balance:
+      // either below minTransfer, or no aligned multiple of transferIncrement
+      // exists at-or-below sourcePoints. Without this, Codex finding shows e.g.
+      // "500 DACH Amex → Flying Blue" even though Flying Blue requires 625 min.
+      const transferable = filtered.filter(
+        ([, p]) => effectiveTransferable(p, input.sourcePoints) > 0,
+      );
+      const ranked = rankByMilesOut(transferable, input.sourcePoints);
+      const topN = ranked.slice(0, input.limit);
+
       return {
-        success: false,
-        error: `Unknown sourceProgram "${input.sourceProgram}".`,
+        success: true,
+        sourceProgram: input.sourceProgram,
+        sourcePoints: input.sourcePoints,
+        tableAsOf: maps.tableAsOf,
+        partners: topN.map((entry) => formatEntry(entry, partnerMap, input.sourcePoints, input.locale)),
       };
-    }
+    },
+  });
+}
 
-    const filtered = filterByAirline(partnerMap, input.targetAirline);
-    // Drop partners the user cannot actually transfer to with this balance:
-    // either below minTransfer, or no aligned multiple of transferIncrement
-    // exists at-or-below sourcePoints. Without this, Codex finding shows e.g.
-    // "500 DACH Amex → Flying Blue" even though Flying Blue requires 625 min.
-    const transferable = filtered.filter(
-      ([, p]) => effectiveTransferable(p, input.sourcePoints) > 0,
-    );
-    const ranked = rankByMilesOut(transferable, input.sourcePoints);
-    const topN = ranked.slice(0, input.limit);
-
-    return {
-      success: true,
-      sourceProgram: input.sourceProgram,
-      sourcePoints: input.sourcePoints,
-      tableAsOf: DACH_TRANSFER_TABLE_AS_OF,
-      partners: topN.map((entry) => formatEntry(entry, partnerMap, input.sourcePoints, input.locale)),
-    };
-  },
-});
+export const transferPartnerOptimizerTool = createTransferPartnerOptimizerTool(readDachPartnerMaps);
 
 function filterByAirline(
   partners: PartnerMap,

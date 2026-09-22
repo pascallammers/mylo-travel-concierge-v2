@@ -2,6 +2,8 @@ import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import type { DuffelFlight } from '@/lib/api/duffel-client';
 import type { SeatsAeroFlight } from '@/lib/api/seats-aero-client';
+import { formatTransferRatio, AMEX_DACH_PARTNERS, PAYBACK_DACH_PARTNERS } from '@/lib/config/transfer-engine';
+import { loadAwardProgramSourceResolver } from '@/lib/transfer-table/award-sources';
 import {
   createFlightSearchTool,
   type FlightSearchToolDependencies,
@@ -107,6 +109,24 @@ function executeOptions(abortSignal?: AbortSignal): ExecuteOptions {
 }
 
 describe('flight-search tool factory integration', () => {
+  it('loads DACH maps once and renders accepted database values in transfer hints', async () => {
+    let loads = 0;
+    const tool = createFlightSearchTool(dependencies({
+      searchSeatsAero: async () => [{ ...awardFlight, program: 'flyingblue' }],
+      formatTransferRatio,
+      loadTransferSourceResolver: () => loadAwardProgramSourceResolver(async () => {
+        loads++;
+        return {
+          amex: { flyingBlue: { ...AMEX_DACH_PARTNERS.flyingBlue, amexPoints: 2, partnerMiles: 1, effectiveRate: 50 } },
+          payback: PAYBACK_DACH_PARTNERS, tableAsOf: '2026-10',
+        };
+      }),
+    }));
+    const result = await tool.execute!(params, executeOptions());
+    assert.equal(loads, 1);
+    assert.match(String(result), /Amex Membership Rewards \(DACH\) 2:1 \(50%\)/);
+  });
+
   it('starts award and cash providers in parallel', async () => {
     let seatsStarted = false;
     let duffelStarted = false;

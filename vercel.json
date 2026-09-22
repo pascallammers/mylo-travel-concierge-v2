@@ -35,6 +35,10 @@
     {
       "path": "/api/cron/tool-failure-alert",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/transfer-table-check",
+      "schedule": "0 5 2 * *"
     }
   ]
 }
