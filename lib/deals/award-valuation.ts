@@ -4,6 +4,9 @@
  * is cents per point.
  */
 
+/** Price-history sources whose EUR rows count as cash measurements (never mileage prices). */
+export const CASH_REFERENCE_SOURCES = ['travelpayouts', 'duffel'] as const;
+
 /** Currency conversion into EUR; unknown currencies yield null. */
 export interface EurRates {
   /**

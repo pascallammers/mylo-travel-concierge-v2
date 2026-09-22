@@ -3,6 +3,7 @@ import 'server-only';
 import { and, desc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm';
 import { db } from './index';
 import { filterUserIdsWithAccess } from '@/lib/access-control';
+import { CASH_REFERENCE_SOURCES } from '@/lib/deals/award-valuation';
 import {
   flightDeals,
   priceHistory,
@@ -160,7 +161,8 @@ export interface CashReferenceRow {
 
 /**
  * Measured cash reference (Ø Barpreis) of a route in one cabin over 90 days.
- * Only travelpayouts EUR samples count — a mileage price is never a cash price.
+ * Only cash sources count (see CASH_REFERENCE_SOURCES) — a mileage price is
+ * never a cash price.
  *
  * @param origin - Route origin IATA code.
  * @param destination - Route destination IATA code.
@@ -186,7 +188,7 @@ export async function getCashReference(
         eq(priceHistory.origin, origin),
         eq(priceHistory.destination, destination),
         eq(priceHistory.cabinClass, cabinClass),
-        eq(priceHistory.source, 'travelpayouts'),
+        inArray(priceHistory.source, [...CASH_REFERENCE_SOURCES]),
         eq(priceHistory.currency, 'EUR'),
         gte(priceHistory.scannedAt, ninetyDaysAgo),
       ),
@@ -197,37 +199,6 @@ export async function getCashReference(
   }
 
   return { meanEur: row.meanEur, samples: row.samples };
-}
-
-/**
- * Newest stored sample of one route/cabin/source, used to keep reference
- * scans idempotent across runs.
- *
- * @param origin - Route origin IATA code.
- * @param destination - Route destination IATA code.
- * @param cabinClass - Cabin to inspect.
- * @param source - Price source to inspect.
- * @returns The newest `scannedAt`, or null when nothing is stored.
- */
-export async function getLatestPriceHistoryScan(
-  origin: string,
-  destination: string,
-  cabinClass: 'economy' | 'premium_economy' | 'business' | 'first',
-  source: string,
-): Promise<Date | null> {
-  const [row] = await db
-    .select({ latest: sql<Date | null>`max(${priceHistory.scannedAt})` })
-    .from(priceHistory)
-    .where(
-      and(
-        eq(priceHistory.origin, origin),
-        eq(priceHistory.destination, destination),
-        eq(priceHistory.cabinClass, cabinClass),
-        eq(priceHistory.source, source),
-      ),
-    );
-
-  return row?.latest ?? null;
 }
 
 // --- Deal Routes ---
