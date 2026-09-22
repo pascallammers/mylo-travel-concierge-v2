@@ -75,12 +75,14 @@ test('unknown programmes and loader failures return German errors without intern
   );
   assert.equal(unknown.success, false);
   if (!unknown.success) assert.match(unknown.error, /Chase Ultimate Rewards ist nicht bewertbar/);
-  const failure = await run(
-    createCppCalculatorTool(async () => {
-      throw new Error('secret connection details');
-    }),
+  await assert.rejects(
+    run(
+      createCppCalculatorTool(async () => {
+        throw new Error('unexpected database failure');
+      }),
+    ),
+    /unexpected database failure/,
   );
-  assert.deepEqual(failure, { success: false, error: 'Die Einlösung konnte nicht bewertet werden.' });
 });
 
 test('tool schema requires positive EUR cash and points, accepts optional cabin, and rejects the old currency path', () => {

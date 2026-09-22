@@ -58,10 +58,9 @@ export function createCppCalculatorTool(readTable: () => Promise<ValuationTable>
       try {
         return { success: true, ...assessRedemption(input, await readTable()) };
       } catch (error) {
-        return {
-          success: false,
-          error: error instanceof CppCalculatorError ? error.message : 'Die Einlösung konnte nicht bewertet werden.',
-        };
+        // Only input errors are answers for the model; anything else must count as a failed tool call.
+        if (error instanceof CppCalculatorError) return { success: false, error: error.message };
+        throw error;
       }
     },
   });

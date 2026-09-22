@@ -96,7 +96,8 @@ export async function handleValuationAdminGet(deps: AdminDependencies): Promise<
       a.name.localeCompare(b.name, 'de'),
     );
     return Response.json({ tableAsOf: table.tableAsOf, rates, programs } satisfies ValuationAdminData);
-  } catch {
+  } catch (error) {
+    console.error('Bewertungstabelle: Admin-Abfrage fehlgeschlagen.', error);
     return Response.json({ error: 'Die Bewertungstabelle konnte nicht geladen werden.' }, { status: 500 });
   }
 }
@@ -150,6 +151,7 @@ export async function handleValuationAdminPost(request: Request, deps: AdminDepe
     return Response.json(result);
   } catch (error) {
     if (error instanceof ValuationDeviationError) return Response.json({ error: error.message }, { status: 409 });
+    console.error('Bewertungstabelle: Bewertungssatz konnte nicht gespeichert werden.', error);
     return Response.json({ error: 'Der Bewertungssatz konnte nicht gespeichert werden.' }, { status: 500 });
   }
 }
