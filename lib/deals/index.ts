@@ -1,4 +1,12 @@
 export {
+  valueAward,
+  type AwardQuote,
+  type AwardValuation,
+  type AwardValuationRate,
+  type CashReference,
+  type EurRates,
+} from './award-valuation';
+export {
   buildPriceHistoryBar,
   classifyDealRange,
   EUROPE_MAX_DISTANCE_KM,

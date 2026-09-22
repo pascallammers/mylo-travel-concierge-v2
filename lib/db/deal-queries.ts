@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, desc, eq, gte, lte } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, lt, lte, sql } from 'drizzle-orm';
 import { db } from './index';
 import { filterUserIdsWithAccess } from '@/lib/access-control';
 import {
@@ -17,6 +17,7 @@ import {
 
 export async function getActiveDeals(params: {
   origin?: string;
+  origins?: string[];
   cabinClass?: string;
   minScore?: number;
   limit?: number;
@@ -26,6 +27,9 @@ export async function getActiveDeals(params: {
 
   if (params.origin) {
     conditions.push(eq(flightDeals.origin, params.origin));
+  }
+  if (params.origins && params.origins.length > 0) {
+    conditions.push(inArray(flightDeals.origin, params.origins));
   }
   if (params.cabinClass) {
     conditions.push(eq(flightDeals.cabinClass, params.cabinClass as 'economy' | 'premium_economy' | 'business' | 'first'));
@@ -50,6 +54,10 @@ export async function upsertDeal(deal: typeof flightDeals.$inferInsert): Promise
     .onConflictDoUpdate({
       target: [flightDeals.origin, flightDeals.destination, flightDeals.departureDate, flightDeals.cabinClass, flightDeals.source],
       set: {
+        destinationName: deal.destinationName,
+        returnDate: deal.returnDate,
+        tripType: deal.tripType,
+        flightDuration: deal.flightDuration,
         price: deal.price,
         averagePrice: deal.averagePrice,
         priceDifference: deal.priceDifference,
@@ -59,6 +67,17 @@ export async function upsertDeal(deal: typeof flightDeals.$inferInsert): Promise
         stops: deal.stops,
         affiliateLink: deal.affiliateLink,
         source: deal.source,
+        programId: deal.programId,
+        programReachableDach: deal.programReachableDach,
+        taxesAmount: deal.taxesAmount,
+        taxesCurrency: deal.taxesCurrency,
+        taxesEur: deal.taxesEur,
+        seatsLeft: deal.seatsLeft,
+        cashReferencePrice: deal.cashReferencePrice,
+        cashReferenceSamples: deal.cashReferenceSamples,
+        valuationRateCt: deal.valuationRateCt,
+        valuationRateValidFrom: deal.valuationRateValidFrom,
+        savingsPercent: deal.savingsPercent,
         expiresAt: deal.expiresAt,
         updatedAt: new Date(),
       },
@@ -69,6 +88,33 @@ export async function deleteExpiredDeals(): Promise<number> {
   const result = await db
     .delete(flightDeals)
     .where(lte(flightDeals.expiresAt, new Date()));
+  return result.rowCount ?? 0;
+}
+
+/**
+ * Remove deals of one route and source the current scan no longer saw.
+ * Freshness is tracked by `updatedAt`: rows re-upserted this run carry a newer
+ * timestamp than `notSeenSince` and survive.
+ *
+ * @param params - Route identity and the scan-start watermark.
+ * @returns Number of removed stale rows.
+ */
+export async function deleteStaleDealsForRoute(params: {
+  origin: string;
+  destination: string;
+  source: string;
+  notSeenSince: Date;
+}): Promise<number> {
+  const result = await db
+    .delete(flightDeals)
+    .where(
+      and(
+        eq(flightDeals.origin, params.origin),
+        eq(flightDeals.destination, params.destination),
+        eq(flightDeals.source, params.source),
+        lt(flightDeals.updatedAt, params.notSeenSince),
+      ),
+    );
   return result.rowCount ?? 0;
 }
 
@@ -105,6 +151,83 @@ export async function getPriceHistoryForRoute(
     .orderBy(desc(priceHistory.scannedAt));
 
   return rows.map((r) => r.price);
+}
+
+export interface CashReferenceRow {
+  meanEur: number;
+  samples: number;
+}
+
+/**
+ * Measured cash reference (Ø Barpreis) of a route in one cabin over 90 days.
+ * Only travelpayouts EUR samples count — a mileage price is never a cash price.
+ *
+ * @param origin - Route origin IATA code.
+ * @param destination - Route destination IATA code.
+ * @param cabinClass - Cabin the reference must match.
+ * @returns Mean and sample count, or null below three samples.
+ */
+export async function getCashReference(
+  origin: string,
+  destination: string,
+  cabinClass: 'economy' | 'premium_economy' | 'business' | 'first',
+): Promise<CashReferenceRow | null> {
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+  const [row] = await db
+    .select({
+      meanEur: sql<number | null>`avg(${priceHistory.price})::float`,
+      samples: sql<number>`count(*)::int`,
+    })
+    .from(priceHistory)
+    .where(
+      and(
+        eq(priceHistory.origin, origin),
+        eq(priceHistory.destination, destination),
+        eq(priceHistory.cabinClass, cabinClass),
+        eq(priceHistory.source, 'travelpayouts'),
+        eq(priceHistory.currency, 'EUR'),
+        gte(priceHistory.scannedAt, ninetyDaysAgo),
+      ),
+    );
+
+  if (!row || row.samples < 3 || row.meanEur === null) {
+    return null;
+  }
+
+  return { meanEur: row.meanEur, samples: row.samples };
+}
+
+/**
+ * Newest stored sample of one route/cabin/source, used to keep reference
+ * scans idempotent across runs.
+ *
+ * @param origin - Route origin IATA code.
+ * @param destination - Route destination IATA code.
+ * @param cabinClass - Cabin to inspect.
+ * @param source - Price source to inspect.
+ * @returns The newest `scannedAt`, or null when nothing is stored.
+ */
+export async function getLatestPriceHistoryScan(
+  origin: string,
+  destination: string,
+  cabinClass: 'economy' | 'premium_economy' | 'business' | 'first',
+  source: string,
+): Promise<Date | null> {
+  const [row] = await db
+    .select({ latest: sql<Date | null>`max(${priceHistory.scannedAt})` })
+    .from(priceHistory)
+    .where(
+      and(
+        eq(priceHistory.origin, origin),
+        eq(priceHistory.destination, destination),
+        eq(priceHistory.cabinClass, cabinClass),
+        eq(priceHistory.source, source),
+      ),
+    );
+
+  return row?.latest ?? null;
 }
 
 // --- Deal Routes ---

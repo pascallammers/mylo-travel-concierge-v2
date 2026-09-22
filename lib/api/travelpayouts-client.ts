@@ -145,6 +145,8 @@ export async function getLatestPrices(params: {
   periodType?: 'year' | 'month' | 'season' | 'day';
   beginningOfPeriod?: string;
   oneWay?: boolean;
+  tripClass?: 0 | 1 | 2;
+  showToAffiliates?: boolean;
   currency?: string;
   limit?: number;
   page?: number;
@@ -155,10 +157,11 @@ export async function getLatestPrices(params: {
   url.searchParams.set('period_type', params.periodType || 'month');
   if (params.beginningOfPeriod) url.searchParams.set('beginning_of_period', params.beginningOfPeriod);
   if (params.oneWay !== undefined) url.searchParams.set('one_way', String(params.oneWay));
+  if (params.tripClass !== undefined) url.searchParams.set('trip_class', String(params.tripClass));
   url.searchParams.set('currency', params.currency || 'eur');
   url.searchParams.set('limit', String(params.limit || 30));
   url.searchParams.set('page', String(params.page || 1));
-  url.searchParams.set('show_to_affiliates', 'true');
+  url.searchParams.set('show_to_affiliates', String(params.showToAffiliates ?? true));
   url.searchParams.set('sorting', 'price');
   // Token sent via X-Access-Token header only (not in URL for security)
 

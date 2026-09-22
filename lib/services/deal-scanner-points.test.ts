@@ -1,12 +1,59 @@
 import assert from 'node:assert';
 import { describe, it, mock } from 'node:test';
 import type { SeatsAeroFlight } from '@/lib/api/seats-aero-client';
+import type { CashReference } from '@/lib/deals/award-valuation';
+import type { ResolvedRate, ValuationTable } from '@/lib/valuation/types';
 import {
   buildPointsScanDepartureDates,
   calculatePointsDealScore,
+  pickBestFlight,
   scanPointsDealsForRoute,
   shouldScanSeatsAero,
+  type ScanPointsDependencies,
 } from './deal-scanner-points';
+
+const RATE_VALID_FROM = new Date('2026-01-01T00:00:00.000Z');
+
+function createRate(centsPerUnit: number): ResolvedRate {
+  return {
+    centsPerUnit,
+    cabin: 'business',
+    source: 'test',
+    sourceUrl: null,
+    sourceAsOf: new Date('2026-01-01T00:00:00.000Z'),
+    reviewDue: new Date('2026-12-01T00:00:00.000Z'),
+    stale: false,
+    validFrom: RATE_VALID_FROM,
+  };
+}
+
+function createValuationTable(rates: Record<string, number> = { lufthansa: 1.7 }): ValuationTable {
+  return {
+    rateFor: (programId) => {
+      const centsPerUnit = rates[programId];
+      return centsPerUnit === undefined ? undefined : createRate(centsPerUnit);
+    },
+    isRatable: (programId) => programId in rates,
+    programIds: () => Object.keys(rates).sort(),
+    staleRates: () => [],
+    tableAsOf: '2026-01',
+  };
+}
+
+const REACHABLE = new Set(['lufthansa']);
+
+function createScanDeps(
+  overrides: Partial<ScanPointsDependencies> = {},
+): Pick<ScanPointsDependencies, 'valuation' | 'isReachableDach' | 'eurRates' | 'getCashReference' | 'resolveDestinationName'> {
+  return {
+    valuation: createValuationTable(),
+    isReachableDach: (slug) => REACHABLE.has(slug),
+    eurRates: { toEur: (amount, currency) => (currency === 'EUR' ? amount : null) },
+    getCashReference: async (): Promise<CashReference | null> => null,
+    resolveDestinationName: async (code) => `City-${code}`,
+    ...overrides,
+  };
+}
 
 function createSeatsFlight(overrides: Partial<SeatsAeroFlight> = {}): SeatsAeroFlight {
   return {
@@ -130,6 +177,7 @@ describe('scanPointsDealsForRoute', () => {
         upsertDeal,
         insertPriceHistory,
         generateId: () => `award-id-${++generatedIds}`,
+        ...createScanDeps(),
       },
     );
 
@@ -176,6 +224,7 @@ describe('scanPointsDealsForRoute', () => {
         upsertDeal,
         insertPriceHistory,
         generateId: () => 'unused',
+        ...createScanDeps(),
       },
     );
 
@@ -185,5 +234,136 @@ describe('scanPointsDealsForRoute', () => {
     assert.match(result.errors[0], /FRA->JFK/i);
     assert.strictEqual(upsertDeal.mock.calls.length, 0);
     assert.strictEqual(insertPriceHistory.mock.calls.length, 0);
+  });
+
+  it('waehlt den Award mit den geringsten Einloesekosten statt den wenigsten Meilen', async () => {
+    const searchSeatsAero = mock.fn(async () => [
+      createSeatsFlight({ id: 'cheap-miles', miles: 12500, taxes: { amount: 800, currency: 'EUR' } }),
+      createSeatsFlight({ id: 'cheap-cost', miles: 45000, taxes: { amount: 50, currency: 'EUR' } }),
+    ]);
+    const upsertDeal = mock.fn(async () => undefined);
+
+    await scanPointsDealsForRoute(
+      { origin: 'FRA', destination: 'JFK' },
+      {
+        now: new Date('2026-04-09T12:15:00.000Z'),
+        monthsAhead: 1,
+        searchSeatsAero,
+        upsertDeal,
+        insertPriceHistory: mock.fn(async () => undefined),
+        generateId: () => 'id-1',
+        ...createScanDeps(),
+      },
+    );
+
+    const deal = upsertDeal.mock.calls[0].arguments[0];
+    assert.strictEqual(deal.price, 45000);
+    assert.strictEqual(deal.taxesEur, 50);
+  });
+
+  it('bevorzugt ein DACH-erreichbares Programm vor einem guenstigeren unerreichbaren', async () => {
+    const lufthansa = createSeatsFlight({ id: 'reachable', program: 'lufthansa', miles: 60000, taxes: { amount: 100, currency: 'EUR' } });
+    const united = createSeatsFlight({ id: 'unreachable', program: 'united', miles: 40000, taxes: { amount: 50, currency: 'EUR' } });
+
+    const best = pickBestFlight(
+      [
+        { flight: united, valuation: { taxesEur: 50, redemptionCostEur: 450, savingsPercent: null, rate: createRate(1.0) } },
+        { flight: lufthansa, valuation: { taxesEur: 100, redemptionCostEur: 1120, savingsPercent: null, rate: createRate(1.7) } },
+      ],
+      (slug) => REACHABLE.has(slug),
+    );
+
+    assert.strictEqual(best?.flight.id, 'reachable');
+  });
+
+  it('materialisiert Programm, Zuschlaege, Ø Barpreis, Rate und Ersparnis im Upsert', async () => {
+    const searchSeatsAero = mock.fn(async () => [
+      createSeatsFlight({ miles: 60000, taxes: { amount: 480, currency: 'EUR' }, seatsLeft: 3 }),
+    ]);
+    const upsertDeal = mock.fn(async () => undefined);
+
+    await scanPointsDealsForRoute(
+      { origin: 'FRA', destination: 'JFK' },
+      {
+        now: new Date('2026-04-09T12:15:00.000Z'),
+        monthsAhead: 1,
+        searchSeatsAero,
+        upsertDeal,
+        insertPriceHistory: mock.fn(async () => undefined),
+        generateId: () => 'id-1',
+        ...createScanDeps({
+          getCashReference: async () => ({ meanEur: 2900, samples: 5 }),
+        }),
+      },
+    );
+
+    const deal = upsertDeal.mock.calls[0].arguments[0];
+    assert.strictEqual(deal.programId, 'lufthansa');
+    assert.strictEqual(deal.programReachableDach, true);
+    assert.strictEqual(deal.taxesAmount, 480);
+    assert.strictEqual(deal.taxesCurrency, 'EUR');
+    assert.strictEqual(deal.taxesEur, 480);
+    assert.strictEqual(deal.seatsLeft, 3);
+    assert.strictEqual(deal.cashReferencePrice, 2900);
+    assert.strictEqual(deal.cashReferenceSamples, 5);
+    assert.strictEqual(deal.valuationRateCt, 1.7);
+    assert.deepStrictEqual(deal.valuationRateValidFrom, RATE_VALID_FROM);
+    // (2900 - 480 - 60000*1.7/100) / 2900 * 100 = 48.2758...
+    assert.ok(Math.abs(deal.savingsPercent - 48.2758) < 0.001);
+    assert.strictEqual(deal.destinationName, 'City-JFK');
+  });
+
+  it('speichert Programm, Zuschlaege und Sitze auch ohne Ø Barpreis', async () => {
+    const searchSeatsAero = mock.fn(async () => [createSeatsFlight()]);
+    const upsertDeal = mock.fn(async () => undefined);
+
+    await scanPointsDealsForRoute(
+      { origin: 'FRA', destination: 'JFK' },
+      {
+        now: new Date('2026-04-09T12:15:00.000Z'),
+        monthsAhead: 1,
+        searchSeatsAero,
+        upsertDeal,
+        insertPriceHistory: mock.fn(async () => undefined),
+        generateId: () => 'id-1',
+        ...createScanDeps({ getCashReference: async () => null }),
+      },
+    );
+
+    const deal = upsertDeal.mock.calls[0].arguments[0];
+    assert.strictEqual(deal.savingsPercent, null);
+    assert.strictEqual(deal.cashReferencePrice, null);
+    assert.strictEqual(deal.cashReferenceSamples, null);
+    assert.strictEqual(deal.programId, 'lufthansa');
+    assert.strictEqual(deal.taxesEur, 87.4);
+    assert.strictEqual(deal.seatsLeft, 2);
+  });
+
+  it('speichert unbekannte Programme ohne Rate und faellt auf Meilen-Ranking zurueck', async () => {
+    const searchSeatsAero = mock.fn(async () => [
+      createSeatsFlight({ id: 'azul-high', program: 'azul', miles: 90000 }),
+      createSeatsFlight({ id: 'azul-low', program: 'azul', miles: 55000 }),
+    ]);
+    const upsertDeal = mock.fn(async () => undefined);
+
+    await scanPointsDealsForRoute(
+      { origin: 'FRA', destination: 'JFK' },
+      {
+        now: new Date('2026-04-09T12:15:00.000Z'),
+        monthsAhead: 1,
+        searchSeatsAero,
+        upsertDeal,
+        insertPriceHistory: mock.fn(async () => undefined),
+        generateId: () => 'id-1',
+        ...createScanDeps(),
+      },
+    );
+
+    const deal = upsertDeal.mock.calls[0].arguments[0];
+    assert.strictEqual(deal.programId, 'azul');
+    assert.strictEqual(deal.programReachableDach, false);
+    assert.strictEqual(deal.price, 55000);
+    assert.strictEqual(deal.valuationRateCt, null);
+    assert.strictEqual(deal.savingsPercent, null);
   });
 });

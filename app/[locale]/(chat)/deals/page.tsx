@@ -77,8 +77,9 @@ export default async function DealsPage({
       hydrateSelectedAirports(preferenceSnapshot.originAirports),
       hydrateSelectedAirports(preferenceSnapshot.preferredDestinations),
     ]);
-    // Origins and kind are filtered in memory so the tab counts stay exact; above 300 active deals this needs its own query.
+    // Origins are filtered in the query; kind stays in memory so the tab counts stay exact.
     const deals = await getActiveDeals({
+      origins: filters.origins,
       minScore: 60,
       limit: 300,
     });

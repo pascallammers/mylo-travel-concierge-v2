@@ -9,7 +9,7 @@ import type { NewRate, RateVersion, ResolvedRate, ValuationTable } from './types
 export function buildValuationTable(rows: readonly (RateVersion | NewRate)[], today: Date): ValuationTable {
   const current = structuredClone(rows.filter((row) => !('validTo' in row) || row.validTo === null));
   const instant = today.getTime();
-  const resolve = (row: NewRate): ResolvedRate => ({
+  const resolve = (row: NewRate | RateVersion): ResolvedRate => ({
     centsPerUnit: row.centsPerUnit,
     cabin: row.cabin,
     source: row.source,
@@ -17,6 +17,7 @@ export function buildValuationTable(rows: readonly (RateVersion | NewRate)[], to
     sourceAsOf: new Date(row.sourceAsOf),
     reviewDue: new Date(row.reviewDue),
     stale: row.reviewDue.getTime() < instant,
+    validFrom: 'validFrom' in row ? new Date(row.validFrom) : new Date(today),
   });
   const allowlist = current.filter((row) => row.anchor === 'travel' && row.cabin === 'all');
   const ids = [...new Set(allowlist.map((row) => row.programId))].sort();

@@ -24,6 +24,16 @@ test('cabin rows win and missing cabin rates fall back to all', () => {
   assert.equal(table.rateFor('unknown', 'travel'), undefined);
 });
 
+test('resolved rates expose the validity start of their version', () => {
+  const validFrom = new Date('2026-06-01T00:00:00Z');
+  const rows = seedRows().map(
+    (row, index): RateVersion => ({ ...row, id: String(index), origin: 'seed', validFrom, validTo: null }),
+  );
+  const table = buildValuationTable(rows, today);
+  assert.deepEqual(table.rateFor('lufthansa', 'travel', 'business')?.validFrom, validFrom);
+  assert.deepEqual(buildValuationTable(seedRows(), today).rateFor('lufthansa', 'travel')?.validFrom, today);
+});
+
 test('only current travel/all rows define the allowlist and oldest month', () => {
   const rows = seedRows().map(
     (row, index): RateVersion => ({ ...row, id: String(index), origin: 'seed', validFrom: today, validTo: null }),

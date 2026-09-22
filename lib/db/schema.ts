@@ -860,6 +860,17 @@ export const flightDeals = pgTable('flight_deals', {
   affiliateLink: text('affiliate_link'),
   categories: json('categories').$type<string[]>().default([]),
   source: text('source').notNull().default('travelpayouts'),
+  programId: text('program_id'),
+  programReachableDach: boolean('program_reachable_dach'),
+  taxesAmount: real('taxes_amount'),
+  taxesCurrency: varchar('taxes_currency', { length: 3 }),
+  taxesEur: real('taxes_eur'),
+  seatsLeft: integer('seats_left'),
+  cashReferencePrice: real('cash_reference_price'),
+  cashReferenceSamples: integer('cash_reference_samples'),
+  valuationRateCt: real('valuation_rate_ct'),
+  valuationRateValidFrom: timestamp('valuation_rate_valid_from'),
+  savingsPercent: real('savings_percent'),
   expiresAt: timestamp('expires_at').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -867,6 +878,7 @@ export const flightDeals = pgTable('flight_deals', {
   uniqueIndex('flight_deals_route_date_cabin_source_uniq').on(table.origin, table.destination, table.departureDate, table.cabinClass, table.source),
   index('flight_deals_origin_expires_idx').on(table.origin, table.expiresAt),
   index('flight_deals_score_idx').on(table.dealScore),
+  index('flight_deals_savings_idx').on(table.source, table.savingsPercent),
 ]);
 
 export type FlightDeal = InferSelectModel<typeof flightDeals>;

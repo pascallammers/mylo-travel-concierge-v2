@@ -33,6 +33,8 @@ export interface NewRate extends RateKey, RateValues {
 export interface ResolvedRate extends Omit<RateValues, 'note'> {
   cabin: Cabin;
   stale: boolean;
+  /** Start of validity of the resolved version; the snapshot date for unversioned seed rows. */
+  validFrom: Date;
 }
 
 export interface ValuationTable {
