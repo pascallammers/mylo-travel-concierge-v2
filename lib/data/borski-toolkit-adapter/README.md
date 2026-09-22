@@ -7,7 +7,7 @@ The toolkit ships as a **git submodule** under `lib/data/borski-toolkit/`. This 
 ## Usage
 
 ```ts
-import { loadTransferPartners, loadSweetSpots, loadPointsValuations } from '@/lib/data/borski-toolkit-adapter';
+import { loadTransferPartners, loadSweetSpots } from '@/lib/data/borski-toolkit-adapter';
 
 const transfers = loadTransferPartners();
 const amexMr = transfers.amex_mr; // typed: BorskiTransferIssuer
@@ -17,9 +17,6 @@ for (const flight of sweetSpots.flights) {
   console.log(flight.name, flight.tier, flight.routes);
 }
 
-const valuations = loadPointsValuations();
-const amex = valuations.credit_card_points.amex_membership_rewards;
-console.log(amex.floor, amex.ceiling); // floor/ceiling cpp
 ```
 
 All loaders cache the parsed result. Call `resetBorskiCaches()` to force a re-read.
@@ -30,7 +27,6 @@ All loaders cache the parsed result. Call `resetBorskiCaches()` to force a re-re
 |---|---|---|
 | `loadTransferPartners()` | `transfer-partners.json` | US issuer → airline/hotel transfer ratios |
 | `loadSweetSpots()` | `sweet-spots.json` | High-CPP flight + hotel redemptions, booking windows, surcharge guide |
-| `loadPointsValuations()` | `points-valuations.json` | Floor/ceiling cpp valuations across TPG, UpgradedPoints, OneMileAtATime, ViewFromTheWing |
 | `loadAlliances()` | `alliances.json` | Star Alliance, Oneworld, SkyTeam membership lists |
 | `loadPartnerAwards()` | `partner-awards.json` | Award programs and which airlines each can book |
 | `loadHotelChains()` | `hotel-chains.json` | Hotel chain → loyalty program metadata, brand tiers |
@@ -69,7 +65,6 @@ borski-toolkit-adapter/
     index.ts                     Schema barrel
     transfer-partners.ts
     sweet-spots.ts
-    points-valuations.ts
     alliances.ts
     partner-awards.ts
     hotel-chains.ts

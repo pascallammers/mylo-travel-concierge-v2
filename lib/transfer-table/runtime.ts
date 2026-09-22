@@ -1,5 +1,4 @@
-import postgres from 'postgres';
-import { drizzle } from 'drizzle-orm/postgres-js';
+import { getInteractiveDatabase } from '../db/interactive-client';
 import { createTransferTableRepository } from './repository';
 import { loadDachPartnerMaps, type DachPartnerMaps } from './reader';
 import type { TransferRepository } from './types';
@@ -12,10 +11,7 @@ let repository: TransferRepository | undefined;
  */
 export function getTransferRepository(): TransferRepository {
   if (!repository) {
-    const url = process.env.DATABASE_URL;
-    if (!url) throw new Error('Die Datenbank ist nicht konfiguriert.');
-    const client = postgres(url, { max: 2, prepare: false, fetch_types: false, idle_timeout: 20, connect_timeout: 10 });
-    repository = createTransferTableRepository(drizzle(client));
+    repository = createTransferTableRepository(getInteractiveDatabase());
   }
   return repository;
 }

@@ -1,81 +1,69 @@
-// lib/tools/cpp-calculator.ts
-//
-// AI SDK tool that wraps the cpp-calculator service. The agent calls this when
-// a user asks "is X points for Y price a good deal?" or "how much value does
-// this redemption give me?".
-//
-// Currency defaults to EUR for the DACH user base. The system prompt should
-// override to USD when the user is communicating in English about US programs.
-
 import { tool } from 'ai';
 import { z } from 'zod';
-import { loadPointsValuations } from '@/lib/data/borski-toolkit-adapter';
-import {
-  calculateCpp,
-  CppCalculatorError,
-  type CppResult,
-} from '@/lib/services/cpp-calculator';
+import { getLoyaltyProgram } from '@/lib/loyalty/programs';
+import { assessRedemption, CppCalculatorError, type RedemptionAssessment } from '@/lib/services/cpp-calculator';
+import { VALUATION_SEEDS } from '@/lib/valuation/seeds';
+import { readValuationTable } from '@/lib/valuation/runtime';
+import { CABINS, type ValuationTable } from '@/lib/valuation/types';
 
-const inputSchema = z.object({
-  programId: z
-    .string()
-    .min(1)
-    .describe(
-      'Borski program ID, e.g. "amex_membership_rewards", "chase_ultimate_rewards", "lufthansa", "marriott_bonvoy". Lowercase + underscores.',
-    ),
-  pointsRequired: z
-    .number()
-    .positive()
-    .describe('Number of points/miles required to book the redemption.'),
-  cashEquivalent: z
-    .number()
-    .positive()
-    .describe(
-      'Cash price of the same booking in the input currency (full units, not cents). Used as the comparison value.',
-    ),
-  currency: z
-    .enum(['USD', 'EUR'])
-    .optional()
-    .default('EUR')
-    .describe(
-      'Currency of cashEquivalent. Defaults to EUR for DACH users. Set to USD when comparing US programs in USD.',
-    ),
-});
+const initialPrograms = VALUATION_SEEDS.filter((rate) => rate.anchor === 'travel' && rate.cabin === 'all')
+  .map((rate) => `${rate.programId} = ${getLoyaltyProgram(rate.programId)?.name ?? rate.programId}`)
+  .join(', ');
+const inputSchema = z
+  .object({
+    programId: z
+      .string({ required_error: 'Bitte ein Programm angeben.', invalid_type_error: 'Bitte eine Programm-ID angeben.' })
+      .min(1, 'Bitte ein Programm angeben.')
+      .describe(
+        `Programm-ID aus lib/loyalty/programs.ts. Bewertbare Programme zum Start: ${initialPrograms}. Weitere Programme sind bewertbar, sobald ein aktueller Reisewert für alle Klassen hinterlegt ist.`,
+      ),
+    cabin: z
+      .enum(CABINS, { errorMap: () => ({ message: 'Bitte eine gültige Reiseklasse angeben.' }) })
+      .optional()
+      .describe(
+        'Optionale Reiseklasse: all, economy, premium_economy, business oder first. Ohne spezifischen Satz gilt der Reisewert für alle Klassen.',
+      ),
+    pointsRequired: z
+      .number({
+        required_error: 'Bitte die benötigte Punktezahl angeben.',
+        invalid_type_error: 'Die Punktezahl muss eine Zahl sein.',
+      })
+      .finite('Die Punktezahl muss endlich sein.')
+      .positive('Die Punktezahl muss größer als null sein.')
+      .describe('Benötigte Punkte oder Meilen für die Einlösung.'),
+    cashEur: z
+      .number({
+        required_error: 'Bitte den Vergleichspreis in EUR angeben.',
+        invalid_type_error: 'Der Vergleichspreis muss eine Zahl sein.',
+      })
+      .finite('Der Vergleichspreis muss endlich sein.')
+      .positive('Der Vergleichspreis muss größer als null sein.')
+      .describe('Vergleichspreis derselben Buchung ausschließlich in EUR, als voller Euro-Betrag.'),
+  })
+  .strict('Bitte nur Programm, Klasse, Punktezahl und Vergleichspreis in EUR angeben.');
 
-type CppToolSuccess = CppResult & { success: true; summary: string };
-type CppToolError = { success: false; error: string };
-type CppToolResult = CppToolSuccess | CppToolError;
+type CppToolResult = (RedemptionAssessment & { success: true }) | { success: false; error: string };
 
-export const cppCalculatorTool = tool({
-  description:
-    'Calculate cents-per-point (cpp) value of a points redemption against borski-toolkit valuation thresholds. Returns a tier (poor/fair/good/excellent) and human-readable summary. Use when the user asks whether a redemption is worth burning points, or wants to compare points-vs-cash for a specific booking.',
-  inputSchema,
-  execute: async (input): Promise<CppToolResult> => {
-    try {
-      const valuations = loadPointsValuations();
-      const result = calculateCpp({
-        programId: input.programId,
-        pointsRequired: input.pointsRequired,
-        cashEquivalent: input.cashEquivalent,
-        currency: input.currency,
-        valuations,
-      });
-      return {
-        success: true,
-        ...result,
-        summary: buildSummary(result),
-      };
-    } catch (err) {
-      if (err instanceof CppCalculatorError) {
-        return { success: false, error: err.message };
+/**
+ * Create the CPP tool with one injected valuation read per execution.
+ * @param readTable - Load the current accepted valuation snapshot.
+ * @returns Tool assessing EUR redemptions with dated travel/no-plan anchors.
+ */
+export function createCppCalculatorTool(readTable: () => Promise<ValuationTable>) {
+  return tool({
+    description:
+      'Assess a points or miles redemption in EUR cents per point against the current DACH valuation table. Compares the cabin-dependent travel value (Reisewert) and, where documented, the no-plan value (Wert ohne Plan), and returns a German quality-seal summary with source and month. Use it when the user asks whether a specific redemption beats the cash price in EUR.',
+    inputSchema,
+    execute: async (input): Promise<CppToolResult> => {
+      try {
+        return { success: true, ...assessRedemption(input, await readTable()) };
+      } catch (error) {
+        // Only input errors are answers for the model; anything else must count as a failed tool call.
+        if (error instanceof CppCalculatorError) return { success: false, error: error.message };
+        throw error;
       }
-      throw err;
-    }
-  },
-});
-
-function buildSummary(r: CppResult): string {
-  const cur = r.inputCurrency === 'EUR' ? 'EUR' : 'USD';
-  const noteSuffix = r.source === 'mm-override' ? ' (M&M Star Alliance partner threshold)' : '';
-  return `${r.tier.toUpperCase()} deal: ${r.cpp}¢ per point on ${r.programName} (${cur} input). Threshold ${r.threshold.floor}-${r.threshold.ceiling}¢${noteSuffix}.`;
+    },
+  });
 }
+
+export const cppCalculatorTool = createCppCalculatorTool(readValuationTable);

@@ -169,6 +169,13 @@
       "when": 1790000065609,
       "tag": "0023_transfer_table",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790064000683,
+      "tag": "0024_valuation_table",
+      "breakpoints": true
     }
   ]
 }

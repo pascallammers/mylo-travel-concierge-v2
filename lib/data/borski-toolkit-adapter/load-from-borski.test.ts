@@ -10,7 +10,6 @@ import assert from 'node:assert/strict';
 import {
   loadTransferPartners,
   loadSweetSpots,
-  loadPointsValuations,
   loadAlliances,
   loadPartnerAwards,
   loadHotelChains,
@@ -91,33 +90,6 @@ describe('loadSweetSpots', () => {
         assert.ok(route.miles >= 0);
       }
     }
-  });
-});
-
-describe('loadPointsValuations', () => {
-  it('returns 3 sections: credit_card_points, airline_miles, hotel_points', () => {
-    resetBorskiCaches();
-    const file = loadPointsValuations();
-    assert.ok(Object.keys(file.credit_card_points).length > 0);
-    assert.ok(Object.keys(file.airline_miles).length > 0);
-    assert.ok(Object.keys(file.hotel_points).length > 0);
-  });
-
-  it('every valuation has floor <= ceiling', () => {
-    const file = loadPointsValuations();
-    for (const section of [file.credit_card_points, file.airline_miles, file.hotel_points]) {
-      for (const [id, v] of Object.entries(section)) {
-        assert.ok(v.floor <= v.ceiling, `floor <= ceiling for ${id}`);
-      }
-    }
-  });
-
-  it('amex_membership_rewards has a sane CPP range', () => {
-    const file = loadPointsValuations();
-    const amex = file.credit_card_points.amex_membership_rewards;
-    assert.ok(amex, 'amex_membership_rewards exists');
-    assert.ok(amex.floor >= 1.0 && amex.floor <= 3.0);
-    assert.ok(amex.ceiling >= amex.floor);
   });
 });
 

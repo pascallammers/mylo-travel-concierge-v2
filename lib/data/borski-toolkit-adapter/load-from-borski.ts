@@ -7,7 +7,7 @@
  * identically in tsx tests, `next dev`, `next start`, and Vercel without
  * any `outputFileTracingIncludes` config.
  *
- * Trade-off: the 6 active JSON files (~99 KB total) ship inside any
+ * Trade-off: the 5 active JSON files ship inside any
  * server bundle that imports this module. The 3 large hotel-property
  * files (~2 MB combined) are intentionally NOT imported here — add a
  * separate fs-backed loader when the hotel feature lands in Phase 2.
@@ -21,13 +21,11 @@
 import {
   BorskiTransferPartnersFileSchema,
   BorskiSweetSpotsFileSchema,
-  BorskiPointsValuationsFileSchema,
   BorskiAlliancesFileSchema,
   BorskiPartnerAwardsFileSchema,
   BorskiHotelChainsFileSchema,
   type BorskiTransferPartnersFile,
   type BorskiSweetSpotsFile,
-  type BorskiPointsValuationsFile,
   type BorskiAlliancesFile,
   type BorskiPartnerAwardsFile,
   type BorskiHotelChainsFile,
@@ -35,7 +33,6 @@ import {
 
 import transferPartnersData from '../borski-toolkit/data/transfer-partners.json' with { type: 'json' };
 import sweetSpotsData from '../borski-toolkit/data/sweet-spots.json' with { type: 'json' };
-import pointsValuationsData from '../borski-toolkit/data/points-valuations.json' with { type: 'json' };
 import alliancesData from '../borski-toolkit/data/alliances.json' with { type: 'json' };
 import partnerAwardsData from '../borski-toolkit/data/partner-awards.json' with { type: 'json' };
 import hotelChainsData from '../borski-toolkit/data/hotel-chains.json' with { type: 'json' };
@@ -46,7 +43,6 @@ import hotelChainsData from '../borski-toolkit/data/hotel-chains.json' with { ty
 
 let transferPartnersCache: BorskiTransferPartnersFile | null = null;
 let sweetSpotsCache: BorskiSweetSpotsFile | null = null;
-let pointsValuationsCache: BorskiPointsValuationsFile | null = null;
 let alliancesCache: BorskiAlliancesFile | null = null;
 let partnerAwardsCache: BorskiPartnerAwardsFile | null = null;
 let hotelChainsCache: BorskiHotelChainsFile | null = null;
@@ -71,17 +67,6 @@ export function loadSweetSpots(): BorskiSweetSpotsFile {
   if (sweetSpotsCache) return sweetSpotsCache;
   sweetSpotsCache = BorskiSweetSpotsFileSchema.parse(sweetSpotsData);
   return sweetSpotsCache;
-}
-
-/**
- * Load and validate `points-valuations.json`. Cached after first call.
- *
- * @returns parsed and validated points-valuations file.
- */
-export function loadPointsValuations(): BorskiPointsValuationsFile {
-  if (pointsValuationsCache) return pointsValuationsCache;
-  pointsValuationsCache = BorskiPointsValuationsFileSchema.parse(pointsValuationsData);
-  return pointsValuationsCache;
 }
 
 /**
@@ -124,7 +109,6 @@ export function loadHotelChains(): BorskiHotelChainsFile {
 export function resetBorskiCaches(): void {
   transferPartnersCache = null;
   sweetSpotsCache = null;
-  pointsValuationsCache = null;
   alliancesCache = null;
   partnerAwardsCache = null;
   hotelChainsCache = null;

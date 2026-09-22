@@ -6,12 +6,12 @@ of the upstream `data/` directory.
 
 ## Files
 
-Only the JSON data files that `load-from-borski.ts` imports are kept:
+The five JSON files imported by `load-from-borski.ts` and the retained US valuation data are kept:
 
 - `data/alliances.json`
 - `data/hotel-chains.json`
 - `data/partner-awards.json`
-- `data/points-valuations.json`
+- `data/points-valuations.json` — intentionally retained US data with no reader; MYLO uses the dated EUR-cent rates in `lib/valuation/` instead.
 - `data/sweet-spots.json`
 - `data/transfer-partners.json`
 

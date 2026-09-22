@@ -1,5 +1,5 @@
 import { serverEnv } from '@/env/server';
-import { sendTransferCheckFailureAlert, sendTransferTableAdminAlert } from '@/lib/email';
+import { sendTransferCheckFailureAlert, sendTransferTableAdminAlert } from '@/lib/admin-alerts';
 import { createFetchHtml, runTransferTableCheck, TRANSFER_SEEDS } from '@/lib/transfer-table';
 import { handleTransferCron } from '@/lib/transfer-table/http';
 import { getTransferRepository } from '@/lib/transfer-table/runtime';

@@ -26,7 +26,7 @@ test('migration 0023, snapshot and journal stay in sync without running SQL', ()
   const journal = JSON.parse(
     readFileSync(new URL('../../drizzle/migrations/meta/_journal.json', import.meta.url), 'utf8'),
   );
-  assert.equal(journal.entries.at(-1).tag, '0023_transfer_table');
+  assert.equal(journal.entries.find((entry: { idx: number }) => entry.idx === 23)?.tag, '0023_transfer_table');
   for (const table of ['transfer_rates', 'transfer_table_checks']) {
     assert.match(migration, new RegExp(`CREATE TABLE "${table}"`));
     assert.ok(snapshot.tables[`public.${table}`]);
