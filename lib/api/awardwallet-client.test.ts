@@ -19,7 +19,9 @@ import assert from 'node:assert';
 import { serverEnv } from '@/env/server';
 import { ChatSDKError } from '@/lib/errors';
 
-import {
+mock.module('server-only', { namedExports: {} });
+
+const {
   createAuthUrl,
   getConnectionInfo,
   getConnectedUser,
@@ -28,7 +30,7 @@ import {
   __resetAwardWalletDispatcherCacheForTests,
   __getAwardWalletDispatcherCacheForTests,
   __getProxyDispatcherForTests,
-} from './awardwallet-client';
+} = await import('./awardwallet-client');
 
 const ORIGINAL_PROXY_URL = (serverEnv as any).AWARDWALLET_PROXY_URL;
 
