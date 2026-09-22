@@ -191,7 +191,7 @@
     "repairPasswordMissing": "Password missing · add it at AwardWallet",
     "repairDisabled": "Disabled by AwardWallet · re-enable it there",
     "repairSecurityQuestion": "Security question pending · answer it at AwardWallet",
-    "staleTitle": "{count, plural, one {One balance has} other {# balances have}} not been read by AwardWallet for over 90 days.",
+    "staleTitle": "{count, plural, one {One balance has} other {# balances have}} not been read by AwardWallet for at least 90 days.",
     "staleBody": "Click “Update all” at AwardWallet, then Refresh here.",
     "staleFreePlan": "Without AwardWallet Plus, AwardWallet does not refresh your accounts on its own.",
     "openAwardWallet": "Update at AwardWallet",
