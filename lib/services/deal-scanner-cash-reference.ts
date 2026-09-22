@@ -1,11 +1,9 @@
-import type {
-  TravelpayoutsLatestPrice,
-  TravelpayoutsLatestResponse,
-} from '@/lib/api/travelpayouts-client';
+import type { DuffelFlight, DuffelSearchParams } from '@/lib/api/duffel-client';
+import type { EurRates } from '@/lib/deals/award-valuation';
 
-const CASH_REFERENCE_SOURCE = 'travelpayouts';
+const CASH_REFERENCE_SOURCE = 'duffel';
 const CASH_REFERENCE_CABIN = 'business';
-const BUSINESS_TRIP_CLASS = 1;
+const SCAN_WINDOWS_PER_DAY = 4;
 
 export interface CashReferenceRoute {
   origin: string;
@@ -23,89 +21,69 @@ export interface CashReferenceHistoryEntry {
 }
 
 export interface CashReferenceScanDependencies {
-  getLatestPrices: (params: {
-    origin: string;
-    destination?: string;
-    periodType?: 'year' | 'month' | 'season' | 'day';
-    oneWay?: boolean;
-    tripClass?: 0 | 1 | 2;
-    showToAffiliates?: boolean;
-    currency?: string;
-    limit?: number;
-  }) => Promise<TravelpayoutsLatestResponse>;
+  searchDuffel: (params: DuffelSearchParams) => Promise<DuffelFlight[]>;
   insertPriceHistory: (entries: CashReferenceHistoryEntry[]) => Promise<void>;
-  getLatestScan: (
-    origin: string,
-    destination: string,
-    cabinClass: 'economy' | 'premium_economy' | 'business' | 'first',
-    source: string,
-  ) => Promise<Date | null>;
+  eurRates: EurRates;
 }
 
 /**
- * Collect one year of business-class cash prices for the Ø Barpreis.
+ * Partition routes across the four 6-hour scan windows so each route gets one
+ * Duffel cash-reference call per day. `routeIndex % 4` selects the window
+ * `floor(utcHour / 6)` — deterministic, every route lands in exactly one window.
  *
- * Samples are keyed by their `found_at` timestamp: only rows strictly newer
- * than the newest stored sample are inserted, so re-runs never duplicate.
+ * @param routes - Routes with a concrete destination, in stable order.
+ * @param now - Current scan timestamp.
+ * @returns The subset due in this window.
+ */
+export function selectCashReferenceRoutes<T>(routes: T[], now: Date): T[] {
+  const windowIndex = Math.floor(now.getUTCHours() / 6) % SCAN_WINDOWS_PER_DAY;
+  return routes.filter((_, index) => index % SCAN_WINDOWS_PER_DAY === windowIndex);
+}
+
+/**
+ * Measure one business-class cash sample for the Ø Barpreis: the cheapest
+ * Duffel offer of the route on the probe date, converted to EUR.
  *
  * @param route - Origin/destination pair to measure.
- * @param deps - Injected API and persistence access.
- * @returns Number of newly inserted price-history samples.
+ * @param departureDate - ISO departure date for the one-way probe.
+ * @param deps - Injected Duffel search, persistence, and FX conversion.
+ * @returns 1 when a sample was inserted, otherwise 0.
  */
 export async function scanBusinessCashReference(
   route: CashReferenceRoute,
+  departureDate: string,
   deps: CashReferenceScanDependencies,
 ): Promise<number> {
-  const [response, latestScan] = await Promise.all([
-    deps.getLatestPrices({
-      origin: route.origin,
-      destination: route.destination,
-      tripClass: BUSINESS_TRIP_CLASS,
-      oneWay: true,
-      periodType: 'year',
-      showToAffiliates: false,
-      currency: 'eur',
-      limit: 30,
-    }),
-    deps.getLatestScan(
-      route.origin,
-      route.destination,
-      CASH_REFERENCE_CABIN,
-      CASH_REFERENCE_SOURCE,
-    ),
-  ]);
+  const offers = await deps.searchDuffel({
+    origin: route.origin,
+    destination: route.destination,
+    departureDate,
+    cabinClass: CASH_REFERENCE_CABIN,
+    passengers: 1,
+    maxConnections: 1,
+    maxResults: 10,
+  });
 
-  if (!response.success) {
+  const pricesEur = offers
+    .map((offer) =>
+      deps.eurRates.toEur(Number(offer.price.total), offer.price.currency),
+    )
+    .filter((price): price is number => price !== null && Number.isFinite(price));
+
+  if (pricesEur.length === 0) {
     return 0;
   }
 
-  const entries: CashReferenceHistoryEntry[] = response.data
-    .filter((price) => isNewerSample(price, latestScan))
-    .map((price) => ({
+  await deps.insertPriceHistory([
+    {
       origin: route.origin,
       destination: route.destination,
-      price: price.value,
-      currency: 'EUR' as const,
+      price: Math.min(...pricesEur),
+      currency: 'EUR',
       cabinClass: CASH_REFERENCE_CABIN,
       source: CASH_REFERENCE_SOURCE,
-      scannedAt: new Date(price.found_at),
-    }));
-
-  if (entries.length === 0) {
-    return 0;
-  }
-
-  await deps.insertPriceHistory(entries);
-  return entries.length;
-}
-
-function isNewerSample(
-  price: TravelpayoutsLatestPrice,
-  latestScan: Date | null,
-): boolean {
-  const foundAt = new Date(price.found_at);
-  if (Number.isNaN(foundAt.getTime())) {
-    return false;
-  }
-  return latestScan === null || foundAt.getTime() > latestScan.getTime();
+      scannedAt: new Date(),
+    },
+  ]);
+  return 1;
 }

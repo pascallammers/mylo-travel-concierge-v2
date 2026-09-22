@@ -3,6 +3,7 @@ import 'server-only';
 import { generateId } from 'ai';
 import { serverEnv } from '@/env/server';
 import { searchSeatsAero } from '@/lib/api/seats-aero-client';
+import { searchDuffel } from '@/lib/api/duffel-client';
 import {
   generateAffiliateLink,
   getCheapTickets,
@@ -11,11 +12,15 @@ import {
 } from '@/lib/api/travelpayouts-client';
 import { computePriceStats, calculateDealScore } from './deal-score';
 import {
+  buildPointsScanDepartureDates,
   scanPointsDealsForRoute,
   shouldScanSeatsAero,
   type ScanPointsDependencies,
 } from './deal-scanner-points';
-import { scanBusinessCashReference } from './deal-scanner-cash-reference';
+import {
+  scanBusinessCashReference,
+  selectCashReferenceRoutes,
+} from './deal-scanner-cash-reference';
 import { fetchEurRates } from './eur-rates';
 import { DACH_SOURCE_PROGRAM_IDS } from '@/lib/config/transfer-engine';
 import { loadAwardProgramSourceResolver } from '@/lib/transfer-table/award-sources';
@@ -25,7 +30,6 @@ import { getAirportDetails } from '@/lib/utils/airport-database';
 import {
   getActiveRoutes,
   getCashReference,
-  getLatestPriceHistoryScan,
   getPriceHistoryForRoute,
   insertPriceHistory,
   upsertDeal,
@@ -84,6 +88,7 @@ export interface ScanResult {
   priceHistoryEntries: number;
   expiredDealsRemoved: number;
   staleDealsRemoved: number;
+  cashReferenceSamples: number;
   errors: string[];
 }
 
@@ -103,6 +108,7 @@ export async function runDealScan(): Promise<ScanResult> {
     priceHistoryEntries: 0,
     expiredDealsRemoved: 0,
     staleDealsRemoved: 0,
+    cashReferenceSamples: 0,
     errors: [],
   };
 
@@ -111,6 +117,16 @@ export async function runDealScan(): Promise<ScanResult> {
   const routes = await getActiveRoutes();
   const shouldScanPointsDeals = Boolean(process.env.SEATSAERO_API_KEY) && shouldScanSeatsAero(now);
   const pointsDeps = shouldScanPointsDeals ? await loadPointsScanDeps() : null;
+  // One Duffel cash-reference probe per route per day, spread across the four
+  // 6-hour windows; the probe reuses the first monthly scan date.
+  const cashReferenceRoutes = new Set(
+    pointsDeps
+      ? selectCashReferenceRoutes(
+          routes.filter((route) => route.destination !== null),
+          now,
+        ).map((route) => `${route.origin}:${route.destination}`)
+      : [],
+  );
   console.log(`[DealScanner] Scanning ${routes.length} routes`);
 
   for (const route of routes) {
@@ -118,19 +134,24 @@ export async function runDealScan(): Promise<ScanResult> {
       await processRoute(route.origin, route.destination, result, runStartedAt);
 
       if (pointsDeps && route.destination) {
-        try {
-          result.priceHistoryEntries += await scanBusinessCashReference(
-            { origin: route.origin, destination: route.destination },
-            {
-              getLatestPrices,
-              insertPriceHistory,
-              getLatestScan: getLatestPriceHistoryScan,
-            },
-          );
-        } catch (error) {
-          const msg = error instanceof Error ? error.message : 'Unknown error';
-          console.error(`[DealScanner] Cash reference failed ${route.origin}->${route.destination}:`, msg);
-          result.errors.push(`${route.origin}->${route.destination} cash-reference: ${msg}`);
+        if (cashReferenceRoutes.has(`${route.origin}:${route.destination}`)) {
+          try {
+            const samples = await scanBusinessCashReference(
+              { origin: route.origin, destination: route.destination },
+              buildPointsScanDepartureDates(now, 1)[0],
+              {
+                searchDuffel,
+                insertPriceHistory,
+                eurRates: pointsDeps.eurRates,
+              },
+            );
+            result.cashReferenceSamples += samples;
+            result.priceHistoryEntries += samples;
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : 'Unknown error';
+            console.error(`[DealScanner] Cash reference failed ${route.origin}->${route.destination}:`, msg);
+            result.errors.push(`${route.origin}->${route.destination} cash-reference: ${msg}`);
+          }
         }
 
         const pointsResult = await scanPointsDealsForRoute(

@@ -1,113 +1,138 @@
 import assert from 'node:assert/strict';
 import { describe, it, mock } from 'node:test';
-import type { TravelpayoutsLatestPrice } from '@/lib/api/travelpayouts-client';
-import { scanBusinessCashReference } from './deal-scanner-cash-reference';
+import type { DuffelFlight } from '@/lib/api/duffel-client';
+import type { EurRates } from '@/lib/deals/award-valuation';
+import {
+  scanBusinessCashReference,
+  selectCashReferenceRoutes,
+} from './deal-scanner-cash-reference';
 
-function createPrice(overrides: Partial<TravelpayoutsLatestPrice> = {}): TravelpayoutsLatestPrice {
+function createOffer(total: string, currency = 'EUR'): DuffelFlight {
   return {
-    value: 2400,
-    trip_class: 1,
-    show_to_affiliates: false,
-    origin: 'FRA',
-    destination: 'SIN',
-    gate: 'test',
-    depart_date: '2026-06-01',
-    return_date: '',
-    number_of_changes: 0,
-    found_at: '2026-04-01T10:00:00.000Z',
-    distance: 10000,
-    actual: true,
-    ...overrides,
+    id: `offer-${total}-${currency}`,
+    airline: 'LH',
+    price: { total, base: total, currency },
+    departure: { airport: 'FRA', time: '2026-06-01T10:00:00Z' },
+    arrival: { airport: 'SIN', time: '2026-06-01T22:00:00Z' },
+    duration: '12h 0m',
+    stops: 0,
+    segments: [],
   };
 }
 
-function createDeps(prices: TravelpayoutsLatestPrice[], latestScan: Date | null = null) {
+const EUR_ONLY: EurRates = {
+  toEur: (amount, currency) => (currency === 'EUR' ? amount : null),
+};
+
+const WITH_USD: EurRates = {
+  toEur: (amount, currency) => {
+    if (currency === 'EUR') return amount;
+    if (currency === 'USD') return amount / 1.25;
+    return null;
+  },
+};
+
+function createDeps(offers: DuffelFlight[], eurRates: EurRates = EUR_ONLY) {
   return {
-    getLatestPrices: mock.fn(async () => ({ success: true, data: prices, currency: 'eur' })),
+    searchDuffel: mock.fn(async () => offers),
     insertPriceHistory: mock.fn(async () => undefined),
-    getLatestScan: mock.fn(async () => latestScan),
+    eurRates,
   };
 }
+
+const ROUTE = { origin: 'FRA', destination: 'SIN' };
+const DEPARTURE_DATE = '2026-06-01';
 
 describe('scanBusinessCashReference', () => {
-  it('fragt Business-One-Way-Preise des Jahres ohne Affiliate-Flag ab', async () => {
-    const deps = createDeps([createPrice()]);
+  it('fragt Business-One-Way-Angebote ueber Duffel ab', async () => {
+    const deps = createDeps([createOffer('2400')]);
 
-    const inserted = await scanBusinessCashReference(
-      { origin: 'FRA', destination: 'SIN' },
-      deps,
-    );
+    const inserted = await scanBusinessCashReference(ROUTE, DEPARTURE_DATE, deps);
 
     assert.equal(inserted, 1);
-    const params = deps.getLatestPrices.mock.calls[0].arguments[0];
-    assert.equal(params.tripClass, 1);
-    assert.equal(params.oneWay, true);
-    assert.equal(params.periodType, 'year');
-    assert.equal(params.showToAffiliates, false);
-    assert.equal(params.currency, 'eur');
+    const params = deps.searchDuffel.mock.calls[0].arguments[0];
+    assert.equal(params.origin, 'FRA');
+    assert.equal(params.destination, 'SIN');
+    assert.equal(params.departureDate, DEPARTURE_DATE);
+    assert.equal(params.cabinClass, 'business');
+    assert.equal(params.passengers, 1);
+    assert.equal(params.maxConnections, 1);
+    assert.equal(params.maxResults, 10);
   });
 
-  it('speichert Messungen als Business-Cash-Samples mit found_at als scannedAt', async () => {
-    const deps = createDeps([createPrice({ value: 2600, found_at: '2026-03-15T08:00:00.000Z' })]);
+  it('speichert das guenstigste Angebot als EUR-Sample', async () => {
+    const deps = createDeps([
+      createOffer('2600'),
+      createOffer('2400'),
+      createOffer('2900'),
+    ]);
 
-    await scanBusinessCashReference({ origin: 'FRA', destination: 'SIN' }, deps);
+    await scanBusinessCashReference(ROUTE, DEPARTURE_DATE, deps);
 
     const entry = deps.insertPriceHistory.mock.calls[0].arguments[0][0];
-    assert.equal(entry.origin, 'FRA');
-    assert.equal(entry.destination, 'SIN');
-    assert.equal(entry.price, 2600);
+    assert.equal(entry.price, 2400);
     assert.equal(entry.currency, 'EUR');
     assert.equal(entry.cabinClass, 'business');
-    assert.equal(entry.source, 'travelpayouts');
-    assert.deepEqual(entry.scannedAt, new Date('2026-03-15T08:00:00.000Z'));
+    assert.equal(entry.source, 'duffel');
+    assert.ok(entry.scannedAt instanceof Date);
   });
 
-  it('laesst nur Samples zu, die neuer als der letzte gespeicherte Scan sind', async () => {
+  it('konvertiert Fremdwaehrungs-Angebote nach EUR', async () => {
     const deps = createDeps(
-      [
-        createPrice({ value: 2400, found_at: '2026-04-01T10:00:00.000Z' }),
-        createPrice({ value: 2500, found_at: '2026-04-02T10:00:00.000Z' }),
-        createPrice({ value: 2600, found_at: '2026-04-03T10:00:00.000Z' }),
-      ],
-      new Date('2026-04-02T10:00:00.000Z'),
+      [createOffer('3000', 'USD'), createOffer('2600')],
+      WITH_USD,
     );
 
-    const inserted = await scanBusinessCashReference(
-      { origin: 'FRA', destination: 'SIN' },
-      deps,
-    );
+    await scanBusinessCashReference(ROUTE, DEPARTURE_DATE, deps);
 
-    assert.equal(inserted, 1);
-    const entries = deps.insertPriceHistory.mock.calls[0].arguments[0];
-    assert.equal(entries.length, 1);
-    assert.equal(entries[0].price, 2600);
+    const entry = deps.insertPriceHistory.mock.calls[0].arguments[0][0];
+    // min(3000/1.25, 2600) = min(2400, 2600)
+    assert.equal(entry.price, 2400);
   });
 
-  it('insertet nichts beim erneuten Lauf ohne neue Samples', async () => {
-    const deps = createDeps(
-      [createPrice({ found_at: '2026-04-01T10:00:00.000Z' })],
-      new Date('2026-04-01T10:00:00.000Z'),
-    );
+  it('ueberspringt Angebote ohne konvertierbare Waehrung', async () => {
+    const deps = createDeps([createOffer('500', 'XXX'), createOffer('2700')]);
 
-    const inserted = await scanBusinessCashReference(
-      { origin: 'FRA', destination: 'SIN' },
-      deps,
-    );
+    await scanBusinessCashReference(ROUTE, DEPARTURE_DATE, deps);
 
-    assert.equal(inserted, 0);
-    assert.equal(deps.insertPriceHistory.mock.calls.length, 0);
+    const entry = deps.insertPriceHistory.mock.calls[0].arguments[0][0];
+    assert.equal(entry.price, 2700);
   });
 
-  it('ignoriert fehlgeschlagene API-Antworten', async () => {
-    const deps = createDeps([]);
-    deps.getLatestPrices = mock.fn(async () => ({ success: false, data: [], currency: 'eur' }));
+  it('insertet nichts ohne Angebote oder ohne konvertierbaren Preis', async () => {
+    const emptyDeps = createDeps([]);
+    assert.equal(await scanBusinessCashReference(ROUTE, DEPARTURE_DATE, emptyDeps), 0);
+    assert.equal(emptyDeps.insertPriceHistory.mock.calls.length, 0);
 
-    const inserted = await scanBusinessCashReference(
-      { origin: 'FRA', destination: 'SIN' },
-      deps,
-    );
+    const unconvertibleDeps = createDeps([createOffer('500', 'XXX')]);
+    assert.equal(await scanBusinessCashReference(ROUTE, DEPARTURE_DATE, unconvertibleDeps), 0);
+    assert.equal(unconvertibleDeps.insertPriceHistory.mock.calls.length, 0);
+  });
+});
 
-    assert.equal(inserted, 0);
-    assert.equal(deps.insertPriceHistory.mock.calls.length, 0);
+describe('selectCashReferenceRoutes', () => {
+  const routes = Array.from({ length: 17 }, (_, i) => `route-${i}`);
+
+  it('verteilt jede Route auf genau ein 6-Stunden-Fenster pro Tag', () => {
+    const day = [
+      new Date('2026-04-09T00:30:00Z'),
+      new Date('2026-04-09T06:30:00Z'),
+      new Date('2026-04-09T12:30:00Z'),
+      new Date('2026-04-09T18:30:00Z'),
+    ];
+    const partitions = day.map((now) => selectCashReferenceRoutes(routes, now));
+
+    assert.deepEqual(partitions.flat().sort(), [...routes].sort());
+    for (const partition of partitions) {
+      assert.ok(partition.length >= 4 && partition.length <= 5);
+    }
+  });
+
+  it('ist deterministisch und ueberspringt Stunden innerhalb eines Fensters nicht', () => {
+    const a = selectCashReferenceRoutes(routes, new Date('2026-04-09T06:00:00Z'));
+    const b = selectCashReferenceRoutes(routes, new Date('2026-04-09T11:59:00Z'));
+
+    assert.deepEqual(a, b);
+    assert.deepEqual(a, ['route-1', 'route-5', 'route-9', 'route-13']);
   });
 });
