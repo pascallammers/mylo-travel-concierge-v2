@@ -30,17 +30,6 @@ export {
 } from './sweet-spots';
 
 export {
-  BorskiValuationSourcesSchema,
-  BorskiValuationEntrySchema,
-  BorskiValuationsMapSchema,
-  BorskiPointsValuationsFileSchema,
-  type BorskiValuationSources,
-  type BorskiValuationEntry,
-  type BorskiValuationsMap,
-  type BorskiPointsValuationsFile,
-} from './points-valuations';
-
-export {
   BorskiAllianceMemberSchema,
   BorskiAllianceEntrySchema,
   BorskiAlliancesFileSchema,
