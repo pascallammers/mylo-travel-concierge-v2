@@ -16,10 +16,11 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { LoyaltyProgramCard } from './loyalty-program-card';
-import { AlertTriangle, Loader2, RefreshCw, Unplug } from 'lucide-react';
+import { AlertTriangle, Clock, ExternalLink, Loader2, RefreshCw, Unplug } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { countStaleAccounts, type LoyaltyAccountState } from '@/lib/loyalty/account-state';
 
 interface LoyaltyAccount {
   id: string;
@@ -27,6 +28,8 @@ interface LoyaltyAccount {
   providerName: string;
   balance: number | null;
   balanceUnit: string;
+  lastRetrievedAt: string | null;
+  state: LoyaltyAccountState;
   eliteStatus?: string | null;
   expirationDate?: string | null;
   logoUrl?: string | null;
@@ -38,6 +41,7 @@ interface AccountsResponse {
   /** @deprecated Prefer `status`. Retained while older clients are in flight. */
   connected: boolean;
   status?: LoyaltyDataStatus;
+  awPlan: 'free' | 'plus' | null;
   lastSyncedAt: string | null;
   lastError?: string | null;
   accounts: LoyaltyAccount[];
@@ -93,6 +97,8 @@ function formatLastSynced(dateStr: string | null, t: ReturnType<typeof useTransl
 /**
  * List component for displaying all loyalty programs with refresh and disconnect
  * @param onDisconnected - Callback when user disconnects AwardWallet
+ * @param className - Additional list styles
+ * @returns Connected loyalty accounts and actions for updating them
  */
 export function LoyaltyProgramsList({ onDisconnected, className }: LoyaltyProgramsListProps) {
   const queryClient = useQueryClient();
@@ -239,6 +245,7 @@ export function LoyaltyProgramsList({ onDisconnected, className }: LoyaltyProgra
   }
 
   const accounts = data.accounts;
+  const staleCount = countStaleAccounts(accounts.map((account) => account.state));
 
   return (
     <div className={cn('space-y-4', className)}>
@@ -262,6 +269,30 @@ export function LoyaltyProgramsList({ onDisconnected, className }: LoyaltyProgra
         </Button>
       </div>
 
+      {staleCount > 0 && (
+        <div
+          role="status"
+          className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3"
+        >
+          <Clock aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-500" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <p className="text-sm font-medium text-amber-600 dark:text-amber-500">
+              {t('staleTitle', { count: staleCount })}
+            </p>
+            <p className="text-xs text-muted-foreground">{t('staleBody')}</p>
+            {data.awPlan === 'free' && (
+              <p className="text-xs text-muted-foreground">{t('staleFreePlan')}</p>
+            )}
+            <Button asChild variant="outline" size="sm" className="h-auto min-h-8 max-w-full whitespace-normal">
+              <a href="https://awardwallet.com/account/list/" target="_blank" rel="noopener noreferrer">
+                <ExternalLink aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+                {t('openAwardWallet')}
+              </a>
+            </Button>
+          </div>
+        </div>
+      )}
+
       {accounts.length === 0 ? (
         <div className="text-center py-6 border-2 border-dashed rounded-lg bg-muted/10">
           <p className="text-sm text-muted-foreground">
@@ -280,6 +311,8 @@ export function LoyaltyProgramsList({ onDisconnected, className }: LoyaltyProgra
               providerCode={account.providerCode}
               balance={account.balance}
               balanceUnit={account.balanceUnit}
+              lastRetrievedAt={account.lastRetrievedAt ? new Date(account.lastRetrievedAt) : null}
+              state={account.state}
               eliteStatus={account.eliteStatus}
               expirationDate={account.expirationDate ? new Date(account.expirationDate) : null}
               logoUrl={account.logoUrl}
