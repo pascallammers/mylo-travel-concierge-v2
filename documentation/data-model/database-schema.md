@@ -236,6 +236,25 @@ erDiagram
     }
 ```
 
+### AwardWallet Connections
+
+`awardwallet_connections` stores the connected AwardWallet user and sync status:
+
+| Column | Type | Meaning |
+| --- | --- | --- |
+| `id` | text | Primary key |
+| `user_id` | text | Unique user reference; cascade delete |
+| `aw_user_id` | text | Connected AwardWallet user ID |
+| `aw_plan` | text, nullable | AwardWallet status: `free` or `plus`; `null` until the first sync after migration 0025, or when AwardWallet returns no recognized status. Plus supports background refreshes; Free does not. |
+| `connected_at` | timestamp | Connection creation time |
+| `last_synced_at` | timestamp, nullable | Last MYLO sync; also used for retry backoff after a failed attempt |
+| `status` | text | `connected`, `disconnected`, or `error` |
+| `error_message` | text, nullable | Last connection error |
+| `created_at` | timestamp | Row creation time |
+| `updated_at` | timestamp | Last row update |
+
+Migration `0025_awardwallet_plan.sql` adds only `aw_plan`. Manual sync, daily cron, and the initial OAuth sync store the plan together with `last_synced_at`. Each loyalty account's `last_retrieved_at` separately records when AwardWallet last successfully read the programme; a MYLO sync does not refresh that timestamp at AwardWallet.
+
 ## Complete Schema Overview
 
 ```mermaid

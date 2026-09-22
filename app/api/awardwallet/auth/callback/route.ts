@@ -62,9 +62,9 @@ export async function GET(request: NextRequest) {
 
     // Perform initial sync of loyalty accounts
     try {
-      const accounts = await getConnectedUser(connectionInfo.userId, { userName: session.user.name });
-      await syncLoyaltyAccounts(connection.id, accounts);
-      console.error('[AwardWallet] Initial sync completed:', accounts.length, 'accounts');
+      const snapshot = await getConnectedUser(connectionInfo.userId, { userName: session.user.name });
+      await syncLoyaltyAccounts(connection.id, snapshot);
+      console.error('[AwardWallet] Initial sync completed:', snapshot.accounts.length, 'accounts');
     } catch (syncError) {
       console.error('[AwardWallet] Initial sync failed (non-fatal):', syncError);
     }

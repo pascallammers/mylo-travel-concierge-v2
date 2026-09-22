@@ -184,6 +184,17 @@
     "completePayment": "Schließe deine einmalige Zahlung für MYLO Pro ab"
   },
   "loyalty": {
+    "retrievedAt": "Stand: {date}",
+    "retrievedAtStale": "Stand: {date} · vor {days} Tagen",
+    "readFailed": "AwardWallet kann diese Seite gerade nicht lesen.",
+    "repairInvalidCredentials": "Login fehlgeschlagen · bei AwardWallet reparieren",
+    "repairPasswordMissing": "Passwort fehlt · bei AwardWallet nachtragen",
+    "repairDisabled": "Von AwardWallet deaktiviert · dort reaktivieren",
+    "repairSecurityQuestion": "Sicherheitsfrage offen · bei AwardWallet beantworten",
+    "staleTitle": "{count, plural, one {Ein Saldo wurde} other {# Salden wurden}} seit mindestens 90 Tagen nicht von AwardWallet gelesen.",
+    "staleBody": "Klicke bei AwardWallet auf „Update all“, danach hier auf Aktualisieren.",
+    "staleFreePlan": "Ohne AwardWallet Plus aktualisiert AwardWallet deine Konten nicht von selbst.",
+    "openAwardWallet": "Bei AwardWallet aktualisieren",
     "addPrograms": "Füge Programme in AwardWallet hinzu, um sie hier zu sehen.",
     "expiresAt": "Läuft ab: {date}",
     "noPrograms": "Keine Treueprogramme in deinem AwardWallet-Konto gefunden.",

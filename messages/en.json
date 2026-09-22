@@ -184,6 +184,17 @@
     "completePayment": "Complete your one-time payment for MYLO Pro"
   },
   "loyalty": {
+    "retrievedAt": "Last read: {date}",
+    "retrievedAtStale": "Last read: {date} · {days} days ago",
+    "readFailed": "AwardWallet can't read this programme's site right now.",
+    "repairInvalidCredentials": "Login failed · fix it at AwardWallet",
+    "repairPasswordMissing": "Password missing · add it at AwardWallet",
+    "repairDisabled": "Disabled by AwardWallet · re-enable it there",
+    "repairSecurityQuestion": "Security question pending · answer it at AwardWallet",
+    "staleTitle": "{count, plural, one {One balance has} other {# balances have}} not been read by AwardWallet for at least 90 days.",
+    "staleBody": "Click “Update all” at AwardWallet, then Refresh here.",
+    "staleFreePlan": "Without AwardWallet Plus, AwardWallet does not refresh your accounts on its own.",
+    "openAwardWallet": "Update at AwardWallet",
     "addPrograms": "Add programs in AwardWallet to see them here.",
     "expiresAt": "Expires: {date}",
     "noPrograms": "No loyalty programs found in your AwardWallet account.",

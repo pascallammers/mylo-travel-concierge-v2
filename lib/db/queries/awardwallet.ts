@@ -8,10 +8,11 @@ import {
   user,
   type AwardWalletConnection,
   type AwardWalletConnectionStatus,
+  type AwardWalletPlan,
   type LoyaltyAccount,
 } from '../schema';
 import { ChatSDKError } from '@/lib/errors';
-import type { AWLoyaltyAccount } from '@/lib/api/awardwallet-client';
+import type { AWConnectedUser } from '@/lib/api/awardwallet-client';
 
 export type { AwardWalletConnection, LoyaltyAccount };
 
@@ -35,6 +36,7 @@ export interface UserLoyaltyData {
   status: LoyaltyDataStatus;
   /** @deprecated Use `status === 'connected'`. Retained for API back-compat. */
   connected: boolean;
+  awPlan: AwardWalletPlan | null;
   lastSyncedAt: Date | null;
   /** Last error message recorded on the connection, if status='error'. */
   lastError: string | null;
@@ -179,13 +181,14 @@ export async function getLoyaltyAccounts(connectionId: string): Promise<LoyaltyA
 /**
  * Syncs loyalty accounts for a connection (upsert pattern)
  * @param connectionId - Connection ID
- * @param accounts - Array of accounts from AwardWallet API
+ * @param snapshot - Connected user's plan and accounts from AwardWallet API
  * @returns Number of accounts synced
  */
 export async function syncLoyaltyAccounts(
   connectionId: string,
-  accounts: AWLoyaltyAccount[],
+  snapshot: AWConnectedUser,
 ): Promise<number> {
+  const { accounts } = snapshot;
   try {
     // Neon HTTP driver doesn't support transactions, so sync in sequence.
     await db.delete(loyaltyAccounts).where(eq(loyaltyAccounts.connectionId, connectionId));
@@ -217,6 +220,7 @@ export async function syncLoyaltyAccounts(
     await db
       .update(awardwalletConnections)
       .set({
+        awPlan: snapshot.plan,
         lastSyncedAt: new Date(),
         updatedAt: new Date(),
       })
@@ -276,6 +280,7 @@ export async function getUserLoyaltyData(userId: string): Promise<UserLoyaltyDat
       return {
         status: 'disconnected',
         connected: false,
+        awPlan: null,
         lastSyncedAt: null,
         lastError: null,
         accounts: [],
@@ -289,6 +294,7 @@ export async function getUserLoyaltyData(userId: string): Promise<UserLoyaltyDat
       return {
         status: 'error',
         connected: false,
+        awPlan: connection.awPlan,
         lastSyncedAt: connection.lastSyncedAt,
         lastError: connection.errorMessage,
         accounts,
@@ -300,6 +306,7 @@ export async function getUserLoyaltyData(userId: string): Promise<UserLoyaltyDat
     return {
       status: 'connected',
       connected: true,
+      awPlan: connection.awPlan,
       lastSyncedAt: connection.lastSyncedAt,
       lastError: null,
       accounts,

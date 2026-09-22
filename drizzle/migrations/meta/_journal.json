@@ -176,6 +176,13 @@
       "when": 1790064000683,
       "tag": "0024_valuation_table",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1790075138088,
+      "tag": "0025_awardwallet_plan",
+      "breakpoints": true
     }
   ]
 }

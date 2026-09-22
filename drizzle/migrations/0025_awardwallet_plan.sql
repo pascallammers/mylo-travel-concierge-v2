@@ -1,0 +1,1 @@
+ALTER TABLE "awardwallet_connections" ADD COLUMN "aw_plan" text;

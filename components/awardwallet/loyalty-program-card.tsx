@@ -2,6 +2,7 @@
 
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import type { LoyaltyAccountState } from '@/lib/loyalty/account-state';
 import Image from 'next/image';
 import { AlertTriangleIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -11,12 +12,21 @@ interface LoyaltyProgramCardProps {
   providerCode: string;
   balance: number | null;
   balanceUnit: string;
+  lastRetrievedAt?: Date | null;
+  state?: LoyaltyAccountState;
   eliteStatus?: string | null;
   expirationDate?: Date | null;
   logoUrl?: string | null;
   compact?: boolean;
   className?: string;
 }
+
+const REPAIR_REASON_KEYS: Record<number, string> = {
+  2: 'repairInvalidCredentials',
+  7: 'repairPasswordMissing',
+  8: 'repairDisabled',
+  10: 'repairSecurityQuestion',
+};
 
 /**
  * Formats balance with locale-aware number formatting
@@ -54,16 +64,22 @@ function formatExpirationDate(date: Date | null | undefined): string | null {
  * @param providerCode - Unique code for the provider
  * @param balance - Current balance
  * @param balanceUnit - Unit of balance (miles, points, etc.)
+ * @param lastRetrievedAt - Last time AwardWallet successfully read the account
+ * @param state - Account action or age hint
  * @param eliteStatus - Optional elite tier status
  * @param expirationDate - Optional expiration date for the balance
  * @param logoUrl - Optional URL for provider logo
  * @param compact - Whether to use compact display mode
+ * @param className - Additional card styles
+ * @returns Loyalty account card
  */
 export function LoyaltyProgramCard({
   providerName,
   providerCode,
   balance,
   balanceUnit,
+  lastRetrievedAt,
+  state,
   eliteStatus,
   expirationDate,
   logoUrl,
@@ -72,6 +88,7 @@ export function LoyaltyProgramCard({
 }: LoyaltyProgramCardProps) {
   const expiring = isExpiringSoon(expirationDate);
   const formattedExpiration = formatExpirationDate(expirationDate);
+  const formattedRetrievedAt = formatExpirationDate(lastRetrievedAt);
   const t = useTranslations('loyalty');
 
   if (compact) {
@@ -136,6 +153,33 @@ export function LoyaltyProgramCard({
             {balance !== null && <span className="text-sm font-normal text-muted-foreground">{balanceUnit}</span>}
           </p>
         </div>
+        {formattedRetrievedAt && (
+          <p
+            className={cn(
+              'mt-1 text-[11px]',
+              state?.kind === 'stale' ? 'text-amber-600 dark:text-amber-500' : 'text-muted-foreground',
+            )}
+          >
+            {state?.kind === 'stale'
+              ? t('retrievedAtStale', { date: formattedRetrievedAt, days: state.days })
+              : t('retrievedAt', { date: formattedRetrievedAt })}
+          </p>
+        )}
+        {state?.kind === 'needs_repair' && (
+          <p className="mt-1 text-[11px] text-destructive">
+            <a
+              href="https://awardwallet.com/account/list/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2"
+            >
+              {t(REPAIR_REASON_KEYS[state.code] ?? 'repairInvalidCredentials')}
+            </a>
+          </p>
+        )}
+        {state?.kind === 'read_failed' && (
+          <p className="mt-1 text-[11px] text-muted-foreground">{t('readFailed')}</p>
+        )}
         {formattedExpiration && (
           <div
             className={cn(
