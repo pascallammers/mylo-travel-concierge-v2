@@ -62,3 +62,31 @@ test('a stalled connection is retried before the source counts as failed', async
   await assert.rejects(dead('https://source.example'), /Zeitüberschreitung: TimeoutError/);
   assert.equal(calls, 3);
 });
+
+test('definite status and content-type failures are not retried, 5xx and 429 are', async () => {
+  for (const [status, expected] of [
+    [403, 1],
+    [404, 1],
+    [429, 3],
+    [503, 3],
+  ] as const) {
+    let calls = 0;
+    await assert.rejects(
+      createFetchHtml(async () => {
+        calls += 1;
+        return new Response('', { status });
+      }, 0)('https://source.example'),
+      new RegExp(`HTTP ${status}`),
+    );
+    assert.equal(calls, expected, `HTTP ${status}`);
+  }
+  let calls = 0;
+  await assert.rejects(
+    createFetchHtml(async () => {
+      calls += 1;
+      return new Response('{}', { headers: { 'content-type': 'application/json' } });
+    }, 0)('https://source.example'),
+    /keine HTML/,
+  );
+  assert.equal(calls, 1);
+});

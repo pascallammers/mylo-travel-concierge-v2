@@ -3,6 +3,11 @@ export const TRANSFER_FETCH_ATTEMPTS = 3;
 export const TRANSFER_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36';
 
+/** A response that will not improve on retry: a definite status or the wrong content type. */
+class PermanentFetchError extends Error {}
+
+const isTransientStatus = (status: number) => status >= 500 || status === 408 || status === 429;
+
 async function fetchOnce(fetcher: typeof fetch, url: string): Promise<string> {
   const response = await fetcher(url, {
     headers: { 'User-Agent': TRANSFER_USER_AGENT, Accept: 'text/html' },
@@ -12,9 +17,12 @@ async function fetchOnce(fetcher: typeof fetch, url: string): Promise<string> {
     const reason = error instanceof Error ? error.name : 'unbekannt';
     throw new Error(`Die Quelle konnte nicht abgerufen werden (Verbindungsfehler oder Zeitüberschreitung: ${reason}).`);
   });
-  if (!response.ok) throw new Error(`Quelle nicht erreichbar (HTTP ${response.status}).`);
+  if (!response.ok) {
+    const message = `Quelle nicht erreichbar (HTTP ${response.status}).`;
+    throw isTransientStatus(response.status) ? new Error(message) : new PermanentFetchError(message);
+  }
   if (!response.headers.get('content-type')?.includes('text/html'))
-    throw new Error('Die Quelle hat keine HTML-Seite geliefert.');
+    throw new PermanentFetchError('Die Quelle hat keine HTML-Seite geliefert.');
   return response.text().catch(() => {
     throw new Error('Der Quelltext konnte nicht vollständig gelesen werden.');
   });
@@ -36,6 +44,7 @@ export function createFetchHtml(fetcher: typeof fetch, retryDelayMs = 2_000): (u
         return await fetchOnce(fetcher, url);
       } catch (error) {
         lastError = error;
+        if (error instanceof PermanentFetchError) throw error;
         if (attempt < TRANSFER_FETCH_ATTEMPTS) await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
       }
     }
