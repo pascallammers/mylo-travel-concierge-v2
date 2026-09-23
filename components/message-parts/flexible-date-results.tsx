@@ -182,6 +182,9 @@ export function FlexibleDateResults({ data }: FlexibleDateResultsProps) {
           {formatFlexibleCalendarDate(data.dateRange.end, locale)}
         </span>
       </div>
+      {data.awardNotice && (
+        <p role="status" className="text-sm text-muted-foreground">{data.awardNotice}</p>
+      )}
       {awardFlights.length > 0 && (
         <div className="space-y-3">
           <h4 className="text-sm font-medium">{labels.awardFlights}</h4>

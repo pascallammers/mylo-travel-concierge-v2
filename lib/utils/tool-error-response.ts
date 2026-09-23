@@ -197,8 +197,8 @@ function getDefaultSuggestions(type: ToolErrorType, locale: ToolErrorLocale = 'd
       ],
     },
     rate_limited: {
-      de: ['Einige Minuten warten', 'Weniger Suchanfragen gleichzeitig stellen'],
-      en: ['Wait a few minutes', 'Make fewer concurrent search requests'],
+      de: ['Später erneut suchen', 'Barpreise über die Links unten vergleichen'],
+      en: ['Search again later', 'Compare cash fares using the links below'],
     },
     timeout: {
       de: [

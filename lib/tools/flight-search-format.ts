@@ -7,6 +7,10 @@
  * graph that the tool entry-point requires.
  */
 
+import type { SeatsAeroFlight } from '@/lib/api/seats-aero-client';
+import type { DuffelFlight } from '@/lib/api/duffel-client';
+import type { FlightSearchLinkParams } from '@/lib/utils/flight-search-links';
+import { formatAwardQuotaNotice, type AwardSearchFailure } from './flight-search-award-errors';
 import {
   buildGoogleFlightsUrl,
   buildSkyscannerUrl,
@@ -16,6 +20,24 @@ import {
   type AwardProgramTransferSource,
   type TransferPartner,
 } from '@/lib/config/transfer-engine';
+
+type AwardDisplayFlight = Pick<SeatsAeroFlight,
+  'program' | 'airline' | 'cabin' | 'price' | 'seatsLeft' | 'outbound'>;
+type CashDisplayFlight = Pick<DuffelFlight,
+  'airline' | 'departure' | 'arrival' | 'duration' | 'stops'> & {
+    price: Pick<DuffelFlight['price'], 'total' | 'currency'>;
+  };
+interface FlightResultGroup<T> {
+  count: number;
+  flights: T[];
+  error?: boolean;
+}
+interface FlightSearchResult {
+  seats: FlightResultGroup<AwardDisplayFlight> & AwardSearchFailure;
+  seatsReturn?: FlightResultGroup<AwardDisplayFlight> & AwardSearchFailure;
+  cash: FlightResultGroup<CashDisplayFlight>;
+  searchLinkParams?: FlightSearchLinkParams;
+}
 
 // Booking-session creator is injected to keep the renderer free of the
 // server-env import graph. The tool entry-point passes the real
@@ -59,6 +81,10 @@ export type FormatFlightResultsDeps = AwardProgramResolvers & {
 };
 
 export const flightI18n = {
+  awardQuotaExhausted: {
+    de: (resetsAt: Date | null | undefined) => formatAwardQuotaNotice(resetsAt, 'de'),
+    en: (resetsAt: Date | null | undefined) => formatAwardQuotaNotice(resetsAt, 'en'),
+  },
   pastDepartDate: {
     de: (date: string, today: string) =>
       `Das Abflugdatum (${date}) liegt in der Vergangenheit. Bitte geben Sie ein zukünftiges Datum an. Heutiges Datum: ${today}`,
@@ -240,9 +266,9 @@ function formatTime(timeStr: string): string {
  * @returns Markdown table lines.
  */
 function renderAwardTable(
-  flights: any[],
+  flights: AwardDisplayFlight[],
   locale: FlightLocale,
-  params: any,
+  params: FlightSearchLinkParams,
   resolvers: Pick<
     AwardProgramResolvers,
     'getProgramDisplayName' | 'getProgramBookingUrl'
@@ -253,7 +279,7 @@ function renderAwardTable(
     '|-----|---------|----------|-------|--------|---------|-------|-------|-------|-------|------------|--------|',
   ];
 
-  flights.forEach((flight: any, index: number) => {
+  flights.forEach((flight, index) => {
     const departTime = formatTime(flight.outbound.departure.time);
     const arriveTime = formatTime(flight.outbound.arrival.time);
     const seats = flight.seatsLeft || '-';
@@ -349,8 +375,8 @@ function renderTransferSources(
  * @returns LLM-facing Markdown.
  */
 export async function formatFlightResults(
-  result: any,
-  params: any,
+  result: FlightSearchResult,
+  params: FlightSearchLinkParams,
   locale: FlightLocale = 'de',
   deps: FormatFlightResultsDeps,
 ): Promise<string> {
@@ -364,13 +390,17 @@ export async function formatFlightResults(
   const sections: string[] = [];
   const partialFailures: string[] = [];
   const returnAwardCount = result.seatsReturn?.count ?? 0;
+  const quotaFailure = [result.seats, result.seatsReturn].find((leg) => leg?.errorType === 'rate_limited');
+  if (quotaFailure && !(result.seats.errorType === 'rate_limited' && returnAwardCount > 0)) {
+    sections.push(flightI18n.awardQuotaExhausted[locale](quotaFailure.resetsAt), '');
+  }
 
   // Track partial failures for user notification.
   // result shape: { seats: {...}, cash: {...} }. cash = Duffel; seats = Seats.aero.
   // (Earlier versions had a third Amadeus provider — replaced by Duffel; the
   // partial-failure check still referenced the removed result.amadeus and
   // crashed formatFlightResults whenever search_flights ran.)
-  if (result.seats.error && (result.cash.count > 0 || returnAwardCount > 0)) {
+  if (result.seats.error && result.seats.errorType !== 'rate_limited' && (result.cash.count > 0 || returnAwardCount > 0)) {
     partialFailures.push(flightI18n.awardFlightsLabel[locale]);
   }
   if (result.cash.error && (result.seats.count > 0 || returnAwardCount > 0)) {
@@ -387,7 +417,7 @@ export async function formatFlightResults(
         origin: result.cash.flights[0].departure.airport,
         destination: result.cash.flights[0].arrival.airport,
         departDate: params.departDate,
-        returnDate: params.returnDate,
+        returnDate: params.returnDate ?? undefined,
         passengers: params.passengers,
       });
       duffelBookingUrl = session.url;
@@ -418,15 +448,17 @@ export async function formatFlightResults(
         );
       } else {
         sections.push(
-          result.seats.error
-            ? flightI18n.awardOutboundProviderUnavailable[locale]
-            : flightI18n.awardNoOutboundAvailability[locale],
+          result.seats.errorType === 'rate_limited'
+            ? flightI18n.awardQuotaExhausted[locale](result.seats.resetsAt)
+            : result.seats.error
+              ? flightI18n.awardOutboundProviderUnavailable[locale]
+              : flightI18n.awardNoOutboundAvailability[locale],
         );
       }
       sections.push('');
       sections.push(flightI18n.awardReturnLegHeader[locale](returnAwardCount));
       sections.push(
-        ...renderAwardTable(result.seatsReturn.flights, locale, params, {
+        ...renderAwardTable(result.seatsReturn?.flights ?? [], locale, params, {
           getProgramDisplayName,
           getProgramBookingUrl,
         }),
@@ -451,7 +483,7 @@ export async function formatFlightResults(
         [
           ...result.seats.flights,
           ...(result.seatsReturn?.flights ?? []),
-        ].map((flight: any) => flight.program),
+        ].map((flight) => flight.program),
       ),
     ];
     const caveatLines = caveatPrograms.flatMap((slug) => {
@@ -488,7 +520,7 @@ export async function formatFlightResults(
     sections.push(flightI18n.cashTableHeader[locale]);
     sections.push(`|-----|---------|-------|--------|---------|-------|-------|--------|`);
 
-    result.cash.flights.forEach((flight: any, idx: number) => {
+    result.cash.flights.forEach((flight, idx) => {
       const departureDate = flight.departure.time.split('T')[0];
 
       const googleFlightsUrl = buildGoogleFlightsUrl({

@@ -1,4 +1,5 @@
 import assert from 'node:assert';
+import { SeatsAeroQuotaExhaustedError } from '@/lib/api/seats-aero-quota';
 import { describe, it } from 'node:test';
 import type { DuffelFlight } from '@/lib/api/duffel-client';
 import type { SeatsAeroFlight } from '@/lib/api/seats-aero-client';
@@ -284,5 +285,90 @@ describe('flight-search tool factory integration', () => {
     assert.strictEqual(cashProviderCalls, 0);
     assert.ok(typeof result === 'string');
     assert.match(result, /"type":"no_results_offer_flexible"/);
+  });
+});
+
+
+describe('daily award quota in flight search', () => {
+  const resetsAt = new Date('2026-09-24T00:00:00Z');
+  const quotaError = async () => { throw new SeatsAeroQuotaExhaustedError(resetsAt); };
+  function options(locale: 'de' | 'en' = 'de'): ExecuteOptions {
+    return { ...executeOptions(), experimental_context: { chatId: 'chat-1', userId: 'user-1', locale } } as ExecuteOptions;
+  }
+
+  for (const awardOnly of [false, true]) {
+    it(`reports the daily limit with Berlin reset time when cash is empty or skipped (${awardOnly})`, async () => {
+      let loggedError: string | undefined;
+      let cashCalls = 0;
+      const tool = createFlightSearchTool(dependencies({
+        searchSeatsAero: quotaError,
+        searchDuffel: async () => { cashCalls++; return []; },
+        logFailedSearch: async (entry) => { loggedError = entry.errorType; },
+      }));
+      const result = String(await tool.execute!({ ...params, awardOnly }, options()));
+      assert.match(result, /## Zu viele Anfragen/);
+      assert.match(result, /Die Prämiensuche ist für heute ausgelastet. Ab 02:00 Uhr/);
+      assert.match(result, /Später erneut suchen/);
+      assert.match(result, /Barpreise über die Links unten vergleichen/);
+      assert.doesNotMatch(result, /seats\.aero|vorübergehend|Minuten warten/i);
+      assert.equal(loggedError, 'rate_limited');
+      assert.equal(cashCalls, awardOnly ? 0 : 1);
+    });
+  }
+
+  it('reports quota exhaustion when the cash provider also fails', async () => {
+    const tool = createFlightSearchTool(dependencies({ searchSeatsAero: quotaError, searchDuffel: async () => { throw new Error('offline'); } }));
+    const result = String(await tool.execute!(params, options()));
+    assert.match(result, /## Zu viele Anfragen/);
+    assert.match(result, /02:00/);
+  });
+
+  it('keeps cash results and explains the exhausted award search', async () => {
+    const tool = createFlightSearchTool(dependencies({ searchSeatsAero: quotaError }));
+    const result = String(await tool.execute!(params, options()));
+    assert.match(result, /Flüge mit Barzahlung/);
+    assert.match(result, /ausgelastet/);
+    assert.match(result, /02:00 Uhr/);
+    assert.doesNotMatch(result, /vorübergehend|seats\.aero/i);
+  });
+
+  it('localizes the daily limit in English', async () => {
+    const tool = createFlightSearchTool(dependencies({ searchSeatsAero: quotaError, searchDuffel: async () => [] }));
+    const result = String(await tool.execute!(params, options('en')));
+    assert.match(result, /## Too many requests/);
+    assert.match(result, /daily limit.*02:00/);
+    assert.match(result, /Compare cash fares/);
+  });
+
+  it('includes the notice in flexible-date cash results', async () => {
+    const tool = createFlightSearchTool(dependencies({ searchSeatsAero: quotaError, searchDuffelFlexibleDates: async () => [cashFlight] }));
+    const result = String(await tool.execute!({ ...params, flexibility: 3 }, options()));
+    const data: { type: string; awardNotice: string; cashFlights: unknown[] } = JSON.parse(result);
+    assert.equal(data.type, 'flexible_date_results');
+    assert.equal(data.cashFlights.length, 1);
+    assert.match(data.awardNotice, /ausgelastet.*02:00 Uhr/);
+  });
+
+  for (const failedLeg of ['FRA', 'JFK']) {
+    it(`keeps the successful award leg when ${failedLeg} is quota-limited`, async () => {
+      const tool = createFlightSearchTool(dependencies({
+        searchSeatsAero: async ({ origin }) => origin === failedLeg ? quotaError() : [awardFlight],
+        searchDuffel: async () => [],
+      }));
+      const result = String(await tool.execute!({ ...params, returnDate: futureDate }, options()));
+      assert.match(result, /Flüge mit Meilen/);
+      assert.match(result, /ausgelastet.*02:00 Uhr/);
+      assert.doesNotMatch(result, /vorübergehend/);
+    });
+  }
+
+  it('recognizes a quota-limited return leg when outbound and cash have no results', async () => {
+    const tool = createFlightSearchTool(dependencies({
+      searchSeatsAero: async ({ origin }) => origin === 'JFK' ? quotaError() : [],
+      searchDuffel: async () => [],
+    }));
+    const result = String(await tool.execute!({ ...params, returnDate: futureDate }, options()));
+    assert.match(result, /## Zu viele Anfragen/);
+    assert.match(result, /02:00 Uhr/);
   });
 });

@@ -1,4 +1,5 @@
 import { tool } from 'ai';
+import { searchAwardFlights } from './flight-search-award-errors';
 import type { TravelClass } from '@/lib/api/seats-aero-client';
 import type { NearbyAirport } from '@/lib/api/duffel-client';
 import type {
@@ -157,9 +158,9 @@ Examples of queries that should trigger this tool:
       console.log('[Flight Search] 🔄 Calling Duffel with:', { origin, destination, departDate: params.departDate, returnDate: params.returnDate, cabin: params.cabin, isFlexible: isFlexibleDateSearch });
 
       // 2. Parallel API calls
-      const [seatsResult, duffelResult, seatsReturnResult] = await Promise.all([
+      const [seatsOutcome, duffelResult, seatsReturnOutcome] = await Promise.all([
         // Seats.aero: Award flights (use flexibility: 3 for flexible date search)
-        searchSeatsAero({
+        searchAwardFlights({
           origin,
           destination,
           departureDate: params.departDate,
@@ -171,14 +172,7 @@ Examples of queries that should trigger this tool:
           // so program-grouping can keep every program. Flex spans 7 days.
           maxResults: isFlexibleDateSearch ? 100 : 60,
           onlyDirectFlights: params.nonStop,
-        }, abortSignal).then((result) => {
-          console.log('[Flight Search] Seats.aero SUCCESS:', result ? `${result.length} flights` : 'null');
-          return result;
-        }).catch((err) => {
-          if (abortSignal?.aborted) throw err;
-          console.error('[Flight Search] Seats.aero FAILED:', err.message, err);
-          return null;
-        }),
+        }, searchSeatsAero, abortSignal),
 
         // Duffel: Cash flights (use flexible date search for +/- 3 days)
         params.awardOnly
@@ -221,7 +215,7 @@ Examples of queries that should trigger this tool:
         // request for the return leg. Flexible-date results use their dedicated
         // response shape and intentionally skip this extra API call.
         params.returnDate && !isFlexibleDateSearch
-          ? searchSeatsAero({
+          ? searchAwardFlights({
               origin: destination,
               destination: origin,
               departureDate: params.returnDate,
@@ -229,16 +223,14 @@ Examples of queries that should trigger this tool:
               flexibility: params.flexibility,
               maxResults: 60,
               onlyDirectFlights: params.nonStop,
-            }, abortSignal).then((result) => {
-              console.log('[Flight Search] Seats.aero return leg SUCCESS:', result ? `${result.length} flights` : 'null');
-              return result;
-            }).catch((err) => {
-              if (abortSignal?.aborted) throw err;
-              console.error('[Flight Search] Seats.aero return leg FAILED:', err.message, err);
-              return null;
-            })
-          : Promise.resolve(null),
+            }, searchSeatsAero, abortSignal)
+          : Promise.resolve<Awaited<ReturnType<typeof searchAwardFlights>>>({ flights: null }),
       ]);
+      const seatsResult = seatsOutcome.flights;
+      const seatsReturnResult = seatsReturnOutcome.flights;
+      const quotaFailure = [seatsOutcome, seatsReturnOutcome].find(
+        (outcome) => outcome.errorType === 'rate_limited',
+      );
 
       const { flights: filteredSeatsFlights, notes: outboundAwardFilterNotes } =
         filterFlightSearchAwards(
@@ -289,7 +281,9 @@ Examples of queries that should trigger this tool:
       // Handle complete failure (no results from any provider)
       if (!hasSeats && !hasDuffel && !hasSeatsReturn) {
         // Determine error type based on what failed
-        const errorType = seatsError || duffelError ? 'provider_unavailable' : 'no_results';
+        const errorType = quotaFailure
+          ? 'rate_limited'
+          : seatsError || seatsReturnError || duffelError ? 'provider_unavailable' : 'no_results';
 
         // Log the failed search for monitoring (non-blocking, requires chatId).
         if (chatId) {
@@ -420,9 +414,11 @@ Examples of queries that should trigger this tool:
         return formatGracefulFlightError({
           type: errorType,
           message:
-            errorType === 'provider_unavailable'
-              ? flightI18n.providerUnavailable[locale]
-              : flightI18n.noFlightsShort[locale],
+            quotaFailure
+              ? flightI18n.awardQuotaExhausted[locale](quotaFailure.resetsAt)
+              : errorType === 'provider_unavailable'
+                ? flightI18n.providerUnavailable[locale]
+                : flightI18n.noFlightsShort[locale],
           searchParams: searchLinkParams,
           technicalDetails,
           locale,
@@ -438,6 +434,7 @@ Examples of queries that should trigger this tool:
           params,
           locale,
           flightI18n,
+          seatsOutcome,
         );
 
         console.log(
@@ -455,11 +452,15 @@ Examples of queries that should trigger this tool:
           flights: filteredSeats || [],
           count: filteredSeats?.length || 0,
           error: seatsError,
+          errorType: seatsOutcome.errorType,
+          resetsAt: seatsOutcome.resetsAt,
         },
         seatsReturn: {
           flights: filteredSeatsReturn || [],
           count: filteredSeatsReturn?.length || 0,
           error: seatsReturnError,
+          errorType: seatsReturnOutcome.errorType,
+          resetsAt: seatsReturnOutcome.resetsAt,
         },
         cash: {
           flights: duffelResult || [],
