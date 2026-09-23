@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { Lock, Plane } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { LanguageSwitcher } from '@/components/language-switcher';
@@ -26,6 +26,20 @@ import { cn } from '@/lib/utils';
 
 const AREA_GROUPS: readonly AreaGroup[] = ['categories', 'assistant'];
 
+const subscribeToNothing = () => () => {};
+
+/**
+ * Report whether the component renders in the browser after hydration.
+ * @returns False during SSR and hydration, true afterwards.
+ */
+function useIsHydrated(): boolean {
+  return useSyncExternalStore(
+    subscribeToNothing,
+    () => true,
+    () => false,
+  );
+}
+
 /**
  * Render the category rail with the shared account controls.
  * @param props - Optional styling for the sidebar container.
@@ -36,6 +50,7 @@ export function ShellRail({ className }: { className?: string }) {
   const pathname = usePathname();
   const activeArea = findActiveArea(pathname);
   const { user, subscriptionData, isProUser, isLoading } = useUser();
+  const isHydrated = useIsHydrated();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isCustomInstructionsEnabled, setIsCustomInstructionsEnabled] = useLocalStorage(
     'scira-custom-instructions-enabled',
@@ -75,11 +90,7 @@ export function ShellRail({ className }: { className?: string }) {
                         className={cn(
                           'h-auto gap-3 rounded-lg px-3 py-2 font-medium hover:bg-background/60',
                           'data-[active=true]:bg-background data-[active=true]:text-foreground',
-                          isActive
-                            ? 'shadow-sm'
-                            : isPreview
-                              ? 'text-muted-foreground/60'
-                              : 'text-muted-foreground',
+                          isActive ? 'shadow-sm' : isPreview ? 'text-muted-foreground/60' : 'text-muted-foreground',
                         )}
                       >
                         <Link href={area.href} aria-current={isActive ? 'page' : undefined}>
@@ -92,7 +103,10 @@ export function ShellRail({ className }: { className?: string }) {
                             </Badge>
                           )}
                           {area.counter && (
-                            <Badge variant="outline" className="rounded px-1.5 py-0.5 text-[10px] font-bold text-inherit tabular-nums">
+                            <Badge
+                              variant="outline"
+                              className="rounded px-1.5 py-0.5 text-[10px] font-bold text-inherit tabular-nums"
+                            >
                               {area.counter}
                             </Badge>
                           )}
@@ -109,16 +123,23 @@ export function ShellRail({ className }: { className?: string }) {
 
       <SidebarFooter className="border-t p-3">
         <div className="flex items-center justify-between gap-2">
-          <UserProfile
-            user={user ?? null}
-            subscriptionData={subscriptionData}
-            isProUser={isProUser}
-            isProStatusLoading={isLoading}
-            isCustomInstructionsEnabled={isCustomInstructionsEnabled}
-            setIsCustomInstructionsEnabled={setIsCustomInstructionsEnabled}
-            settingsOpen={settingsOpen}
-            setSettingsOpen={setSettingsOpen}
-          />
+          {/* useUser() starts from localStorage in the browser but empty on the server, so SSR would mismatch. */}
+          {isHydrated ? (
+            <UserProfile
+              user={user ?? null}
+              subscriptionData={subscriptionData}
+              isProUser={isProUser}
+              isProStatusLoading={isLoading}
+              isCustomInstructionsEnabled={isCustomInstructionsEnabled}
+              setIsCustomInstructionsEnabled={setIsCustomInstructionsEnabled}
+              settingsOpen={settingsOpen}
+              setSettingsOpen={setSettingsOpen}
+            />
+          ) : (
+            <div className="flex size-8 items-center justify-center">
+              <div className="size-4 animate-pulse rounded-full bg-muted/50" />
+            </div>
+          )}
           <NavigationMenu />
           <LanguageSwitcher />
           <ThemeSwitcher />
