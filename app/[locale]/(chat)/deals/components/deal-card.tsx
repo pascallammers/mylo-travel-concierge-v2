@@ -9,6 +9,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { cn } from '@/lib/utils';
 import { buildDealPrefillMessage } from '@/lib/chat/new-chat-handoff';
 import { DealScoreBadge } from './deal-score-badge';
+import { AwardDealPrice } from './award-deal-price';
+import { AwardSeal, AwardSealFootnote } from './award-seal';
 import type { PresentedDeal } from '@/lib/deals';
 
 interface DealCardProps {
@@ -39,12 +41,9 @@ export function DealCard({ deal, showScore = false, showFreshLabel = false, loca
           maximumFractionDigits: 0,
         })
       : null;
-  const priceLabel =
-    isPointsDeal
-      ? `${Math.round(deal.price).toLocaleString(locale)} ${t('card.pointsUnit')}`
-      : priceFormatter
-      ? priceFormatter.format(deal.price)
-      : `${Math.round(deal.price).toLocaleString(locale)} ${deal.currency}`;
+  const priceLabel = priceFormatter
+    ? priceFormatter.format(deal.price)
+    : `${Math.round(deal.price).toLocaleString(locale)} ${deal.currency}`;
   const averagePriceLabel =
     !isPointsDeal && deal.averagePrice !== null
       ? priceFormatter
@@ -90,10 +89,10 @@ export function DealCard({ deal, showScore = false, showFreshLabel = false, loca
   return (
     <div className="group rounded-2xl border bg-card p-4 shadow-sm transition-shadow hover:shadow-md sm:p-5">
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className={cn('flex flex-col gap-3', !isPointsDeal && 'sm:flex-row sm:items-start sm:justify-between')}>
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              {showScore && <DealScoreBadge score={deal.dealScore} className="w-fit" />}
+              {showScore && !isPointsDeal && <DealScoreBadge score={deal.dealScore} className="w-fit" />}
               {showFreshLabel && deal.isFresh && (
                 <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
                   {t('card.fresh')}
@@ -124,28 +123,48 @@ export function DealCard({ deal, showScore = false, showFreshLabel = false, loca
               <span>·</span>
               <span>{deal.tripType === 'roundtrip' ? t('card.roundtrip') : t('card.oneway')}</span>
             </div>
+            {deal.award && (
+              <div className="space-y-1 text-sm text-muted-foreground">
+                {deal.award.programName && (
+                  <p>
+                    {deal.award.programName}
+                    {deal.award.transferRoute && <> · {t('card.awardTransferRoute', { route: deal.award.transferRoute.label })}</>}
+                  </p>
+                )}
+                {deal.award.seatsLeft !== null && <p>{t('card.awardSeatsLeft', { count: deal.award.seatsLeft })}</p>}
+                {deal.award.reachability === 'unreachable' && (
+                  <p className="w-fit rounded-lg bg-muted px-2 py-1 text-xs">{t('card.awardOwnMilesOnly')}</p>
+                )}
+              </div>
+            )}
           </div>
 
-          <div className="rounded-2xl bg-muted/50 px-4 py-3 text-left sm:min-w-44 sm:text-right">
-            {averagePriceLabel && deal.averagePrice !== null && deal.averagePrice > deal.price && (
-              <div className="text-sm text-muted-foreground line-through">
-                {averagePriceLabel}
-              </div>
-            )}
-            <div className="text-2xl font-bold">{priceLabel}</div>
-            {!isPointsDeal && deal.priceChangePercent !== null && deal.priceChangePercent > 0 && (
-              <div className="text-sm font-medium text-emerald-600">
-                -{Math.round(deal.priceChangePercent)}% {t('card.savings')}
-              </div>
-            )}
-          </div>
+          {deal.award ? <AwardDealPrice award={deal.award} locale={locale} /> : (
+            <div className="rounded-2xl bg-muted/50 px-4 py-3 text-left sm:min-w-44 sm:text-right">
+              {averagePriceLabel && deal.averagePrice !== null && deal.averagePrice > deal.price && (
+                <div className="text-sm text-muted-foreground line-through">
+                  {averagePriceLabel}
+                </div>
+              )}
+              <div className="text-2xl font-bold">{priceLabel}</div>
+              {!isPointsDeal && deal.priceChangePercent !== null && deal.priceChangePercent > 0 && (
+                <div className="text-sm font-medium text-emerald-600">
+                  -{Math.round(deal.priceChangePercent)}% {t('card.savings')}
+                </div>
+              )}
+            </div>
+          )}
         </div>
+
+        {deal.award?.seal && <AwardSeal seal={deal.award.seal} locale={locale} />}
 
         <p className="text-xs text-muted-foreground">
           {deal.lastSeenHours === 0
             ? t('card.lastSeenNow')
             : t('card.lastSeenHours', { hours: deal.lastSeenHours })}
         </p>
+
+        {deal.award?.seal && <AwardSealFootnote seal={deal.award.seal} locale={locale} />}
 
         {deal.personalizationReasons.length > 0 ? (
           <div className="rounded-2xl bg-primary/5 px-3 py-2 text-sm text-muted-foreground">

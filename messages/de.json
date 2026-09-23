@@ -303,15 +303,26 @@
       "oneway": "Nur Hinflug",
       "book": "Buchen",
       "checkWithMylo": "Mit MYLO prüfen",
-      "pointsUnit": "Punkte",
+      "awardMiles": "{miles} Meilen",
+      "awardSurcharges": "+ {taxes} Zuschläge",
+      "awardCashReference": "statt Ø {price} bar",
+      "awardTransferRoute": "per {route}",
+      "awardSeatsLeft": "noch {count, plural, one {# Sitz} other {# Sitze}}",
+      "awardOwnMilesOnly": "Nur mit vorhandenen Meilen buchbar",
+      "awardSealValues": "{achieved} ct pro Meile · üblich {typical} ct",
+      "awardVerdict": {
+        "below_travel": "unter dem üblichen Reisewert",
+        "above_travel": "über dem üblichen Reisewert",
+        "far_above_travel": "deutlich über dem üblichen Reisewert"
+      },
+      "awardRateFootnote": "Üblicher Reisewert {typical} ct pro Meile, Satz gültig seit {date}",
+      "awardRateFootnoteUndated": "Üblicher Reisewert {typical} ct pro Meile",
+      "unreachableToggle": "Auch Programme ohne DACH-Transferweg zeigen ({count, number})",
       "priceHistory": "Preishistorie",
       "personalized": "Passt zu dir:",
       "moreDetails": "Mehr Details",
       "lessDetails": "Weniger Details",
-      "dealScore": "AI Deal Score",
-      "exceptional": "Außergewöhnlich",
-      "veryGood": "Sehr gut",
-      "good": "Gut"
+      "dealScore": "AI Deal Score"
     },
     "digest": {
       "withOrigins": "Deals ab {airports} wöchentlich per Mail",
