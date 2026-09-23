@@ -283,7 +283,7 @@ Examples of queries that should trigger this tool:
         // Determine error type based on what failed
         const errorType = quotaFailure
           ? 'rate_limited'
-          : seatsError || seatsReturnError || duffelError ? 'provider_unavailable' : 'no_results';
+          : seatsError || duffelError ? 'provider_unavailable' : 'no_results';
 
         // Log the failed search for monitoring (non-blocking, requires chatId).
         if (chatId) {

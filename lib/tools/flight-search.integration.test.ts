@@ -306,7 +306,7 @@ describe('daily award quota in flight search', () => {
         logFailedSearch: async (entry) => { loggedError = entry.errorType; },
       }));
       const result = String(await tool.execute!({ ...params, awardOnly }, options()));
-      assert.match(result, /## Zu viele Anfragen/);
+      assert.match(result, /## Prämiensuche heute ausgelastet/);
       assert.match(result, /Die Prämiensuche ist für heute ausgelastet. Ab 02:00 Uhr/);
       assert.match(result, /Später erneut suchen/);
       assert.match(result, /Barpreise über die Links unten vergleichen/);
@@ -319,7 +319,7 @@ describe('daily award quota in flight search', () => {
   it('reports quota exhaustion when the cash provider also fails', async () => {
     const tool = createFlightSearchTool(dependencies({ searchSeatsAero: quotaError, searchDuffel: async () => { throw new Error('offline'); } }));
     const result = String(await tool.execute!(params, options()));
-    assert.match(result, /## Zu viele Anfragen/);
+    assert.match(result, /## Prämiensuche heute ausgelastet/);
     assert.match(result, /02:00/);
   });
 
@@ -335,7 +335,7 @@ describe('daily award quota in flight search', () => {
   it('localizes the daily limit in English', async () => {
     const tool = createFlightSearchTool(dependencies({ searchSeatsAero: quotaError, searchDuffel: async () => [] }));
     const result = String(await tool.execute!(params, options('en')));
-    assert.match(result, /## Too many requests/);
+    assert.match(result, /## Award search at its daily limit/);
     assert.match(result, /daily limit.*02:00/);
     assert.match(result, /Compare cash fares/);
   });
@@ -359,8 +359,30 @@ describe('daily award quota in flight search', () => {
       assert.match(result, /Flüge mit Meilen/);
       assert.match(result, /ausgelastet.*02:00 Uhr/);
       assert.doesNotMatch(result, /vorübergehend/);
+      if (failedLeg === 'JFK') {
+        assert.match(result, /Rückflug nicht geprüft/);
+        assert.ok(
+          result.indexOf('Flüge mit Meilen') < result.indexOf('ausgelastet'),
+          'return-leg quota notice sits in the award section, not above the outbound table',
+        );
+      }
     });
   }
+
+  it('keeps no_results when only the return award leg fails generically', async () => {
+    let loggedError: string | undefined;
+    const tool = createFlightSearchTool(dependencies({
+      searchSeatsAero: async ({ origin }) => {
+        if (origin === 'JFK') throw new Error('Seats.aero API error: 500');
+        return [];
+      },
+      searchDuffel: async () => [],
+      logFailedSearch: async (entry) => { loggedError = entry.errorType; },
+    }));
+    const result = String(await tool.execute!({ ...params, returnDate: futureDate }, options()));
+    assert.equal(loggedError, 'no_results');
+    assert.doesNotMatch(result, /vorübergehend eingeschränkt/);
+  });
 
   it('recognizes a quota-limited return leg when outbound and cash have no results', async () => {
     const tool = createFlightSearchTool(dependencies({
@@ -368,7 +390,7 @@ describe('daily award quota in flight search', () => {
       searchDuffel: async () => [],
     }));
     const result = String(await tool.execute!({ ...params, returnDate: futureDate }, options()));
-    assert.match(result, /## Zu viele Anfragen/);
+    assert.match(result, /## Prämiensuche heute ausgelastet/);
     assert.match(result, /02:00 Uhr/);
   });
 });

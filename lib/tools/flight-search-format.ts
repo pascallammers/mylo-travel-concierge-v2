@@ -174,6 +174,10 @@ export const flightI18n = {
     de: '| Nr. | Airline | Programm | Klasse | Preis | Abflug | Ankunft | Dauer | Stops | Sitze | Flugnummer | Buchen |',
     en: '| No. | Airline | Program | Class | Price | Departure | Arrival | Duration | Stops | Seats | Flight No. | Book |',
   },
+  awardReturnQuotaExhausted: {
+    de: (resetsAt?: Date | null) => `_**Rückflug nicht geprüft:** ${formatAwardQuotaNotice(resetsAt, 'de')}_\n`,
+    en: (resetsAt?: Date | null) => `_**Return flight not checked:** ${formatAwardQuotaNotice(resetsAt, 'en')}_\n`,
+  },
   awardOneWayNotice: {
     de: '_**Hinweis:** Die Meilenpreise gelten pro Strecke (nur Hinflug). Der Rückflug ist darin nicht enthalten._\n',
     en: '_**Note:** Mileage prices are per direction (outbound only). The return flight is not included._\n',
@@ -390,8 +394,14 @@ export async function formatFlightResults(
   const sections: string[] = [];
   const partialFailures: string[] = [];
   const returnAwardCount = result.seatsReturn?.count ?? 0;
+  const outboundQuotaLimited = result.seats.errorType === 'rate_limited';
+  const returnQuotaLimited = result.seatsReturn?.errorType === 'rate_limited';
+  // A leg-specific notice sits next to the award table when the other leg has results.
+  const quotaNoticeInLegSection =
+    (outboundQuotaLimited && returnAwardCount > 0) ||
+    (returnQuotaLimited && !outboundQuotaLimited && result.seats.count > 0);
   const quotaFailure = [result.seats, result.seatsReturn].find((leg) => leg?.errorType === 'rate_limited');
-  if (quotaFailure && !(result.seats.errorType === 'rate_limited' && returnAwardCount > 0)) {
+  if (quotaFailure && !quotaNoticeInLegSection) {
     sections.push(flightI18n.awardQuotaExhausted[locale](quotaFailure.resetsAt), '');
   }
 
@@ -466,6 +476,9 @@ export async function formatFlightResults(
     } else {
       if (params.returnDate) {
         sections.push(flightI18n.awardOneWayNotice[locale]);
+      }
+      if (returnQuotaLimited) {
+        sections.push(flightI18n.awardReturnQuotaExhausted[locale](result.seatsReturn?.resetsAt));
       }
       sections.push(
         ...renderAwardTable(result.seats.flights, locale, params, {
