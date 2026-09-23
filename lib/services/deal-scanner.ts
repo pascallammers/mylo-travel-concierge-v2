@@ -2,7 +2,7 @@ import 'server-only';
 
 import { generateId } from 'ai';
 import { serverEnv } from '@/env/server';
-import { searchSeatsAero } from '@/lib/api/seats-aero-client';
+import { searchSeatsAero, getLastSeatsAeroQuota } from '@/lib/api/seats-aero-client';
 import { searchDuffel } from '@/lib/api/duffel-client';
 import {
   generateAffiliateLink,
@@ -11,16 +11,7 @@ import {
   type TravelpayoutsCheapTicket,
 } from '@/lib/api/travelpayouts-client';
 import { computePriceStats, calculateDealScore } from './deal-score';
-import {
-  buildPointsScanDepartureDates,
-  scanPointsDealsForRoute,
-  shouldScanSeatsAero,
-  type ScanPointsDependencies,
-} from './deal-scanner-points';
-import {
-  scanBusinessCashReference,
-  selectCashReferenceRoutes,
-} from './deal-scanner-cash-reference';
+import { runDealScanWithDependencies, type PointsScanDeps, type ScanResult } from './deal-scanner-run';
 import { fetchEurRates } from './eur-rates';
 import { DACH_SOURCE_PROGRAM_IDS } from '@/lib/config/transfer-engine';
 import { loadAwardProgramSourceResolver } from '@/lib/transfer-table/award-sources';
@@ -41,11 +32,6 @@ const MIN_DEAL_SCORE = 60;
 const DEAL_EXPIRY_HOURS = 72;
 
 type CabinClass = 'economy' | 'premium_economy' | 'business' | 'first';
-
-type PointsScanDeps = Pick<
-  ScanPointsDependencies,
-  'valuation' | 'isReachableDach' | 'eurRates' | 'getCashReference' | 'resolveDestinationName'
->;
 
 /**
  * Load the scan-wide valuation inputs once: FX rates, the valuation table,
@@ -82,119 +68,28 @@ interface PriceHistoryEntry {
   source: string;
 }
 
-export interface ScanResult {
-  routesScanned: number;
-  dealsFound: number;
-  priceHistoryEntries: number;
-  expiredDealsRemoved: number;
-  staleDealsRemoved: number;
-  cashReferenceSamples: number;
-  errors: string[];
-}
+export type { ScanResult } from './deal-scanner-run';
 
 /**
- * Main scanning pipeline.
- * 1. Load active routes
- * 2. For each route, query Travelpayouts
- * 3. Save all prices to priceHistory
- * 4. Compute deal score against historical data
- * 5. Save deals with score >= 60
- * 6. Remove expired deals
+ * Run the scheduled cash and award scans with production dependencies.
+ * @returns Counts, errors, and the final known award budget.
  */
 export async function runDealScan(): Promise<ScanResult> {
-  const result: ScanResult = {
-    routesScanned: 0,
-    dealsFound: 0,
-    priceHistoryEntries: 0,
-    expiredDealsRemoved: 0,
-    staleDealsRemoved: 0,
-    cashReferenceSamples: 0,
-    errors: [],
-  };
-
-  const runStartedAt = new Date();
-  const now = runStartedAt;
-  const routes = await getActiveRoutes();
-  const shouldScanPointsDeals = Boolean(process.env.SEATSAERO_API_KEY) && shouldScanSeatsAero(now);
-  const pointsDeps = shouldScanPointsDeals ? await loadPointsScanDeps() : null;
-  // One Duffel cash-reference probe per route per day, spread across the four
-  // 6-hour windows; the probe reuses the first monthly scan date.
-  const cashReferenceRoutes = new Set(
-    pointsDeps
-      ? selectCashReferenceRoutes(
-          routes.filter((route) => route.destination !== null),
-          now,
-        ).map((route) => `${route.origin}:${route.destination}`)
-      : [],
-  );
-  console.log(`[DealScanner] Scanning ${routes.length} routes`);
-
-  for (const route of routes) {
-    try {
-      await processRoute(route.origin, route.destination, result, runStartedAt);
-
-      if (pointsDeps && route.destination) {
-        if (cashReferenceRoutes.has(`${route.origin}:${route.destination}`)) {
-          try {
-            const samples = await scanBusinessCashReference(
-              { origin: route.origin, destination: route.destination },
-              buildPointsScanDepartureDates(now, 1)[0],
-              {
-                searchDuffel,
-                insertPriceHistory,
-                eurRates: pointsDeps.eurRates,
-              },
-            );
-            result.cashReferenceSamples += samples;
-            result.priceHistoryEntries += samples;
-          } catch (error) {
-            const msg = error instanceof Error ? error.message : 'Unknown error';
-            console.error(`[DealScanner] Cash reference failed ${route.origin}->${route.destination}:`, msg);
-            result.errors.push(`${route.origin}->${route.destination} cash-reference: ${msg}`);
-          }
-        }
-
-        const pointsResult = await scanPointsDealsForRoute(
-          {
-            origin: route.origin,
-            destination: route.destination,
-          },
-          {
-            now,
-            searchSeatsAero,
-            upsertDeal,
-            insertPriceHistory,
-            generateId,
-            ...pointsDeps,
-          },
-        );
-
-        result.dealsFound += pointsResult.dealsFound;
-        result.priceHistoryEntries += pointsResult.priceHistoryEntries;
-        result.errors.push(...pointsResult.errors);
-
-        if (pointsResult.errors.length === 0) {
-          result.staleDealsRemoved += await deleteStaleDealsForRoute({
-            origin: route.origin,
-            destination: route.destination,
-            source: 'seats_aero',
-            notSeenSince: runStartedAt,
-          });
-        }
-      }
-
-      result.routesScanned++;
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`[DealScanner] Error scanning ${route.origin}->${route.destination}:`, msg);
-      result.errors.push(`${route.origin}->${route.destination}: ${msg}`);
-    }
-  }
-
-  result.expiredDealsRemoved = await deleteExpiredDeals();
-
-  console.log(`[DealScanner] Complete:`, result);
-  return result;
+  return runDealScanWithDependencies({
+    now: new Date(),
+    pointsEnabled: Boolean(process.env.SEATSAERO_API_KEY),
+    getActiveRoutes,
+    loadPointsScanDeps,
+    processCashRoute: processRoute,
+    searchSeatsAero,
+    getSeatsAeroQuota: getLastSeatsAeroQuota,
+    searchDuffel,
+    insertPriceHistory,
+    upsertDeal,
+    generateId,
+    deleteStaleDealsForRoute,
+    deleteExpiredDeals,
+  });
 }
 
 async function processRoute(

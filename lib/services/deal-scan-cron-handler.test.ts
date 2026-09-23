@@ -14,6 +14,8 @@ function createScanResult(overrides: Partial<ScanResult> = {}): ScanResult {
     expiredDealsRemoved: 0,
     staleDealsRemoved: 0,
     cashReferenceSamples: 0,
+    seatsAeroRemaining: null,
+    seatsAeroRoutesSkipped: 0,
     errors: [],
     ...overrides,
   };

@@ -1,4 +1,5 @@
 import assert from 'node:assert';
+import { SeatsAeroQuotaExhaustedError } from '@/lib/api/seats-aero-quota';
 import { describe, it, mock } from 'node:test';
 import type { SeatsAeroFlight } from '@/lib/api/seats-aero-client';
 import type { CashReference } from '@/lib/deals/award-valuation';
@@ -366,4 +367,25 @@ describe('scanPointsDealsForRoute', () => {
     assert.strictEqual(deal.valuationRateCt, null);
     assert.strictEqual(deal.savingsPercent, null);
   });
+});
+
+
+it('keeps completed months and stops remaining months on a daily quota error', async () => {
+  let calls = 0;
+  const upsertDeal = mock.fn(async () => {});
+  const insertPriceHistory = mock.fn(async () => {});
+  const result = await scanPointsDealsForRoute({ origin: 'FRA', destination: 'JFK' }, {
+    ...createScanDeps(), now: new Date('2026-04-09T12:00:00Z'),
+    searchSeatsAero: async () => {
+      if (++calls === 2) throw new SeatsAeroQuotaExhaustedError(new Date('2026-04-10T00:00:00Z'));
+      return [createSeatsFlight()];
+    },
+    generateId: () => 'deal-id', upsertDeal, insertPriceHistory,
+  });
+  assert.equal(calls, 2);
+  assert.equal(result.errorType, 'rate_limited');
+  assert.equal(result.errors.length, 1);
+  assert.equal(result.dealsFound, 1);
+  assert.equal(upsertDeal.mock.callCount(), 1);
+  assert.equal(insertPriceHistory.mock.callCount(), 1);
 });
