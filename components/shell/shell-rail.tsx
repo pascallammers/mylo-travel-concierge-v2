@@ -2,6 +2,7 @@
 
 import { useState, useSyncExternalStore } from 'react';
 import { Lock, Plane } from 'lucide-react';
+import { LayoutGroup } from 'motion/react';
 import { useTranslations } from 'next-intl';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { ThemeSwitcher } from '@/components/theme-switcher';
@@ -58,7 +59,7 @@ export function ShellRail({ className }: { className?: string }) {
   );
 
   return (
-    <Sidebar className={cn('z-40 bg-background [&_[data-slot=sidebar-inner]]:bg-muted/30', className)}>
+    <Sidebar className={cn('bg-background [&_[data-slot=sidebar-inner]]:bg-muted/30', className)}>
       <SidebarHeader className="gap-0 p-0">
         <div className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
           <div className="flex size-7 items-center justify-center rounded-lg bg-foreground text-background">
@@ -142,7 +143,10 @@ export function ShellRail({ className }: { className?: string }) {
           )}
           <NavigationMenu />
           <LanguageSwitcher />
-          <ThemeSwitcher />
+          {/* Separate group, otherwise its active ring shares layoutId with the switcher in the NavigationMenu dropdown. */}
+          <LayoutGroup id="shell-rail-theme">
+            <ThemeSwitcher />
+          </LayoutGroup>
         </div>
       </SidebarFooter>
       <SidebarRail />
