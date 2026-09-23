@@ -6,9 +6,9 @@ import { Metadata, Viewport } from 'next';
 import { Be_Vietnam_Pro, Inter, Baumans, Playfair_Display, JetBrains_Mono } from 'next/font/google';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import { Toaster } from '@/components/ui/sonner';
-import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import Script from 'next/script';
+import { DATAFAST_QUEUE_SNIPPET } from '@/lib/analytics';
 // import { Databuddy } from '@databuddy/sdk';
 
 import { Providers } from './providers';
@@ -106,6 +106,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <Script id="datafast-queue" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: DATAFAST_QUEUE_SNIPPET }} />
         <Script
           id="tpembars-script"
           strategy="beforeInteractive"
@@ -135,7 +136,6 @@ export default function RootLayout({
           </Providers>
         </NuqsAdapter>
         {/* <Databuddy clientId={process.env.DATABUDDY_CLIENT_ID!} enableBatching={true} trackSessions={true} /> */}
-        <Analytics />
         <SpeedInsights />
         <Script
           src="https://datafa.st/js/script.js"
