@@ -6,10 +6,12 @@
  * the script drains it once loaded.
  */
 
+import type { DealKind } from '@/lib/deals/deal-presenter';
+
 type DealGoalParams = {
   destination: string;
   source: string;
-  kind: string;
+  kind: DealKind;
 };
 
 /** Every goal MYLO sends, with its custom parameters (max 10, values max 255 chars). */
