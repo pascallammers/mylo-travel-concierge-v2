@@ -1,3 +1,4 @@
+import { buildAwardDealView, type AwardDealContext, type AwardDealFields, type AwardDealView } from './award-deal-view';
 import {
   buildPriceHistoryBar,
   classifyDealRange,
@@ -13,7 +14,7 @@ import {
   type PriceHistoryStats,
 } from './deal-presenter';
 
-export interface DealsPageModelDeal extends PresentableDeal {
+export interface DealsPageModelDeal extends PresentableDeal, AwardDealFields {
   id: string;
   affiliateLink: string | null;
   stops: number | null;
@@ -23,6 +24,7 @@ export interface DealsPageModelDeal extends PresentableDeal {
   preferredOriginMatch: boolean;
   routeDistanceKm?: number | null;
   priceHistoryStats?: PriceHistoryStats | null;
+  savingsPercent: number | null;
 }
 
 export interface DealsPageFilters {
@@ -32,18 +34,18 @@ export interface DealsPageFilters {
   sort: DealSortOption;
 }
 
-export interface PresentedDeal extends DealsPageModelDeal {
-  kind: DealKind;
+export type PresentedDeal = DealsPageModelDeal & {
   range: DealRange | null;
   isFresh: boolean;
   lastSeenHours: number;
   priceHistoryBar: PriceHistoryBar;
-}
+} & ({ kind: 'award'; award: AwardDealView } | { kind: 'cash'; award: null });
 
 export interface DealsPageModel {
   activeKind: DealKind;
   kindCounts: Record<DealKind, number>;
   deals: PresentedDeal[];
+  unreachableDeals: PresentedDeal[];
   staleHours: number | null;
 }
 
@@ -53,6 +55,7 @@ export interface BuildDealsPageModelInput {
   deals: DealsPageModelDeal[];
   filters: DealsPageFilters;
   now: Date;
+  awardContext: AwardDealContext;
 }
 
 /**
@@ -84,12 +87,12 @@ export function parseDealsFilters(
 
 /**
  * Build the server-side page model for the deals experience.
- * @param input - Raw deals, typed filters, and current time.
- * @returns One filtered list and counts for both kinds before the kind filter.
+ * @param input - Raw deals, typed filters, current time and injected award context.
+ * @returns Reachable and unreachable lists, with counts including both before the kind filter.
  */
 export function buildDealsPageModel(input: BuildDealsPageModelInput): DealsPageModel {
   const { filters, now } = input;
-  const filteredDeals = input.deals.map((deal) => presentDeal(deal, now)).filter((deal) => (
+  const filteredDeals = input.deals.map((deal) => presentDeal(deal, now, input.awardContext)).filter((deal) => (
     (filters.origins.length === 0 || filters.origins.includes(deal.origin)) &&
     (filters.range === undefined || deal.range === filters.range)
   ));
@@ -98,19 +101,23 @@ export function buildDealsPageModel(input: BuildDealsPageModelInput): DealsPageM
     kindCounts[deal.kind] += 1;
   }
 
+  const sortedDeals = sortPresentedDeals(filteredDeals.filter((deal) => deal.kind === filters.kind), filters.sort);
   return {
     activeKind: filters.kind,
     kindCounts,
-    deals: sortPresentedDeals(filteredDeals.filter((deal) => deal.kind === filters.kind), filters.sort),
+    deals: sortedDeals.filter((deal) => deal.award?.reachability !== 'unreachable'),
+    unreachableDeals: sortedDeals.filter((deal) => deal.award?.reachability === 'unreachable'),
     staleHours: getStaleHours(input.deals, now),
   };
 }
 
-function presentDeal(deal: DealsPageModelDeal, now: Date): PresentedDeal {
+function presentDeal(deal: DealsPageModelDeal, now: Date, awardContext: AwardDealContext): PresentedDeal {
   const kind = getDealKind(deal.source);
   return {
     ...deal,
-    kind,
+    ...(kind === 'award'
+      ? { kind, award: buildAwardDealView(deal, awardContext) }
+      : { kind, award: null }),
     range: classifyDealRange({
       routeDistanceKm: deal.routeDistanceKm ?? null,
       flightDurationMinutes: deal.flightDurationMinutes,

@@ -9,10 +9,24 @@ import {
 } from './deals-page-model';
 
 const now = new Date('2026-04-09T12:00:00.000Z');
+const awardContext = {
+  ownBalanceProgramIds: new Set<string>(),
+  resolveProgramName: () => 'Miles & More',
+  resolveDachRoute: () => ({ label: 'PAYBACK 1:1' }),
+};
 const defaultFilters: DealsPageFilters = { kind: 'award', origins: [], sort: 'score' };
 
 function createDeal(overrides: Partial<DealsPageModelDeal> = {}): DealsPageModelDeal {
   return {
+    programId: 'lufthansa',
+    programReachableDach: true,
+    taxesEur: 480,
+    seatsLeft: 2,
+    cashReferencePrice: null,
+    cashReferenceSamples: null,
+    valuationRateCt: null,
+    valuationRateValidFrom: null,
+    savingsPercent: null,
     id: 'deal-fra',
     origin: 'FRA',
     destination: 'PMI',
@@ -108,7 +122,7 @@ describe('buildDealsPageModel', () => {
       createDeal({ id: 'award-long', source: 'seats_aero', routeDistanceKm: 9000 }),
     ];
     for (const kind of ['award', 'cash'] as const) {
-      const model = buildDealsPageModel({
+      const model = buildDealsPageModel({ awardContext,
         deals, filters: { kind, origins: ['FRA', 'MUC'], range: 'europe', sort: 'score' }, now,
       });
       assert.deepEqual(model.kindCounts, { award: 2, cash: 2 });
@@ -124,7 +138,7 @@ describe('buildDealsPageModel', () => {
       createDeal({ id: 'duration', routeDistanceKm: null, flightDurationMinutes: 300 }),
       createDeal({ id: 'long', routeDistanceKm: 4001 }),
     ];
-    const build = (range?: DealsPageFilters['range']) => buildDealsPageModel({
+    const build = (range?: DealsPageFilters['range']) => buildDealsPageModel({ awardContext,
       deals, filters: { kind: 'cash', origins: [], sort: 'score', range }, now,
     });
     assert.equal(build().deals.length, 3);
@@ -134,13 +148,13 @@ describe('buildDealsPageModel', () => {
   });
 
   it('berechnet Frische aus createdAt, Sichtung aus updatedAt und Historie nach Art', () => {
-    const cash = buildDealsPageModel({
+    const cash = buildDealsPageModel({ awardContext,
       deals: [createDeal()], filters: { ...defaultFilters, kind: 'cash' }, now,
     }).deals[0];
     assert.equal(cash.isFresh, false);
     assert.equal(cash.lastSeenHours, 2);
     assert.equal(cash.priceHistoryBar.visible, true);
-    const award = buildDealsPageModel({
+    const award = buildDealsPageModel({ awardContext,
       deals: [createDeal({ source: 'seats_aero', createdAt: now, updatedAt: now })],
       filters: defaultFilters, now,
     }).deals[0];
@@ -155,23 +169,23 @@ describe('buildDealsPageModel', () => {
       createDeal({ id: 'fresh', price: 500, createdAt: now, dealScore: 60 }),
     ];
     for (const sort of ['score', 'price', 'date'] as const) {
-      const model = buildDealsPageModel({ deals, filters: { kind: 'cash', origins: [], sort }, now });
+      const model = buildDealsPageModel({ awardContext, deals, filters: { kind: 'cash', origins: [], sort }, now });
       assert.deepEqual(model.deals.map((deal) => deal.id), sort === 'score' ? ['fresh', 'old'] : ['old', 'fresh']);
     }
   });
 
   it('behandelt fehlende Historie und leere Trefferlisten', () => {
-    const model = buildDealsPageModel({
+    const model = buildDealsPageModel({ awardContext,
       deals: [createDeal({ priceHistoryStats: null })], filters: { ...defaultFilters, kind: 'cash' }, now,
     });
     assert.equal(model.deals[0].priceHistoryBar.visible, false);
-    assert.deepEqual(buildDealsPageModel({ deals: [], filters: defaultFilters, now }), {
-      activeKind: 'award', kindCounts: { award: 0, cash: 0 }, deals: [], staleHours: null,
+    assert.deepEqual(buildDealsPageModel({ awardContext, deals: [], filters: defaultFilters, now }), {
+      activeKind: 'award', kindCounts: { award: 0, cash: 0 }, deals: [], unreachableDeals: [], staleHours: null,
     });
   });
 
   it('berechnet die Datenfrische anhand der jüngsten Sichtung vor allen Filtern', () => {
-    const model = buildDealsPageModel({
+    const model = buildDealsPageModel({ awardContext,
       deals: [
         createDeal({ updatedAt: new Date('2026-04-07T05:00:00.000Z') }),
         createDeal({ updatedAt: new Date('2026-04-08T05:00:00.000Z') }),
@@ -179,5 +193,63 @@ describe('buildDealsPageModel', () => {
     });
     assert.equal(model.staleHours, 31);
     assert.equal(model.deals.length, 0);
+  });
+
+  it('trennt unerreichbare Awards, zählt sie weiter und lässt eigenes Guthaben in der Hauptliste', () => {
+    const deals = [
+      createDeal({ id: 'transfer', source: 'seats_aero' }),
+      createDeal({ id: 'own', source: 'seats_aero', programId: 'united', programReachableDach: false }),
+      createDeal({ id: 'unreachable', source: 'seats_aero', programId: 'aeroplan', programReachableDach: false }),
+      createDeal({ id: 'unknown', source: 'seats_aero', programId: null }),
+      createDeal({ id: 'cash' }),
+    ];
+    const context = { ...awardContext, ownBalanceProgramIds: new Set(['united']) };
+    const model = buildDealsPageModel({ deals, filters: defaultFilters, now, awardContext: context });
+    assert.deepEqual(model.deals.map(({ id }) => id), ['transfer', 'own']);
+    assert.deepEqual(model.unreachableDeals.map(({ id }) => id), ['unreachable', 'unknown']);
+    assert.deepEqual(model.kindCounts, { award: 4, cash: 1 });
+    assert.equal(model.deals[1].award?.reachability, 'own_balance');
+    assert.ok(model.unreachableDeals.every(({ award }) => award?.seal === null));
+
+    const cash = buildDealsPageModel({
+      deals, filters: { ...defaultFilters, kind: 'cash' }, now, awardContext: context,
+    });
+    assert.deepEqual(cash.unreachableDeals, []);
+    assert.equal(cash.deals[0].award, null);
+    assert.equal(cash.kindCounts.award, 4);
+  });
+
+  it('sortiert beide Award-Listen nach Frische, Sparwert mit null zuletzt und bisherigen Kriterien', () => {
+    for (const programReachableDach of [true, false]) {
+      const awards = [
+        createDeal({ id: 'null', savingsPercent: null, dealScore: 100, preferredOriginMatch: true }),
+        createDeal({ id: 'negative', savingsPercent: -23, preferredOriginMatch: true }),
+        createDeal({ id: 'high', savingsPercent: 40, dealScore: 60 }),
+        createDeal({ id: 'fresh', savingsPercent: null, createdAt: now, dealScore: 50 }),
+        createDeal({ id: 'equal-preferred', savingsPercent: 40, preferredOriginMatch: true }),
+      ].map((deal) => ({ ...deal, source: 'seats_aero', programReachableDach }));
+      const model = buildDealsPageModel({ deals: awards, filters: defaultFilters, now, awardContext });
+      const list = programReachableDach ? model.deals : model.unreachableDeals;
+      assert.deepEqual(list.map(({ id }) => id), ['fresh', 'equal-preferred', 'high', 'negative', 'null']);
+    }
+  });
+
+  it('sortiert Awards nach Meilen oder Datum und Cash weiter unabhängig vom Sparwert', () => {
+    const deals = [
+      createDeal({ id: 'cheap', price: 60_000, departureDate: new Date('2026-06-01'), savingsPercent: null, dealScore: 100 }),
+      createDeal({ id: 'early', price: 80_000, departureDate: new Date('2026-05-01'), savingsPercent: 80, dealScore: 60 }),
+    ];
+    for (const reachable of [true, false]) {
+      for (const sort of ['price', 'date'] as const) {
+        const model = buildDealsPageModel({
+          deals: deals.map((deal) => ({ ...deal, source: 'seats_aero', programReachableDach: reachable })),
+          filters: { ...defaultFilters, sort }, now, awardContext,
+        });
+        const list = reachable ? model.deals : model.unreachableDeals;
+        assert.deepEqual(list.map(({ id }) => id), sort === 'price' ? ['cheap', 'early'] : ['early', 'cheap']);
+      }
+    }
+    const cash = buildDealsPageModel({ deals, filters: { ...defaultFilters, kind: 'cash' }, now, awardContext });
+    assert.deepEqual(cash.deals.map(({ id }) => id), ['cheap', 'early']);
   });
 });
