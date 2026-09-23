@@ -22,6 +22,19 @@
     "title": "MYLO - Dein Travel-Concierge",
     "description": "MYLO ist dein KI-gestützter Reiseassistent für optimale Flugsuche, Miles & Points Beratung und Premium-Cabin Upgrades."
   },
+  "shell": {
+    "areas": {
+      "flights": "Flüge",
+      "deals": "Deals",
+      "hotels": "Hotels",
+      "alerts": "Alerts",
+      "cards": "Kreditkarten",
+      "chat": "Hey Mylo"
+    },
+    "beta": "Beta",
+    "locked": "Gesperrt",
+    "navigation": "Bereiche"
+  },
   "navbar": {
     "newChat": "Neuer Chat",
     "shared": "Geteilt"

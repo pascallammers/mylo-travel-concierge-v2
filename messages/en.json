@@ -22,6 +22,19 @@
     "title": "MYLO - Your Travel Concierge",
     "description": "MYLO is your AI-powered travel assistant for optimal flight search, Miles & Points advice, and Premium Cabin upgrades."
   },
+  "shell": {
+    "areas": {
+      "flights": "Flights",
+      "deals": "Deals",
+      "hotels": "Hotels",
+      "alerts": "Alerts",
+      "cards": "Credit cards",
+      "chat": "Hey Mylo"
+    },
+    "beta": "Beta",
+    "locked": "Locked",
+    "navigation": "Areas"
+  },
   "navbar": {
     "newChat": "New Chat",
     "shared": "Shared"
