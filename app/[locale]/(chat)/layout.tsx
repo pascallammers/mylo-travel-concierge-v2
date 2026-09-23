@@ -1,13 +1,14 @@
 /**
  * Chat layout with sidebar integration.
- * Wraps all chat-related pages with SidebarProvider and ChatSidebar.
+ * Uses the category rail for admins and the chat sidebar for other users.
  * @module app/(chat)/layout
  */
 
 import { cookies } from 'next/headers';
-import { getUser } from '@/lib/auth-utils';
+import { getUser, isAdmin } from '@/lib/auth-utils';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { ChatSidebar } from '@/components/chat-sidebar';
+import { ShellLayout } from '@/components/shell';
 
 const SIDEBAR_COOKIE_NAME = 'sidebar_state';
 
@@ -32,6 +33,10 @@ export default async function ChatLayout({ children }: ChatLayoutProps) {
   const defaultOpen = sidebarStateCookie?.value === 'false' ? false : true;
 
   const user = await getUser();
+
+  if (user && await isAdmin(user.id)) {
+    return <ShellLayout defaultOpen={defaultOpen}>{children}</ShellLayout>;
+  }
   
   // Map User to ChatHistoryUser format (only id needed)
   const chatHistoryUser = user ? { id: user.id } : null;
