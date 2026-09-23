@@ -15,7 +15,7 @@ import { X, Check, ChevronsUpDown, Wand2, CheckIcon, Zap, Sparkles, FileText, Up
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription } from '@/components/ui/dialog';
 import { cn, SearchGroup, SearchGroupId, getSearchGroups, SearchProvider } from '@/lib/utils';
 
-import { track } from '@vercel/analytics';
+import { trackGoal } from '@/lib/analytics';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ComprehensiveUserData } from '@/hooks/use-user-data';
 import { useSession } from '@/lib/auth-client';
@@ -2562,7 +2562,7 @@ const FormComponent: React.FC<FormComponentProps> = ({
       }
 
       if (input.trim() || attachments.length > 0) {
-        track('model_selected', {
+        trackGoal('model_selected', {
           model: selectedModel,
         });
 

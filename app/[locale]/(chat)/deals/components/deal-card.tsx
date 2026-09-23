@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { track } from '@vercel/analytics';
+import { trackGoal } from '@/lib/analytics';
 import { ChevronDown, ChevronUp, ExternalLink, Search, Plane } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -79,7 +79,7 @@ export function DealCard({ deal, showScore = false, showFreshLabel = false, loca
     }
 
     hasTrackedViewRef.current = true;
-    track('deal_view', {
+    trackGoal('deal_view', {
       destination: deal.destination,
       source: deal.source,
       kind: deal.kind,
@@ -180,7 +180,7 @@ export function DealCard({ deal, showScore = false, showFreshLabel = false, loca
               onOpenChange={(open) => {
                 setIsExpanded(open);
                 if (open) {
-                  track('deal_expand', {
+                  trackGoal('deal_expand', {
                     destination: deal.destination,
                     source: deal.source,
                     kind: deal.kind,
@@ -227,9 +227,10 @@ export function DealCard({ deal, showScore = false, showFreshLabel = false, loca
               <a
                 href={chatHref}
                 onClick={() =>
-                  track('chat_start_from_deal', {
+                  trackGoal('chat_start_from_deal', {
                     destination: deal.destination,
                     source: deal.source,
+                    kind: deal.kind,
                   })
                 }
               >
@@ -244,9 +245,10 @@ export function DealCard({ deal, showScore = false, showFreshLabel = false, loca
                   target="_blank"
                   rel="noopener noreferrer nofollow"
                   onClick={() =>
-                    track('affiliate_click', {
+                    trackGoal('affiliate_click', {
                       destination: deal.destination,
                       source: deal.source,
+                      kind: deal.kind,
                     })
                   }
                 >
