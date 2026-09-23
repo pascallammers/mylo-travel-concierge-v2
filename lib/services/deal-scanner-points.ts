@@ -1,3 +1,4 @@
+import { SeatsAeroQuotaExhaustedError } from '@/lib/api/seats-aero-quota';
 import type { SeatsAeroFlight, SeatsAeroSearchParams } from '@/lib/api/seats-aero-client';
 import {
   valueAward,
@@ -91,6 +92,7 @@ export interface PointsScanResult {
   dealsFound: number;
   priceHistoryEntries: number;
   errors: string[];
+  errorType?: 'rate_limited';
 }
 
 const POINTS_SOURCE = 'seats_aero';
@@ -180,6 +182,7 @@ export async function scanPointsDealsForRoute(
   const dealsToUpsert: PointDealUpsertInput[] = [];
   const historyEntries: PriceHistoryEntry[] = [];
   const errors: string[] = [];
+  let errorType: PointsScanResult['errorType'];
 
   for (const departureDate of dates) {
     try {
@@ -204,6 +207,10 @@ export async function scanPointsDealsForRoute(
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       errors.push(`${route.origin}->${route.destination}: ${message}`);
+      if (error instanceof SeatsAeroQuotaExhaustedError) {
+        errorType = 'rate_limited';
+        break;
+      }
     }
   }
 
@@ -219,6 +226,7 @@ export async function scanPointsDealsForRoute(
     dealsFound: dealsToUpsert.length,
     priceHistoryEntries: historyEntries.length,
     errors,
+    ...(errorType ? { errorType } : {}),
   };
 }
 

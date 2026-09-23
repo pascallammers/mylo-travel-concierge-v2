@@ -5,6 +5,7 @@
  * separate groups so the two price units never compete numerically.
  */
 
+import { formatAwardQuotaNotice, type AwardSearchFailure } from './flight-search-award-errors';
 import type { FlightLocale } from './flight-search-format';
 import type {
   FlexibleDateFlight,
@@ -115,6 +116,7 @@ function shiftDate(isoDate: string, days: number): string {
  * @param params - Original flight-search departure date.
  * @param locale - Locale used for relative date labels.
  * @param i18n - Injected label formatters for the selected locale.
+ * @param awardFailure - Failure category and reset time for the award search.
  * @returns Structured flexible-date results with explicit truncation metadata.
  */
 export function buildFlexibleDateResults(
@@ -123,6 +125,7 @@ export function buildFlexibleDateResults(
   params: { departDate: string },
   locale: FlightLocale,
   i18n: FlexibleDateResultI18n,
+  awardFailure?: AwardSearchFailure,
 ): FlexibleDateResultsResponse {
   const awardFlightsTruncated = (seatsFlights?.length ?? 0) > MAX_AWARD_RESULTS;
   const cashFlightsTruncated = (duffelFlights?.length ?? 0) > MAX_CASH_RESULTS;
@@ -154,6 +157,9 @@ export function buildFlexibleDateResults(
 
   return {
     type: 'flexible_date_results',
+    ...(awardFailure?.errorType === 'rate_limited' ? {
+      awardNotice: formatAwardQuotaNotice(awardFailure.resetsAt, locale),
+    } : {}),
     locale,
     labels: i18n.flexibleResultLabels[locale],
     awardFlights,

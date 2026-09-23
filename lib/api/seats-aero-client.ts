@@ -1,6 +1,12 @@
 import { isRetryableError, sleep } from '@/lib/utils/tool-error-response';
 import { parseAwardResponse, type AwardFlight } from './award-search/parser';
 import { groupByProgram } from './award-search/program-grouping';
+import {
+  parseSeatsAeroQuota,
+  SEATS_AERO_LOW_REMAINING_WARN,
+  SeatsAeroQuotaExhaustedError,
+  type SeatsAeroQuota,
+} from './seats-aero-quota';
 
 const SEATSAERO_BASE_URL = 'https://seats.aero/partnerapi';
 const MAX_RETRIES = 2;
@@ -46,6 +52,18 @@ interface SearchCacheEntry {
 
 const searchCache = new Map<string, SearchCacheEntry>();
 const inFlightSearches = new Map<string, Promise<SeatsAeroFlight[]>>();
+let lastSeatsAeroQuota: SeatsAeroQuota | null = null;
+
+/**
+ * Read the latest valid daily budget reported by the provider in this process.
+ * Warm instances outlive the daily reset, so a quota past its reset is unknown.
+ * @param now - Current time, compared against the reported reset.
+ * @returns The last known quota, or null before any valid headers or after the reset.
+ */
+export function getLastSeatsAeroQuota(now: Date = new Date()): SeatsAeroQuota | null {
+  if (lastSeatsAeroQuota && lastSeatsAeroQuota.resetsAt <= now) return null;
+  return lastSeatsAeroQuota;
+}
 
 function cloneSearchResults(flights: SeatsAeroFlight[]): SeatsAeroFlight[] {
   return structuredClone(flights);
@@ -85,13 +103,14 @@ function setCachedSearch(key: string, flights: SeatsAeroFlight[]): void {
 }
 
 /**
- * Reset completed and in-flight search caches between test cases.
+ * Reset completed and in-flight search caches and the last known quota.
  *
  * @returns Nothing.
  */
 export function clearSeatsAeroSearchCache(): void {
   searchCache.clear();
   inFlightSearches.clear();
+  lastSeatsAeroQuota = null;
 }
 
 /**
@@ -220,7 +239,7 @@ async function executeSeatsAeroSearchWithRetry(
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
 
-      if (signal?.aborted) {
+      if (signal?.aborted || error instanceof SeatsAeroQuotaExhaustedError) {
         throw lastError;
       }
 
@@ -286,8 +305,6 @@ async function executeSeatsAeroSearch(
     searchUrl.searchParams.set('only_direct_flights', 'true');
   }
 
-  console.log('[Seats.aero] Searching:', searchUrl.toString());
-
   // API Call
   const response = await fetch(searchUrl.toString(), {
     signal,
@@ -296,6 +313,27 @@ async function executeSeatsAeroSearch(
       'Content-Type': 'application/json',
     },
   });
+
+  const observedAt = new Date();
+  const quota = parseSeatsAeroQuota(response.headers, observedAt);
+  if (quota) lastSeatsAeroQuota = quota;
+  console.log(
+    `[Seats.aero] Searching: ${searchUrl.toString()} — remaining/limit: ${quota ? `${quota.remaining}/${quota.limit}` : 'unknown'}`,
+  );
+  if (quota && quota.remaining <= SEATS_AERO_LOW_REMAINING_WARN) {
+    console.warn(`[Seats.aero] Low daily quota: ${quota.remaining}/${quota.limit} calls remaining`);
+  }
+  if (response.status === 429) {
+    // A reset header is useful even if the other quota headers are missing.
+    const rawReset = response.headers.get('x-ratelimit-reset');
+    const resetSeconds = rawReset?.trim() ? Number(rawReset) : NaN;
+    const reportedReset = new Date(observedAt.getTime() + resetSeconds * 1000);
+    const nextMidnight = new Date(observedAt);
+    nextMidnight.setUTCHours(24, 0, 0, 0);
+    throw new SeatsAeroQuotaExhaustedError(
+      resetSeconds >= 0 && Number.isFinite(reportedReset.getTime()) ? reportedReset : nextMidnight,
+    );
+  }
 
   if (!response.ok) {
     throw new Error(

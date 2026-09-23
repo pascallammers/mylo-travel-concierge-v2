@@ -282,3 +282,12 @@ describe('buildFlexibleDateResults', () => {
     );
   });
 });
+
+
+it('includes a localized quota notice even when the award group is empty', () => {
+  const result = buildFlexibleDateResults(null, [], { departDate: '2027-06-15' }, 'de', flightI18n, {
+    errorType: 'rate_limited', resetsAt: new Date('2026-09-24T00:00:00Z'),
+  });
+  assert.match(result.awardNotice ?? '', /ausgelastet.*02:00 Uhr/);
+  assert.doesNotMatch(result.awardNotice ?? '', /seats\.aero|vorübergehend/i);
+});

@@ -261,6 +261,7 @@ export interface FlexibleDateFlight {
 }
 
 export interface FlexibleDateResultsResponse {
+  awardNotice?: string;
   type: 'flexible_date_results';
   locale: 'de' | 'en';
   labels: {

@@ -137,7 +137,7 @@ function getErrorHeader(type: ToolErrorType, locale: ToolErrorLocale = 'de'): st
     provider_unavailable: { de: '## Flugsuche vorübergehend eingeschränkt', en: '## Flight search temporarily limited' },
     partial_failure: { de: '## Teilweise Ergebnisse verfügbar', en: '## Partial results available' },
     validation_error: { de: '## Ungültige Suchparameter', en: '## Invalid search parameters' },
-    rate_limited: { de: '## Zu viele Anfragen', en: '## Too many requests' },
+    rate_limited: { de: '## Prämiensuche heute ausgelastet', en: '## Award search at its daily limit' },
     timeout: { de: '## Suche hat zu lange gedauert', en: '## Search took too long' },
   };
   return headers[type]?.[locale] ?? (locale === 'de' ? '## Flugsuche nicht möglich' : '## Flight search unavailable');
@@ -197,8 +197,8 @@ function getDefaultSuggestions(type: ToolErrorType, locale: ToolErrorLocale = 'd
       ],
     },
     rate_limited: {
-      de: ['Einige Minuten warten', 'Weniger Suchanfragen gleichzeitig stellen'],
-      en: ['Wait a few minutes', 'Make fewer concurrent search requests'],
+      de: ['Später erneut suchen', 'Barpreise über die Links unten vergleichen'],
+      en: ['Search again later', 'Compare cash fares using the links below'],
     },
     timeout: {
       de: [
