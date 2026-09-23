@@ -303,15 +303,26 @@
       "oneway": "One way",
       "book": "Book",
       "checkWithMylo": "Check with MYLO",
-      "pointsUnit": "points",
+      "awardMiles": "{miles} miles",
+      "awardSurcharges": "+ {taxes} surcharges",
+      "awardCashReference": "instead of Ø {price} cash",
+      "awardTransferRoute": "via {route}",
+      "awardSeatsLeft": "{count, plural, one {# seat left} other {# seats left}}",
+      "awardOwnMilesOnly": "Only bookable with existing miles",
+      "awardSealValues": "{achieved} ct per mile · typical {typical} ct",
+      "awardVerdict": {
+        "below_travel": "below the typical travel value",
+        "above_travel": "above the typical travel value",
+        "far_above_travel": "well above the typical travel value"
+      },
+      "awardRateFootnote": "Typical travel value {typical} ct per mile, rate valid since {date}",
+      "awardRateFootnoteUndated": "Typical travel value {typical} ct per mile",
+      "unreachableToggle": "Also show programs without a DACH transfer route ({count, number})",
       "priceHistory": "Price history",
       "personalized": "Matches you:",
       "moreDetails": "More details",
       "lessDetails": "Less details",
-      "dealScore": "AI Deal Score",
-      "exceptional": "Exceptional",
-      "veryGood": "Very good",
-      "good": "Good"
+      "dealScore": "AI Deal Score"
     },
     "digest": {
       "withOrigins": "Weekly deals from {airports} by email",

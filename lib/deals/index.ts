@@ -33,6 +33,16 @@ export {
   type PresentedDeal,
 } from './deals-page-model';
 export { buildDealsPageData } from './deals-page-data';
+export { buildAwardTransferRoute } from './award-transfer-route';
+export {
+  buildAwardDealView,
+  type AwardDealContext,
+  type AwardDealFields,
+  type AwardDealView,
+  type AwardReachability,
+  type AwardSeal,
+  type AwardTransferRoute,
+} from './award-deal-view';
 export {
   createDealPreferenceSnapshot,
   hasActiveDealPreferences,

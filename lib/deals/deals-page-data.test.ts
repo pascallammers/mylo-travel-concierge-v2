@@ -24,6 +24,9 @@ const { buildDealsPageData } = createRequire(import.meta.url)('./deals-page-data
 
 const now = new Date('2026-04-09T12:00:00.000Z');
 const deal: FlightDeal = {
+  programId: null, programReachableDach: null, taxesAmount: null, taxesCurrency: null,
+  taxesEur: null, seatsLeft: null, cashReferencePrice: null, cashReferenceSamples: null,
+  valuationRateCt: null, valuationRateValidFrom: null, savingsPercent: null,
   id: 'cash-fra', origin: 'FRA', destination: 'PMI', destinationName: 'Palma',
   departureDate: new Date('2026-05-01'), returnDate: null, price: 150, currency: 'EUR',
   averagePrice: 200, priceDifference: 50, priceChangePercent: 25, dealScore: 85,
@@ -45,7 +48,7 @@ describe('buildDealsPageData', () => {
   });
 
   it('ordnet Awards derselben Strecke separat zu und erhält deren Buchungslink', async () => {
-    const award = { ...deal, id: 'award-fra', source: 'seats_aero', affiliateLink: 'https://example.com/award' };
+    const award = { ...deal, id: 'award-fra', source: 'seats_aero', programId: 'lufthansa', programReachableDach: true, affiliateLink: 'https://example.com/award' };
     const model = await buildDealsPageData([deal, award], { kind: 'award', origins: [], sort: 'score' }, now);
     assert.deepEqual(model.kindCounts, { cash: 1, award: 1 });
     assert.equal(model.deals[0].priceHistoryBar.visible, false);
@@ -57,5 +60,26 @@ describe('buildDealsPageData', () => {
       [{ ...deal, destination: 'XXX' }], { kind: 'cash', origins: [], sort: 'score' }, now,
     );
     assert.equal(model.deals[0].range, null);
+  });
+
+  it('übernimmt Award-Felder und Benutzerkontext bis in das Siegel', async () => {
+    const award: FlightDeal = {
+      ...deal, source: 'seats_aero', programId: 'lufthansa', programReachableDach: false,
+      price: 100_000, taxesEur: 480, seatsLeft: 1, cashReferencePrice: 2580,
+      cashReferenceSamples: 3, valuationRateCt: 1.7, valuationRateValidFrom: new Date('2026-09-01'),
+      savingsPercent: -23,
+    };
+    const model = await buildDealsPageData([award], { kind: 'award', origins: [], sort: 'score' }, now, null, 'de', {
+      ownBalanceProgramIds: new Set(['lufthansa']), resolveDachRoute: () => ({ label: 'PAYBACK 1:1' }),
+    });
+    assert.equal(model.deals[0].savingsPercent, -23);
+    assert.deepEqual(model.deals[0].award, {
+      programId: 'lufthansa', programName: 'Lufthansa Miles & More', miles: 100_000, taxesEur: 480, seatsLeft: 1,
+      cashReferenceEur: 2580, reachability: 'own_balance', transferRoute: { label: 'PAYBACK 1:1' },
+      seal: { achievedCents: 2.1, typicalCents: 1.7, verdict: 'above_travel', rateValidFrom: award.valuationRateValidFrom },
+    });
+    const unreachable = await buildDealsPageData([award], { kind: 'award', origins: [], sort: 'score' }, now);
+    assert.equal(unreachable.deals.length, 0);
+    assert.equal(unreachable.unreachableDeals[0].award?.seal, null);
   });
 });

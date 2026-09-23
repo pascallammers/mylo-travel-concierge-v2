@@ -25,6 +25,7 @@ export interface PresentableDeal {
   source: string;
   flightDurationMinutes: number | null;
   preferredOriginMatch?: boolean;
+  savingsPercent?: number | null;
 }
 
 export interface PriceHistoryStats {
@@ -134,6 +135,15 @@ export function sortPresentedDeals<T extends PresentableDeal & { isFresh: boolea
     const freshDelta = Number(right.isFresh) - Number(left.isFresh);
     if (freshDelta !== 0) {
       return freshDelta;
+    }
+    if (getDealKind(left.source) === 'award' && getDealKind(right.source) === 'award') {
+      const leftSavings = left.savingsPercent ?? null;
+      const rightSavings = right.savingsPercent ?? null;
+      if (leftSavings !== rightSavings) {
+        if (leftSavings === null) return 1;
+        if (rightSavings === null) return -1;
+        return rightSavings - leftSavings;
+      }
     }
     const preferredOriginDelta =
       Number(right.preferredOriginMatch === true) - Number(left.preferredOriginMatch === true);

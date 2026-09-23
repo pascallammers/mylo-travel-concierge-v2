@@ -6,6 +6,8 @@ import {
   resolveTravelpayoutsLocalization,
 } from '@/lib/api/travelpayouts-affiliate-link';
 import type { FlightDeal } from '@/lib/db/schema';
+import { getProgramDisplayName } from '@/lib/api/award-search/program-registry';
+import type { AwardDealContext } from './award-deal-view';
 import { getPriceHistoryForRoute } from '@/lib/db/deal-queries';
 import { getAirportDetails } from '@/lib/utils/airport-database';
 import { computePriceStats } from '@/lib/services/deal-score-core';
@@ -29,6 +31,7 @@ import {
  * @param now - Current timestamp used for stale calculation.
  * @param preferences - Normalized user preferences for personalization.
  * @param locale - Active locale used for affiliate redirects.
+ * @param awardContext - Programs with own balances and the loaded DACH route resolver.
  * @returns Presentation-ready page model with kind counts and filters applied.
  */
 export async function buildDealsPageData(
@@ -37,6 +40,10 @@ export async function buildDealsPageData(
   now: Date = new Date(),
   preferences?: DealPreferenceSnapshot | null,
   locale = 'en',
+  awardContext: Pick<AwardDealContext, 'ownBalanceProgramIds' | 'resolveDachRoute'> = {
+    ownBalanceProgramIds: new Set(),
+    resolveDachRoute: () => null,
+  },
 ): Promise<DealsPageModel> {
   const routeStatsByKey = await getRouteStatsByKey(deals);
   const routeDistanceByKey = await getRouteDistanceByKey(deals);
@@ -71,6 +78,15 @@ export async function buildDealsPageData(
       currency: deal.currency,
       cabinClass: deal.cabinClass,
       averagePrice: deal.averagePrice,
+      programId: deal.programId,
+      programReachableDach: deal.programReachableDach,
+      taxesEur: deal.taxesEur,
+      seatsLeft: deal.seatsLeft,
+      cashReferencePrice: deal.cashReferencePrice,
+      cashReferenceSamples: deal.cashReferenceSamples,
+      valuationRateCt: deal.valuationRateCt,
+      valuationRateValidFrom: deal.valuationRateValidFrom,
+      savingsPercent: deal.savingsPercent,
       priceDifference: deal.priceDifference,
       priceChangePercent: deal.priceChangePercent,
       dealScore: deal.dealScore,
@@ -94,6 +110,10 @@ export async function buildDealsPageData(
     deals: modelDeals,
     filters,
     now,
+    awardContext: {
+      ...awardContext,
+      resolveProgramName: (programId) => getProgramDisplayName(programId, locale === 'de' ? 'de' : 'en'),
+    },
   });
 }
 

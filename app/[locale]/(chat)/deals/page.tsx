@@ -4,9 +4,13 @@ import { Plane, RefreshCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getUser } from '@/lib/auth-utils';
 import { getActiveDeals, getUserDealPreferences } from '@/lib/db/deal-queries';
+import { getOwnBalanceProgramIds } from '@/lib/db/queries/loyalty-balances';
+import { loadAwardProgramSourceResolver } from '@/lib/transfer-table/award-sources';
+import { readDachPartnerMaps } from '@/lib/transfer-table/runtime';
 import { hasFlightDealsAccess } from '@/lib/deals/flight-deals-access';
 import {
   buildDealsPageData,
+  buildAwardTransferRoute,
   createDealPreferenceSnapshot,
   parseDealsFilters,
 } from '@/lib/deals';
@@ -15,6 +19,7 @@ import { DealCard } from './components/deal-card';
 import { DealDigestLine } from './components/deal-digest-line';
 import { DealFilters } from './components/deal-filters';
 import { DealPreferencesPanel } from './components/deal-preferences-panel';
+import { UnreachableDealsToggle } from './components/unreachable-deals-toggle';
 
 /**
  * Build localized metadata for the deals page.
@@ -70,20 +75,24 @@ export default async function DealsPage({
       );
     }
 
-    const userPreferences = user ? await getUserDealPreferences(user.id) : null;
+    const [userPreferences, ownBalanceProgramIds, sourceResolver] = await Promise.all([
+      user ? getUserDealPreferences(user.id) : null,
+      // Own balances only widen reachability; a failed lookup must not hide the deals.
+      user ? getOwnBalanceProgramIds(user.id).catch(() => new Set<string>()) : new Set<string>(),
+      loadAwardProgramSourceResolver(readDachPartnerMaps),
+    ]);
     const preferenceSnapshot = createDealPreferenceSnapshot(userPreferences);
     const filters = parseDealsFilters(rawSearchParams, preferenceSnapshot.originAirports);
-    const [originAirportOptions, preferredDestinationOptions] = await Promise.all([
+    // Origins are filtered in the query; kind stays in memory so the tab counts stay exact.
+    const [originAirportOptions, preferredDestinationOptions, deals] = await Promise.all([
       hydrateSelectedAirports(preferenceSnapshot.originAirports),
       hydrateSelectedAirports(preferenceSnapshot.preferredDestinations),
+      getActiveDeals({ origins: filters.origins, minScore: 60, limit: 300 }),
     ]);
-    // Origins are filtered in the query; kind stays in memory so the tab counts stay exact.
-    const deals = await getActiveDeals({
-      origins: filters.origins,
-      minScore: 60,
-      limit: 300,
+    const model = await buildDealsPageData(deals, filters, new Date(), preferenceSnapshot, locale, {
+      ownBalanceProgramIds,
+      resolveDachRoute: (programId) => buildAwardTransferRoute(sourceResolver(programId), locale),
     });
-    const model = await buildDealsPageData(deals, filters, new Date(), preferenceSnapshot, locale);
     const allOriginsQuery = new URLSearchParams({
       origin: 'all',
       kind: filters.kind,
@@ -133,7 +142,7 @@ export default async function DealsPage({
           />
         ) : null}
 
-        {model.deals.length === 0 ? (
+        {model.deals.length === 0 && model.unreachableDeals.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed py-16 text-center">
             <Plane className="mb-4 size-10 text-muted-foreground" />
             <h2 className="text-lg font-semibold">{t('empty.title')}</h2>
@@ -158,6 +167,15 @@ export default async function DealsPage({
               />
             ))}
           </div>
+        )}
+        {model.unreachableDeals.length > 0 && (
+          <UnreachableDealsToggle
+            key={`${filters.kind}:${filters.origins.join(',')}:${filters.range ?? ''}:${filters.sort}`}
+            deals={model.unreachableDeals}
+            defaultOpen={model.deals.length === 0}
+            showFreshLabel={filters.sort === 'score'}
+            locale={locale}
+          />
         )}
       </div>
     );

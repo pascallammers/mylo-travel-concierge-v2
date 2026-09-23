@@ -1,5 +1,6 @@
 import { getLoyaltyProgram } from '../loyalty/programs';
 import { CABIN_LABELS, formatSourceMonth } from '../valuation/presentation';
+import { classifyTravelVerdict } from '../valuation/travel-verdict';
 import type { Cabin, ResolvedRate, ValuationTable } from '../valuation/types';
 
 export interface RedemptionInput {
@@ -59,15 +60,10 @@ export function assessRedemption(input: RedemptionInput, table: ValuationTable):
     throw new CppCalculatorError('Der Punktwert kann mit diesen Beträgen nicht berechnet werden.');
   }
   const noPlan = table.rateFor(input.programId, 'no_plan') ?? null;
-  // Integer thousandths avoid floating-point drift at the exact 1.5x threshold.
   const verdict: RedemptionAssessment['verdict'] =
     noPlan && centsPerPoint < noPlan.centsPerUnit
       ? 'below_no_plan'
-      : centsPerPoint < travel.centsPerUnit
-        ? 'below_travel'
-        : Math.round(centsPerPoint * 1000) * 2 >= Math.round(travel.centsPerUnit * 1000) * 3
-          ? 'far_above_travel'
-          : 'above_travel';
+      : classifyTravelVerdict(centsPerPoint, travel.centsPerUnit);
   const format = (value: number) => value.toLocaleString('de-DE', { maximumFractionDigits: 3 });
   const labels = {
     below_no_plan: `sogar unter dem Wert ohne Plan (${format(noPlan?.centsPerUnit ?? 0)} ct)`,
