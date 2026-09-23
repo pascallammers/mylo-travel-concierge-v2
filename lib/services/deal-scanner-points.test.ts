@@ -93,9 +93,11 @@ function createSeatsFlight(overrides: Partial<SeatsAeroFlight> = {}): SeatsAeroF
 }
 
 describe('shouldScanSeatsAero', () => {
-  it('aktiviert den Punkte-Scan nur im 6-Stunden-Takt', () => {
-    assert.strictEqual(shouldScanSeatsAero(new Date('2026-04-09T12:15:00.000Z')), true);
-    assert.strictEqual(shouldScanSeatsAero(new Date('2026-04-09T13:15:00.000Z')), false);
+  it('aktiviert den Punkte-Scan nur im 12-Stunden-Takt um 00 und 12 UTC', () => {
+    const activeHours = Array.from({ length: 24 }, (_, hour) => hour).filter((hour) =>
+      shouldScanSeatsAero(new Date(Date.UTC(2026, 8, 23, hour, 15))),
+    );
+    assert.deepStrictEqual(activeHours, [0, 12]);
   });
 });
 

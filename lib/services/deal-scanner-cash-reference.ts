@@ -1,9 +1,10 @@
 import type { DuffelFlight, DuffelSearchParams } from '@/lib/api/duffel-client';
 import type { EurRates } from '@/lib/deals/award-valuation';
+import { SEATS_AERO_SCAN_INTERVAL_HOURS } from './deal-scanner-points';
 
 const CASH_REFERENCE_SOURCE = 'duffel';
 const CASH_REFERENCE_CABIN = 'business';
-const SCAN_WINDOWS_PER_DAY = 4;
+const SCAN_WINDOWS_PER_DAY = 24 / SEATS_AERO_SCAN_INTERVAL_HOURS;
 
 export interface CashReferenceRoute {
   origin: string;
@@ -27,16 +28,16 @@ export interface CashReferenceScanDependencies {
 }
 
 /**
- * Partition routes across the four 6-hour scan windows so each route gets one
- * Duffel cash-reference call per day. `routeIndex % 4` selects the window
- * `floor(utcHour / 6)` — deterministic, every route lands in exactly one window.
+ * Partition routes across the daily seats.aero scan windows so each route gets
+ * one Duffel cash-reference call per day. `routeIndex % windows` selects the
+ * window `floor(utcHour / interval)`; every route lands in exactly one window.
  *
  * @param routes - Routes with a concrete destination, in stable order.
  * @param now - Current scan timestamp.
  * @returns The subset due in this window.
  */
 export function selectCashReferenceRoutes<T>(routes: T[], now: Date): T[] {
-  const windowIndex = Math.floor(now.getUTCHours() / 6) % SCAN_WINDOWS_PER_DAY;
+  const windowIndex = Math.floor(now.getUTCHours() / SEATS_AERO_SCAN_INTERVAL_HOURS) % SCAN_WINDOWS_PER_DAY;
   return routes.filter((_, index) => index % SCAN_WINDOWS_PER_DAY === windowIndex);
 }
 

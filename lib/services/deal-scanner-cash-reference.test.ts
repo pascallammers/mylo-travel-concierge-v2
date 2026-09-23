@@ -6,6 +6,7 @@ import {
   scanBusinessCashReference,
   selectCashReferenceRoutes,
 } from './deal-scanner-cash-reference';
+import { shouldScanSeatsAero } from './deal-scanner-points';
 
 function createOffer(total: string, currency = 'EUR'): DuffelFlight {
   return {
@@ -113,26 +114,22 @@ describe('scanBusinessCashReference', () => {
 describe('selectCashReferenceRoutes', () => {
   const routes = Array.from({ length: 17 }, (_, i) => `route-${i}`);
 
-  it('verteilt jede Route auf genau ein 6-Stunden-Fenster pro Tag', () => {
-    const day = [
-      new Date('2026-04-09T00:30:00Z'),
-      new Date('2026-04-09T06:30:00Z'),
-      new Date('2026-04-09T12:30:00Z'),
-      new Date('2026-04-09T18:30:00Z'),
-    ];
-    const partitions = day.map((now) => selectCashReferenceRoutes(routes, now));
+  it('gibt jeder Route genau eine Probe pro Tag in den Stunden mit Punkte-Scan', () => {
+    const scanHours = Array.from({ length: 24 }, (_, hour) => new Date(Date.UTC(2026, 8, 23, hour)))
+      .filter((now) => shouldScanSeatsAero(now));
+    const partitions = scanHours.map((now) => selectCashReferenceRoutes(routes, now));
 
-    assert.deepEqual(partitions.flat().sort(), [...routes].sort());
+    assert.deepEqual(partitions.flat().sort(), [...routes].sort(), 'every route probed exactly once per day');
     for (const partition of partitions) {
-      assert.ok(partition.length >= 4 && partition.length <= 5);
+      assert.ok(partition.length >= 8 && partition.length <= 9);
     }
   });
 
-  it('ist deterministisch und ueberspringt Stunden innerhalb eines Fensters nicht', () => {
-    const a = selectCashReferenceRoutes(routes, new Date('2026-04-09T06:00:00Z'));
-    const b = selectCashReferenceRoutes(routes, new Date('2026-04-09T11:59:00Z'));
+  it('ist deterministisch innerhalb eines Fensters', () => {
+    const a = selectCashReferenceRoutes(routes, new Date('2026-04-09T12:00:00Z'));
+    const b = selectCashReferenceRoutes(routes, new Date('2026-04-09T23:59:00Z'));
 
     assert.deepEqual(a, b);
-    assert.deepEqual(a, ['route-1', 'route-5', 'route-9', 'route-13']);
+    assert.deepEqual(a, ['route-1', 'route-3', 'route-5', 'route-7', 'route-9', 'route-11', 'route-13', 'route-15']);
   });
 });

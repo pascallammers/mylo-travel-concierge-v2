@@ -51,7 +51,7 @@ describe('daily budget in the deal scan run', () => {
     const result = await runDealScanWithDependencies(test.deps);
     assert.equal(test.searchSeatsAero.mock.callCount(), 0);
     assert.equal(test.processCashRoute.mock.callCount(), 4);
-    assert.equal(test.searchDuffel.mock.callCount(), 1, 'cash reference on a skipped route still runs');
+    assert.equal(test.searchDuffel.mock.callCount(), 2, 'cash reference on skipped routes still runs (half of 4 routes per 12-h window)');
     assert.equal(test.deleteStaleDealsForRoute.mock.callCount(), 0);
     assert.equal(test.deleteExpiredDeals.mock.callCount(), 1);
     assert.equal(result.seatsAeroRoutesSkipped, 4);
@@ -90,7 +90,7 @@ describe('daily budget in the deal scan run', () => {
     assert.equal(result.errors.length, 1);
     assert.match(result.errors[0], /quota exhausted/);
     assert.equal(test.processCashRoute.mock.callCount(), 4);
-    assert.equal(test.searchDuffel.mock.callCount(), 1);
+    assert.equal(test.searchDuffel.mock.callCount(), 2);
   });
 
   it('returns the last quota observed during the run', async () => {
