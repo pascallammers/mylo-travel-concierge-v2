@@ -87,8 +87,8 @@ export async function runDealScanWithDependencies(deps: DealScanDependencies): P
   const routes = await getActiveRoutes();
   const shouldScanPointsDeals = deps.pointsEnabled && shouldScanSeatsAero(now);
   const pointsDeps = shouldScanPointsDeals ? await loadPointsScanDeps() : null;
-  // One Duffel cash-reference probe per route per day, spread across the four
-  // 6-hour windows; the probe reuses the first monthly scan date.
+  // One Duffel cash-reference probe per route per day, spread across the
+  // seats.aero scan windows; the probe reuses the first monthly scan date.
   const cashReferenceRoutes = new Set(
     pointsDeps
       ? selectCashReferenceRoutes(

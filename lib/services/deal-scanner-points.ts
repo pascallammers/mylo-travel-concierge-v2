@@ -98,13 +98,19 @@ export interface PointsScanResult {
 const POINTS_SOURCE = 'seats_aero';
 
 /**
+ * Hours between two seats.aero scans. 12 keeps the scanner at ~324 of the 1,000
+ * daily calls (54 routes × 3 months × 2 runs), leaving the rest for user searches.
+ */
+export const SEATS_AERO_SCAN_INTERVAL_HOURS = 12;
+
+/**
  * Determine if the points scan should run in the current cron window.
  *
  * @param now - Current time used by the scheduler.
- * @returns True when the 6-hour scan window is active.
+ * @returns True at 00 and 12 UTC, the hours of the seats.aero scan interval.
  */
 export function shouldScanSeatsAero(now: Date): boolean {
-  return now.getUTCHours() % 6 === 0;
+  return now.getUTCHours() % SEATS_AERO_SCAN_INTERVAL_HOURS === 0;
 }
 
 /**
