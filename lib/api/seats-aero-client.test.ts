@@ -16,7 +16,8 @@
 import assert from 'node:assert';
 import { afterEach, describe, it, mock } from 'node:test';
 
-import { clearSeatsAeroSearchCache, searchSeatsAero } from './seats-aero-client';
+import { clearSeatsAeroSearchCache, getLastSeatsAeroQuota, searchSeatsAero } from './seats-aero-client';
+import { SeatsAeroQuotaExhaustedError } from './seats-aero-quota';
 import { KNOWN_PROGRAM_SLUGS } from './award-search/program-registry';
 
 const originalFetch = global.fetch;
@@ -70,6 +71,7 @@ function mucMiaThreePrograms() {
 function mockFetchReturning(payload: unknown) {
   const fetchMock = mock.fn(async (_url: string | URL) => ({
     ok: true,
+    headers: new Headers(),
     json: async () => payload,
   }));
   global.fetch = fetchMock as unknown as typeof fetch;
@@ -191,6 +193,7 @@ describe('searchSeatsAero (MUC->MIA regression)', () => {
       receivedSignal = init?.signal;
       return {
         ok: true,
+        headers: new Headers(),
         json: async () => mucMiaThreePrograms(),
       } as Response;
     }) as typeof fetch;
@@ -210,6 +213,7 @@ describe('searchSeatsAero (MUC->MIA regression)', () => {
     const controller = new AbortController();
     global.fetch = mock.fn(async () => ({
       ok: false,
+      headers: new Headers(),
       status: 500,
       statusText: 'Internal Server Error',
     })) as unknown as typeof fetch;
@@ -381,6 +385,7 @@ describe('searchSeatsAero (API efficiency, MYLO-23)', () => {
   it('does not cache failures — the next identical search retries the API', async () => {
     global.fetch = mock.fn(async () => ({
       ok: false,
+      headers: new Headers(),
       status: 401,
       statusText: 'Unauthorized',
     })) as unknown as typeof fetch;
@@ -409,4 +414,93 @@ describe('searchSeatsAero (API efficiency, MYLO-23)', () => {
     const requestedUrl = new URL(String(fetchMock.mock.calls[0].arguments[0]));
     assert.strictEqual(requestedUrl.searchParams.get('order_by'), 'lowest_mileage');
   });
+});
+
+
+describe('seats.aero daily quota', () => {
+  const params = { origin: 'FRA', destination: 'JFK', departureDate: '2027-06-15', travelClass: 'BUSINESS' as const };
+  afterEach(() => {
+    global.fetch = originalFetch;
+    clearSeatsAeroSearchCache();
+    mock.restoreAll();
+    mock.timers.reset();
+  });
+
+  it('records successful headers and resets quota when clearing the cache', async () => {
+    mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-23T15:01:00Z') });
+    global.fetch = mock.fn(async () => Response.json({ data: [] }, { headers: {
+      'x-ratelimit-limit': '1000', 'x-ratelimit-remaining': '512', 'x-ratelimit-reset': '32340',
+    } }));
+    await searchSeatsAero(params);
+    assert.deepStrictEqual(getLastSeatsAeroQuota(), {
+      limit: 1000, remaining: 512, resetsAt: new Date('2026-09-24T00:00:00Z'),
+    });
+    clearSeatsAeroSearchCache();
+    assert.strictEqual(getLastSeatsAeroQuota(), null);
+    mock.timers.reset();
+  });
+
+  it('forgets the quota once its reported reset has passed', async () => {
+    mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-23T23:59:00Z') });
+    global.fetch = mock.fn(async () => Response.json({ data: [] }, { headers: {
+      'x-ratelimit-limit': '1000', 'x-ratelimit-remaining': '12', 'x-ratelimit-reset': '60',
+    } }));
+    await searchSeatsAero(params);
+    assert.strictEqual(getLastSeatsAeroQuota(new Date('2026-09-23T23:59:59Z'))?.remaining, 12);
+    assert.strictEqual(getLastSeatsAeroQuota(new Date('2026-09-24T00:00:00Z')), null, 'stale quota after the daily reset');
+    mock.timers.reset();
+  });
+
+  it('does not retry or cache 429 and records headers even on failure', async () => {
+    const warn = mock.method(console, 'warn', () => {});
+    const fetchMock = mock.fn(async () => new Response('', { status: 429, headers: {
+      'x-ratelimit-limit': '1000', 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': '60',
+    } }));
+    global.fetch = fetchMock;
+    await assert.rejects(searchSeatsAero(params), SeatsAeroQuotaExhaustedError);
+    assert.strictEqual(fetchMock.mock.callCount(), 1);
+    assert.strictEqual(getLastSeatsAeroQuota()?.remaining, 0);
+    assert.strictEqual(warn.mock.callCount(), 1);
+    await assert.rejects(searchSeatsAero(params), SeatsAeroQuotaExhaustedError);
+    assert.strictEqual(fetchMock.mock.callCount(), 2, 'a new search must not reuse the failed request');
+  });
+
+  for (const [reset, expected] of [[null, '2026-09-24T00:00:00Z'], ['invalid', '2026-09-24T00:00:00Z'], ['3600', '2026-09-23T16:01:00Z']] as const) {
+    it(`uses reset ${String(reset)} without requiring other quota headers`, async () => {
+      mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-23T15:01:00Z') });
+      global.fetch = mock.fn(async () => new Response('', { status: 429, headers: reset === null ? {} : { 'x-ratelimit-reset': reset } }));
+      await assert.rejects(searchSeatsAero(params), (error: unknown) => {
+        assert.ok(error instanceof SeatsAeroQuotaExhaustedError);
+        assert.strictEqual(error.resetsAt?.toISOString(), new Date(expected).toISOString());
+        return true;
+      });
+      mock.timers.reset();
+    });
+  }
+
+  it('warns at the low-budget threshold, but not above it', async () => {
+    const warn = mock.method(console, 'warn', () => {});
+    for (const remaining of [101, 100]) {
+      clearSeatsAeroSearchCache();
+      global.fetch = mock.fn(async () => Response.json({ data: [] }, { headers: {
+        'x-ratelimit-limit': '1000', 'x-ratelimit-remaining': String(remaining), 'x-ratelimit-reset': '60',
+      } }));
+      await searchSeatsAero(params);
+    }
+    assert.strictEqual(warn.mock.callCount(), 1);
+  });
+});
+
+
+it('retains the last valid quota when later error responses omit the headers', async (t) => {
+  t.after(() => { global.fetch = originalFetch; clearSeatsAeroSearchCache(); });
+  const params = { origin: 'FRA', destination: 'JFK', departureDate: '2027-06-15', travelClass: 'BUSINESS' as const };
+  global.fetch = mock.fn(async () => new Response('', { status: 401, headers: {
+    'x-ratelimit-limit': '1000', 'x-ratelimit-remaining': '200', 'x-ratelimit-reset': '60',
+  } }));
+  await assert.rejects(searchSeatsAero(params), /401/);
+  assert.strictEqual(getLastSeatsAeroQuota()?.remaining, 200);
+  global.fetch = mock.fn(async () => new Response('', { status: 401 }));
+  await assert.rejects(searchSeatsAero(params), /401/);
+  assert.strictEqual(getLastSeatsAeroQuota()?.remaining, 200);
 });
