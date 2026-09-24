@@ -38,7 +38,7 @@ const MarkdownRenderer = dynamic(
     ssr: true,
   },
 );
-import { deleteTrailingMessages } from '@/app/actions';
+import { deleteTrailingMessages } from '@/app/chat-actions';
 import { getErrorActions, getErrorIcon, isSignInRequired, isProRequired, isRateLimited } from '@/lib/errors';
 import {
   sanitizeUserFacingStreamError,

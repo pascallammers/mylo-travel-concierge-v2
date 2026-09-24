@@ -22,7 +22,7 @@ import {
   isThisMonth,
   subWeeks,
 } from 'date-fns';
-import { deleteChat, getUserChats, loadMoreChats, updateChatTitle } from '@/app/actions';
+import { deleteChat, getUserChats, loadMoreChats, updateChatTitle } from '@/app/chat-actions';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 import { User } from '@/lib/db/schema';

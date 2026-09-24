@@ -10,7 +10,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { deleteChat, getUserChats, loadMoreChats, updateChatTitle } from '@/app/actions';
+import { deleteChat, getUserChats, loadMoreChats, updateChatTitle } from '@/app/chat-actions';
 import { invalidateChatsCache } from '@/lib/utils';
 import {
   Chat,

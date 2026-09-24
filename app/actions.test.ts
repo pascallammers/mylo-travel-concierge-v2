@@ -83,6 +83,7 @@ mock.module('@/lib/connectors', {
 });
 // Synchronous require lets node:test register mocks before loading the action boundary.
 const actions: typeof import('./actions') = require('./actions.ts');
+const chatActions: typeof import('./chat-actions') = require('./chat-actions.ts');
 
 beforeEach(() => {
   session = owner;
@@ -93,22 +94,22 @@ beforeEach(() => {
   cache.clear();
 });
 const mutations = [
-  { name: 'deleteChat', call: () => actions.deleteChat('chat'), db: 'deleteChatById', throws: false },
+  { name: 'deleteChat', call: () => chatActions.deleteChat('chat'), db: 'deleteChatById', throws: false },
   {
     name: 'updateChatTitle',
-    call: () => actions.updateChatTitle('chat', ' Updated '),
+    call: () => chatActions.updateChatTitle('chat', ' Updated '),
     db: 'updateChatTitleById',
     throws: false,
   },
   {
     name: 'updateChatVisibility',
-    call: () => actions.updateChatVisibility('chat', 'public'),
+    call: () => chatActions.updateChatVisibility('chat', 'public'),
     db: 'updateChatVisibilityById',
     throws: true,
   },
   {
     name: 'deleteTrailingMessages',
-    call: () => actions.deleteTrailingMessages({ id: 'message' }),
+    call: () => chatActions.deleteTrailingMessages({ id: 'message' }),
     db: 'deleteMessagesByChatIdAfterTimestamp',
     throws: true,
   },
@@ -135,21 +136,21 @@ for (const action of mutations) {
 }
 test('deleteTrailingMessages: missing message has the same plain failure', async () => {
   messages = [];
-  await assert.rejects(() => actions.deleteTrailingMessages({ id: 'missing' }), /Unauthorized/);
+  await assert.rejects(() => chatActions.deleteTrailingMessages({ id: 'missing' }), /Unauthorized/);
   assert.equal(
     calls.some((call) => call.name === 'deleteMessagesByChatIdAfterTimestamp'),
     false,
   );
 });
 for (const name of ['getUserChats', 'loadMoreChats'] as const) {
-  const run = () => Reflect.apply(actions[name], undefined, name === 'getUserChats' ? [20] : ['chat', 20]);
+  const run = () => Reflect.apply(chatActions[name], undefined, name === 'getUserChats' ? [20] : ['chat', 20]);
   test(`${name}: no session returns no chats and does not read the DB`, async () => {
     session = null;
     assert.deepEqual(await run(), { chats: [], hasMore: false });
     assert.equal(calls.length, 0);
   });
   test(`${name}: client user id cannot select a foreign account`, async () => {
-    await Reflect.apply(actions[name], undefined, name === 'getUserChats' ? ['victim', 20] : ['victim', 'chat', 20]);
+    await Reflect.apply(chatActions[name], undefined, name === 'getUserChats' ? ['victim', 20] : ['victim', 'chat', 20]);
     assert.equal(
       calls.some((call) => call.name === 'getChatsByUserId'),
       false,
@@ -163,7 +164,7 @@ for (const name of ['getUserChats', 'loadMoreChats'] as const) {
 }
 test('getUserChats: a foreign pagination cursor is rejected', async () => {
   chat = { id: 'foreign-cursor', userId: 'victim' };
-  assert.deepEqual(await Reflect.apply(actions.getUserChats, undefined, [20, 'foreign-cursor']), {
+  assert.deepEqual(await Reflect.apply(chatActions.getUserChats, undefined, [20, 'foreign-cursor']), {
     chats: [],
     hasMore: false,
   });

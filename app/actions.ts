@@ -41,15 +41,6 @@ import {
 } from '@/lib/connectors';
 import { buildMyloWebSystemPrompt } from '@/lib/chat/mylo-system-prompt';
 
-export {
-  getUserChats,
-  loadMoreChats,
-  deleteChat,
-  updateChatVisibility,
-  deleteTrailingMessages,
-  updateChatTitle,
-} from './chat-actions';
-
 // Server action to get the current user with Pro status - UNIFIED VERSION
 export async function getCurrentUser() {
   'use server';

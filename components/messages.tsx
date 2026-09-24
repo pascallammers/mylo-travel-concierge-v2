@@ -4,7 +4,7 @@ import { DataUIPart, isToolUIPart } from 'ai';
 import { EnhancedErrorDisplay } from '@/components/message';
 import { MessagePartRenderer } from '@/components/message-parts';
 import { MyloLogoHeader } from '@/components/mylo-logo-header';
-import { deleteTrailingMessages } from '@/app/actions';
+import { deleteTrailingMessages } from '@/app/chat-actions';
 import { saveMemoryFromChat, MemoryContext } from '@/lib/memory-actions';
 import { toast } from 'sonner';
 import { ChatMessage, CustomUIDataTypes } from '@/lib/types';
