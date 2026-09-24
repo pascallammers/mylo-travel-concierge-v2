@@ -6,17 +6,21 @@ const require = createRequire(import.meta.url);
 let session: { id: string } | null = { id: 'owner' };
 let tags: string[] | undefined;
 let missing = false;
+let upstreamDown = false;
+class NotFoundError extends Error {}
 const calls: string[] = [];
 mock.module('@/lib/auth-utils', { namedExports: { getUser: async () => session } });
 mock.module('@/env/server', { namedExports: { serverEnv: { SUPERMEMORY_API_KEY: 'test' } } });
 mock.module('supermemory', {
   namedExports: {
+    NotFoundError,
     Supermemory: class {
       memories = {
         get: async (id: string) => {
           calls.push('get');
           assert.equal(id, 'memory');
-          if (missing) throw new Error('Not found');
+          if (missing) throw new NotFoundError('Not found');
+          if (upstreamDown) throw new Error('Supermemory 503');
           return { id, containerTags: tags };
         },
         delete: async () => {
@@ -46,6 +50,7 @@ beforeEach(() => {
   session = { id: 'owner' };
   tags = ['owner'];
   missing = false;
+  upstreamDown = false;
   calls.length = 0;
 });
 for (const state of ['no session', 'foreign owner', 'missing tags', 'empty tags', 'missing memory', 'owner'] as const) {
@@ -88,4 +93,10 @@ test('saveMemoryFromChat: uses the session container', async () => {
     (await actions.saveMemoryFromChat('Travel preference', { messageRole: 'user', timestamp: 'now' })).success,
     true,
   );
+});
+
+test('deleteMemory: upstream failure surfaces as itself, not as Unauthorized, without deleting', async () => {
+  upstreamDown = true;
+  await assert.rejects(() => actions.deleteMemory('memory'), /Supermemory 503/);
+  assert.equal(calls.includes('delete'), false);
 });
