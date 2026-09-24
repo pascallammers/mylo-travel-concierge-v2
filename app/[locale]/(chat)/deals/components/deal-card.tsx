@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { trackGoal } from '@/lib/analytics';
 import { ChevronDown, ChevronUp, ExternalLink, Search, Plane } from 'lucide-react';
@@ -229,12 +230,12 @@ export function DealCard({ deal, showScore = false, showFreshLabel = false, show
 
           <div className="flex flex-col gap-2 sm:col-start-2 sm:min-w-52">
             {availabilityHref && <Button size="sm" className="min-h-11" asChild>
-              <a href={availabilityHref} onClick={() => trackGoal('deal_availability_check', {
+              <Link href={availabilityHref} prefetch={false} onClick={() => trackGoal('deal_availability_check', {
                 destination: deal.destination, source: deal.source, kind: deal.kind,
               })}>
                 <Search className="mr-1.5 size-3.5" aria-hidden="true" />
                 {t('card.checkAvailability')}
-              </a>
+              </Link>
             </Button>}
             <Button size="sm" variant={availabilityHref ? 'outline' : 'default'} className={availabilityHref ? 'min-h-11' : undefined} asChild>
               <a
