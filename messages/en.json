@@ -31,7 +31,9 @@
       "share": "Share",
       "shared": "Shared",
       "sharedPage": "This chat has been shared",
-      "sharedByOther": "This chat was shared by someone else"
+      "sharedByOther": "This chat was shared by someone else",
+      "signInPrompt": "Sign in to see your chat history.",
+      "signIn": "Sign in"
     },
     "areas": {
       "flights": "Flights",

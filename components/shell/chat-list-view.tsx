@@ -41,43 +41,54 @@ export function ChatListView({ user }: { user: ChatHistoryUser | null }) {
             {sidebar?.isMobile && <SidebarTrigger />}
             <h1 id="chat-list-title" className="text-2xl font-semibold tracking-tight">{t('areas.chat')}</h1>
           </div>
-          {newChatButton}
+          {user && newChatButton}
         </header>
-        <ChatSidebarSearch
-          searchQuery={history.searchQuery}
-          onSearchChange={history.setSearchQuery}
-          searchMode={history.searchMode}
-          onCycleMode={history.cycleSearchMode}
-        />
-        {!history.isLoading && history.allChats.length === 0 && !history.searchQuery ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 overflow-y-auto py-12 text-center">
-            <MessageSquare className="size-10 text-muted-foreground" aria-hidden="true" />
-            <h2 className="text-lg font-medium">{t('chat.emptyTitle')}</h2>
-            <p className="max-w-sm text-sm text-muted-foreground">{t('chat.emptyBody')}</p>
-            {newChatButton}
+        {!user ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 py-12 text-center">
+            <p className="max-w-sm text-sm text-muted-foreground">{t('chat.signInPrompt')}</p>
+            <Button asChild variant="secondary">
+              <Link href="/sign-in">{t('chat.signIn')}</Link>
+            </Button>
           </div>
         ) : (
-          <ChatSidebarList
-            categorizedChats={history.categorizedChats}
-            allChats={history.searchQuery ? history.filteredChats : history.allChats}
-            isLoading={history.isLoading}
-            isFetchingNextPage={history.isFetchingNextPage}
-            hasNextPage={history.hasNextPage}
-            fetchNextPage={history.fetchNextPage}
-            currentChatId={history.currentChatId}
-            onSelectChat={handleSelectChat}
-            onDeleteChat={handleDeleteChat}
-            onUpdateChatTitle={history.updateChatTitle}
-            isDeletingChat={history.isDeletingChat}
-            isUpdatingTitle={history.isUpdatingTitle}
-            editingChatId={history.editingChatId}
-            editingTitle={history.editingTitle}
-            onSetEditingChatId={history.setEditingChatId}
-            onSetEditingTitle={history.setEditingTitle}
-            deletingChatId={history.deletingChatId}
-            onSetDeletingChatId={history.setDeletingChatId}
-            searchQuery={history.searchQuery}
-          />
+          <>
+            <ChatSidebarSearch
+              searchQuery={history.searchQuery}
+              onSearchChange={history.setSearchQuery}
+              searchMode={history.searchMode}
+              onCycleMode={history.cycleSearchMode}
+            />
+            {!history.isLoading && history.allChats.length === 0 && !history.searchQuery ? (
+              <div className="flex flex-1 flex-col items-center justify-center gap-3 overflow-y-auto py-12 text-center">
+                <MessageSquare className="size-10 text-muted-foreground" aria-hidden="true" />
+                <h2 className="text-lg font-medium">{t('chat.emptyTitle')}</h2>
+                <p className="max-w-sm text-sm text-muted-foreground">{t('chat.emptyBody')}</p>
+                {newChatButton}
+              </div>
+            ) : (
+              <ChatSidebarList
+                categorizedChats={history.categorizedChats}
+                allChats={history.searchQuery ? history.filteredChats : history.allChats}
+                isLoading={history.isLoading}
+                isFetchingNextPage={history.isFetchingNextPage}
+                hasNextPage={history.hasNextPage}
+                fetchNextPage={history.fetchNextPage}
+                currentChatId={history.currentChatId}
+                onSelectChat={handleSelectChat}
+                onDeleteChat={handleDeleteChat}
+                onUpdateChatTitle={history.updateChatTitle}
+                isDeletingChat={history.isDeletingChat}
+                isUpdatingTitle={history.isUpdatingTitle}
+                editingChatId={history.editingChatId}
+                editingTitle={history.editingTitle}
+                onSetEditingChatId={history.setEditingChatId}
+                onSetEditingTitle={history.setEditingTitle}
+                deletingChatId={history.deletingChatId}
+                onSetDeletingChatId={history.setDeletingChatId}
+                searchQuery={history.searchQuery}
+              />
+            )}
+          </>
         )}
       </div>
     </section>
