@@ -397,8 +397,8 @@ function filterByCabin(flights: AwardFlight[], apiValue: string): AwardFlight[] 
 
 /**
  * Map a parsed AwardFlight to the renderer's SeatsAeroFlight shape. Airports
- * come from the search params (the searched route), duration is derived from
- * the ISO timestamps.
+ * come from the search params (the searched route), duration from the
+ * provider's total travel time.
  */
 function awardFlightToSeatsAero(
   flight: AwardFlight,
@@ -424,7 +424,7 @@ function awardFlightToSeatsAero(
     outbound: {
       departure: { airport: params.origin, time: flight.departsAt },
       arrival: { airport: params.destination, time: flight.arrivesAt },
-      duration: formatDuration(flight.departsAt, flight.arrivesAt),
+      duration: formatDuration(flight.durationMinutes),
       stops:
         flight.stops === 0
           ? 'Nonstop'
@@ -435,17 +435,13 @@ function awardFlightToSeatsAero(
 }
 
 /**
- * Format the elapsed time between two ISO timestamps as "Xh Ym".
+ * Format a travel time in minutes as "Xh Ym".
+ * @param totalMins - Provider-reported total duration, or null when missing.
+ * @returns Human-readable duration, or '' when unknown.
  */
-function formatDuration(departsAt: string, arrivesAt: string): string {
-  const dep = new Date(departsAt).getTime();
-  const arr = new Date(arrivesAt).getTime();
-  if (isNaN(dep) || isNaN(arr) || arr < dep) return '';
-
-  const totalMins = Math.round((arr - dep) / 60000);
-  const hours = Math.floor(totalMins / 60);
-  const mins = totalMins % 60;
-  return `${hours}h ${mins}m`;
+function formatDuration(totalMins: number | null): string {
+  if (totalMins === null) return '';
+  return `${Math.floor(totalMins / 60)}h ${totalMins % 60}m`;
 }
 
 /**

@@ -175,6 +175,21 @@ describe('parseAwardResponse', () => {
     assert.doesNotThrow(() => flight.miles.toLocaleString());
   });
 
+  it('reads TotalDuration as minutes and leaves it null when missing', () => {
+    const raw = {
+      data: [{
+        ID: 'entry-a',
+        Source: 'aeroplan',
+        AvailabilityTrips: [
+          { ID: 'with', Source: 'aeroplan', MileageCost: 1, Cabin: 'business', TotalDuration: 1120 },
+          { ID: 'without', Source: 'aeroplan', MileageCost: 1, Cabin: 'business' },
+        ],
+      }],
+    };
+
+    assert.deepStrictEqual(parseAwardResponse(raw).map((f) => f.durationMinutes), [1120, null]);
+  });
+
   it('skips trips that have no resolvable program (neither trip nor entry Source)', () => {
     const raw = {
       data: [

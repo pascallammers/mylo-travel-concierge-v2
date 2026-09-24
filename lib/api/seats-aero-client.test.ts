@@ -196,6 +196,28 @@ describe('searchSeatsAero (MUC->MIA regression)', () => {
     assert.strictEqual(lufthansa!.program, 'lufthansa', 'program column shows the mileage program');
   });
 
+  it('takes the duration from TotalDuration, not from the airport-local timestamps', async () => {
+    mockFetchReturning({
+      data: [{
+        ID: 'entry-lufthansa',
+        Source: 'lufthansa',
+        AvailabilityTrips: [
+          businessTrip({
+            Source: 'lufthansa', MileageCost: 66823, TotalTaxes: 98793, Stops: 0,
+            DepartsAt: '2026-11-14T11:50:00Z', ArrivesAt: '2026-11-14T16:55:00Z', TotalDuration: 665,
+          }),
+          businessTrip({ Source: 'lufthansa', MileageCost: 70000, Stops: 0 }),
+        ],
+      }],
+    });
+
+    const flights = await searchSeatsAero({
+      origin: 'MUC', destination: 'MIA', departureDate: '2026-11-14', travelClass: 'BUSINESS',
+    });
+
+    assert.deepStrictEqual(flights.map((f) => f.outbound.duration), ['11h 5m', '']);
+  });
+
   it('forwards the abort signal to the provider fetch', async () => {
     const controller = new AbortController();
     let receivedSignal: AbortSignal | null | undefined;

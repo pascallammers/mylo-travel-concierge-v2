@@ -27,6 +27,12 @@ export interface AwardFlight {
   departsAt: string;
   /** ISO arrival timestamp (trip.ArrivesAt). */
   arrivesAt: string;
+  /**
+   * Total travel time in minutes (trip.TotalDuration). DepartsAt/ArrivesAt are
+   * airport-local times despite their "Z" suffix, so subtracting them is wrong
+   * whenever the route crosses time zones.
+   */
+  durationMinutes: number | null;
   /** Operating flight numbers (trip.FlightNumbers). */
   flightNumbers: string;
   /** Parent availability id, used later to build booking deeplinks. */
@@ -64,6 +70,8 @@ export function parseAwardResponse(raw: unknown): AwardFlight[] {
         stops: trip.Stops ?? 0,
         departsAt: trip.DepartsAt ?? '',
         arrivesAt: trip.ArrivesAt ?? '',
+        durationMinutes:
+          typeof trip.TotalDuration === 'number' && trip.TotalDuration > 0 ? trip.TotalDuration : null,
         flightNumbers: trip.FlightNumbers ?? '',
         availabilityId: trip.AvailabilityID ?? '',
         cabin: trip.Cabin ?? '',
