@@ -15,11 +15,8 @@ import {
   buildGoogleFlightsUrl,
   buildSkyscannerUrl,
 } from '@/lib/utils/flight-search-links';
-import {
-  DACH_SOURCE_PROGRAM_IDS,
-  type AwardProgramTransferSource,
-  type TransferPartner,
-} from '@/lib/config/transfer-engine';
+import { collectDachTransferHints, type TransferHintDependencies } from '@/lib/flights/dach-transfer-sources';
+export type { TransferHintDependencies } from '@/lib/flights/dach-transfer-sources';
 
 type AwardDisplayFlight = Pick<SeatsAeroFlight,
   'program' | 'airline' | 'cabin' | 'price' | 'seatsLeft' | 'outbound'>;
@@ -67,13 +64,6 @@ export type AwardProgramResolvers = {
   getProgramBookingUrl: (slug: string, ctx: AwardBookingContext) => string | null;
   getProgramCaveat: (slug: string, locale: FlightLocale) => string | null;
 };
-
-export interface TransferHintDependencies {
-  getTransferSourcesForAwardProgram: (
-    slug: string,
-  ) => AwardProgramTransferSource[];
-  formatTransferRatio: (partner: TransferPartner) => string;
-}
 
 export type FormatFlightResultsDeps = AwardProgramResolvers & {
   createBookingSession?: BookingSessionCreator;
@@ -337,28 +327,9 @@ function renderTransferSources(
     ),
   ];
 
-  return slugs.flatMap((slug) => {
-    const sources = dependencies
-      .getTransferSourcesForAwardProgram(slug)
-      .filter(({ sourceProgramId }) =>
-        DACH_SOURCE_PROGRAM_IDS.has(sourceProgramId),
-      );
-    if (sources.length === 0) return [];
-
-    const renderedSources = sources
-      .map(({ sourceProgramLabel, partner }) => {
-        const via =
-          partner.type === 'other'
-            ? ` ${flightI18n.transferHintVia[locale]} ${partner.name}`
-            : '';
-        return `${sourceProgramLabel[locale]}${via} ${dependencies.formatTransferRatio(partner)}`;
-      })
-      .join(', ');
-
-    return [
-      `- **${getProgramDisplayName(slug, locale)}**: ${renderedSources}`,
-    ];
-  });
+  return collectDachTransferHints(slugs, locale, dependencies).map(({ programSlug, sources }) =>
+    `- **${getProgramDisplayName(programSlug, locale)}**: ${sources.join(', ')}`,
+  );
 }
 
 /**

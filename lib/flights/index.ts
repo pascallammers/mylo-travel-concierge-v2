@@ -4,3 +4,8 @@ export { searchAwards, formatAwardQuotaNotice } from './award-search';
 export type { AwardSearchDeps, AwardSearchResult, AwardLeg, InboundLeg, AwardFailure, AwardOption } from './award-search';
 export { resolveFlightSearch, checkTravelDates, searchWindowBounds, todayIso, AWARD_FLEX_DAYS } from './search-input';
 export type { ResolvedFlightSearch, SearchWindow, IataCode, IsoDate, YearMonth } from './search-input';
+export { parseFlightsQuery, flightsQueryString, buildFlightsHref, flightsDraftFromDeal, EMPTY_FLIGHTS_DRAFT, FLIGHTS_PARAMS } from './flights-query';
+export type { FlightsDraft, FlightsIssue, FlightsQuery } from './flights-query';
+export { buildAwardResultsView } from './award-results-view';
+export type { AwardResultsView, AwardLegView, AwardOptionView, AwardProgramGroup } from './award-results-view';
+export { collectDachTransferHints } from './dach-transfer-sources';
