@@ -20,6 +20,22 @@ export function checkChatAccess({
 }
 
 /**
+ * Choose the page title for a chat without revealing private titles.
+ * @param input - The session user and the chat loaded on the server.
+ * @returns The chat title for public chats and their owner, otherwise the generic title.
+ */
+export function chatMetadataTitle({
+  user,
+  chat,
+}: {
+  user: SessionUser;
+  chat: { userId: string; visibility: string; title: string };
+}): string {
+  if (chat.visibility === 'public' || checkChatAccess({ user, chat }).ok) return chat.title;
+  return 'MYLO Chat';
+}
+
+/**
  * Authenticate an admin route before reading input or accessing protected services.
  * @param dependencies - Session resolution and the existing persisted role lookup.
  * @returns A 401/403 response when denied, otherwise null.
