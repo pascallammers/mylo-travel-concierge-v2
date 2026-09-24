@@ -2,7 +2,7 @@
 
 import { getUser } from '@/lib/auth-utils';
 import { serverEnv } from '@/env/server';
-import { Supermemory } from 'supermemory';
+import { NotFoundError, Supermemory } from 'supermemory';
 
 // Initialize the memory client with API key
 const supermemoryClient = new Supermemory({
@@ -106,8 +106,10 @@ export async function deleteMemory(memoryId: string) {
   const user = await getUser();
   if (!user) throw new Error('Authentication required');
 
-  // Missing resources and upstream failures must not disclose foreign memory details.
-  const memory = await supermemoryClient.memories.get(memoryId).catch(() => null);
+  const memory = await supermemoryClient.memories.get(memoryId).catch((error: unknown) => {
+    if (error instanceof NotFoundError) return null;
+    throw error;
+  });
   if (!memory?.containerTags?.includes(user.id)) throw new Error('Unauthorized');
   return supermemoryClient.memories.delete(memoryId);
 }
