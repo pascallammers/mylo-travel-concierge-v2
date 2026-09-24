@@ -6,7 +6,6 @@
 
 'use client';
 
-import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
@@ -16,6 +15,7 @@ import { invalidateChatsCache } from '@/lib/utils';
 import { ChatSidebarHeader } from './chat-sidebar-header';
 import { ChatSidebarSearch } from './chat-sidebar-search';
 import { ChatSidebarList } from './chat-sidebar-list';
+import { useChatListController } from './use-chat-list-controller';
 
 /**
  * Props for the ChatSidebar component.
@@ -83,26 +83,9 @@ export function ChatSidebar({
     isOpen: true, // Sidebar is always "open" in terms of data fetching
   });
 
-  const handleSelectChat = useCallback(
-    (chatId: string) => {
-      const chat = allChats.find((c) => c.id === chatId);
-      const displayTitle = chat?.title || t('untitledChat');
-      toast.info(t('openingChat', { title: displayTitle }));
-      invalidateChatsCache();
-      router.push(`/search/${chatId}`);
-    },
-    [allChats, router],
-  );
-
-  const handleDeleteChat = useCallback(
-    async (chatId: string) => {
-      await deleteChat(chatId);
-      // Redirect to home if deleting current chat
-      if (currentChatId === chatId) {
-        router.push('/');
-      }
-    },
-    [deleteChat, currentChatId, router],
+  const { handleSelectChat, handleDeleteChat } = useChatListController(
+    { allChats, currentChatId, deleteChat },
+    { push: router.push, notify: toast.info, invalidate: invalidateChatsCache, translate: t },
   );
 
   // If user is not logged in, show minimal sidebar

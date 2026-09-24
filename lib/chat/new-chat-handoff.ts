@@ -1,3 +1,36 @@
+export type NewChatParams = Record<string, string | string[] | undefined>;
+export type ChatNewRequest = { kind: 'render' } | { kind: 'redirect'; url: string };
+
+/**
+ * Normalize supported handoff parameters in their existing priority order.
+ * @param params - Incoming query parameters; repeated values use the first entry.
+ * @returns Trimmed chat input, or an empty string without usable context.
+ */
+export function normalizeNewChatQuery(params: NewChatParams): string {
+  const values = Object.fromEntries(
+    Object.entries(params).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]),
+  );
+  return values.query?.trim() || values.q?.trim() || values.prefill?.trim() || buildRouteQuery(values);
+}
+
+/**
+ * Render canonical new-chat requests and redirect aliases to the canonical URL.
+ * @param locale - Active locale segment for the new chat route.
+ * @param params - Incoming query parameters, including aliases and repeated values.
+ * @returns A render decision or a localized redirect containing only normalized input.
+ */
+export function resolveChatNewRequest(locale: string, params: NewChatParams): ChatNewRequest {
+  const keys = Object.keys(params);
+  const query = normalizeNewChatQuery(params);
+  if (keys.length === 0 || (keys.length === 1 && keys[0] === 'query' && query && params.query === query)) {
+    return { kind: 'render' };
+  }
+
+  const url = new URL(`/${locale || 'en'}/chat/new`, 'https://example.com');
+  if (query) url.searchParams.set('query', query);
+  return { kind: 'redirect', url: `${url.pathname}${url.search}` };
+}
+
 /**
  * Build the localized redirect URL for starting a new chat with optional prefilled input.
  *
@@ -11,7 +44,7 @@ export function buildNewChatRedirectUrl(
 ): string {
   const normalizedLocale = locale || 'en';
   const url = new URL(`/${normalizedLocale}`, 'https://example.com');
-  const query = params.query?.trim() || params.q?.trim() || params.prefill?.trim() || buildRouteQuery(params);
+  const query = normalizeNewChatQuery(params);
 
   if (query) {
     url.searchParams.set('query', query);

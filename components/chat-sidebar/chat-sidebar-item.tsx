@@ -251,7 +251,6 @@ export function ChatSidebarItem({
       <SidebarMenuButton
         asChild
         isActive={isActive}
-        tooltip={displayTitle}
         className="pr-14"
       >
         <Link href={`/search/${chat.id}`} onClick={handleSelect}>

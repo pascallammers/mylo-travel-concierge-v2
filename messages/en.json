@@ -23,6 +23,18 @@
     "description": "MYLO is your AI-powered travel assistant for optimal flight search, Miles & Points advice, and Premium Cabin upgrades."
   },
   "shell": {
+    "chat": {
+      "allChats": "All chats",
+      "newChat": "New chat",
+      "emptyTitle": "Your journey starts here",
+      "emptyBody": "Your conversations with Mylo will appear here. Start a new chat and plan your next trip.",
+      "share": "Share",
+      "shared": "Shared",
+      "sharedPage": "This chat has been shared",
+      "sharedByOther": "This chat was shared by someone else",
+      "signInPrompt": "Sign in to see your chat history.",
+      "signIn": "Sign in"
+    },
     "areas": {
       "flights": "Flights",
       "deals": "Deals",

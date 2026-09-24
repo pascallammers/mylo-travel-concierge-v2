@@ -18,8 +18,14 @@ interface ShareButtonProps {
   size?: 'sm' | 'md' | 'lg';
   className?: string;
   disabled?: boolean;
+  labels?: { share: string; shared: string };
 }
 
+/**
+ * Open the sharing dialog for an authenticated chat owner.
+ * @param props - Chat visibility, owner data, button variant and optional localized labels.
+ * @returns The share button and its controlled sharing dialog.
+ */
 export function ShareButton({
   chatId,
   selectedVisibilityType,
@@ -30,6 +36,7 @@ export function ShareButton({
   size = 'md',
   className = '',
   disabled = false,
+  labels,
 }: ShareButtonProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -49,7 +56,7 @@ export function ShareButton({
           return (
             <>
               <GlobeHemisphereWestIcon size={16} className="text-blue-600 dark:text-blue-400" />
-              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Shared</span>
+              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">{labels?.shared ?? 'Shared'}</span>
               <CopyIcon size={14} className="ml-1 text-blue-600 dark:text-blue-400 opacity-70" />
             </>
           );
@@ -63,7 +70,7 @@ export function ShareButton({
                 strokeWidth={2}
                 className="text-muted-foreground"
               />
-              <span className="text-sm font-medium text-muted-foreground">Share</span>
+              <span className="text-sm font-medium text-muted-foreground">{labels?.share ?? 'Share'}</span>
             </>
           );
         }

@@ -34,7 +34,7 @@ describe('shell area registry', () => {
   it('opens hotels as a new chat without activating the hotels area', () => {
     const hotels = SHELL_AREAS.find((area) => area.slug === 'hotels');
 
-    assert.equal(hotels?.href, '/new');
+    assert.equal(hotels?.href, '/chat/new');
     assert.equal(hotels?.state, 'beta');
     assert.deepEqual(hotels?.activePrefixes, []);
     assert.equal(findActiveArea('/new')?.slug, 'chat');
@@ -52,6 +52,7 @@ describe('findActiveArea', () => {
     ['/searching', null],
     ['/', 'chat'],
     ['/chat', 'chat'],
+    ['/chat/new', 'chat'],
     ['/chat/abc', 'chat'],
     ['/new', 'chat'],
     ['/new/abc', 'chat'],
