@@ -1,7 +1,8 @@
-import { pgTable, text, timestamp, boolean, json, jsonb, varchar, integer, uuid, real, uniqueIndex, index } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, json, jsonb, varchar, integer, uuid, real, uniqueIndex, index, primaryKey } from 'drizzle-orm/pg-core';
 import { generateId } from 'ai';
 import { InferSelectModel } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
+import { PREVIEW_AREA_SLUGS } from '../shell/preview-areas';
 
 export { valuationRates } from '../valuation/schema';
 export { transferCheckOutcome, transferRates, transferTableChecks } from '../transfer-table/schema';
@@ -25,6 +26,16 @@ export const user = pgTable('user', {
   supabaseUserId: uuid('supabase_user_id'), // Mapping to Supabase auth.users.id
   rawUserMetaData: json('raw_user_meta_data').default({}), // Preserve Supabase metadata
 });
+
+export const areaInterest = pgTable('area_interest', {
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  areaSlug: text('area_slug', { enum: PREVIEW_AREA_SLUGS }).notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => [
+  primaryKey({ columns: [table.userId, table.areaSlug] }),
+]);
+
+export type AreaInterest = InferSelectModel<typeof areaInterest>;
 
 export const session = pgTable('session', {
   id: text('id').primaryKey(),
