@@ -8,15 +8,19 @@
  * response (~30 entries per program) collapses to a scannable table.
  */
 
-import type { AwardFlight } from './parser';
-
 const DEFAULT_PER_PROGRAM = 3;
 
-export function groupByProgram(
-  flights: AwardFlight[],
+/**
+ * Keep the cheapest options per program, ordered by each program’s cheapest trip.
+ * @param flights - Ungrouped trips; unknown mileage sorts last.
+ * @param perProgram - Maximum options retained per program.
+ * @returns Grouped trips without mutating the input.
+ */
+export function groupByProgram<T extends { program: string; miles: number | null }>(
+  flights: readonly T[],
   perProgram: number = DEFAULT_PER_PROGRAM,
-): AwardFlight[] {
-  const byProgram = new Map<string, AwardFlight[]>();
+): T[] {
+  const byProgram = new Map<string, T[]>();
   for (const flight of flights) {
     const bucket = byProgram.get(flight.program);
     if (bucket) bucket.push(flight);
@@ -25,12 +29,12 @@ export function groupByProgram(
 
   // Within each program: cheapest first, capped to N.
   const groups = [...byProgram.values()].map((bucket) =>
-    [...bucket].sort((a, b) => a.miles - b.miles).slice(0, perProgram),
+    [...bucket].sort((a, b) => (a.miles ?? Infinity) - (b.miles ?? Infinity)).slice(0, perProgram),
   );
 
   // Across programs: order by each program's cheapest option, so the best
   // value leads the table while every program still appears.
-  groups.sort((a, b) => a[0].miles - b[0].miles);
+  groups.sort((a, b) => (a[0].miles ?? Infinity) - (b[0].miles ?? Infinity));
 
   return groups.flat();
 }
