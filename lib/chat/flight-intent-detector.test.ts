@@ -132,6 +132,33 @@ describe('isFlightIntent — edge cases', () => {
   });
 });
 
+describe('isFlightIntent — "Flughafen" is not "Flug"', () => {
+  for (const query of [
+    'Hotel nahe Flughafen München',
+    'Restaurants nahe Flughafen Frankfurt',
+    'Gibt es ein gutes Flughafenhotel in Wien?',
+    'Wie komme ich per Flughafentransfer in die Stadt?',
+    'Welche Flughäfen hat Berlin?',
+    'Parken am Flughafen Düsseldorf',
+  ]) {
+    it(`rejects "${query}"`, () => {
+      assert.strictEqual(isFlightIntent(query), false);
+    });
+  }
+
+  for (const query of [
+    'Rückflug von Bangkok am 12. März',
+    'Hinflug nach Tokyo im Mai',
+    'Gibt es einen Direktflug nach New York?',
+    'Flugpreise nach Lissabon im Oktober',
+    'Flug nach München, Hotel am Flughafen',
+  ]) {
+    it(`still detects "${query}"`, () => {
+      assert.strictEqual(isFlightIntent(query), true);
+    });
+  }
+});
+
 describe('FLIGHT_TOOL_NAMES', () => {
   it('contains the two expected tool names', () => {
     assert.deepStrictEqual([...FLIGHT_TOOL_NAMES].sort(), [

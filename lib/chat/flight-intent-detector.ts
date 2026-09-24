@@ -117,6 +117,13 @@ const FIGURATIVE_FLY_PHRASES = [
 /** Match an IATA airport code (3 uppercase letters as a standalone word). */
 const IATA_REGEX = /\b[A-Z]{3}\b/g;
 
+/**
+ * "Flughafen", "Flughäfen" and compounds ("Flughafenhotel", "Flughafentransfer")
+ * contain the token "flug" but name a place, not a trip. Removed before token
+ * matching so "Hotel nahe Flughafen München" is not a flight search.
+ */
+const AIRPORT_WORD_REGEX = /flugh(?:a|ä|ae)fen\p{L}*/gu;
+
 /** "from X to Y" / "von X nach Y" — route pattern. */
 const ROUTE_PATTERNS = [
   /\bfrom\s+[A-Za-zÄÖÜäöüß][A-Za-zÄÖÜäöüß\s\-']{1,40}\s+to\s+[A-Za-zÄÖÜäöüß][A-Za-zÄÖÜäöüß\s\-']{1,40}/i,
@@ -183,7 +190,7 @@ export function isFlightIntent(userText: string | undefined | null): boolean {
   const text = userText.trim();
   if (text.length === 0) return false;
 
-  const lower = text.toLowerCase();
+  const lower = text.toLowerCase().replace(AIRPORT_WORD_REGEX, ' ');
 
   // 2. Figurative — only suppress if there's no strong flight token alongside.
   const hasStrong = containsAny(lower, STRONG_FLIGHT_TOKENS);

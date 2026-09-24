@@ -96,4 +96,14 @@ export const edgeCases: EvalFixture[] = [
       'Counterpart to edge-007: only hotels leave nearby_places_search. Restaurants, sights, and shops near a place stay there.',
     now: FIXED_NOW,
   },
+  {
+    id: 'edge-010-hotel-near-airport',
+    source: 'edge',
+    description: 'German hotel-near-airport query → trivago_hotel_search, not a flight tool',
+    userQuery: 'Hotel nahe Flughafen München',
+    expectedTool: 'trivago_hotel_search',
+    reason:
+      '"Flughafen" names a place, not a trip. The flight-intent detector ignores it (MYLO-84); the prompt must route the hotel request to trivago_hotel_search, not search_flights.',
+    now: FIXED_NOW,
+  },
 ];
