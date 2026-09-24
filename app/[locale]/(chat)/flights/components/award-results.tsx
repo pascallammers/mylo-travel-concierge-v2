@@ -7,6 +7,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { AwardOptionView, AwardResultsView } from '@/lib/flights/award-results-view';
 import { buildFlightsHref, type FlightsDraft } from '@/lib/flights/flights-query';
 
+function formatWindow(window: { start: string; end: string }, locale: string): string {
+  const format = (value: string) => new Date(`${value}T00:00:00Z`)
+    .toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  return window.start === window.end ? format(window.start) : `${format(window.start)} – ${format(window.end)}`;
+}
+
 type Copy = Awaited<ReturnType<typeof getTranslations<'flights.results'>>>;
 function FlightRow({ row, locale, t }: { row: AwardOptionView; locale: string; t: Copy }) {
   const number = (value: number) => value.toLocaleString(locale);
@@ -25,7 +31,6 @@ function FlightRow({ row, locale, t }: { row: AwardOptionView; locale: string; t
           <span className="text-sm font-normal text-muted-foreground">{row.taxes.amount !== null && row.taxes.currency
             ? `+ ${number(row.taxes.amount)} ${row.taxes.currency}` : t('taxesUnknown')}</span>
         </div>
-        <p className="text-xs text-muted-foreground">{t('perPerson')}</p>
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm tabular-nums">
           <span>{row.departure.airport} <strong>{time(row.departure.at)}</strong></span><span aria-hidden="true">→</span>
           <span>{row.arrival.airport} <strong>{time(row.arrival.at)}</strong></span>
@@ -60,7 +65,7 @@ export async function AwardResults({ view, draft, locale }: { view: AwardResults
         <section key={leg.role} className="space-y-4" aria-labelledby={`results-${leg.role}`}>
           <div>
             <h3 id={`results-${leg.role}`} className="text-lg font-semibold">{t(leg.role)} · {leg.origin} → {leg.destination}</h3>
-            <p className="text-sm text-muted-foreground">{leg.window.start} – {leg.window.end}</p>
+            <p className="text-sm text-muted-foreground">{formatWindow(leg.window, locale)} · {t('perPerson')}</p>
           </div>
           {leg.notice && <p role="status" className="rounded-lg border bg-muted/50 p-4 text-sm">{leg.notice}</p>}
           {leg.state === 'failed' && !leg.notice && <p role="status" className="rounded-lg border p-4 text-sm">{t('unavailable')}</p>}

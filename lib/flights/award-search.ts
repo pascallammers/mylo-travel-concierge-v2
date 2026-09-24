@@ -54,6 +54,7 @@ export async function searchAwards(
       trips = await deps.searchTrips(params, options.signal);
     } catch (error) {
       if (options.signal?.aborted) throw error;
+      console.error('[Award Search] Provider search failed:', error);
       return { leg: { status: 'failed', failure: error instanceof SeatsAeroQuotaExhaustedError
         ? { kind: 'rate_limited', resetsAt: error.resetsAt }
         : { kind: 'provider_unavailable' } }, notes: [] };

@@ -5,7 +5,6 @@ import type {
   searchDuffelFlexibleDates,
 } from '@/lib/api/duffel-client';
 import type { AwardSearchDeps } from '@/lib/flights/award-search';
-import type { applyAwardFilters } from '@/lib/api/award-search/award-filters';
 import type {
   getProgramBookingUrl,
   getProgramCaveat,
@@ -34,8 +33,6 @@ export interface FlightSearchToolDependencies {
   resolveAirportCodesWithLLM: typeof resolveAirportCodesWithLLM;
   createDuffelBookingSession: typeof createDuffelBookingSession;
   logFailedSearch: typeof logFailedSearch;
-  /** @deprecated Filters are owned by the award core; retained for structural mock compatibility. */
-  applyAwardFilters?: typeof applyAwardFilters;
   getProgramDisplayName: typeof getProgramDisplayName;
   getProgramBookingUrl: typeof getProgramBookingUrl;
   getProgramCaveat: typeof getProgramCaveat;

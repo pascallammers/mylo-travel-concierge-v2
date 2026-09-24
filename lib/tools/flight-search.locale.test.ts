@@ -85,7 +85,6 @@ const dependencies: FlightSearchToolDependencies = {
     url: 'https://links.duffel.com/test',
   }),
   logFailedSearch: async () => {},
-  applyAwardFilters: (flights) => ({ flights, notes: [] }),
   getProgramDisplayName: (slug) => slug,
   getProgramBookingUrl: () => null,
   getProgramCaveat: () => null,

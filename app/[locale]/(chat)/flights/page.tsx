@@ -33,6 +33,10 @@ export async function generateMetadata({ params }: FlightsPageProps): Promise<Me
   return { title: t('title'), description: t('subtitle') };
 }
 
+function sentence(text: string): string {
+  return text ? ` ${text}.` : '';
+}
+
 async function AwardResultsSection({ search, draft, locale }: { search: ResolvedFlightSearch; draft: FlightsDraft; locale: string }) {
   const language = locale === 'en' ? 'en' : 'de';
   const [result, sources] = await Promise.all([
@@ -74,15 +78,15 @@ export default async function FlightsPage({ params, searchParams }: FlightsPageP
     origin: query.draft.origin, destination: query.draft.destination,
     dates: [query.draft.departDate ?? query.draft.month, query.draft.returnDate ?? query.draft.returnMonth].filter(Boolean).join(' / '),
     cabin: t(`cabins.${query.draft.cabin}`), passengers: query.draft.passengers,
-    preferences: [query.draft.flexible ? t('mask.flexible') : '', query.draft.nonStop ? t('mask.direct') : '',
-      ...Object.values(programLabels)].filter(Boolean).join(', '),
+    preferences: sentence([query.draft.flexible ? t('mask.flexible') : '', query.draft.nonStop ? t('mask.direct') : '',
+      ...Object.values(programLabels)].filter(Boolean).join(', ')),
   }) : null;
   return (
     <div className="mx-auto w-full max-w-5xl space-y-8 px-4 py-6 sm:px-6 sm:py-8">
       <header><h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t('title')}</h1><p className="mt-2 text-muted-foreground">{t('subtitle')}</p></header>
-      <FlightSearchMask key={key} locale={locale} today={today} draft={query.draft}
+      <FlightSearchMask key={`mask:${key}`} locale={locale} today={today} draft={query.draft}
         issues={query.status === 'draft' ? query.issues : []} airportLabels={airportLabels} programLabels={programLabels} />
-      {query.status === 'ready' && <Suspense key={key} fallback={<AwardResultsSkeleton label={t('mask.searching')} />}>
+      {query.status === 'ready' && <Suspense key={`results:${key}`} fallback={<AwardResultsSkeleton label={t('mask.searching')} />}>
         <AwardResultsSection search={query.search} draft={query.draft} locale={locale} />
       </Suspense>}
       <ChatEscapeCard href={buildNewChatHref(locale, context)} title={t('escape.title')} body={t('escape.body')} cta={t('escape.cta')} />

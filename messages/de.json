@@ -437,7 +437,8 @@
       "removeProgram": "Programmfilter {program} entfernen",
       "monthHint": "Die Monatssuche umfasst den ganzen Monat ab heute. ±3 Tage gilt nur für ein gewähltes Datum.",
       "submit": "Prämienflüge suchen",
-      "searching": "Prämienflüge werden gesucht …"
+      "searching": "Prämienflüge werden gesucht …",
+      "pickMonth": "Monat wählen"
     },
     "airport": {
       "placeholder": "Flughafen auswählen",
@@ -491,7 +492,7 @@
       "title": "Nichts Passendes dabei?",
       "body": "Hey Mylo hilft dir bei Alternativen, Barpreisen und deiner Reiseplanung.",
       "cta": "Frag Hey Mylo",
-      "prefill": "Ich suche Prämienflüge von {origin} nach {destination}, {dates}, {cabin}, für {passengers} Reisende. {preferences}. Kannst du mir bei der Reiseplanung helfen?"
+      "prefill": "Ich suche Prämienflüge von {origin} nach {destination}, {dates}, {cabin}, für {passengers} Reisende.{preferences} Kannst du mir bei der Reiseplanung helfen?"
     },
     "restricted": {
       "title": "Prämiensuche mit MYLO",

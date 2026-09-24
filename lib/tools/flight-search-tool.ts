@@ -1,5 +1,5 @@
 import { tool } from 'ai';
-import { searchAwards, type InboundLeg, type AwardSearchFailure } from '@/lib/flights/award-search';
+import { searchAwards, type AwardOption, type InboundLeg, type AwardSearchFailure } from '@/lib/flights/award-search';
 import { checkTravelDates, resolveFlightSearch, todayIso } from '@/lib/flights/search-input';
 import { describeDirectTiering } from '@/lib/flights/direct-tiering';
 import type { NearbyAirport } from '@/lib/api/duffel-client';
@@ -22,7 +22,7 @@ export { flightI18n, formatFlightResults };
 export type { FlightLocale, FlightSearchToolDependencies };
 
 function legacyLeg(leg: InboundLeg): AwardSearchFailure & {
-  flights: import('@/lib/api/seats-aero-client').SeatsAeroFlight[] | null; found: boolean;
+  flights: AwardOption[] | null; found: boolean;
 } {
   if (leg.status === 'skipped') return { flights: null, found: false };
   if (leg.status === 'failed') return { flights: null, found: false, errorType: leg.failure.kind,
@@ -165,6 +165,9 @@ Examples of queries that should trigger this tool:
         inbound: params.returnDate && !isFlexibleDateSearch
           ? { kind: 'day', date: params.returnDate, flexDays: 0 } : null,
       }, today);
+      if (!resolved.ok && resolved.issues.some((issue) => issue.code === 'same_airport')) {
+        throw new Error(`Origin and destination resolve to the same airport (${origin}). Ask the user for a different destination.`);
+      }
       if (!resolved.ok) throw new Error(`Could not resolve airport codes. Origin: "${params.origin}" → ${origin}, Destination: "${params.destination}" → ${destination}`);
       const [award, duffelResult] = await Promise.all([
         searchAwards(resolved.search, { searchTrips: searchAwardTrips }, { locale, signal: abortSignal }),
@@ -410,7 +413,7 @@ Examples of queries that should trigger this tool:
 
         return JSON.stringify({
           ...flexibleResults,
-          ...(awardFilterNotes.length > 0 ? { notes: awardFilterNotes } : {}),
+          ...(award.filterNotes.length > 0 ? { notes: award.filterNotes } : {}),
         });
       }
 

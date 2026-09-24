@@ -437,7 +437,8 @@
       "removeProgram": "Remove {program} program filter",
       "monthHint": "Month searches cover the whole month from today. ±3 days applies only to a selected date.",
       "submit": "Search award flights",
-      "searching": "Searching award flights …"
+      "searching": "Searching award flights …",
+      "pickMonth": "Choose a month"
     },
     "airport": {
       "placeholder": "Select an airport",
@@ -491,7 +492,7 @@
       "title": "Still looking?",
       "body": "Hey Mylo can help with alternatives, cash fares and planning your trip.",
       "cta": "Ask Hey Mylo",
-      "prefill": "I am looking for award flights from {origin} to {destination}, {dates}, {cabin}, for {passengers} travellers. {preferences}. Can you help me plan the trip?"
+      "prefill": "I am looking for award flights from {origin} to {destination}, {dates}, {cabin}, for {passengers} travellers.{preferences} Can you help me plan the trip?"
     },
     "restricted": {
       "title": "Award search with MYLO",
