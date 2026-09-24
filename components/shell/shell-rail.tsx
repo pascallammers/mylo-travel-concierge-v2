@@ -55,6 +55,15 @@ export function ShellRail({ className, wertzahl }: { className?: string; wertzah
   const { user, subscriptionData, isProUser, isLoading } = useUser();
   const isHydrated = useIsHydrated();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState('profile');
+  const handleSettingsOpenChange = (open: boolean) => {
+    setSettingsOpen(open);
+    if (!open) setSettingsInitialTab('profile');
+  };
+  const showLoyaltyBreakdown = () => {
+    setSettingsInitialTab('loyalty');
+    setSettingsOpen(true);
+  };
   const [isCustomInstructionsEnabled, setIsCustomInstructionsEnabled] = useLocalStorage(
     'scira-custom-instructions-enabled',
     true,
@@ -70,7 +79,7 @@ export function ShellRail({ className, wertzahl }: { className?: string; wertzah
           <span className="font-bold tracking-tight">FlyMylo</span>
         </div>
         <div className="border-b p-4">
-          <RailWertzahl wertzahl={wertzahl} />
+          <RailWertzahl wertzahl={wertzahl} onShowBreakdown={showLoyaltyBreakdown} />
         </div>
       </SidebarHeader>
 
@@ -136,7 +145,8 @@ export function ShellRail({ className, wertzahl }: { className?: string; wertzah
               isCustomInstructionsEnabled={isCustomInstructionsEnabled}
               setIsCustomInstructionsEnabled={setIsCustomInstructionsEnabled}
               settingsOpen={settingsOpen}
-              setSettingsOpen={setSettingsOpen}
+              setSettingsOpen={handleSettingsOpenChange}
+              settingsInitialTab={settingsInitialTab}
             />
           ) : (
             <div className="flex size-8 items-center justify-center">

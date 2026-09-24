@@ -4,7 +4,6 @@ import { Suspense, use } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { LoyaltyConnectButton } from '@/components/awardwallet/connect-button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Link } from '@/i18n/navigation';
 import type { ProgrammeValue } from '@/lib/valuation/portfolio-value';
 import type { RailWertzahl as RailWertzahlData } from '@/lib/valuation/wertzahl-loader';
 
@@ -31,7 +30,12 @@ function ProgrammeBar({ programs }: { programs: ProgrammeValue[] }) {
   );
 }
 
-function WertzahlContent({ wertzahl }: { wertzahl: Promise<RailWertzahlData> }) {
+interface RailWertzahlProps {
+  wertzahl: Promise<RailWertzahlData>;
+  onShowBreakdown: () => void;
+}
+
+function WertzahlContent({ wertzahl, onShowBreakdown }: RailWertzahlProps) {
   const value = use(wertzahl);
   const t = useTranslations('shell.wertzahl');
   const locale = useLocale();
@@ -91,9 +95,9 @@ function WertzahlContent({ wertzahl }: { wertzahl: Promise<RailWertzahlData> }) 
         {value.kind === 'value' && value.ratedAccounts !== value.totalAccounts && (
           <>{t('rated', { rated: value.ratedAccounts, total: value.totalAccounts })} · </>
         )}
-        <Link href="/?tab=loyalty#settings" className="underline-offset-4 hover:underline">
+        <button type="button" onClick={onShowBreakdown} className="underline-offset-4 hover:underline">
           {t('breakdown')}
-        </Link>
+        </button>
       </p>
     </div>
   );
@@ -101,10 +105,10 @@ function WertzahlContent({ wertzahl }: { wertzahl: Promise<RailWertzahlData> }) 
 
 /**
  * Stream the Wertzahl into the same rail frame for loaded, empty and pending states.
- * @param props - Promise started in the authenticated server layout.
+ * @param props - Promise started in the authenticated server layout and the opener for the account list.
  * @returns Rail-Kopf with a Suspense skeleton until its server data is available.
  */
-export function RailWertzahl({ wertzahl }: { wertzahl: Promise<RailWertzahlData> }) {
+export function RailWertzahl({ wertzahl, onShowBreakdown }: RailWertzahlProps) {
   const t = useTranslations('shell.wertzahl');
 
   return (
@@ -118,7 +122,7 @@ export function RailWertzahl({ wertzahl }: { wertzahl: Promise<RailWertzahlData>
           </div>
         }
       >
-        <WertzahlContent wertzahl={wertzahl} />
+        <WertzahlContent wertzahl={wertzahl} onShowBreakdown={onShowBreakdown} />
       </Suspense>
     </div>
   );
