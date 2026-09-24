@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
+import { getUser } from '@/lib/auth-utils';
+import { ChatListView } from '@/components/shell';
 
 interface ChatPageProps {
   params: Promise<{ locale: string }>;
@@ -18,17 +20,10 @@ export async function generateMetadata({ params }: ChatPageProps): Promise<Metad
 }
 
 /**
- * Render the chat area placeholder.
- * @param props - Promised locale route parameters.
- * @returns A padded container with the localized area heading.
+ * Load the user for the full-page chat history.
+ * @returns The chat list with only the user ID passed to the client.
  */
-export default async function ChatPage({ params }: ChatPageProps) {
-  const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: 'shell.areas' });
-
-  return (
-    <div className="p-4 sm:p-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{t('chat')}</h1>
-    </div>
-  );
+export default async function ChatPage() {
+  const user = await getUser();
+  return <ChatListView user={user ? { id: user.id } : null} />;
 }

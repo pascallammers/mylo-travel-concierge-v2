@@ -9,8 +9,6 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useReducer, useSt
 
 // Third-party library imports
 import { useChat } from '@ai-sdk/react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { Crown02Icon } from '@hugeicons/core-free-icons';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { parseAsString, useQueryState } from 'nuqs';
@@ -24,8 +22,10 @@ import { suggestQuestions, updateChatVisibility } from '@/app/actions';
 import { ChatDialogs } from '@/components/chat-dialogs';
 import Messages from '@/components/messages';
 import { Navbar } from '@/components/navbar';
+import { ChatHead, useInShell } from '@/components/shell';
+import { useChatSettings, useChatPrefill } from '@/components/chat';
+import { usePathname } from '@/i18n/navigation';
 
-import { Button } from '@/components/ui/button';
 import FormComponent from '@/components/ui/form-component';
 
 // Hook imports
@@ -57,8 +57,11 @@ interface ChatInterfaceProps {
   autoResume?: boolean;
 }
 
-const settingsTabValues = new Set(['profile', 'usage', 'subscription', 'loyalty', 'memories']);
-
+/**
+ * Render a chat with the header appropriate to its layout context.
+ * @param props - Initial chat data, ownership and resume behavior.
+ * @returns The chat screen with messages, input and dialogs.
+ */
 const ChatInterface = memo(
   ({
     initialChatId,
@@ -68,6 +71,8 @@ const ChatInterface = memo(
     autoResume = false,
   }: ChatInterfaceProps): React.JSX.Element => {
     const router = useRouter();
+    const ChatHeader = useInShell() ? ChatHead : Navbar;
+    const isChatNew = usePathname() === '/chat/new';
     const [query] = useQueryState('query', parseAsString.withDefault(''));
     const [q] = useQueryState('q', parseAsString.withDefault(''));
     const [input, setInput] = useState<string>('');
@@ -85,56 +90,7 @@ const ChatInterface = memo(
       true,
     );
 
-    // Settings dialog state management with URL hash support
-    const [settingsOpen, setSettingsOpen] = useState(false);
-    const [settingsInitialTab, setSettingsInitialTab] = useState<string>('profile');
-
-    // Function to open settings with a specific tab
-    const handleOpenSettings = useCallback((tab: string = 'profile') => {
-      setSettingsInitialTab(tab);
-      setSettingsOpen(true);
-    }, [setSettingsInitialTab, setSettingsOpen]);
-
-    // URL hash detection for settings dialog
-    useEffect(() => {
-      const handleHashChange = () => {
-        const hash = window.location.hash;
-        if (hash === '#settings') {
-          const tabParam = new URLSearchParams(window.location.search).get('tab');
-          if (tabParam && settingsTabValues.has(tabParam)) {
-            handleOpenSettings(tabParam);
-          } else {
-            setSettingsOpen(true);
-          }
-        }
-      };
-
-      // Check initial hash
-      handleHashChange();
-
-      // Listen for hash changes
-      window.addEventListener('hashchange', handleHashChange);
-
-      return () => {
-        window.removeEventListener('hashchange', handleHashChange);
-      };
-    }, []);
-
-    // Update URL hash when settings dialog opens/closes
-    useEffect(() => {
-      if (settingsOpen) {
-        // Only update hash if it's not already #settings to prevent infinite loops
-        if (window.location.hash !== '#settings') {
-          window.history.pushState(null, '', '#settings');
-        }
-      } else {
-        // Remove hash if settings is closed and hash is #settings
-        if (window.location.hash === '#settings') {
-          // Use replaceState to avoid adding to browser history
-          window.history.replaceState(null, '', window.location.pathname + window.location.search);
-        }
-      }
-    }, [settingsOpen]);
+    const { settingsOpen, setSettingsOpen, settingsInitialTab, handleOpenSettings } = useChatSettings();
 
     // Get persisted values for dialog states
     const [persistedHasShownUpgradeDialog, setPersitedHasShownUpgradeDialog] = useLocalStorage(
@@ -174,7 +130,6 @@ const ChatInterface = memo(
     const lastSubmittedQueryRef = useRef(initialState.query);
     const bottomRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null!);
-    const initializedRef = useRef(false);
 
     // Use optimized scroll hook
     const { scrollToBottom, markManualScroll, resetManualScroll } = useOptimizedScroll(bottomRef);
@@ -207,8 +162,6 @@ const ChatInterface = memo(
     }, [proStatusLoading, user, isUserPro, router]);
 
     // Model is fixed to xAI - no auto-switching needed
-
-
 
     type VisibilityType = 'public' | 'private';
 
@@ -341,15 +294,7 @@ const ChatInterface = memo(
       }
     }, [user, status, router, chatId, initialChatId, messages.length]);
 
-    useEffect(() => {
-      if (!initializedRef.current && initialState.query && !messages.length && !initialChatId) {
-        initializedRef.current = true;
-        sendMessage({
-          parts: [{ type: 'text', text: initialState.query }],
-          role: 'user',
-        });
-      }
-    }, [initialState.query, sendMessage, setInput, messages.length, initialChatId]);
+    useChatPrefill({ query: initialState.query, hasMessages: messages.length > 0, initialChatId, prefillOnly: isChatNew, sendMessage, setInput });
 
     // Generate suggested questions when opening a chat directly
     useEffect(() => {
@@ -497,7 +442,7 @@ const ChatInterface = memo(
 
     return (
       <div className="flex flex-col font-sans! items-center h-screen bg-background text-foreground transition-all duration-500 w-full overflow-x-hidden !scrollbar-thin !scrollbar-thumb-muted-foreground dark:!scrollbar-thumb-muted-foreground !scrollbar-track-transparent hover:!scrollbar-thumb-foreground dark:!hover:scrollbar-thumb-foreground">
-        <Navbar
+        <ChatHeader
           isDialogOpen={chatState.anyDialogOpen}
           chatId={initialChatId || (messages.length > 0 ? chatId : null)}
           selectedVisibilityType={chatState.selectedVisibilityType}
@@ -538,13 +483,6 @@ const ChatInterface = memo(
               : '!mt-20 sm:!mt-16 flex !flex-col' // Add top margin when showing messages
           }`}
         >
-          {/* Static background gradient around center area for no messages state */}
-          {/* {status === 'ready' && messages.length === 0 && (
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] pointer-events-none dark:hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-secondary/25 via-primary/20 to-accent/25 rounded-full blur-3xl" />
-              <div className="absolute inset-0 bg-gradient-to-tl from-accent/20 via-transparent to-secondary/25 rounded-full blur-2xl" />
-            </div>
-          )} */}
           <div className={`w-full max-w-[95%] sm:max-w-2xl space-y-6 p-0 mx-auto transition-all duration-300`}>
             {status === 'ready' && messages.length === 0 && (
               <div className="text-center m-0 mb-2">
@@ -565,8 +503,6 @@ const ChatInterface = memo(
                 </div>
               </div>
             )}
-
-
 
             {/* Use the Messages component */}
             {messages.length > 0 && (
@@ -651,7 +587,6 @@ const ChatInterface = memo(
                 }}
               />
             )}
-
 
         </div>
       </div>

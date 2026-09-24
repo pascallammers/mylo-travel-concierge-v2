@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import type { RailWertzahl } from '@/lib/valuation/wertzahl-loader';
 import { ShellRail } from './shell-rail';
+import { ShellModeProvider } from './shell-mode';
 
 interface ShellLayoutProps {
   children: ReactNode;
@@ -18,7 +19,7 @@ export function ShellLayout({ children, defaultOpen, wertzahl }: ShellLayoutProp
   return (
     <SidebarProvider defaultOpen={defaultOpen} style={{ '--sidebar-width': '16rem' } as CSSProperties}>
       <ShellRail wertzahl={wertzahl} />
-      <SidebarInset className="min-w-0">{children}</SidebarInset>
+      <SidebarInset className="min-w-0"><ShellModeProvider>{children}</ShellModeProvider></SidebarInset>
     </SidebarProvider>
   );
 }

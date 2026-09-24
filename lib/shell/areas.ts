@@ -40,7 +40,7 @@ export const SHELL_AREAS: readonly ShellArea[] = [
     icon: BedDouble,
     state: 'beta',
     group: 'categories',
-    href: '/new',
+    href: '/chat/new',
     activePrefixes: [],
   },
   {

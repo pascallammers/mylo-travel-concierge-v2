@@ -23,6 +23,16 @@
     "description": "MYLO ist dein KI-gestützter Reiseassistent für optimale Flugsuche, Miles & Points Beratung und Premium-Cabin Upgrades."
   },
   "shell": {
+    "chat": {
+      "allChats": "Alle Chats",
+      "newChat": "Neuer Chat",
+      "emptyTitle": "Deine Reise beginnt hier",
+      "emptyBody": "Hier findest du künftig deine Gespräche mit Mylo. Starte einen neuen Chat und plane deine nächste Reise.",
+      "share": "Teilen",
+      "shared": "Geteilt",
+      "sharedPage": "Dieser Chat wurde geteilt",
+      "sharedByOther": "Dieser Chat wurde von jemand anderem geteilt"
+    },
     "areas": {
       "flights": "Flüge",
       "deals": "Deals",
