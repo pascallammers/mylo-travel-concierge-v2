@@ -119,10 +119,11 @@ const IATA_REGEX = /\b[A-Z]{3}\b/g;
 
 /**
  * "Flughafen", "Flughäfen" and compounds ("Flughafenhotel", "Flughafentransfer")
- * contain the token "flug" but name a place, not a trip. Removed before token
- * matching so "Hotel nahe Flughafen München" is not a flight search.
+ * contain the token "flug" but name a place, not a trip. Only the airport stem is
+ * removed before token matching, so "Hotel nahe Flughafen München" is not a
+ * flight search while a trailing "…flug" in a compound still counts.
  */
-const AIRPORT_WORD_REGEX = /flugh(?:a|ä|ae)fen\p{L}*/gu;
+const AIRPORT_WORD_REGEX = /flugh(?:a|ä|ae)fen/gu;
 
 /** "from X to Y" / "von X nach Y" — route pattern. */
 const ROUTE_PATTERNS = [
