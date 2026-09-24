@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { ChatInterface } from '@/components/chat-interface';
 import { getUser } from '@/lib/auth-utils';
+import { chatMetadataTitle } from '@/lib/auth-guards';
 import { getChatByIdFresh, getMessagesByChatId } from '@/lib/db/queries';
 import { Message, type Chat } from '@/lib/db/schema';
 import { Metadata } from 'next';
@@ -48,21 +49,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!chat) {
     return { title: 'MYLO Chat' };
   }
-  let title;
-  // if chat is public, return title
-  if (chat.visibility === 'public') {
-    title = chat.title;
-  }
-  // if chat is private, return title
-  if (chat.visibility === 'private') {
-    if (!user) {
-      title = 'MYLO Chat';
-    }
-    if (user!.id !== chat.userId) {
-      title = 'MYLO Chat';
-    }
-    title = chat.title;
-  }
+  const title = chatMetadataTitle({ user, chat });
   return {
     title: title,
     description: 'A search in MYLO',

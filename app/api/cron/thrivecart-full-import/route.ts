@@ -5,15 +5,11 @@ import { runFullTransactionImport } from '@/lib/thrivecart/transaction-import';
 /**
  * POST /api/cron/thrivecart-full-import
  * Runs the full ThriveCart transaction import as a background job.
- * Triggered by QStash from the admin KPI import endpoint.
- * Protected by CRON_SECRET or QStash signature verification.
+ * Triggered by QStash from the admin KPI import endpoint, which forwards the
+ * CRON_SECRET bearer token; that token is the only accepted credential.
  */
 export async function POST(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  const expectedToken = `Bearer ${serverEnv.CRON_SECRET}`;
-  const isQStash = request.headers.get('upstash-signature');
-
-  if (authHeader !== expectedToken && !isQStash) {
+  if (request.headers.get('authorization') !== `Bearer ${serverEnv.CRON_SECRET}`) {
     console.error('[TC Full Import Worker] Unauthorized request');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

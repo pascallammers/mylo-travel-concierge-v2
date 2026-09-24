@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { checkChatAccess, getAdminAuthError } from './auth-guards';
+import { chatMetadataTitle, checkChatAccess, getAdminAuthError } from './auth-guards';
 
 test('chat guard denies missing session, missing resource and another owner', () => {
   assert.deepEqual(checkChatAccess({ user: null, chat: undefined }), { ok: false, reason: 'unauthenticated' });
@@ -10,6 +10,13 @@ test('chat guard denies missing session, missing resource and another owner', ()
     reason: 'forbidden',
   });
   assert.deepEqual(checkChatAccess({ user: { id: 'owner' }, chat: { userId: 'owner' } }), { ok: true });
+});
+test('chat metadata title hides private chats from anonymous visitors and other users', () => {
+  const chat = { userId: 'owner', visibility: 'private', title: 'Flitterwochen Malediven' };
+  assert.equal(chatMetadataTitle({ user: null, chat }), 'MYLO Chat');
+  assert.equal(chatMetadataTitle({ user: { id: 'stranger' }, chat }), 'MYLO Chat');
+  assert.equal(chatMetadataTitle({ user: { id: 'owner' }, chat }), 'Flitterwochen Malediven');
+  assert.equal(chatMetadataTitle({ user: null, chat: { ...chat, visibility: 'public' } }), 'Flitterwochen Malediven');
 });
 test('admin guard does not read a role without a session', async () => {
   const response = await getAdminAuthError({
