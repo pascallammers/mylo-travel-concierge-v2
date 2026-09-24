@@ -19,3 +19,4 @@ export { runValuationTableCheck } from './check';
 export { renderValuationStaleEmail } from './email';
 export { handleValuationAdminGet, handleValuationAdminPost } from './admin';
 export { classifyTravelVerdict, type TravelVerdict } from './travel-verdict';
+export { computeWertzahl, displayEuro, type PortfolioAccount, type ProgrammeValue, type Wertzahl } from './portfolio-value';
