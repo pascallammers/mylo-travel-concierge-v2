@@ -23,6 +23,20 @@
     "description": "MYLO ist dein KI-gestützter Reiseassistent für optimale Flugsuche, Miles & Points Beratung und Premium-Cabin Upgrades."
   },
   "shell": {
+    "preview": {
+      "badge": "Vorschau",
+      "inProgress": "Dieser Bereich ist noch in Arbeit. Trag dich ein, dann melden wir uns, sobald er startet.",
+      "notifyMe": "Benachrichtige mich",
+      "notified": "Du wirst benachrichtigt",
+      "signInRequired": "Bitte melde dich an, um benachrichtigt zu werden.",
+      "error": "Das hat nicht geklappt. Bitte versuch es noch einmal.",
+      "alerts": {
+        "body": "Lass Mylo die Award-Verfügbarkeit auf deinen Wunschstrecken überwachen. Bis zu 5 Alerts gleichzeitig, und sobald Prämienplätze frei werden, sagen wir dir Bescheid."
+      },
+      "cards": {
+        "body": "Der Kartenkatalog für DACH: Welche Kreditkarte sammelt die Punkte, die zu deinen Reisezielen passen? In jedem Abo enthalten."
+      }
+    },
     "chat": {
       "allChats": "Alle Chats",
       "newChat": "Neuer Chat",

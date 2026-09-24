@@ -190,6 +190,13 @@
       "when": 1790085190139,
       "tag": "0026_deal_data_model",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1790261105543,
+      "tag": "0027_area_interest",
+      "breakpoints": true
     }
   ]
 }

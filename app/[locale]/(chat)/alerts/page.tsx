@@ -1,5 +1,8 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
+import { PreviewAreaView } from '@/components/shell/preview-area-view';
+import { getUser } from '@/lib/auth-utils';
+import { hasAreaInterest } from '@/lib/db/queries/area-interest';
 
 interface AlertsPageProps {
   params: Promise<{ locale: string }>;
@@ -18,17 +21,12 @@ export async function generateMetadata({ params }: AlertsPageProps): Promise<Met
 }
 
 /**
- * Render the alerts area placeholder.
- * @param props - Promised locale route parameters.
- * @returns A padded container with the localized area heading.
+ * Load the current user's interest and explain the coming alerts feature.
+ * @returns The alerts preview with its saved registration state.
  */
-export default async function AlertsPage({ params }: AlertsPageProps) {
-  const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: 'shell.areas' });
+export default async function AlertsPage() {
+  const user = await getUser();
+  const registered = user ? await hasAreaInterest(user.id, 'alerts') : false;
 
-  return (
-    <div className="p-4 sm:p-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{t('alerts')}</h1>
-    </div>
-  );
+  return <PreviewAreaView area="alerts" registered={registered} />;
 }
