@@ -48,8 +48,7 @@ function readBody(call: FetchCall): {
 }
 
 const BASE_INPUT = {
-  latitude: 52.52,
-  longitude: 13.405,
+  query: 'Berlin-Mitte',
   arrival: '2026-06-15',
   departure: '2026-06-18',
 };
@@ -163,7 +162,7 @@ describe('trivagoHotelSearchTool — internals', () => {
     });
   });
 
-  it('buildTrivagoArgs forces the German EUR market and never forwards radius', () => {
+  it('buildTrivagoArgs forwards the place name and forces the German EUR market', () => {
     const args = _trivagoInternals.buildTrivagoArgs({
       ...BASE_INPUT,
       adults: 2,
@@ -172,7 +171,9 @@ describe('trivagoHotelSearchTool — internals', () => {
       freeCancellation: false,
       breakfastIncluded: false,
     });
-    assert.strictEqual(args.latitude, 52.52);
+    assert.strictEqual(args.query, 'Berlin-Mitte');
+    assert.strictEqual('latitude' in args, false);
+    assert.strictEqual('longitude' in args, false);
     assert.strictEqual('radius' in args, false);
     assert.strictEqual('radiusMeters' in args, false);
     assert.strictEqual(args.country, 'DE');
@@ -238,7 +239,7 @@ describe('trivagoHotelSearchTool', () => {
     assert.doesNotMatch(r, /```json/);
     assert.strictEqual(calls.length, 2);
     assert.strictEqual(readBody(calls[0]).method, 'initialize');
-    assert.strictEqual(readBody(calls[1]).params?.name, 'trivago-accommodation-radius-search');
+    assert.strictEqual(readBody(calls[1]).params?.name, 'trivago-accommodation-search');
     const headers = (calls[1].init?.headers ?? {}) as Record<string, string>;
     assert.strictEqual(headers['mcp-session-id'], 'trivago-sess-xyz');
   });
@@ -252,8 +253,7 @@ describe('trivagoHotelSearchTool', () => {
     await run(
       {
         ...BASE_INPUT,
-        latitude: 48.137,
-        longitude: 11.575,
+        query: 'München',
         arrival: '2026-09-01',
         departure: '2026-09-05',
         adults: 2,
@@ -267,7 +267,10 @@ describe('trivagoHotelSearchTool', () => {
     );
 
     const args = readBody(calls[1]).params?.arguments ?? {};
-    assert.strictEqual('radius' in args, false);
+    assert.strictEqual(args.query, 'München');
+    assert.strictEqual(args.country, 'DE');
+    assert.strictEqual(args.currency, 'EUR');
+    assert.strictEqual(args.language, 'DE_DE');
     assert.strictEqual(args.children_ages, '10');
     assert.deepStrictEqual(args.hotel_rating, { '4star': true, '5star': true });
     assert.deepStrictEqual(args.review_rating, { rating80: true, rating85: true });
@@ -364,22 +367,22 @@ describe('trivagoHotelSearchTool', () => {
     );
   });
 
-  it('schema rejects out-of-range latitude', () => {
+  it('schema takes a place name instead of coordinates', () => {
     // biome-ignore lint/suspicious/noExplicitAny: schema typing irrelevant
-    const parse = (trivagoHotelSearchTool.inputSchema as any).safeParse({
-      latitude: 999,
-      longitude: 0,
-      arrival: '2026-06-15',
-      departure: '2026-06-18',
-    });
-    assert.strictEqual(parse.success, false);
+    const schema = trivagoHotelSearchTool.inputSchema as any;
+    const dates = { arrival: '2026-06-15', departure: '2026-06-18' };
+
+    assert.strictEqual(schema.safeParse({ latitude: 52.52, longitude: 13.405, ...dates }).success, false);
+    assert.strictEqual(schema.safeParse({ query: '   ', ...dates }).success, false);
+    const parsed = schema.parse({ query: '  Brandenburger Tor ', latitude: 52.52, ...dates });
+    assert.strictEqual(parsed.query, 'Brandenburger Tor');
+    assert.strictEqual('latitude' in parsed, false);
   });
 
   it('schema rejects malformed childrenAges', () => {
     // biome-ignore lint/suspicious/noExplicitAny: schema typing irrelevant
     const parse = (trivagoHotelSearchTool.inputSchema as any).safeParse({
-      latitude: 52.52,
-      longitude: 13.405,
+      query: 'Berlin',
       arrival: '2026-06-15',
       departure: '2026-06-18',
       children: 1,
@@ -391,8 +394,7 @@ describe('trivagoHotelSearchTool', () => {
   it('schema rejects invalid minReviewRating value', () => {
     // biome-ignore lint/suspicious/noExplicitAny: schema typing irrelevant
     const parse = (trivagoHotelSearchTool.inputSchema as any).safeParse({
-      latitude: 52.52,
-      longitude: 13.405,
+      query: 'Berlin',
       arrival: '2026-06-15',
       departure: '2026-06-18',
       minReviewRating: '9.0', // not in REVIEW_TIERS
@@ -403,8 +405,7 @@ describe('trivagoHotelSearchTool', () => {
   it('schema rejects children > 0 without childrenAges (Trivago needs ages)', () => {
     // biome-ignore lint/suspicious/noExplicitAny: schema typing irrelevant
     const parse = (trivagoHotelSearchTool.inputSchema as any).safeParse({
-      latitude: 52.52,
-      longitude: 13.405,
+      query: 'Berlin',
       arrival: '2026-06-15',
       departure: '2026-06-18',
       children: 2,
@@ -420,8 +421,7 @@ describe('trivagoHotelSearchTool', () => {
   it('schema rejects mismatched ages count (children=2 but ages="10")', () => {
     // biome-ignore lint/suspicious/noExplicitAny: schema typing irrelevant
     const parse = (trivagoHotelSearchTool.inputSchema as any).safeParse({
-      latitude: 52.52,
-      longitude: 13.405,
+      query: 'Berlin',
       arrival: '2026-06-15',
       departure: '2026-06-18',
       children: 2,
@@ -437,8 +437,7 @@ describe('trivagoHotelSearchTool', () => {
   it('schema accepts children=0 without childrenAges', () => {
     // biome-ignore lint/suspicious/noExplicitAny: schema typing irrelevant
     const parse = (trivagoHotelSearchTool.inputSchema as any).safeParse({
-      latitude: 52.52,
-      longitude: 13.405,
+      query: 'Berlin',
       arrival: '2026-06-15',
       departure: '2026-06-18',
       children: 0,
@@ -449,8 +448,7 @@ describe('trivagoHotelSearchTool', () => {
   it('schema accepts matching children count and ages', () => {
     // biome-ignore lint/suspicious/noExplicitAny: schema typing irrelevant
     const parse = (trivagoHotelSearchTool.inputSchema as any).safeParse({
-      latitude: 52.52,
-      longitude: 13.405,
+      query: 'Berlin',
       arrival: '2026-06-15',
       departure: '2026-06-18',
       children: 3,
@@ -459,7 +457,7 @@ describe('trivagoHotelSearchTool', () => {
     assert.strictEqual(parse.success, true);
   });
 
-  it('renders the trimmed live response without Trivago instructions or photos', () => {
+  it('renders the trimmed live response with one photo per card and without Trivago instructions', () => {
     const markdown = formatTrivagoResults(FAKE_TRIVAGO_RESULT);
 
     assert.match(markdown, /## Trivago Hotels/);
@@ -469,13 +467,18 @@ describe('trivagoHotelSearchTool', () => {
     assert.match(markdown, /Premier Inn Berlin Alexanderplatz/);
     assert.match(markdown, /Premier Inn Berlin City Spittelmarkt hotel/);
     assert.match(markdown, /\[Bei trivago ansehen\]\(https:\/\/www\.trivago\.de\//);
+    assert.match(
+      markdown,
+      /### 1\. Adina Apartment Hotel Berlin Hackescher Markt\n!\[Foto: Adina Apartment Hotel Berlin Hackescher Markt\]\(https:\/\/imgcy\.trivago\.com\/adina\.webp\)\n/,
+    );
+    assert.strictEqual(markdown.match(/!\[Foto: /g)?.length, 3);
     for (const leaked of [
       'system_message',
       'MUST follow',
       'IMPORTANT: Read',
       'image/webp',
       'main_image',
-      'imgcy.trivago.com',
+      'UklGR',
       'latitude',
       'accommodation_id',
     ]) {
@@ -502,6 +505,30 @@ describe('trivagoHotelSearchTool', () => {
     assert.match(renderLink('https://evil.example/trivago.de'), /Buchungslink: —/);
     assert.match(renderLink('https://www.trivago.de/a(b)'), /https:\/\/www\.trivago\.de\/a%28b%29/);
     assert.match(renderLink('https://trivago.com/x'), /\[Bei trivago ansehen\]/);
+  });
+
+  it('shows photos only from the Trivago image host over https', () => {
+    const renderImage = (url: unknown) =>
+      formatTrivagoResults({
+        structuredContent: { accommodations: [{ accommodation_name: 'Hotel', main_image: url }] },
+      });
+
+    assert.match(renderImage('https://imgcy.trivago.com/a.jpeg'), /!\[Foto: Hotel\]\(https:\/\/imgcy\.trivago\.com\/a\.jpeg\)/);
+    assert.match(
+      renderImage('https://imgcy.trivago.com/c_fill,w_800/a(b)].jpeg'),
+      /\(https:\/\/imgcy\.trivago\.com\/c_fill,w_800\/a%28b%29%5D\.jpeg\)/,
+    );
+    for (const rejected of [
+      'http://imgcy.trivago.com/a.jpeg',
+      'https://imgcy.trivago.com.evil.example/a.jpeg',
+      'https://evil.example/imgcy.trivago.com/a.jpeg',
+      'https://www.trivago.de/a.jpeg',
+      'data:image/png;base64,AAAA',
+      'javascript:alert(1)',
+      42,
+    ]) {
+      assert.doesNotMatch(renderImage(rejected), /!\[/, String(rejected));
+    }
   });
 
   it('removes photos and system_message from the unknown-shape fallback', () => {
@@ -545,6 +572,7 @@ describe('trivagoHotelSearchTool', () => {
             top_amenities: '![img](https://evil.example/pixel.png)',
             distance: '[x](javascript:alert(1))',
             accommodation_url: 'https://www.trivago.de/de/lm/hotel-x?dealId=1',
+            main_image: 'https://evil.example/pixel.png',
           },
         ],
       },
@@ -573,6 +601,44 @@ describe('trivagoHotelSearchTool', () => {
     const empty = formatTrivagoResults({ structuredContent: { accommodations: [] } });
     assert.match(empty, /Ergebnisse:\*\* 0/);
     assert.match(empty, /Keine Hotels für diese Suche gefunden/);
+    assert.match(empty, /anderen oder größeren Ort/);
+  });
+
+  it('answers "No accommodations found" as a regular empty result, not as an outage', async () => {
+    const { fetchImpl } = mockFetch([
+      jsonResponse({ jsonrpc: '2.0', id: 1, result: {} }, 200, { 'mcp-session-id': 's' }),
+      jsonResponse({
+        jsonrpc: '2.0',
+        id: 2,
+        result: {
+          content: [{ type: 'text', text: 'No accommodations found' }],
+          structuredContent: { error: 'No accommodations found' },
+        },
+      }),
+    ]);
+
+    const markdown = await run({ ...BASE_INPUT, query: 'Mauritius Inselmitte' }, fetchImpl);
+
+    assert.strictEqual(typeof markdown, 'string');
+    assert.match(markdown, /Ergebnisse:\*\* 0/);
+    assert.match(markdown, /anderen oder größeren Ort/);
+    assert.doesNotMatch(markdown, /unavailable|try again/i);
+  });
+
+  it('still reports other structured Trivago errors as an outage', async () => {
+    const { fetchImpl } = mockFetch([
+      jsonResponse({ jsonrpc: '2.0', id: 1, result: {} }, 200, { 'mcp-session-id': 's' }),
+      jsonResponse({
+        jsonrpc: '2.0',
+        id: 2,
+        result: { structuredContent: { error: 'Upstream search timed out' } },
+      }),
+    ]);
+
+    await assert.rejects(
+      run(BASE_INPUT, fetchImpl),
+      (error: unknown) => error instanceof McpToolFailure && /timed out/.test(error.reason),
+    );
   });
 
   it('writes grouped review counts with German thousands separators', () => {
