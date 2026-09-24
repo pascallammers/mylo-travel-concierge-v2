@@ -8,14 +8,15 @@ import { Link } from '@/i18n/navigation';
 import type { ProgrammeValue } from '@/lib/valuation/portfolio-value';
 import type { RailWertzahl as RailWertzahlData } from '@/lib/valuation/wertzahl-loader';
 
-const PROGRAM_COLORS = ['bg-chart-1', 'bg-chart-2', 'bg-chart-3', 'bg-chart-4', 'bg-chart-5'] as const;
+// The theme's chart tokens are near-monochrome, so segments differ by opacity of one contrasting colour.
+const PROGRAM_COLORS = ['bg-primary', 'bg-primary/70', 'bg-primary/45', 'bg-primary/25'] as const;
 
 function ProgrammeBar({ programs }: { programs: ProgrammeValue[] }) {
   const total = programs.reduce((sum, program) => sum + program.travelEur, 0);
   if (programs.length <= 1 || total === 0) return null;
 
   return (
-    <div className="flex h-1.5 overflow-hidden rounded-full">
+    <div className="flex h-1.5 gap-0.5 overflow-hidden rounded-full">
       {programs.map((program, index) => (
         <span
           key={program.programId}
