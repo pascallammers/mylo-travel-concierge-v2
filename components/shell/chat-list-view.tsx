@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { ChatSidebarList, ChatSidebarSearch, useChatListController } from '@/components/chat-sidebar';
 import { Button } from '@/components/ui/button';
-import { SidebarTrigger, useSidebarOptional } from '@/components/ui/sidebar';
 import { useChatHistory, type ChatHistoryUser } from '@/hooks/use-chat-history';
 import { Link, useRouter } from '@/i18n/navigation';
 import { invalidateChatsCache } from '@/lib/utils';
@@ -19,7 +18,6 @@ export function ChatListView({ user }: { user: ChatHistoryUser | null }) {
   const t = useTranslations('shell');
   const tHistory = useTranslations('chatHistory');
   const router = useRouter();
-  const sidebar = useSidebarOptional();
   const history = useChatHistory({ user, isOpen: true });
   const { handleSelectChat, handleDeleteChat } = useChatListController(history, {
     push: router.push,
@@ -34,11 +32,10 @@ export function ChatListView({ user }: { user: ChatHistoryUser | null }) {
   );
 
   return (
-    <section className="flex h-dvh min-h-0 w-full flex-col overflow-hidden p-4 sm:p-6" aria-labelledby="chat-list-title">
+    <section className="flex h-[calc(100dvh-var(--shell-head-h,0px)-var(--shell-bar-h,0px))] min-h-0 w-full flex-col overflow-hidden p-4 sm:p-6" aria-labelledby="chat-list-title">
       <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
         <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 pb-6">
           <div className="flex items-center gap-2">
-            {sidebar?.isMobile && <SidebarTrigger />}
             <h1 id="chat-list-title" className="text-2xl font-semibold tracking-tight">{t('areas.chat')}</h1>
           </div>
           {user && newChatButton}

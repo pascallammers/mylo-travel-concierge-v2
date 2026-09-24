@@ -540,7 +540,7 @@ const ChatInterface = memo(
                   'transition-all duration-500',
                   messages.length === 0 && !chatState.hasSubmitted
                     ? 'relative w-full max-w-2xl mx-auto'
-                    : 'fixed bottom-0 z-20 !pb-6 mt-1 px-4 sm:px-2 p-0 left-0 right-0 md:left-[var(--sidebar-width)] md:group-data-[collapsible=icon]:left-[var(--sidebar-width-icon)]',
+                    : 'fixed bottom-0 z-20 pb-[max(1.5rem,env(safe-area-inset-bottom))]! mt-1 px-4 sm:px-2 p-0 left-0 right-0 md:left-[var(--sidebar-width)] md:group-data-[collapsible=icon]:left-[var(--sidebar-width-icon)]',
                 )}
               >
                 <FormComponent

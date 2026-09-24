@@ -82,9 +82,11 @@ test('the header reaches the left edge when the offcanvas rail is collapsed', ()
   assert.doesNotMatch(html, /md:left-\[var\(--sidebar-width\)\]/);
 });
 
-test('mobile retains the rail trigger', () => {
+test('mobile uses the back link without a sidebar trigger', () => {
   sidebar.isMobile = true;
-  assert.match(render(ChatHead), /data-control="sidebar-trigger"/);
+  const html = render(ChatHead);
+  assert.doesNotMatch(html, /data-control="sidebar-trigger"/);
+  assert.match(html, /href="\/chat"/);
 });
 
 test('the shell forwards all existing controlled settings data', () => {

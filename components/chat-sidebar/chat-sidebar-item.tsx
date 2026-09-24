@@ -272,7 +272,7 @@ export function ChatSidebarItem({
           <span className="min-w-0 flex-1 truncate">{displayTitle}</span>
           <span
             className={cn(
-              'shrink-0 text-[10px] text-muted-foreground/80 whitespace-nowrap tabular-nums',
+              'shrink-0 text-[10px] text-muted-foreground/80 whitespace-nowrap tabular-nums max-md:hidden',
               'transition-opacity md:group-hover/menu-item:opacity-0 md:group-focus-within/menu-item:opacity-0',
               'group-data-[collapsible=icon]:hidden',
             )}

@@ -6,6 +6,7 @@ import { LoyaltyConnectButton } from '@/components/awardwallet/connect-button';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { ProgrammeValue } from '@/lib/valuation/portfolio-value';
 import type { RailWertzahl as RailWertzahlData } from '@/lib/valuation/wertzahl-loader';
+import { formatValue } from './format-value';
 
 // The theme's chart tokens are near-monochrome, so segments differ by opacity of one contrasting colour.
 const PROGRAM_COLORS = ['bg-primary', 'bg-primary/70', 'bg-primary/45', 'bg-primary/25'] as const;
@@ -39,8 +40,6 @@ function WertzahlContent({ wertzahl, onShowBreakdown }: RailWertzahlProps) {
   const value = use(wertzahl);
   const t = useTranslations('shell.wertzahl');
   const locale = useLocale();
-  const euro = new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
-  const formatValue = (eur: number) => `${eur === 0 ? '' : '~'}${euro.format(eur)}`;
 
   if (value.kind === 'not_connected') {
     return (
@@ -63,10 +62,10 @@ function WertzahlContent({ wertzahl, onShowBreakdown }: RailWertzahlProps) {
         <>
           <div className="space-y-1">
             <p className="text-muted-foreground">{t('travel')}</p>
-            <p className="text-2xl font-semibold tracking-tight tabular-nums">{formatValue(value.travelEur)}</p>
+            <p className="text-2xl font-semibold tracking-tight tabular-nums">{formatValue(value.travelEur, locale)}</p>
             {value.noPlan !== null && (
               <p className="text-muted-foreground tabular-nums">
-                {t('noPlan', { value: formatValue(value.noPlan.eur) })}
+                {t('noPlan', { value: formatValue(value.noPlan.eur, locale) })}
                 {value.noPlan.coveredPrograms < value.noPlan.totalPrograms && (
                   <> · {t('coverage', { covered: value.noPlan.coveredPrograms, total: value.noPlan.totalPrograms })}</>
                 )}

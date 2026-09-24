@@ -23,6 +23,8 @@
     "description": "MYLO ist dein KI-gestützter Reiseassistent für optimale Flugsuche, Miles & Points Beratung und Premium-Cabin Upgrades."
   },
   "shell": {
+    "more": "Mehr",
+    "moreTitle": "Weitere Bereiche",
     "preview": {
       "badge": "Vorschau",
       "inProgress": "Dieser Bereich ist noch in Arbeit. Trag dich ein, dann melden wir uns, sobald er startet.",
@@ -61,6 +63,8 @@
     "locked": "Gesperrt",
     "navigation": "Bereiche",
     "wertzahl": {
+      "connectShort": "Verbinden",
+      "breakdownShort": "Aufschlüsselung",
       "travel": "Als Prämienflug",
       "noPlan": "ohne Plan {value}",
       "coverage": "für {covered} von {total} Programmen",

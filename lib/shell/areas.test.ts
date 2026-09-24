@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { DEFAULT_AREA_SLUG, SHELL_AREAS, findActiveArea } from './areas';
+import { DEFAULT_AREA_SLUG, SHELL_AREAS, findActiveArea, mobileBarAreas, mobileMoreAreas, isConversationPath } from './areas';
 
 describe('shell area registry', () => {
   it('keeps unique slugs in rail order', () => {
@@ -39,6 +39,36 @@ describe('shell area registry', () => {
     assert.deepEqual(hotels?.activePrefixes, []);
     assert.equal(findActiveArea('/new')?.slug, 'chat');
   });
+});
+
+describe('mobile area navigation', () => {
+  it('shows exactly three live bar areas in registry order', () => {
+    assert.deepEqual(mobileBarAreas().map((area) => area.slug), ['flights', 'deals', 'chat']);
+    assert.ok(mobileBarAreas().every((area) => area.state === 'live'));
+  });
+
+  it('assigns every area to exactly one mobile surface', () => {
+    const bar = mobileBarAreas();
+    const more = mobileMoreAreas();
+    assert.deepEqual(more.map((area) => area.slug), ['hotels', 'alerts', 'cards']);
+    for (const area of SHELL_AREAS) {
+      assert.equal(Number(bar.includes(area)) + Number(more.includes(area)), 1);
+    }
+    assert.equal(bar.length + more.length, SHELL_AREAS.length);
+  });
+});
+
+describe('isConversationPath', () => {
+  for (const pathname of ['/search/abc', '/chat/new', '/new', '/', '/search', '/chat/abc', '/chat/']) {
+    it(`hides mobile chrome on ${pathname}`, () => {
+      assert.equal(isConversationPath(pathname), true);
+    });
+  }
+  for (const pathname of ['/chat', '/flights', '/deals', '/alerts', '/cards', '/unknown', '/searching', '/newspaper']) {
+    it(`keeps mobile chrome on ${pathname}`, () => {
+      assert.equal(isConversationPath(pathname), false);
+    });
+  }
 });
 
 describe('findActiveArea', () => {

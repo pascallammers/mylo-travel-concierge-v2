@@ -1,13 +1,7 @@
 'use client';
 
-import { useState, useSyncExternalStore } from 'react';
-import { Lock, Plane } from 'lucide-react';
-import { LayoutGroup } from 'motion/react';
+import { Plane } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { LanguageSwitcher } from '@/components/language-switcher';
-import { ThemeSwitcher } from '@/components/theme-switcher';
-import { NavigationMenu, UserProfile } from '@/components/user-profile';
-import { Badge } from '@/components/ui/badge';
 import {
   Sidebar,
   SidebarContent,
@@ -18,30 +12,18 @@ import {
   SidebarMenuItem,
   SidebarRail,
   SidebarSeparator,
+  useSidebar,
 } from '@/components/ui/sidebar';
-import { useUser } from '@/contexts/user-context';
-import { useLocalStorage } from '@/hooks/use-local-storage';
 import { Link, usePathname } from '@/i18n/navigation';
 import { SHELL_AREAS, findActiveArea, type AreaGroup } from '@/lib/shell';
 import { cn } from '@/lib/utils';
 import type { RailWertzahl as RailWertzahlData } from '@/lib/valuation/wertzahl-loader';
 import { RailWertzahl } from './rail-wertzahl';
+import { AreaBadges, AreaIcon } from './area-badges';
+import { ShellFooter } from './shell-footer';
+import { useShellSettings } from './shell-settings';
 
 const AREA_GROUPS: readonly AreaGroup[] = ['categories', 'assistant'];
-
-const subscribeToNothing = () => () => {};
-
-/**
- * Report whether the component renders in the browser after hydration.
- * @returns False during SSR and hydration, true afterwards.
- */
-function useIsHydrated(): boolean {
-  return useSyncExternalStore(
-    subscribeToNothing,
-    () => true,
-    () => false,
-  );
-}
 
 /**
  * Render the category rail with the shared account controls.
@@ -52,22 +34,10 @@ export function ShellRail({ className, wertzahl }: { className?: string; wertzah
   const t = useTranslations();
   const pathname = usePathname();
   const activeArea = findActiveArea(pathname);
-  const { user, subscriptionData, isProUser, isLoading } = useUser();
-  const isHydrated = useIsHydrated();
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsInitialTab, setSettingsInitialTab] = useState('profile');
-  const handleSettingsOpenChange = (open: boolean) => {
-    setSettingsOpen(open);
-    if (!open) setSettingsInitialTab('profile');
-  };
-  const showLoyaltyBreakdown = () => {
-    setSettingsInitialTab('loyalty');
-    setSettingsOpen(true);
-  };
-  const [isCustomInstructionsEnabled, setIsCustomInstructionsEnabled] = useLocalStorage(
-    'scira-custom-instructions-enabled',
-    true,
-  );
+  const { isMobile } = useSidebar();
+  const settings = useShellSettings();
+
+  if (isMobile) return null;
 
   return (
     <Sidebar className={cn('bg-background [&_[data-slot=sidebar-inner]]:bg-muted/30', className)}>
@@ -79,7 +49,7 @@ export function ShellRail({ className, wertzahl }: { className?: string; wertzah
           <span className="font-bold tracking-tight">FlyMylo</span>
         </div>
         <div className="border-b p-4">
-          <RailWertzahl wertzahl={wertzahl} onShowBreakdown={showLoyaltyBreakdown} />
+          <RailWertzahl wertzahl={wertzahl} onShowBreakdown={() => settings.open('loyalty')} />
         </div>
       </SidebarHeader>
 
@@ -92,7 +62,6 @@ export function ShellRail({ className, wertzahl }: { className?: string; wertzah
                 {SHELL_AREAS.filter((area) => area.group === group).map((area) => {
                   const isActive = activeArea?.slug === area.slug;
                   const isPreview = area.state === 'preview';
-                  const Icon = isPreview ? Lock : area.icon;
 
                   return (
                     <SidebarMenuItem key={area.slug}>
@@ -106,22 +75,9 @@ export function ShellRail({ className, wertzahl }: { className?: string; wertzah
                         )}
                       >
                         <Link href={area.href} aria-current={isActive ? 'page' : undefined}>
-                          <Icon className="size-4" aria-hidden="true" />
+                          <AreaIcon area={area} />
                           <span className="min-w-0 flex-1 truncate">{t(area.titleKey)}</span>
-                          {isPreview && <span className="sr-only">{t('shell.locked')}</span>}
-                          {area.state === 'beta' && (
-                            <Badge className="rounded border-0 bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-700 dark:text-amber-400">
-                              {t('shell.beta')}
-                            </Badge>
-                          )}
-                          {area.counter && (
-                            <Badge
-                              variant="outline"
-                              className="rounded px-1.5 py-0.5 text-[10px] font-bold text-inherit tabular-nums"
-                            >
-                              {area.counter}
-                            </Badge>
-                          )}
+                          <AreaBadges area={area} />
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -134,32 +90,7 @@ export function ShellRail({ className, wertzahl }: { className?: string; wertzah
       </SidebarContent>
 
       <SidebarFooter className="border-t p-3">
-        <div className="flex items-center justify-between gap-2">
-          {/* useUser() starts from localStorage in the browser but empty on the server, so SSR would mismatch. */}
-          {isHydrated ? (
-            <UserProfile
-              user={user ?? null}
-              subscriptionData={subscriptionData}
-              isProUser={isProUser}
-              isProStatusLoading={isLoading}
-              isCustomInstructionsEnabled={isCustomInstructionsEnabled}
-              setIsCustomInstructionsEnabled={setIsCustomInstructionsEnabled}
-              settingsOpen={settingsOpen}
-              setSettingsOpen={handleSettingsOpenChange}
-              settingsInitialTab={settingsInitialTab}
-            />
-          ) : (
-            <div className="flex size-8 items-center justify-center">
-              <div className="size-4 animate-pulse rounded-full bg-muted/50" />
-            </div>
-          )}
-          <NavigationMenu />
-          <LanguageSwitcher />
-          {/* Separate group, otherwise its active ring shares layoutId with the switcher in the NavigationMenu dropdown. */}
-          <LayoutGroup id="shell-rail-theme">
-            <ThemeSwitcher />
-          </LayoutGroup>
-        </div>
+        <ShellFooter layoutGroupId="shell-rail-theme" />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

@@ -23,6 +23,8 @@
     "description": "MYLO is your AI-powered travel assistant for optimal flight search, Miles & Points advice, and Premium Cabin upgrades."
   },
   "shell": {
+    "more": "More",
+    "moreTitle": "More areas",
     "preview": {
       "badge": "Preview",
       "inProgress": "This area is still in progress. Sign up and we’ll let you know when it launches.",
@@ -61,6 +63,8 @@
     "locked": "Locked",
     "navigation": "Areas",
     "wertzahl": {
+      "connectShort": "Connect",
+      "breakdownShort": "Breakdown",
       "travel": "As an award flight",
       "noPlan": "without a plan {value}",
       "coverage": "for {covered} of {total} programmes",
