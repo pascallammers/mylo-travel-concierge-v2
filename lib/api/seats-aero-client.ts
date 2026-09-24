@@ -74,10 +74,10 @@ function searchCacheKey(params: SeatsAeroSearchParams): string {
     params.origin,
     params.destination,
     params.departureDate,
-    params.flexibility || 0,
+    params.endDate ? 0 : params.flexibility || 0,
     params.travelClass,
     params.maxResults || 100,
-    params.onlyDirectFlights === true ? 'direct' : 'all',
+    params.endDate ?? '',
   ].join('|');
 }
 
@@ -135,8 +135,8 @@ export interface SeatsAeroSearchParams {
   travelClass: TravelClass;
   flexibility?: number;
   maxResults?: number;
-  /** Ask seats.aero for direct flights only (API param only_direct_flights). */
-  onlyDirectFlights?: boolean;
+  /** Explicit window end; ignores flexibility when supplied. */
+  endDate?: string;
 }
 
 /**
@@ -179,14 +179,24 @@ export interface SeatsAeroFlight {
 }
 
 /**
+ * Preserve the scanner's cheapest-per-program view over the shared trips cache.
+ * @param params - Requested route, cabin and date window.
+ * @param signal - Optional cancellation signal.
+ * @returns At most three cheapest trips per program.
+ */
+export async function searchSeatsAero(params: SeatsAeroSearchParams, signal?: AbortSignal): Promise<SeatsAeroFlight[]> {
+  return groupByProgram(await searchSeatsAeroTrips(params, signal));
+}
+
+/**
  * Search for award flights using Seats.aero Partner API
  * Includes automatic retry with exponential backoff for transient errors
  *
  * @param params - Search parameters
  * @param signal - Optional request cancellation signal
- * @returns List of available award flights
+ * @returns All available trips in the requested cabin, before program grouping
  */
-export async function searchSeatsAero(
+export async function searchSeatsAeroTrips(
   params: SeatsAeroSearchParams,
   signal?: AbortSignal
 ): Promise<SeatsAeroFlight[]> {
@@ -275,12 +285,12 @@ async function executeSeatsAeroSearch(
   signal?: AbortSignal
 ): Promise<SeatsAeroFlight[]> {
   const { cabin, apiValue } = CLASS_MAP[params.travelClass];
-  const flex = Math.min(params.flexibility || 0, 3);
+  const flex = Math.min(params.endDate ? 0 : params.flexibility || 0, 3);
 
   // Calculate date range with flexibility
   const baseDate = new Date(params.departureDate);
   const startDate = new Date(baseDate);
-  const endDate = new Date(baseDate);
+  const endDate = params.endDate ? new Date(params.endDate) : new Date(baseDate);
 
   if (flex > 0) {
     startDate.setDate(startDate.getDate() - flex);
@@ -301,9 +311,6 @@ async function executeSeatsAeroSearch(
   // Without order_by, seats.aero sorts by date — with take-truncation the
   // cheapest options of whole programs can fall off the page.
   searchUrl.searchParams.set('order_by', 'lowest_mileage');
-  if (params.onlyDirectFlights) {
-    searchUrl.searchParams.set('only_direct_flights', 'true');
-  }
 
   // API Call
   const response = await fetch(searchUrl.toString(), {
@@ -353,14 +360,12 @@ async function executeSeatsAeroSearch(
   }
 
   // Parse raw JSON -> AwardFlight[] (reads Source as the program), then keep
-  // only the requested cabin and collapse to the cheapest-per-program slice.
+  // only the requested cabin. Callers own ranking and program limits.
   const parsed = parseAwardResponse(data);
   console.log(`[Seats.aero] Parsed ${parsed.length} trips`);
 
   const cabinFiltered = filterByCabin(parsed, apiValue);
-  const grouped = groupByProgram(cabinFiltered);
-
-  const flights = grouped.map((flight) =>
+  const flights = cabinFiltered.map((flight) =>
     awardFlightToSeatsAero(flight, params, cabin)
   );
 

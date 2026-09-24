@@ -16,7 +16,7 @@
 import assert from 'node:assert';
 import { afterEach, describe, it, mock } from 'node:test';
 
-import { clearSeatsAeroSearchCache, getLastSeatsAeroQuota, searchSeatsAero } from './seats-aero-client';
+import { clearSeatsAeroSearchCache, getLastSeatsAeroQuota, searchSeatsAero, searchSeatsAeroTrips } from './seats-aero-client';
 import { SeatsAeroQuotaExhaustedError } from './seats-aero-quota';
 import { KNOWN_PROGRAM_SLUGS } from './award-search/program-registry';
 
@@ -141,19 +141,29 @@ describe('searchSeatsAero (MUC->MIA regression)', () => {
     }
   });
 
-  it('passes only_direct_flights to the API when onlyDirectFlights is set', async () => {
+  it('returns ungrouped trips while the scanner wrapper retains its program cap', async () => {
+    const fetchMock = mockFetchReturning({ data: [{ Source: 'aeroplan', AvailabilityTrips:
+      [40000, 41000, 42000, 90000].map((MileageCost) => businessTrip({ Source: 'aeroplan', MileageCost, Stops: MileageCost === 90000 ? 0 : 1 })),
+    }] });
+    const params = { origin: 'MUC', destination: 'MIA', departureDate: '2026-09-01', travelClass: 'BUSINESS' as const };
+    const trips = await searchSeatsAeroTrips(params);
+    assert.strictEqual(trips.length, 4);
+    assert.ok(trips.some((trip) => trip.totalStops === 0));
+    assert.strictEqual((await searchSeatsAero(params)).length, 3);
+    assert.strictEqual(fetchMock.mock.callCount(), 1);
+  });
+
+  it('uses an explicit month window, ignoring flex, and isolates its cache key', async () => {
     const fetchMock = mockFetchReturning(mucMiaThreePrograms());
-
-    await searchSeatsAero({
-      origin: 'MUC',
-      destination: 'MIA',
-      departureDate: '2026-09-01',
-      travelClass: 'BUSINESS',
-      onlyDirectFlights: true,
-    });
-
-    const calledUrl = firstRequestedUrl(fetchMock);
-    assert.strictEqual(calledUrl.searchParams.get('only_direct_flights'), 'true');
+    const params = { origin: 'FRA', destination: 'BKK', departureDate: '2026-11-01', endDate: '2026-11-30', flexibility: 3, travelClass: 'BUSINESS' as const };
+    await searchSeatsAeroTrips(params);
+    const url = firstRequestedUrl(fetchMock);
+    assert.strictEqual(url.searchParams.get('start_date'), '2026-11-01');
+    assert.strictEqual(url.searchParams.get('end_date'), '2026-11-30');
+    await searchSeatsAeroTrips({ ...params, flexibility: 0 });
+    assert.strictEqual(fetchMock.mock.callCount(), 1);
+    await searchSeatsAeroTrips({ ...params, endDate: '2026-11-29' });
+    assert.strictEqual(fetchMock.mock.callCount(), 2);
   });
 
   it('omits only_direct_flights by default (API default = all connections)', async () => {
@@ -345,7 +355,7 @@ describe('searchSeatsAero (API efficiency, MYLO-23)', () => {
     await searchSeatsAero({ ...mucMiaParams, travelClass: 'ECONOMY' });
     await searchSeatsAero({ ...mucMiaParams, departureDate: '2026-09-02' });
     await searchSeatsAero({ ...mucMiaParams, flexibility: 2 });
-    await searchSeatsAero({ ...mucMiaParams, onlyDirectFlights: true });
+    await searchSeatsAero({ ...mucMiaParams, endDate: '2026-09-30' });
 
     assert.strictEqual(fetchMock.mock.callCount(), 5, 'each distinct search hits the API once');
   });

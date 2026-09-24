@@ -171,7 +171,6 @@ Examples of queries that should trigger this tool:
           // surfaced only the first program ("nur Lufthansa"); pull a high page
           // so program-grouping can keep every program. Flex spans 7 days.
           maxResults: isFlexibleDateSearch ? 100 : 60,
-          onlyDirectFlights: params.nonStop,
         }, searchSeatsAero, abortSignal),
 
         // Duffel: Cash flights (use flexible date search for +/- 3 days)
@@ -222,7 +221,6 @@ Examples of queries that should trigger this tool:
               travelClass: params.cabin as TravelClass,
               flexibility: params.flexibility,
               maxResults: 60,
-              onlyDirectFlights: params.nonStop,
             }, searchSeatsAero, abortSignal)
           : Promise.resolve<Awaited<ReturnType<typeof searchAwardFlights>>>({ flights: null }),
       ]);
