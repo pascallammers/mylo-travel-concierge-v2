@@ -1,6 +1,64 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
-import { buildDealPrefillMessage, buildNewChatRedirectUrl, buildNewChatHref } from './new-chat-handoff';
+import {
+  buildDealPrefillMessage,
+  buildNewChatRedirectUrl,
+  buildNewChatHref,
+  normalizeNewChatQuery,
+  resolveChatNewRequest,
+  type NewChatParams,
+} from './new-chat-handoff';
+
+describe('normalizeNewChatQuery', () => {
+  const cases: [NewChatParams, string][] = [
+    [{ query: ' Tokio ', q: 'Paris', prefill: 'Rom', origin: 'FRA' }, 'Tokio'],
+    [{ query: ' ', q: ' Paris ', prefill: 'Rom' }, 'Paris'],
+    [{ q: '', prefill: ' Rom ', origin: 'FRA' }, 'Rom'],
+    [{ origin: ' FRA ', destination: ' HND ' }, 'FRA to HND'],
+    [{ origin: ' FRA ' }, 'FRA'],
+    [{ destination: ' HND ' }, 'HND'],
+    [{ query: [' Tokio ', 'Paris'] }, 'Tokio'],
+    [{ prefill: ' ' }, ''],
+    [{}, ''],
+  ];
+  for (const [params, expected] of cases) {
+    it(`normalizes ${JSON.stringify(params)}`, () => {
+      assert.strictEqual(normalizeNewChatQuery(params), expected);
+    });
+  }
+});
+
+describe('resolveChatNewRequest', () => {
+  it('renders without parameters', () => {
+    assert.deepStrictEqual(resolveChatNewRequest('de', {}), { kind: 'render' });
+  });
+
+  it('renders a single canonical query', () => {
+    assert.deepStrictEqual(resolveChatNewRequest('de', { query: 'Flüge nach Tokio' }), { kind: 'render' });
+  });
+
+  const cases: [string, NewChatParams, string][] = [
+    ['de', { prefill: ' Flüge nach Tokio ' }, '/de/chat/new?query=Fl%C3%BCge+nach+Tokio'],
+    ['de', { q: 'Tokio' }, '/de/chat/new?query=Tokio'],
+    ['de', { origin: ' FRA ', destination: ' HND ' }, '/de/chat/new?query=FRA+to+HND'],
+    ['de', { prefill: '' }, '/de/chat/new'],
+    ['de', { prefill: ' ' }, '/de/chat/new'],
+    ['de', { query: '' }, '/de/chat/new'],
+    ['de', { query: ' Tokio ' }, '/de/chat/new?query=Tokio'],
+    ['de', { query: 'Tokio', q: 'Paris' }, '/de/chat/new?query=Tokio'],
+    ['de', { query: ['Tokio', 'Paris'] }, '/de/chat/new?query=Tokio'],
+    ['de', { unrelated: 'value' }, '/de/chat/new'],
+    ['en', { prefill: 'Paris & Rome' }, '/en/chat/new?query=Paris+%26+Rome'],
+    ['', { q: 'Tokyo' }, '/en/chat/new?query=Tokyo'],
+  ];
+  for (const [locale, params, url] of cases) {
+    it(`redirects ${locale}: ${JSON.stringify(params)} without a redirect loop`, () => {
+      assert.deepStrictEqual(resolveChatNewRequest(locale, params), { kind: 'redirect', url });
+      const canonical = new URL(url, 'https://mylo.test');
+      assert.deepStrictEqual(resolveChatNewRequest(locale, Object.fromEntries(canonical.searchParams)), { kind: 'render' });
+    });
+  }
+});
 
 describe('buildNewChatRedirectUrl', () => {
   it('prefers explicit query parameters', () => {
