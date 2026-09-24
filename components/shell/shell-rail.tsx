@@ -24,6 +24,8 @@ import { useLocalStorage } from '@/hooks/use-local-storage';
 import { Link, usePathname } from '@/i18n/navigation';
 import { SHELL_AREAS, findActiveArea, type AreaGroup } from '@/lib/shell';
 import { cn } from '@/lib/utils';
+import type { RailWertzahl as RailWertzahlData } from '@/lib/valuation/wertzahl-loader';
+import { RailWertzahl } from './rail-wertzahl';
 
 const AREA_GROUPS: readonly AreaGroup[] = ['categories', 'assistant'];
 
@@ -43,16 +45,25 @@ function useIsHydrated(): boolean {
 
 /**
  * Render the category rail with the shared account controls.
- * @param props - Optional styling for the sidebar container.
+ * @param props - Server-loaded Wertzahl promise and optional sidebar styling.
  * @returns The shell navigation inside the existing sidebar primitive.
  */
-export function ShellRail({ className }: { className?: string }) {
+export function ShellRail({ className, wertzahl }: { className?: string; wertzahl: Promise<RailWertzahlData> }) {
   const t = useTranslations();
   const pathname = usePathname();
   const activeArea = findActiveArea(pathname);
   const { user, subscriptionData, isProUser, isLoading } = useUser();
   const isHydrated = useIsHydrated();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState('profile');
+  const handleSettingsOpenChange = (open: boolean) => {
+    setSettingsOpen(open);
+    if (!open) setSettingsInitialTab('profile');
+  };
+  const showLoyaltyBreakdown = () => {
+    setSettingsInitialTab('loyalty');
+    setSettingsOpen(true);
+  };
   const [isCustomInstructionsEnabled, setIsCustomInstructionsEnabled] = useLocalStorage(
     'scira-custom-instructions-enabled',
     true,
@@ -68,7 +79,7 @@ export function ShellRail({ className }: { className?: string }) {
           <span className="font-bold tracking-tight">FlyMylo</span>
         </div>
         <div className="border-b p-4">
-          <div className="h-28 rounded-lg border" aria-hidden="true" />
+          <RailWertzahl wertzahl={wertzahl} onShowBreakdown={showLoyaltyBreakdown} />
         </div>
       </SidebarHeader>
 
@@ -134,7 +145,8 @@ export function ShellRail({ className }: { className?: string }) {
               isCustomInstructionsEnabled={isCustomInstructionsEnabled}
               setIsCustomInstructionsEnabled={setIsCustomInstructionsEnabled}
               settingsOpen={settingsOpen}
-              setSettingsOpen={setSettingsOpen}
+              setSettingsOpen={handleSettingsOpenChange}
+              settingsInitialTab={settingsInitialTab}
             />
           ) : (
             <div className="flex size-8 items-center justify-center">
