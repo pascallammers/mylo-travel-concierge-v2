@@ -14,6 +14,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/h
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { readAllowedChatImageSource } from '@/lib/utils/chat-image-source';
 import { Check, Copy, WrapText, ArrowLeftRight, Download } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -789,11 +790,13 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(({ content,
         return <InlineCode key={key} elementKey={key} code={codeString} />;
       },
       image(src, alt) {
+        const allowedSrc = readAllowedChatImageSource(src);
+        if (!allowedSrc) return <span key={getElementKey('image', src)}>{alt}</span>;
         return (
           // eslint-disable-next-line @next/next/no-img-element -- provider CDN already serves sized photos; next/image would bill every hotel photo as an optimization
           <img
             key={getElementKey('image', src)}
-            src={src}
+            src={allowedSrc}
             alt={alt}
             loading="lazy"
             className="my-3 h-auto max-h-60 w-auto max-w-full rounded-lg object-cover"

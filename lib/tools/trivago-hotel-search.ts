@@ -8,7 +8,7 @@
 // Requests always use the German market, EUR, and German text. Trivago's
 // system_message and attached image content are deliberately dropped because
 // the model must follow MYLO's prompt, not provider-supplied instructions.
-// Each card shows one photo from `main_image`, only from Trivago's image host.
+// Each card shows one photo from `main_image`, only from the chat image allowlist.
 //
 // Filter translation: Trivago's hotel_rating, review_rating, and filters
 // are nested objects with per-key booleans. We expose a flat, LLM-friendly
@@ -23,13 +23,13 @@ import {
   readMcpUpstreamError,
   sanitizeMcpError,
 } from '@/lib/mcp/http-mcp-tool';
+import { readAllowedChatImageSource } from '@/lib/utils/chat-image-source';
 import { sanitizeForCodeblock } from './mcp-output-sanitizer';
 
 const TRIVAGO_URL = 'https://mcp.trivago.com/mcp';
 const TRIVAGO_MARKET = { country: 'DE', currency: 'EUR', language: 'DE_DE' } as const;
 const MAX_ACCOMMODATIONS = 10;
 const TRIVAGO_HOSTNAME = /^([a-z0-9-]+\.)*trivago\.[a-z]{2,}(\.[a-z]{2})?$/;
-const TRIVAGO_IMAGE_HOSTNAME = 'imgcy.trivago.com';
 const NO_ACCOMMODATIONS_FOUND = /^no accommodations found\b/i;
 const MARKDOWN_SYNTAX = /[\\[\]()<>*_!#`]/g;
 const GROUPED_COUNT = /^\d{1,3}(,\d{3})+$/;
@@ -238,14 +238,7 @@ function readTrivagoUrl(record: UnknownRecord): string | undefined {
 
 function readTrivagoImage(record: UnknownRecord): string | undefined {
   const raw = readText(record, 'main_image', 2_048);
-  if (!raw) return undefined;
-  let url: URL;
-  try {
-    url = new URL(raw);
-  } catch {
-    return undefined;
-  }
-  return url.protocol === 'https:' && url.hostname.toLowerCase() === TRIVAGO_IMAGE_HOSTNAME ? url.href : undefined;
+  return raw ? readAllowedChatImageSource(raw) : undefined;
 }
 
 function encodeMarkdownDestination(href: string): string {

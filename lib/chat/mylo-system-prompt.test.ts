@@ -144,7 +144,7 @@ describe('buildMyloWebSystemPrompt', () => {
 
       assert.match(
         prompt,
-        /Hotel search.*results are already in EUR and German, show each hotel as its own card with its photo and trivago link and quote prices exactly as returned/,
+        /Hotel search.*results are already in EUR and German, show each hotel as its own card with its trivago link \(and its photo line if the result has one; never add a photo yourself\) and quote prices exactly as returned/,
       );
     });
 
