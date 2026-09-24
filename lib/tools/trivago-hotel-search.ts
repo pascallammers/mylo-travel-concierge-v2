@@ -348,7 +348,7 @@ function trivagoFailure(rawError: string): McpToolFailure {
   const message = [
     '## Trivago search unavailable',
     '',
-    `Trivago could not return results right now (reason: ${reason}). The user can try again in a moment, or we can fall back to other accommodation sources if available.`,
+    `Trivago could not return results right now (reason: ${reason}). The user can try again in a moment. Do not replace the hotel search with nearby_places_search: it has no prices and no booking links.`,
   ].join('\n');
   return new McpToolFailure('Trivago', reason, message);
 }

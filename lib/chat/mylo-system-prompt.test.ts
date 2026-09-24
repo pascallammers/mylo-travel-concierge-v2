@@ -154,6 +154,39 @@ describe('buildMyloWebSystemPrompt', () => {
       assert.match(prompt, /trivago_hotel_search.*pass only the place as query \(e\.g\. "Brandenburger Tor", never "Hotel nahe Brandenburger Tor"\)/);
       assert.match(prompt, /trivago_hotel_search.*no hotels found is not an outage: suggest a different or larger place/);
     });
+
+    it('routes hotel and accommodation requests to the hotel search even when they say near', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+
+      assert.match(
+        prompt,
+        /\*\*Hotel search\*\* \("Hotel", "Unterkunft", "Übernachtung", "hotel", "where to stay", "accommodation", also with "nahe"\/"near" X\) → `trivago_hotel_search`/,
+      );
+    });
+
+    it('tells the model which hotel wishes the search cannot filter', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+
+      assert.match(
+        prompt,
+        /trivago_hotel_search.*stars, review rating, free cancellation and breakfast go into their own parameters; other wishes such as "Pool" cannot be searched: say so and never present the results as filtered by them/,
+      );
+    });
+
+    it('keeps hotels out of the nearby places search', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+      const nearbySection = prompt.slice(
+        prompt.indexOf('#### Nearby Search:'),
+        prompt.indexOf('#### Find Place on Map:'),
+      );
+
+      assert.doesNotMatch(nearbySection, /nearby hotels/);
+      assert.match(
+        nearbySection,
+        /Never use 'nearby_places_search' for hotels or accommodation, even with 'near <location>': those go to 'trivago_hotel_search'/,
+      );
+      assert.match(prompt, /Maps\/places\/nearby[^\n]*not hotels/);
+    });
   });
 
   describe('TOOL_SPECIFIC_GUIDELINES section', () => {
