@@ -160,7 +160,16 @@ describe('buildMyloWebSystemPrompt', () => {
 
       assert.match(
         prompt,
-        /\*\*Hotel search\*\* \("Hotel", "Unterkunft", "Übernachtung", "hotel", "stay", "accommodation", also with "nahe"\/"near" X\) → `trivago_hotel_search`/,
+        /\*\*Hotel search\*\* \("Hotel", "Unterkunft", "Übernachtung", "hotel", "where to stay", "accommodation", also with "nahe"\/"near" X\) → `trivago_hotel_search`/,
+      );
+    });
+
+    it('tells the model which hotel wishes the search cannot filter', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+
+      assert.match(
+        prompt,
+        /trivago_hotel_search.*stars, review rating, free cancellation and breakfast go into their own parameters; other wishes such as "Pool" cannot be searched: say so and never present the results as filtered by them/,
       );
     });
 
