@@ -4,8 +4,7 @@ import type {
   searchDuffel,
   searchDuffelFlexibleDates,
 } from '@/lib/api/duffel-client';
-import type { searchSeatsAero } from '@/lib/api/seats-aero-client';
-import type { applyAwardFilters } from '@/lib/api/award-search/award-filters';
+import type { AwardSearchDeps } from '@/lib/flights/award-search';
 import type {
   getProgramBookingUrl,
   getProgramCaveat,
@@ -24,7 +23,7 @@ import type {
 import type { createDuffelBookingSession } from '@/lib/utils/duffel-links';
 
 export interface FlightSearchToolDependencies {
-  searchSeatsAero: typeof searchSeatsAero;
+  searchAwardTrips: AwardSearchDeps['searchTrips'];
   searchDuffel: typeof searchDuffel;
   searchDuffelFlexibleDates: typeof searchDuffelFlexibleDates;
   mapCabinClass: typeof mapCabinClass;
@@ -34,7 +33,6 @@ export interface FlightSearchToolDependencies {
   resolveAirportCodesWithLLM: typeof resolveAirportCodesWithLLM;
   createDuffelBookingSession: typeof createDuffelBookingSession;
   logFailedSearch: typeof logFailedSearch;
-  applyAwardFilters: typeof applyAwardFilters;
   getProgramDisplayName: typeof getProgramDisplayName;
   getProgramBookingUrl: typeof getProgramBookingUrl;
   getProgramCaveat: typeof getProgramCaveat;

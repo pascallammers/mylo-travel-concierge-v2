@@ -2,7 +2,8 @@ import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { Plane, RefreshCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getUser } from '@/lib/auth-utils';
+import { getUser, isAdmin } from '@/lib/auth-utils';
+import { usesShell } from '@/lib/shell/uses-shell';
 import { getActiveDeals, getUserDealPreferences } from '@/lib/db/deal-queries';
 import { getOwnBalanceProgramIds } from '@/lib/db/queries/loyalty-balances';
 import { loadAwardProgramSourceResolver } from '@/lib/transfer-table/award-sources';
@@ -75,6 +76,7 @@ export default async function DealsPage({
       );
     }
 
+    const showAvailabilityCheck = await usesShell(user?.id, isAdmin);
     const [userPreferences, ownBalanceProgramIds, sourceResolver] = await Promise.all([
       user ? getUserDealPreferences(user.id) : null,
       // Own balances only widen reachability; a failed lookup must not hide the deals.
@@ -161,6 +163,7 @@ export default async function DealsPage({
               <DealCard
                 key={deal.id}
                 deal={deal}
+                showAvailabilityCheck={showAvailabilityCheck}
                 showScore={true}
                 showFreshLabel={filters.sort === 'score'}
                 locale={locale}
@@ -172,6 +175,7 @@ export default async function DealsPage({
           <UnreachableDealsToggle
             key={`${filters.kind}:${filters.origins.join(',')}:${filters.range ?? ''}:${filters.sort}`}
             deals={model.unreachableDeals}
+            showAvailabilityCheck={showAvailabilityCheck}
             defaultOpen={model.deals.length === 0}
             showFreshLabel={filters.sort === 'score'}
             locale={locale}

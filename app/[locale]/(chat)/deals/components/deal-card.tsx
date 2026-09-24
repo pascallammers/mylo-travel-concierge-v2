@@ -1,13 +1,15 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { trackGoal } from '@/lib/analytics';
 import { ChevronDown, ChevronUp, ExternalLink, Search, Plane } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
-import { buildDealPrefillMessage } from '@/lib/chat/new-chat-handoff';
+import { buildFlightsHref, flightsDraftFromDeal } from '@/lib/flights/flights-query';
+import { buildDealPrefillMessage, buildNewChatHref } from '@/lib/chat/new-chat-handoff';
 import { DealScoreBadge } from './deal-score-badge';
 import { AwardDealPrice } from './award-deal-price';
 import { AwardSeal, AwardSealFootnote } from './award-seal';
@@ -17,6 +19,7 @@ interface DealCardProps {
   deal: PresentedDeal;
   showScore?: boolean;
   showFreshLabel?: boolean;
+  showAvailabilityCheck?: boolean;
   locale: string;
 }
 
@@ -25,7 +28,7 @@ interface DealCardProps {
  * @param props - Presented deal, badge visibility, and active locale.
  * @returns A responsive member deal card.
  */
-export function DealCard({ deal, showScore = false, showFreshLabel = false, locale }: DealCardProps) {
+export function DealCard({ deal, showScore = false, showFreshLabel = false, showAvailabilityCheck = false, locale }: DealCardProps) {
   const t = useTranslations('deals');
   const [isExpanded, setIsExpanded] = useState(false);
   const hasTrackedViewRef = useRef(false);
@@ -58,7 +61,10 @@ export function DealCard({ deal, showScore = false, showFreshLabel = false, loca
     currency: deal.currency,
     travelMonthLabel: travelMonth,
   });
-  const chatHref = `/${locale}/new?prefill=${encodeURIComponent(prefillMessage)}`;
+  const chatHref = buildNewChatHref(locale, prefillMessage);
+  const availabilityHref = deal.kind === 'award' && showAvailabilityCheck
+    ? buildFlightsHref(locale, flightsDraftFromDeal({ ...deal, departureDate, programId: deal.award.programId }))
+    : null;
   const stops = deal.stops;
   const stopsLabel =
     stops === 0
@@ -223,7 +229,15 @@ export function DealCard({ deal, showScore = false, showFreshLabel = false, loca
           ) : null}
 
           <div className="flex flex-col gap-2 sm:col-start-2 sm:min-w-52">
-            <Button size="sm" asChild>
+            {availabilityHref && <Button size="sm" className="min-h-11" asChild>
+              <Link href={availabilityHref} prefetch={false} onClick={() => trackGoal('deal_availability_check', {
+                destination: deal.destination, source: deal.source, kind: deal.kind,
+              })}>
+                <Search className="mr-1.5 size-3.5" aria-hidden="true" />
+                {t('card.checkAvailability')}
+              </Link>
+            </Button>}
+            <Button size="sm" variant={availabilityHref ? 'outline' : 'default'} className={availabilityHref ? 'min-h-11' : undefined} asChild>
               <a
                 href={chatHref}
                 onClick={() =>

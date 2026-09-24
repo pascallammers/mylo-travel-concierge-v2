@@ -1,6 +1,7 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import {
+  FlexibleDateResults,
   formatFlexibleCalendarDate,
   isFlexibleAwardFlight,
 } from '@/components/message-parts/flexible-date-results';
@@ -33,5 +34,15 @@ describe('flexible-date result rendering helpers', () => {
       }),
       true,
     );
+  });
+});
+
+
+describe('visible award fallback notice', () => {
+  it('renders the tiering notice in the status paragraph users see', () => {
+    const notice = 'Mit Meilen gibt es keine Direktflüge. Optionen mit 1 Zwischenstopp.';
+    const rendered = FlexibleDateResults({ data: { dateRange: { start: '2026-11-12', end: '2026-11-18' }, awardNotice: notice } });
+    const children = rendered.props.children as Array<{ props?: { role?: string; children?: unknown } } | null>;
+    assert.ok(children.some((child) => child?.props?.role === 'status' && child.props.children === notice));
   });
 });

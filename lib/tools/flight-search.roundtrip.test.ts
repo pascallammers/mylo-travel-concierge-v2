@@ -56,7 +56,7 @@ function awardFlight(origin: string, destination: string, program: string) {
 
 mock.module('@/lib/api/seats-aero-client', {
   namedExports: {
-    searchSeatsAero: async (params: SeatsAeroCall) => {
+    searchSeatsAeroTrips: async (params: SeatsAeroCall) => {
       seatsAeroCalls.push({
         origin: params.origin,
         destination: params.destination,

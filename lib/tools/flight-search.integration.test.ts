@@ -64,7 +64,7 @@ function dependencies(
   overrides: Partial<FlightSearchToolDependencies> = {},
 ): FlightSearchToolDependencies {
   return {
-    searchSeatsAero: async () => [awardFlight],
+    searchAwardTrips: async () => [awardFlight],
     searchDuffel: async () => [cashFlight],
     searchDuffelFlexibleDates: async () => [],
     mapCabinClass: () => 'business',
@@ -82,7 +82,6 @@ function dependencies(
       url: 'https://links.duffel.com/test',
     }),
     logFailedSearch: async () => {},
-    applyAwardFilters: (flights) => ({ flights, notes: [] }),
     getProgramDisplayName: (slug) => slug,
     getProgramBookingUrl: () => null,
     getProgramCaveat: () => null,
@@ -113,7 +112,7 @@ describe('flight-search tool factory integration', () => {
   it('loads DACH maps once and renders accepted database values in transfer hints', async () => {
     let loads = 0;
     const tool = createFlightSearchTool(dependencies({
-      searchSeatsAero: async () => [{ ...awardFlight, program: 'flyingblue' }],
+      searchAwardTrips: async () => [{ ...awardFlight, program: 'flyingblue' }],
       formatTransferRatio,
       loadTransferSourceResolver: () => loadAwardProgramSourceResolver(async () => {
         loads++;
@@ -140,7 +139,7 @@ describe('flight-search tool factory integration', () => {
     };
 
     const tool = createFlightSearchTool(dependencies({
-      searchSeatsAero: async () => {
+      searchAwardTrips: async () => {
         seatsStarted = true;
         markStarted();
         await bothStarted;
@@ -165,7 +164,7 @@ describe('flight-search tool factory integration', () => {
 
   it('returns cash results when the award provider fails', async () => {
     const tool = createFlightSearchTool(dependencies({
-      searchSeatsAero: async () => {
+      searchAwardTrips: async () => {
         throw new Error('Seats.aero unavailable');
       },
     }));
@@ -210,7 +209,7 @@ describe('flight-search tool factory integration', () => {
     const cancellation = new DOMException('Request cancelled', 'AbortError');
     let failedSearchLogs = 0;
     const tool = createFlightSearchTool(dependencies({
-      searchSeatsAero: async () => {
+      searchAwardTrips: async () => {
         throw cancellation;
       },
       searchDuffel: async () => {
@@ -246,7 +245,7 @@ describe('flight-search tool factory integration', () => {
       searchedDate: futureDate,
     }));
     const tool = createFlightSearchTool(dependencies({
-      searchSeatsAero: async () => awards,
+      searchAwardTrips: async () => awards,
       searchDuffelFlexibleDates: async () => cash,
     }));
 
@@ -270,7 +269,7 @@ describe('flight-search tool factory integration', () => {
   it('treats an intentionally skipped cash provider as no results for award-only searches', async () => {
     let cashProviderCalls = 0;
     const tool = createFlightSearchTool(dependencies({
-      searchSeatsAero: async () => [],
+      searchAwardTrips: async () => [],
       searchDuffel: async () => {
         cashProviderCalls += 1;
         return [];
@@ -301,7 +300,7 @@ describe('daily award quota in flight search', () => {
       let loggedError: string | undefined;
       let cashCalls = 0;
       const tool = createFlightSearchTool(dependencies({
-        searchSeatsAero: quotaError,
+        searchAwardTrips: quotaError,
         searchDuffel: async () => { cashCalls++; return []; },
         logFailedSearch: async (entry) => { loggedError = entry.errorType; },
       }));
@@ -317,14 +316,14 @@ describe('daily award quota in flight search', () => {
   }
 
   it('reports quota exhaustion when the cash provider also fails', async () => {
-    const tool = createFlightSearchTool(dependencies({ searchSeatsAero: quotaError, searchDuffel: async () => { throw new Error('offline'); } }));
+    const tool = createFlightSearchTool(dependencies({ searchAwardTrips: quotaError, searchDuffel: async () => { throw new Error('offline'); } }));
     const result = String(await tool.execute!(params, options()));
     assert.match(result, /## Prämiensuche heute ausgelastet/);
     assert.match(result, /02:00/);
   });
 
   it('keeps cash results and explains the exhausted award search', async () => {
-    const tool = createFlightSearchTool(dependencies({ searchSeatsAero: quotaError }));
+    const tool = createFlightSearchTool(dependencies({ searchAwardTrips: quotaError }));
     const result = String(await tool.execute!(params, options()));
     assert.match(result, /Flüge mit Barzahlung/);
     assert.match(result, /ausgelastet/);
@@ -333,7 +332,7 @@ describe('daily award quota in flight search', () => {
   });
 
   it('localizes the daily limit in English', async () => {
-    const tool = createFlightSearchTool(dependencies({ searchSeatsAero: quotaError, searchDuffel: async () => [] }));
+    const tool = createFlightSearchTool(dependencies({ searchAwardTrips: quotaError, searchDuffel: async () => [] }));
     const result = String(await tool.execute!(params, options('en')));
     assert.match(result, /## Award search at its daily limit/);
     assert.match(result, /daily limit.*02:00/);
@@ -341,7 +340,7 @@ describe('daily award quota in flight search', () => {
   });
 
   it('includes the notice in flexible-date cash results', async () => {
-    const tool = createFlightSearchTool(dependencies({ searchSeatsAero: quotaError, searchDuffelFlexibleDates: async () => [cashFlight] }));
+    const tool = createFlightSearchTool(dependencies({ searchAwardTrips: quotaError, searchDuffelFlexibleDates: async () => [cashFlight] }));
     const result = String(await tool.execute!({ ...params, flexibility: 3 }, options()));
     const data: { type: string; awardNotice: string; cashFlights: unknown[] } = JSON.parse(result);
     assert.equal(data.type, 'flexible_date_results');
@@ -352,7 +351,7 @@ describe('daily award quota in flight search', () => {
   for (const failedLeg of ['FRA', 'JFK']) {
     it(`keeps the successful award leg when ${failedLeg} is quota-limited`, async () => {
       const tool = createFlightSearchTool(dependencies({
-        searchSeatsAero: async ({ origin }) => origin === failedLeg ? quotaError() : [awardFlight],
+        searchAwardTrips: async ({ origin }) => origin === failedLeg ? quotaError() : [awardFlight],
         searchDuffel: async () => [],
       }));
       const result = String(await tool.execute!({ ...params, returnDate: futureDate }, options()));
@@ -372,7 +371,7 @@ describe('daily award quota in flight search', () => {
   it('keeps no_results when only the return award leg fails generically', async () => {
     let loggedError: string | undefined;
     const tool = createFlightSearchTool(dependencies({
-      searchSeatsAero: async ({ origin }) => {
+      searchAwardTrips: async ({ origin }) => {
         if (origin === 'JFK') throw new Error('Seats.aero API error: 500');
         return [];
       },
@@ -386,11 +385,54 @@ describe('daily award quota in flight search', () => {
 
   it('recognizes a quota-limited return leg when outbound and cash have no results', async () => {
     const tool = createFlightSearchTool(dependencies({
-      searchSeatsAero: async ({ origin }) => origin === 'JFK' ? quotaError() : [],
+      searchAwardTrips: async ({ origin }) => origin === 'JFK' ? quotaError() : [],
       searchDuffel: async () => [],
     }));
     const result = String(await tool.execute!({ ...params, returnDate: futureDate }, options()));
     assert.match(result, /## Prämiensuche heute ausgelastet/);
     assert.match(result, /02:00 Uhr/);
   });
+});
+
+describe('MYLO-68 direct priority through chat presentation', () => {
+  it('keeps one-stop awards and exposes the no-direct notice in both output paths', async () => {
+    const tool = createFlightSearchTool(dependencies({ searchAwardTrips: async () => [
+      { ...awardFlight, totalStops: 1, outbound: { ...awardFlight.outbound, stops: '1 stop' } },
+    ] }));
+    const markdown = String(await tool.execute!({ ...params, nonStop: true, awardOnly: true }, executeOptions()));
+    assert.match(markdown, /no direct flights in Business/);
+    assert.match(markdown, /1 stop/);
+    const flex = JSON.parse(String(await tool.execute!({ ...params, nonStop: true, flexibility: 3 }, executeOptions())));
+    assert.match(flex.awardNotice, /best options with 1 stop/);
+    assert.equal(flex.awardFlights.length, 1);
+  });
+  it('keeps an expensive direct flight ahead of five cheaper connections after the flex cap', async () => {
+    const tool = createFlightSearchTool(dependencies({ searchAwardTrips: async () => [
+      ...Array.from({ length: 6 }, (_, index) => ({ ...awardFlight, id: `connection-${index}`, totalStops: 1,
+        program: index < 3 ? 'united' : 'aeroplan', miles: 40000 + index, price: `${40000 + index} miles` })),
+      { ...awardFlight, id: 'expensive-direct', miles: 90000, price: '90,000 miles' },
+    ] }));
+    const flex = JSON.parse(String(await tool.execute!({ ...params, nonStop: true, flexibility: 3 }, executeOptions())));
+    assert.equal(flex.awardFlights.length, 5);
+    assert.equal(flex.awardFlights[0].id, 'expensive-direct');
+    assert.equal(flex.awardFlights[0].totalStops, 0);
+  });
+  it('preserves the successful-search branch when the tax filter removes all awards', async () => {
+    const tool = createFlightSearchTool(dependencies());
+    const output = String(await tool.execute!({ ...params, awardOnly: true, maxTaxes: 0 }, executeOptions()));
+    assert.doesNotMatch(output, /no_results_offer_flexible/);
+    assert.match(output, /limit filtered out every result/);
+  });
+});
+
+it('keeps the chat flex return decision separate from the Duffel roundtrip request', async () => {
+  let awardCalls = 0;
+  let cashReturn: string | null | undefined;
+  const tool = createFlightSearchTool(dependencies({
+    searchAwardTrips: async () => { awardCalls++; return [awardFlight]; },
+    searchDuffelFlexibleDates: async (request) => { cashReturn = request.returnDate; return []; },
+  }));
+  await tool.execute!({ ...params, flexibility: 3, returnDate: futureDate }, executeOptions());
+  assert.equal(awardCalls, 1);
+  assert.equal(cashReturn, futureDate);
 });

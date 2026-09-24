@@ -1,6 +1,7 @@
 import { tool } from 'ai';
-import { searchAwardFlights } from './flight-search-award-errors';
-import type { TravelClass } from '@/lib/api/seats-aero-client';
+import { searchAwards, type AwardOption, type InboundLeg, type AwardSearchFailure } from '@/lib/flights/award-search';
+import { checkTravelDates, resolveFlightSearch, todayIso } from '@/lib/flights/search-input';
+import { describeDirectTiering } from '@/lib/flights/direct-tiering';
 import type { NearbyAirport } from '@/lib/api/duffel-client';
 import type {
   AirportResolutionResult,
@@ -14,18 +15,19 @@ import { formatGracefulFlightError, formatFlightErrorWithAlternatives, Alternati
 import { flightI18n, formatFlightResults, type FlightLocale } from './flight-search-format';
 import type { FlightSearchToolDependencies } from './flight-search-dependencies';
 import { buildFlexibleDateResults } from './flexible-date-results';
-import { filterFlightSearchAwards } from './flight-search-award-filters';
 import { flightSearchInputSchema } from './flight-search-schema';
 
 // Re-export for legacy callers and tests that import these from flight-search.
 export { flightI18n, formatFlightResults };
 export type { FlightLocale, FlightSearchToolDependencies };
 
-function formatLocalDate(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+function legacyLeg(leg: InboundLeg): AwardSearchFailure & {
+  flights: AwardOption[] | null; found: boolean;
+} {
+  if (leg.status === 'skipped') return { flights: null, found: false };
+  if (leg.status === 'failed') return { flights: null, found: false, errorType: leg.failure.kind,
+    ...(leg.failure.kind === 'rate_limited' ? { resetsAt: leg.failure.resetsAt } : {}) };
+  return { flights: leg.options, found: leg.foundCount > 0 };
 }
 
 /**
@@ -38,7 +40,7 @@ export function createFlightSearchTool(
   dependencies: FlightSearchToolDependencies,
 ) {
   const {
-    searchSeatsAero,
+    searchAwardTrips,
     searchDuffel,
     searchDuffelFlexibleDates,
     mapCabinClass,
@@ -48,7 +50,6 @@ export function createFlightSearchTool(
     resolveAirportCodesWithLLM,
     createDuffelBookingSession,
     logFailedSearch,
-    applyAwardFilters,
     getProgramDisplayName,
     getProgramBookingUrl,
     getProgramCaveat,
@@ -94,23 +95,24 @@ Examples of queries that should trigger this tool:
     console.log('[Flight Search] Starting search:', params);
 
     // Validate dates are not in the past
-    const today = formatLocalDate(new Date());
+    const today = todayIso(new Date());
 
     // Locale comes from the [locale] route segment via experimental_context
     // (default: 'de' for backward compatibility)
     const locale: FlightLocale = ctx.locale === 'en' ? 'en' : 'de';
 
-    if (params.departDate < today) {
+    const dateIssue = checkTravelDates(params, today);
+    if (dateIssue === 'depart_in_past') {
       throw new Error(
         flightI18n.pastDepartDate[locale](params.departDate, today)
       );
     }
 
     if (params.returnDate) {
-      if (params.returnDate < today) {
+      if (dateIssue === 'return_in_past') {
         throw new Error(flightI18n.pastReturnDate[locale](params.returnDate));
       }
-      if (params.returnDate < params.departDate) {
+      if (dateIssue === 'return_before_depart') {
         throw new Error(flightI18n.returnBeforeDepart[locale](params.returnDate, params.departDate));
       }
     }
@@ -157,22 +159,18 @@ Examples of queries that should trigger this tool:
       console.log('[Flight Search] 🔄 Calling Seats.aero with:', { origin, destination, departDate: params.departDate, cabin: params.cabin, isFlexible: isFlexibleDateSearch });
       console.log('[Flight Search] 🔄 Calling Duffel with:', { origin, destination, departDate: params.departDate, returnDate: params.returnDate, cabin: params.cabin, isFlexible: isFlexibleDateSearch });
 
-      // 2. Parallel API calls
-      const [seatsOutcome, duffelResult, seatsReturnOutcome] = await Promise.all([
-        // Seats.aero: Award flights (use flexibility: 3 for flexible date search)
-        searchAwardFlights({
-          origin,
-          destination,
-          departureDate: params.departDate,
-          travelClass: params.cabin as TravelClass,
-          flexibility: isFlexibleDateSearch ? 3 : params.flexibility,
-          // `take` is free on seats.aero (1 HTTP call = 1 budget unit regardless
-          // of take), and one call returns ~30 entries PER program. A small take
-          // surfaced only the first program ("nur Lufthansa"); pull a high page
-          // so program-grouping can keep every program. Flex spans 7 days.
-          maxResults: isFlexibleDateSearch ? 100 : 60,
-          onlyDirectFlights: params.nonStop,
-        }, searchSeatsAero, abortSignal),
+      const resolved = resolveFlightSearch({
+        ...params, origin, destination,
+        outbound: { kind: 'day', date: params.departDate, flexDays: params.flexibility },
+        inbound: params.returnDate && !isFlexibleDateSearch
+          ? { kind: 'day', date: params.returnDate, flexDays: 0 } : null,
+      }, today);
+      if (!resolved.ok && resolved.issues.some((issue) => issue.code === 'same_airport')) {
+        throw new Error(`Origin and destination resolve to the same airport (${origin}). Ask the user for a different destination.`);
+      }
+      if (!resolved.ok) throw new Error(`Could not resolve airport codes. Origin: "${params.origin}" → ${origin}, Destination: "${params.destination}" → ${destination}`);
+      const [award, duffelResult] = await Promise.all([
+        searchAwards(resolved.search, { searchTrips: searchAwardTrips }, { locale, signal: abortSignal }),
 
         // Duffel: Cash flights (use flexible date search for +/- 3 days)
         params.awardOnly
@@ -211,55 +209,26 @@ Examples of queries that should trigger this tool:
                 return null;
               }),
 
-        // Seats.aero exposes one-way searches, so roundtrips need a second
-        // request for the return leg. Flexible-date results use their dedicated
-        // response shape and intentionally skip this extra API call.
-        params.returnDate && !isFlexibleDateSearch
-          ? searchAwardFlights({
-              origin: destination,
-              destination: origin,
-              departureDate: params.returnDate,
-              travelClass: params.cabin as TravelClass,
-              flexibility: params.flexibility,
-              maxResults: 60,
-              onlyDirectFlights: params.nonStop,
-            }, searchSeatsAero, abortSignal)
-          : Promise.resolve<Awaited<ReturnType<typeof searchAwardFlights>>>({ flights: null }),
       ]);
+      const seatsOutcome = legacyLeg(award.outbound);
+      const seatsReturnOutcome = legacyLeg(award.inbound);
       const seatsResult = seatsOutcome.flights;
       const seatsReturnResult = seatsReturnOutcome.flights;
-      const quotaFailure = [seatsOutcome, seatsReturnOutcome].find(
-        (outcome) => outcome.errorType === 'rate_limited',
-      );
-
-      const { flights: filteredSeatsFlights, notes: outboundAwardFilterNotes } =
-        filterFlightSearchAwards(
-          seatsResult ?? [],
-          params,
-          locale,
-          applyAwardFilters,
-        );
-      const filteredSeats = seatsResult === null ? null : filteredSeatsFlights;
-      const { flights: filteredSeatsReturnFlights, notes: returnAwardFilterNotes } =
-        filterFlightSearchAwards(
-          seatsReturnResult ?? [],
-          params,
-          locale,
-          applyAwardFilters,
-        );
-      const filteredSeatsReturn =
-        seatsReturnResult === null ? null : filteredSeatsReturnFlights;
-      const awardFilterNotes = [
-        ...new Set([
-          ...outboundAwardFilterNotes,
-          ...returnAwardFilterNotes,
-        ]),
-      ];
+      const filteredSeats = seatsResult;
+      const filteredSeatsReturn = seatsReturnResult;
+      const quotaFailure = [seatsOutcome, seatsReturnOutcome].find((outcome) => outcome.errorType === 'rate_limited');
+      const tieringNotices = [award.outbound, award.inbound].flatMap((leg, index) => {
+        const notice = leg.status === 'ok' ? describeDirectTiering(leg.tiering, {
+          cabin: params.cabin, leg: resolved.search.inbound ? (index === 0 ? 'outbound' : 'inbound') : null, locale,
+        }) : null;
+        return notice ? [notice] : [];
+      });
+      const awardFilterNotes = [...tieringNotices, ...award.filterNotes];
 
       // 3. Check if we have results and track provider failures
-      const hasSeats = seatsResult && seatsResult.length > 0;
+      const hasSeats = seatsOutcome.found;
       const hasDuffel = duffelResult && duffelResult.length > 0;
-      const hasSeatsReturn = seatsReturnResult && seatsReturnResult.length > 0;
+      const hasSeatsReturn = seatsReturnOutcome.found;
 
       // Track which providers failed (null means error, empty array means no results)
       const seatsError = seatsResult === null;
@@ -435,6 +404,7 @@ Examples of queries that should trigger this tool:
           locale,
           flightI18n,
           seatsOutcome,
+          { tiering: award.outbound.status === 'ok' ? award.outbound.tiering : null, notice: tieringNotices.join(' ') || null },
         );
 
         console.log(
@@ -443,7 +413,7 @@ Examples of queries that should trigger this tool:
 
         return JSON.stringify({
           ...flexibleResults,
-          ...(awardFilterNotes.length > 0 ? { notes: awardFilterNotes } : {}),
+          ...(award.filterNotes.length > 0 ? { notes: award.filterNotes } : {}),
         });
       }
 

@@ -43,7 +43,7 @@ let duffelSignal: AbortSignal | undefined;
 let duffelFlexibleSignal: AbortSignal | undefined;
 
 const dependencies: FlightSearchToolDependencies = {
-  searchSeatsAero: async (params, signal?: AbortSignal) => {
+  searchAwardTrips: async (params, signal?: AbortSignal) => {
     calls.seatsAero.push(params);
     seatsAeroSignal = signal;
     return seatsAeroResult;
@@ -85,7 +85,6 @@ const dependencies: FlightSearchToolDependencies = {
     url: 'https://links.duffel.com/test',
   }),
   logFailedSearch: async () => {},
-  applyAwardFilters: (flights) => ({ flights, notes: [] }),
   getProgramDisplayName: (slug) => slug,
   getProgramBookingUrl: () => null,
   getProgramCaveat: () => null,

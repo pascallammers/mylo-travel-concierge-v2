@@ -4,8 +4,7 @@ import {
   searchDuffel,
   searchDuffelFlexibleDates,
 } from '@/lib/api/duffel-client';
-import { searchSeatsAero } from '@/lib/api/seats-aero-client';
-import { applyAwardFilters } from '@/lib/api/award-search/award-filters';
+import { searchSeatsAeroTrips } from '@/lib/api/seats-aero-client';
 import {
   getProgramBookingUrl,
   getProgramCaveat,
@@ -37,7 +36,7 @@ export type {
 } from './flight-search-tool';
 
 export const flightSearchTool = createFlightSearchTool({
-  searchSeatsAero,
+  searchAwardTrips: searchSeatsAeroTrips,
   searchDuffel,
   searchDuffelFlexibleDates,
   mapCabinClass,
@@ -47,7 +46,6 @@ export const flightSearchTool = createFlightSearchTool({
   resolveAirportCodesWithLLM,
   createDuffelBookingSession,
   logFailedSearch,
-  applyAwardFilters,
   getProgramDisplayName,
   getProgramBookingUrl,
   getProgramCaveat,
