@@ -7,8 +7,8 @@ import type { Chat } from '@/hooks/use-chat-history';
 
 const chat: Chat = { id: 'chat-1', title: 'Tokio', createdAt: new Date(), userId: 'user-1', visibility: 'private' };
 
-function controller({ currentChatId = null, deletedChatHref, failDelete = false }: {
-  currentChatId?: string | null; deletedChatHref?: string; failDelete?: boolean;
+function controller({ currentChatId = null, failDelete = false }: {
+  currentChatId?: string | null; failDelete?: boolean;
 } = {}) {
   const events: string[] = [];
   let handlers!: ReturnType<typeof useChatListController>;
@@ -25,7 +25,6 @@ function controller({ currentChatId = null, deletedChatHref, failDelete = false 
       notify: (message) => { events.push(`notify:${message}`); },
       invalidate: () => { events.push('invalidate'); },
       translate: (key, values) => key === 'untitledChat' ? 'Unbenannt' : `Öffne ${values?.title}`,
-      deletedChatHref,
     });
     return null;
   }
@@ -51,16 +50,10 @@ test('deleting another chat keeps the current route', async () => {
   assert.deepEqual(result.events, ['delete:chat-1']);
 });
 
-test('deleting the active chat keeps the legacy home redirect by default', async () => {
+test('deleting the active chat returns home', async () => {
   const result = controller({ currentChatId: 'chat-1' });
   await result.handleDeleteChat('chat-1');
   assert.deepEqual(result.events, ['delete:chat-1', 'push:/']);
-});
-
-test('the shell can return to its chat list after deleting the active chat', async () => {
-  const result = controller({ currentChatId: 'chat-1', deletedChatHref: '/chat' });
-  await result.handleDeleteChat('chat-1');
-  assert.deepEqual(result.events, ['delete:chat-1', 'push:/chat']);
 });
 
 test('failed deletion does not navigate away', async () => {

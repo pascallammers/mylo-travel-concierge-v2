@@ -26,7 +26,6 @@ export function ChatListView({ user }: { user: ChatHistoryUser | null }) {
     notify: toast.info,
     invalidate: invalidateChatsCache,
     translate: tHistory,
-    deletedChatHref: '/chat',
   });
   const newChatButton = (
     <Button asChild>
