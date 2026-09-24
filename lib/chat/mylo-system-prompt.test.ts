@@ -144,8 +144,15 @@ describe('buildMyloWebSystemPrompt', () => {
 
       assert.match(
         prompt,
-        /Hotel search.*results are already in EUR and German, show each hotel as its own card with its trivago link and quote prices exactly as returned/,
+        /Hotel search.*results are already in EUR and German, show each hotel as its own card with its trivago link \(and its photo line if the result has one; never add a photo yourself\) and quote prices exactly as returned/,
       );
+    });
+
+    it('tells the model to pass only the place name to the hotel search and treat zero hits as a normal answer', () => {
+      const prompt = buildMyloWebSystemPrompt({ now: FIXED_DATE });
+
+      assert.match(prompt, /trivago_hotel_search.*pass only the place as query \(e\.g\. "Brandenburger Tor", never "Hotel nahe Brandenburger Tor"\)/);
+      assert.match(prompt, /trivago_hotel_search.*no hotels found is not an outage: suggest a different or larger place/);
     });
   });
 

@@ -14,6 +14,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/h
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { readAllowedChatImageSource } from '@/lib/utils/chat-image-source';
 import { Check, Copy, WrapText, ArrowLeftRight, Download } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -358,9 +359,9 @@ const useProcessedContent = (content: string) => {
         }
       }
 
-      // Process citations (simplified for performance)
+      // Process citations (simplified for performance). Image syntax `![alt](url)` is not a citation.
       const refWithUrlRegex =
-        /(?:\[(?:(?:\[?(PDF|DOC|HTML)\]?\s+)?([^\]]+))\]|\b([^.!?\n]+?(?:\s+[-–—]\s+\w+|\s+\([^)]+\)))\b)(?:\s*(?:\(|\[\s*|\s+))(https?:\/\/[^\s)]+)(?:\s*[)\]]|\s|$)/g;
+        /(?:(?<!!)\[(?:(?:\[?(PDF|DOC|HTML)\]?\s+)?([^\]]+))\]|\b([^.!?\n]+?(?:\s+[-–—]\s+\w+|\s+\([^)]+\)))\b)(?:\s*(?:\(|\[\s*|\s+))(https?:\/\/[^\s)]+)(?:\s*[)\]]|\s|$)/g;
 
       let citationProcessed = '';
       let lastCitationIndex = 0;
@@ -602,6 +603,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(({ content,
       tableRow: 0,
       tableCell: 0,
       link: 0,
+      image: 0,
       text: 0,
       hr: 0,
     };
@@ -786,6 +788,20 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = React.memo(({ content,
         const codeString = typeof code === 'string' ? code : String(code || '');
         const key = getElementKey('code', codeString);
         return <InlineCode key={key} elementKey={key} code={codeString} />;
+      },
+      image(src, alt) {
+        const allowedSrc = readAllowedChatImageSource(src);
+        if (!allowedSrc) return <span key={getElementKey('image', src)}>{alt}</span>;
+        return (
+          // eslint-disable-next-line @next/next/no-img-element -- provider CDN already serves sized photos; next/image would bill every hotel photo as an optimization
+          <img
+            key={getElementKey('image', src)}
+            src={allowedSrc}
+            alt={alt}
+            loading="lazy"
+            className="my-3 h-auto max-h-60 w-auto max-w-full rounded-lg object-cover"
+          />
+        );
       },
       link(href, text) {
         const key = getElementKey('link', href);

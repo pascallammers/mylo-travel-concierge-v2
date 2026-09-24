@@ -1,12 +1,14 @@
 // lib/tools/trivago-hotel-search.ts
 //
-// AI SDK tool that wraps Trivago's `trivago-accommodation-radius-search` MCP
-// via the shared http-mcp-tool helper. Trivago requires session init and
-// returns raw JSON (not SSE). The helper handles both transparently.
+// AI SDK tool that wraps Trivago's `trivago-accommodation-search` MCP via the
+// shared http-mcp-tool helper. The model passes a place name; Trivago resolves
+// it itself. Trivago requires session init and returns raw JSON (not SSE).
+// The helper handles both transparently.
 //
 // Requests always use the German market, EUR, and German text. Trivago's
-// system_message and photos are deliberately dropped because the model must
-// follow MYLO's prompt, not provider-supplied instructions.
+// system_message and attached image content are deliberately dropped because
+// the model must follow MYLO's prompt, not provider-supplied instructions.
+// Each card shows one photo from `main_image`, only from the chat image allowlist.
 //
 // Filter translation: Trivago's hotel_rating, review_rating, and filters
 // are nested objects with per-key booleans. We expose a flat, LLM-friendly
@@ -21,12 +23,14 @@ import {
   readMcpUpstreamError,
   sanitizeMcpError,
 } from '@/lib/mcp/http-mcp-tool';
+import { readAllowedChatImageSource } from '@/lib/utils/chat-image-source';
 import { sanitizeForCodeblock } from './mcp-output-sanitizer';
 
 const TRIVAGO_URL = 'https://mcp.trivago.com/mcp';
 const TRIVAGO_MARKET = { country: 'DE', currency: 'EUR', language: 'DE_DE' } as const;
 const MAX_ACCOMMODATIONS = 10;
 const TRIVAGO_HOSTNAME = /^([a-z0-9-]+\.)*trivago\.[a-z]{2,}(\.[a-z]{2})?$/;
+const NO_ACCOMMODATIONS_FOUND = /^no accommodations found\b/i;
 const MARKDOWN_SYNTAX = /[\\[\]()<>*_!#`]/g;
 const GROUPED_COUNT = /^\d{1,3}(,\d{3})+$/;
 
@@ -34,18 +38,14 @@ const REVIEW_TIERS = ['7.0', '7.5', '8.0', '8.5'] as const;
 
 const inputSchema = z
   .object({
-  latitude: z
-    .number()
-    .min(-90)
-    .max(90)
+  query: z
+    .string()
+    .trim()
+    .min(2)
+    .max(120)
     .describe(
-      'Latitude of the search target (city, landmark, neighborhood, address). E.g. Berlin: 52.52, Brandenburg Gate: 52.516, Bali (Ubud): -8.506.',
+      'Only the place: city, region, island, neighborhood, or landmark, e.g. "Mauritius", "Berlin-Mitte", "Brandenburger Tor". No additions like "Hotel nahe …" or "hotels in …": with them Trivago matches a hotel of that name instead of the place.',
     ),
-  longitude: z
-    .number()
-    .min(-180)
-    .max(180)
-    .describe('Longitude of the search target. E.g. Berlin: 13.405, Brandenburg Gate: 13.378.'),
   arrival: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD format')
@@ -150,8 +150,7 @@ function buildReviewRating(min: (typeof REVIEW_TIERS)[number] | undefined):
 function buildTrivagoArgs(input: Input): Record<string, unknown> {
   const args: Record<string, unknown> = {
     ...TRIVAGO_MARKET,
-    latitude: input.latitude,
-    longitude: input.longitude,
+    query: input.query,
     arrival: input.arrival,
     departure: input.departure,
     adults: input.adults,
@@ -192,6 +191,7 @@ interface TrivagoAccommodation {
   distance?: string;
   amenities?: string;
   url?: string;
+  image?: string;
 }
 
 function asRecord(value: unknown): UnknownRecord | undefined {
@@ -236,6 +236,15 @@ function readTrivagoUrl(record: UnknownRecord): string | undefined {
   return url.protocol === 'https:' && TRIVAGO_HOSTNAME.test(url.hostname.toLowerCase()) ? url.href : undefined;
 }
 
+function readTrivagoImage(record: UnknownRecord): string | undefined {
+  const raw = readText(record, 'main_image', 2_048);
+  return raw ? readAllowedChatImageSource(raw) : undefined;
+}
+
+function encodeMarkdownDestination(href: string): string {
+  return href.replace(/\]/g, '%5D').replace(/[()]/g, (character) => (character === '(' ? '%28' : '%29'));
+}
+
 function parseAccommodation(value: unknown): TrivagoAccommodation | undefined {
   const record = asRecord(value);
   if (!record) return undefined;
@@ -251,15 +260,13 @@ function parseAccommodation(value: unknown): TrivagoAccommodation | undefined {
     distance: readMarkdownText(record, 'distance'),
     amenities: readMarkdownText(record, 'top_amenities', 200),
     url: readTrivagoUrl(record),
+    image: readTrivagoImage(record),
   };
 }
 
 function bookingLink(accommodation: TrivagoAccommodation): string {
   if (!accommodation.url) return '- Buchungslink: —';
-  const href = accommodation.url
-    .replace(/\]/g, '%5D')
-    .replace(/[()]/g, (character) => (character === '(' ? '%28' : '%29'));
-  return `- [Bei trivago ansehen](${href})`;
+  return `- [Bei trivago ansehen](${encodeMarkdownDestination(accommodation.url)})`;
 }
 
 function formatRating(accommodation: TrivagoAccommodation): string {
@@ -273,6 +280,9 @@ function formatRating(accommodation: TrivagoAccommodation): string {
 function formatAccommodation(accommodation: TrivagoAccommodation, index: number): string {
   return [
     `### ${index + 1}. ${accommodation.name ?? '—'}`,
+    ...(accommodation.image
+      ? [`![Foto: ${accommodation.name ?? 'Hotel'}](${encodeMarkdownDestination(accommodation.image)})`]
+      : []),
     `- **Preis:** ${accommodation.pricePerNight ?? '—'} pro Nacht · ${accommodation.pricePerStay ?? '—'} gesamt · Anbieter: ${accommodation.advertiser ?? '—'}`,
     `- **Bewertung:** ${formatRating(accommodation)}`,
     `- **Lage:** ${accommodation.distance ?? '—'}`,
@@ -328,7 +338,7 @@ export function formatTrivagoResults(raw: unknown): string {
     '## Trivago Hotels',
     '',
     `**Ergebnisse:** ${countLabel} · **Währung:** ${currency}`,
-    ...(shown.length === 0 ? ['', 'Keine Hotels für diese Suche gefunden. Andere Daten, ein größerer Umkreis oder weniger Filter können helfen.'] : []),
+    ...(shown.length === 0 ? ['', 'Keine Hotels für diese Suche gefunden. Einen anderen oder größeren Ort wählen (z. B. die Stadt statt des Viertels), andere Daten oder weniger Filter können helfen.'] : []),
     ...blocks.flatMap((block) => ['', block]),
   ].join('\n');
 }
@@ -350,18 +360,21 @@ interface ToolDeps {
 export function createTrivagoHotelSearchTool(deps: ToolDeps = {}) {
   return tool({
     description:
-      'Search Trivago for hotels around given coordinates (city centre, landmark, or address); derive lat/lon from the place the user names. Prices come back in EUR for the German market, texts in German. Filter by minimum stars, minimum guest rating, free cancellation, and breakfast. Returns up to 10 hotels as Markdown cards (name, stars, guest rating, price per night and per stay, distance, amenities, trivago link). Present each hotel as its own card with its trivago link; never invent prices or links that are not in the result.',
+      'Search Trivago for hotels at a place the user names (city, region, island, neighborhood, or landmark). Pass only the place name as query, e.g. "Brandenburger Tor", never "Hotel nahe Brandenburger Tor". Prices come back in EUR for the German market, texts in German. Filter by minimum stars, minimum guest rating, free cancellation, and breakfast. Returns up to 10 hotels as Markdown cards (name, photo, stars, guest rating, price per night and per stay, distance, amenities, trivago link). Present each hotel as its own card with its photo line and trivago link unchanged; never invent prices, photos, or links that are not in the result. With zero results, suggest a different or larger place instead of calling it an outage.',
     inputSchema,
     execute: async (input): Promise<TrivagoToolResult> => {
       const r = await callMcpTool({
         url: TRIVAGO_URL,
-        toolName: 'trivago-accommodation-radius-search',
+        toolName: 'trivago-accommodation-search',
         args: buildTrivagoArgs(input),
         requiresSession: true,
         fetchImpl: deps.fetchImpl,
       });
       if (!r.ok) throw trivagoFailure(r.error);
       const upstreamError = readMcpUpstreamError(r.result);
+      if (upstreamError && NO_ACCOMMODATIONS_FOUND.test(upstreamError.trim())) {
+        return formatTrivagoResults({ structuredContent: { accommodations: [] } });
+      }
       if (upstreamError) throw trivagoFailure(upstreamError);
       return formatTrivagoResults(r.result);
     },
