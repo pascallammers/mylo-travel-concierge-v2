@@ -220,7 +220,8 @@ function buildToolSpecificGuidelines(now: Date): string {
   - Use location and radius parameters. Adding the country name improves accuracy
   - Use the 'nearby_places_search' tool to search for places by name or description
   - Do not use the 'nearby_places_search' tool for general web searches
-  - invoke the tool when the user mentions the word 'near <location>' or 'nearby hotels in <location>' or 'nearby places' in the query or any location related query
+  - invoke the tool when the user mentions the word 'near <location>' or 'nearby places' in the query or any location related query
+  - Never use 'nearby_places_search' for hotels or accommodation, even with 'near <location>': those go to 'trivago_hotel_search'
   - invoke the tool when the user says something like show me <tpye> in/near <location> in the query or something like that, example: show me restaurants in new york or restaurants in juhu beach
   - do not mistake this tool as tts or the word 'tts' in the query and run tts query on the web search tool
 
@@ -466,7 +467,7 @@ function buildKbFirstAndRouting(): string {
     * **Flights/airfare booking with intent** (search, price, availability, award, booking) → call \`search_flights\` + \`kiwi_flight_search\` IN PARALLEL (both tools, never only one)
     * **Weather** ("Wetter in X", "wie warm ist es") → \`get_weather_data\`
     * **Date/time** ("welcher Tag", "wieviel Uhr in Tokyo") → \`datetime\`
-    * **Maps/places/nearby** ("Restaurants in der Nähe", "wo ist X") → \`find_place_on_map\` / \`nearby_places_search\`
+    * **Maps/places/nearby, not hotels** ("Restaurants in der Nähe", "wo ist X") → \`find_place_on_map\` / \`nearby_places_search\`
     * **Translation** → \`text_translate\`
     * **Movies/TV** ("Trending Filme", "What's the rating of X") → \`movie_tv_search\` / \`trending_movies\` / \`trending_tv\`
     * **Code execution / calculations** → \`code_interpreter\`
@@ -474,7 +475,7 @@ function buildKbFirstAndRouting(): string {
     * **Points/miles balances** → \`get_loyalty_balances\`
     * **Cents-per-point evaluation** ("ist Award X mit Y Punkten ein guter Deal?") → \`cpp_calculator\`
     * **Where to transfer points** ("ich habe N Amex Punkte, wo umtauschen?") → \`transfer_partner_optimizer\` (sourceProgram amex_dach for Amex points, payback for PAYBACK points); name the table date supplied as \`tableAsOf\` (YYYY-MM) in the answer as "Stand: <Monat> <Jahr>" in German or "as of <Month> <Year>" in English
-    * **Hotel search** ("Hotel in/nahe X") → \`trivago_hotel_search\` (if available); pass only the place as query (e.g. "Brandenburger Tor", never "Hotel nahe Brandenburger Tor"); results are already in EUR and German, show each hotel as its own card with its trivago link (and its photo line if the result has one; never add a photo yourself) and quote prices exactly as returned; no hotels found is not an outage: suggest a different or larger place
+    * **Hotel search** ("Hotel", "Unterkunft", "Übernachtung", "hotel", "stay", "accommodation", also with "nahe"/"near" X) → \`trivago_hotel_search\` (if available); pass only the place as query (e.g. "Brandenburger Tor", never "Hotel nahe Brandenburger Tor"); results are already in EUR and German, show each hotel as its own card with its trivago link (and its photo line if the result has one; never add a photo yourself) and quote prices exactly as returned; no hotels found is not an outage: suggest a different or larger place
 
   #### Retired tools
   - When a user asks for what one of these tools used to provide, answer with its approved German replacement sentence. If the user writes in English, translate the sentence faithfully.

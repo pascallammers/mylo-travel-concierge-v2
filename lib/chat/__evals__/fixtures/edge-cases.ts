@@ -67,11 +67,11 @@ export const edgeCases: EvalFixture[] = [
   {
     id: 'edge-007-mixed-language',
     source: 'edge',
-    description: 'English location-near query → nearby_places_search, not web_search',
+    description: 'English hotels-near query → trivago_hotel_search, not nearby_places_search',
     userQuery: 'Show me hotels near Phuket Old Town',
-    expectedTool: 'nearby_places_search',
+    expectedTool: 'trivago_hotel_search',
     reason:
-      'System prompt: "near <location>" triggers nearby_places_search. Language-mixing must not break routing.',
+      'System prompt: hotel and accommodation requests go to trivago_hotel_search even with "near <location>"; nearby_places_search returns places without prices or a trivago link. Language-mixing must not break routing.',
     now: FIXED_NOW,
   },
   {
@@ -84,6 +84,16 @@ export const edgeCases: EvalFixture[] = [
     expectedTool: 'web_search',
     reason:
       'System prompt (WEBSITE_ERROR_ROUTING + KB-skip Exception 3): quoted/described error messages of an airline/program website must route DIRECTLY to web_search with program + error text — recent policy changes (e.g. the KrisFlyer award-search block, community case Jonas) are documented on miles blogs first. Must NOT route to knowledge_base or answer without searching.',
+    now: FIXED_NOW,
+  },
+  {
+    id: 'edge-009-restaurants-near',
+    source: 'edge',
+    description: 'German restaurants-near query → nearby_places_search, not trivago_hotel_search',
+    userQuery: 'Restaurants nahe Phuket Old Town',
+    expectedTool: 'nearby_places_search',
+    reason:
+      'Counterpart to edge-007: only hotels leave nearby_places_search. Restaurants, sights, and shops near a place stay there.',
     now: FIXED_NOW,
   },
 ];

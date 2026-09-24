@@ -43,15 +43,16 @@ Why the flags matter:
 
 ## Fixtures
 
-12 total in `fixtures/`:
+14 total in `fixtures/`:
 
-- **`edge-cases.ts`** — 7 hand-curated cases covering known routing decisions:
+- **`edge-cases.ts`** — 9 hand-curated cases covering known routing decisions:
   - past-date flight queries
   - KB-First mandate for general informational queries
   - DACH-German award/miles routing
   - provider-specific vs aggregate loyalty queries
   - direct weather lookup
-  - language-mixed (English + German location)
+  - hotels near a place (trivago_hotel_search) vs. restaurants near a place (nearby_places_search)
+  - airline-website error messages
 - **`real-chats.ts`** — 5 anonymized real chats from Neon production, regenerated via `pnpm eval:extract-real`
 
 Each fixture has the shape:
@@ -179,7 +180,7 @@ lib/chat/__evals__/
 └── fixtures/
     ├── types.ts               EvalFixture type
     ├── real-chats.ts          5 real cases (populated by pascal via Task 10)
-    ├── edge-cases.ts          7 hand-curated cases
+    ├── edge-cases.ts          9 hand-curated cases
     └── pii-scan.test.ts       Guards against PII leakage in real-chats.ts
 ```
 
