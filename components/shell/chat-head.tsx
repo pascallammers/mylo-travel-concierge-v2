@@ -7,7 +7,7 @@ import type { Navbar } from '@/components/navbar';
 import { SettingsDialog } from '@/components/settings-dialog';
 import { ChatShareAction } from '@/components/share';
 import { Button } from '@/components/ui/button';
-import { SidebarTrigger, useSidebarOptional } from '@/components/ui/sidebar';
+import { useSidebarOptional } from '@/components/ui/sidebar';
 import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 
@@ -35,7 +35,6 @@ export function ChatHead({
             : 'bg-background',
       )}>
         <div className="pointer-events-auto flex items-center gap-1 sm:gap-2">
-          {sidebar?.isMobile && <SidebarTrigger />}
           <Button asChild variant="ghost" size="sm">
             <Link href="/chat"><ArrowLeft aria-hidden="true" />{t('allChats')}</Link>
           </Button>

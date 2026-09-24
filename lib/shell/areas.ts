@@ -3,6 +3,7 @@ import { BedDouble, Bell, CreditCard, MessageSquare, Plane, Tag, type LucideIcon
 export type AreaSlug = 'flights' | 'deals' | 'hotels' | 'alerts' | 'cards' | 'chat';
 export type AreaState = 'live' | 'beta' | 'preview';
 export type AreaGroup = 'categories' | 'assistant';
+export type MobileSlot = 'bar' | 'more';
 
 export interface ShellArea {
   slug: AreaSlug;
@@ -10,6 +11,7 @@ export interface ShellArea {
   icon: LucideIcon;
   state: AreaState;
   group: AreaGroup;
+  mobile: MobileSlot;
   href: `/${string}`;
   activePrefixes: readonly `/${string}`[];
   counter?: string;
@@ -18,6 +20,7 @@ export interface ShellArea {
 export const SHELL_AREAS: readonly ShellArea[] = [
   {
     slug: 'flights',
+    mobile: 'bar',
     titleKey: 'shell.areas.flights',
     icon: Plane,
     state: 'live',
@@ -27,6 +30,7 @@ export const SHELL_AREAS: readonly ShellArea[] = [
   },
   {
     slug: 'deals',
+    mobile: 'bar',
     titleKey: 'shell.areas.deals',
     icon: Tag,
     state: 'live',
@@ -36,6 +40,7 @@ export const SHELL_AREAS: readonly ShellArea[] = [
   },
   {
     slug: 'hotels',
+    mobile: 'more',
     titleKey: 'shell.areas.hotels',
     icon: BedDouble,
     state: 'beta',
@@ -45,6 +50,7 @@ export const SHELL_AREAS: readonly ShellArea[] = [
   },
   {
     slug: 'alerts',
+    mobile: 'more',
     titleKey: 'shell.areas.alerts',
     icon: Bell,
     state: 'preview',
@@ -55,6 +61,7 @@ export const SHELL_AREAS: readonly ShellArea[] = [
   },
   {
     slug: 'cards',
+    mobile: 'more',
     titleKey: 'shell.areas.cards',
     icon: CreditCard,
     state: 'preview',
@@ -64,6 +71,7 @@ export const SHELL_AREAS: readonly ShellArea[] = [
   },
   {
     slug: 'chat',
+    mobile: 'bar',
     titleKey: 'shell.areas.chat',
     icon: MessageSquare,
     state: 'live',
@@ -88,4 +96,31 @@ export function findActiveArea(pathname: string): ShellArea | null {
         area.activePrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)),
     ) ?? null
   );
+}
+
+/**
+ * Read the primary mobile destinations in registry order.
+ * @param - No arguments; the shell registry is the source of truth.
+ * @returns The areas displayed in the bottom bar.
+ */
+export function mobileBarAreas(): readonly ShellArea[] {
+  return SHELL_AREAS.filter((area) => area.mobile === 'bar');
+}
+
+/**
+ * Read the remaining mobile destinations in registry order.
+ * @param - No arguments; the shell registry is the source of truth.
+ * @returns The areas displayed in the More sheet.
+ */
+export function mobileMoreAreas(): readonly ShellArea[] {
+  return SHELL_AREAS.filter((area) => area.mobile === 'more');
+}
+
+/**
+ * Identify conversations whose own header and input replace mobile shell chrome.
+ * @param pathname - Current pathname without a locale prefix.
+ * @returns Whether the chat area is active outside the exact chat-list route.
+ */
+export function isConversationPath(pathname: string): boolean {
+  return findActiveArea(pathname)?.slug === 'chat' && pathname !== '/chat';
 }
