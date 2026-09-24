@@ -238,6 +238,8 @@ describe('trivagoHotelSearchTool', () => {
       (error: unknown) =>
         error instanceof McpToolFailure &&
         /## Trivago search unavailable/.test(error.message) &&
+        /Do not replace the hotel search with nearby_places_search/.test(error.message) &&
+        !/fall back/.test(error.message) &&
         /Internal Trivago failure/.test(error.reason),
     );
   });
