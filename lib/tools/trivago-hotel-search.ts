@@ -30,7 +30,7 @@ const TRIVAGO_MARKET = { country: 'DE', currency: 'EUR', language: 'DE_DE' } as 
 const MAX_ACCOMMODATIONS = 10;
 const TRIVAGO_HOSTNAME = /^([a-z0-9-]+\.)*trivago\.[a-z]{2,}(\.[a-z]{2})?$/;
 const TRIVAGO_IMAGE_HOSTNAME = 'imgcy.trivago.com';
-const NO_ACCOMMODATIONS_FOUND = /^no accommodations found$/i;
+const NO_ACCOMMODATIONS_FOUND = /^no accommodations found\b/i;
 const MARKDOWN_SYNTAX = /[\\[\]()<>*_!#`]/g;
 const GROUPED_COUNT = /^\d{1,3}(,\d{3})+$/;
 
