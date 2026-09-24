@@ -61,14 +61,6 @@ export const PostMessageUpgradeDialog = React.memo(({ open, onOpenChange }: Post
           <div className="flex items-center gap-4">
             <CheckIcon className="size-4 text-primary flex-shrink-0" />
             <div className="space-y-1">
-              <p className="text-sm font-medium text-foreground">MYLO Lookout</p>
-              <p className="text-xs text-muted-foreground">Automated search monitoring on your schedule</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <CheckIcon className="size-4 text-primary flex-shrink-0" />
-            <div className="space-y-1">
               <p className="text-sm font-medium text-foreground">Unlimited Searches</p>
               <p className="text-xs text-muted-foreground">No daily limits on your research</p>
             </div>

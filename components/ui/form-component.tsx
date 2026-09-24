@@ -1052,14 +1052,6 @@ const ModelSwitcher: React.FC<ModelSwitcherProps> = React.memo(
                 </div>
               </div>
 
-              <div className="flex items-center gap-4">
-                <CheckIcon className="size-4 text-primary flex-shrink-0" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-foreground">MYLO Lookout</p>
-                  <p className="text-xs text-muted-foreground">Automated search monitoring on your schedule</p>
-                </div>
-              </div>
-
               <div className="flex gap-2 w-full items-center mt-4">
                 <div className="flex-1 border-b border-foreground/10" />
                 <p className="text-xs text-foreground/50">Cancel anytime • Secure payment</p>
@@ -3290,14 +3282,6 @@ const FormComponent: React.FC<FormComponentProps> = ({
                   <p className="text-xs text-muted-foreground">
                     Access to all AI models including Grok 4, Claude and GPT-5
                   </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <CheckIcon className="size-4 text-primary flex-shrink-0" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-foreground">MYLO Lookout</p>
-                  <p className="text-xs text-muted-foreground">Automated search monitoring on your schedule</p>
                 </div>
               </div>
 

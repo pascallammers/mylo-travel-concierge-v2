@@ -63,14 +63,14 @@ export function getSearchGroups(searchProvider: SearchProvider = 'parallel') {
       name: 'X',
       description: 'Search X posts',
       icon: NewTwitterIcon,
-      show: true,
+      show: false,
     },
     {
       id: 'stocks' as const,
       name: 'Stocks',
       description: 'Stock and currency information',
       icon: AppleStocksIcon,
-      show: true,
+      show: false,
     },
     {
       id: 'connectors' as const,
@@ -86,7 +86,7 @@ export function getSearchGroups(searchProvider: SearchProvider = 'parallel') {
       name: 'Academic',
       description: 'Search academic papers powered by Exa',
       icon: MicroscopeIcon,
-      show: true,
+      show: false,
     },
     {
       id: 'chat' as const,
@@ -115,21 +115,21 @@ export function getSearchGroups(searchProvider: SearchProvider = 'parallel') {
       name: 'Reddit',
       description: 'Search Reddit posts',
       icon: RedditIcon,
-      show: true,
+      show: false,
     },
     {
       id: 'crypto' as const,
       name: 'Crypto',
       description: 'Cryptocurrency research powered by CoinGecko',
       icon: Bitcoin02Icon,
-      show: true,
+      show: false,
     },
     {
       id: 'youtube' as const,
       name: 'YouTube',
       description: 'Search YouTube videos powered by Exa',
       icon: YoutubeIcon,
-      show: true,
+      show: false,
     },
   ] as const;
 }
