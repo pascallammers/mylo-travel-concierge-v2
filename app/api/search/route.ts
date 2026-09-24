@@ -1,12 +1,10 @@
-// /app/api/chat/route.ts
+import { generateChatTitle } from '@/lib/chat-title';
 import {
-  generateTitleFromUserMessage,
-  getGroupConfig,
-  getUserMessageCount,
-  getExtremeSearchUsageCount,
-  getCurrentUser,
-  getCustomInstructions,
-} from '@/app/actions';
+  getUserMessageCountForUser,
+  getExtremeSearchUsageCountForUser,
+  getCustomInstructionsForUser,
+} from '@/lib/user-records';
+import { getGroupConfig, getCurrentUser } from '@/app/actions';
 import {
   convertToModelMessages,
   streamText,
@@ -114,7 +112,7 @@ const dbOperationTimings: { operation: string; time: number }[] = [];
 const customInstructionsCache = new Map<
   string,
   {
-    instructions: any;
+    instructions: CustomInstructions | null;
     timestamp: number;
     ttl: number;
   }
@@ -122,7 +120,7 @@ const customInstructionsCache = new Map<
 
 const CUSTOM_INSTRUCTIONS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-async function getCachedCustomInstructions(user: any) {
+async function getCachedCustomInstructions(user: { id: string }) {
   const cacheKey = user.id;
   const cached = customInstructionsCache.get(cacheKey);
 
@@ -133,7 +131,7 @@ async function getCachedCustomInstructions(user: any) {
 
   console.log('🔍 [DB] Fetching fresh custom instructions...');
   const customInstructionsDbStartTime = Date.now();
-  const instructions = await getCustomInstructions(user);
+  const instructions = await getCustomInstructionsForUser(user.id);
   const customInstructionsTime = (Date.now() - customInstructionsDbStartTime) / 1000;
   dbOperationTimings.push({ operation: 'getCustomInstructions', time: customInstructionsTime });
   console.log(`⏱️  [DB] getCustomInstructions() took: ${customInstructionsTime.toFixed(2)}s`);
@@ -167,10 +165,19 @@ export function getStreamContext() {
   return globalStreamContext;
 }
 
+/**
+ * Run a search only for an authenticated session and chats owned by that user.
+ * @param req - The incoming chat request.
+ * @returns The response stream, or an authorization/error response.
+ */
 export async function POST(req: Request) {
-  console.log('🔍 Search API endpoint hit');
-
   const requestStartTime = Date.now();
+  const userCheckTime = Date.now();
+  console.log('🔍 [DB] Starting getCurrentUser()...');
+  const user = await getCurrentUser();
+  if (!user) return new ChatSDKError('unauthorized:chat').toResponse();
+
+  console.log('🔍 Search API endpoint hit');
   const {
     messages,
     model, // Ignored - using the fixed xAI default model
@@ -196,9 +203,6 @@ export async function POST(req: Request) {
   console.log('Group: ', group);
   console.log('Timezone: ', timezone);
 
-  const userCheckTime = Date.now();
-  console.log('🔍 [DB] Starting getCurrentUser()...');
-  const user = await getCurrentUser();
   const streamId = 'stream-' + uuidv4();
   const recoveryLocale = resolveRecoveryLocale(req.headers.get('referer'));
   const forceSynthesisFailure = shouldForceSynthesisFailure(
@@ -210,17 +214,12 @@ export async function POST(req: Request) {
   dbOperationTimings.push({ operation: 'getCurrentUser', time: userCheckTime2 });
   console.log(`⏱️  [DB] getCurrentUser() took: ${userCheckTime2.toFixed(2)}s`);
 
-  if (!user) {
-    console.log('User not found');
-  }
   let customInstructions: CustomInstructions | null = null;
   let recoveryOutputWritten = false;
 
   console.log('--------------------------------');
   console.log('Custom Instructions Enabled:', isCustomInstructionsEnabled);
   console.log('--------------------------------');
-
-  // No authentication is required for the default xAI chat flow.
 
   // For authenticated users, do critical checks in parallel
   let criticalChecksPromise: Promise<{
@@ -281,7 +280,7 @@ export async function POST(req: Request) {
         // Generate title in background and update the chat
         after(async () => {
           try {
-            const title = await generateTitleFromUserMessage({
+            const title = await generateChatTitle({
               message: messages[messages.length - 1],
             });
             console.log('--------------------------------');
@@ -325,8 +324,8 @@ export async function POST(req: Request) {
       try {
         console.log('🔍 [DB] Starting getUserMessageCount() and getExtremeSearchUsageCount()...');
         const [messageCountResult, extremeSearchUsage] = await Promise.all([
-          getUserMessageCount(user),
-          getExtremeSearchUsageCount(user),
+          getUserMessageCountForUser(user.id),
+          getExtremeSearchUsageCountForUser(user.id),
         ]);
         const criticalChecksTime = (Date.now() - criticalChecksStartTime) / 1000;
         dbOperationTimings.push({

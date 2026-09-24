@@ -1,3 +1,4 @@
+import { getUser } from '@/lib/auth-utils';
 import { z } from 'zod';
 import { queryKnowledgeBase, type KnowledgeBaseQueryResult } from '@/lib/tools/knowledge-base-query';
 import { KB_CONFIG } from '@/lib/config/knowledge-base';
@@ -102,6 +103,8 @@ function formatQueryResponse(
  * @returns JSON response with query results
  */
 export async function POST(request: Request): Promise<Response> {
+  if (!(await getUser())) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
   try {
     const body = await request.json();
 

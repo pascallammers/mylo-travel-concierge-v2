@@ -16,7 +16,8 @@ import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 
 // Internal app imports
-import { suggestQuestions, updateChatVisibility } from '@/app/actions';
+import { suggestQuestions } from '@/app/actions';
+import { updateChatVisibility } from '@/app/chat-actions';
 
 // Component imports
 import { ChatDialogs } from '@/components/chat-dialogs';

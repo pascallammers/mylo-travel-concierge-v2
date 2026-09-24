@@ -1,7 +1,15 @@
+import { getUser } from '@/lib/auth-utils';
 import { NextRequest, NextResponse } from 'next/server';
 import { buildXaiRealtimeSessionConfig, createXaiRealtimeClientSecret } from '@/lib/xai/voice';
 
+/**
+ * Handle an authenticated request before invoking paid voice services.
+ * @param request - The incoming voice request.
+ * @returns Voice output, or 401 when no session is present.
+ */
 export async function POST(request: NextRequest) {
+  if (!(await getUser())) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
   try {
     const body = (await request.json().catch(() => ({}))) as {
       instructions?: string;

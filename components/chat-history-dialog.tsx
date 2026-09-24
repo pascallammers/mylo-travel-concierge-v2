@@ -22,7 +22,7 @@ import {
   isThisMonth,
   subWeeks,
 } from 'date-fns';
-import { deleteChat, getUserChats, loadMoreChats, updateChatTitle } from '@/app/actions';
+import { deleteChat, getUserChats, loadMoreChats, updateChatTitle } from '@/app/chat-actions';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 import { User } from '@/lib/db/schema';
@@ -256,10 +256,10 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
 
       if (pageParam) {
         // Load more chats using the last chat ID as cursor
-        return await loadMoreChats(user.id, pageParam, 20);
+        return await loadMoreChats(pageParam, 20);
       } else {
         // Initial load
-        return await getUserChats(user.id, 20);
+        return await getUserChats(20);
       }
     },
     getNextPageParam: (lastPage) => {
@@ -270,7 +270,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
     refetchOnWindowFocus: true,
     refetchOnMount: true,
     staleTime: 30000, // 30 seconds
-    initialPageParam: undefined,
+    initialPageParam: undefined as string | undefined,
     // Initialize with empty array when user is null
     initialData: user ? undefined : { pages: [{ chats: [], hasMore: false }], pageParams: [undefined] },
     // Don't keep data in cache when logged out
@@ -278,7 +278,7 @@ export function ChatHistoryDialog({ open, onOpenChange, user }: ChatHistoryDialo
   });
 
   // Flatten all chats from all pages
-  const allChats = data?.pages.flatMap((page) => page.chats) || [];
+  const allChats: Chat[] = data?.pages.flatMap((page) => page.chats) || [];
 
   // Clear delete confirmation state when dialog closes
   useEffect(() => {

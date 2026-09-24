@@ -2,7 +2,7 @@
 
 import { getUser } from '@/lib/auth-utils';
 import { serverEnv } from '@/env/server';
-import { Supermemory } from 'supermemory';
+import { NotFoundError, Supermemory } from 'supermemory';
 
 // Initialize the memory client with API key
 const supermemoryClient = new Supermemory({
@@ -98,22 +98,20 @@ export async function getAllMemories(page = 1, pageSize = 20): Promise<MemoryRes
 }
 
 /**
- * Delete a memory by ID
+ * Delete a memory only when its server-provided container tags include the session user.
+ * @param memoryId - The memory to delete.
+ * @returns The deletion result; all inaccessible memories produce the same failure.
  */
 export async function deleteMemory(memoryId: string) {
   const user = await getUser();
+  if (!user) throw new Error('Authentication required');
 
-  if (!user) {
-    throw new Error('Authentication required');
-  }
-
-  try {
-    const data = await supermemoryClient.memories.delete(memoryId);
-    return data;
-  } catch (error) {
-    console.error('Error deleting memory:', error);
+  const memory = await supermemoryClient.memories.get(memoryId).catch((error: unknown) => {
+    if (error instanceof NotFoundError) return null;
     throw error;
-  }
+  });
+  if (!memory?.containerTags?.includes(user.id)) throw new Error('Unauthorized');
+  return supermemoryClient.memories.delete(memoryId);
 }
 
 /**
