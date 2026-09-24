@@ -61,3 +61,14 @@ function buildRouteQuery(params: Record<string, string | undefined>): string {
 function isPointsCurrency(currency: string): boolean {
   return currency === 'PTS' || currency === 'MIL';
 }
+
+/**
+ * Build the /new handoff consumed by buildNewChatRedirectUrl.
+ * @param locale - Active route locale.
+ * @param prefill - Current search or other user-facing context.
+ * @returns Encoded new-chat URL, or a blank new chat without context.
+ */
+export function buildNewChatHref(locale: string, prefill: string | null): string {
+  const text = prefill?.trim();
+  return `/${locale}/new${text ? `?${new URLSearchParams({ prefill: text })}` : ''}`;
+}

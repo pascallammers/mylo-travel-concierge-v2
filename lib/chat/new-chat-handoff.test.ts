@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
-import { buildDealPrefillMessage, buildNewChatRedirectUrl } from './new-chat-handoff';
+import { buildDealPrefillMessage, buildNewChatRedirectUrl, buildNewChatHref } from './new-chat-handoff';
 
 describe('buildNewChatRedirectUrl', () => {
   it('prefers explicit query parameters', () => {
@@ -67,5 +67,18 @@ describe('buildDealPrefillMessage', () => {
 
     assert.doesNotMatch(result, /statt/i);
     assert.match(result, /48000 Punkte/i);
+  });
+});
+
+
+describe('buildNewChatHref', () => {
+  it('encodes the search for the existing new-chat handoff', () => {
+    const message = 'FRA → BKK, Business, 2 Reisende & Rückflug';
+    const href = buildNewChatHref('de', message);
+    const url = new URL(href, 'https://mylo.test');
+    assert.equal(url.pathname, '/de/new');
+    assert.equal(url.searchParams.get('prefill'), message);
+    assert.equal(buildNewChatRedirectUrl('de', Object.fromEntries(url.searchParams)), `/de?${new URLSearchParams({ query: message })}`);
+    assert.equal(buildNewChatHref('en', null), '/en/new');
   });
 });

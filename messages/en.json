@@ -415,5 +415,87 @@
       "retry": "Reload"
     },
     "ad": "Ad"
+  },
+  "flights": {
+    "title": "Find flights with miles",
+    "subtitle": "Find award flights and compare programs, miles and surcharges.",
+    "mask": {
+      "origin": "From",
+      "destination": "To",
+      "swap": "Swap origin and destination",
+      "outbound": "Outbound",
+      "inbound": "Return",
+      "roundtrip": "Round trip",
+      "day": "Date",
+      "month": "Month",
+      "cabin": "Cabin",
+      "passengers": "Travellers",
+      "travellers": "{count, plural, one {1 traveller} other {# travellers}}",
+      "flexible": "±3 days",
+      "direct": "Direct flights first",
+      "removeProgram": "Remove {program} program filter",
+      "monthHint": "Month searches cover the whole month from today. ±3 days applies only to a selected date.",
+      "submit": "Search award flights",
+      "searching": "Searching award flights …"
+    },
+    "airport": {
+      "placeholder": "Select an airport",
+      "search": "Search city or airport code",
+      "hint": "Enter at least two characters.",
+      "empty": "No airports found.",
+      "loading": "Searching airports …",
+      "error": "Airport search is currently unavailable. Please try again."
+    },
+    "cabins": {
+      "ECONOMY": "Economy",
+      "PREMIUM_ECONOMY": "Premium Economy",
+      "BUSINESS": "Business",
+      "FIRST": "First"
+    },
+    "issues": {
+      "invalid": "Please check this value.",
+      "required": "Please complete the search fields.",
+      "same_airport": "Origin and destination must be different.",
+      "depart_in_past": "The departure date is in the past.",
+      "return_in_past": "The return date is in the past.",
+      "return_before_depart": "The return must be after departure.",
+      "month_in_past": "This month is in the past.",
+      "ambiguous_window": "Choose either a date or a month."
+    },
+    "results": {
+      "title": "Your award flights",
+      "outbound": "Outbound",
+      "inbound": "Return",
+      "direct": "Direct",
+      "stops": "{count, plural, one {1 stop} other {# stops}}",
+      "connections": "{count, plural, one {With 1 stop} other {With # stops}}",
+      "miles": "{miles} miles",
+      "perPerson": "Miles and surcharges per person and direction",
+      "priceUnknown": "Mileage price unknown",
+      "taxesUnknown": "+ surcharges unknown",
+      "seats": "{count, plural, one {1 seat available} other {# seats available}}",
+      "seatsUnknown": "Seat count unknown",
+      "notEnoughSeats": "{count, plural, one {Only 1 seat – fewer than requested} other {Only # seats – fewer than requested}}",
+      "book": "Book with program",
+      "newTab": " (opens a new tab)",
+      "noBookingLink": "Direct booking unavailable",
+      "transfer": "Transfer points: {sources}",
+      "empty": "No award flights were found for this search.",
+      "tryFlexible": "Search with ±3 days",
+      "unavailable": "Award search is currently unavailable. Please try again later.",
+      "availabilityHint": "Availability may change. Confirm the price and seats with the program before booking.",
+      "independentLegs": "Outbound and return are independent award redemptions. Choose compatible travel dates; these flights are not a combined round trip yet."
+    },
+    "escape": {
+      "title": "Still looking?",
+      "body": "Hey Mylo can help with alternatives, cash fares and planning your trip.",
+      "cta": "Ask Hey Mylo",
+      "prefill": "I am looking for award flights from {origin} to {destination}, {dates}, {cabin}, for {passengers} travellers. {preferences}. Can you help me plan the trip?"
+    },
+    "restricted": {
+      "title": "Award search with MYLO",
+      "description": "Sign in with active access to search flights with miles.",
+      "cta": "Get access"
+    }
   }
 }

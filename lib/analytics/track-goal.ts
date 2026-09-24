@@ -20,6 +20,8 @@ export interface GoalParamsByName {
   deal_expand: DealGoalParams;
   chat_start_from_deal: DealGoalParams;
   affiliate_click: DealGoalParams;
+  deal_availability_check: DealGoalParams;
+  flight_search: { origin: string; destination: string; cabin: string; trip: 'oneway' | 'roundtrip'; flexible: 'yes' | 'no' };
   model_selected: { model: string };
 }
 

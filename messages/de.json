@@ -415,5 +415,87 @@
       "retry": "Erneut laden"
     },
     "ad": "Anzeige"
+  },
+  "flights": {
+    "title": "Flüge mit Meilen finden",
+    "subtitle": "Finde Prämienflüge und vergleiche Programme, Meilen und Zuschläge.",
+    "mask": {
+      "origin": "Von",
+      "destination": "Nach",
+      "swap": "Abflug und Ziel tauschen",
+      "outbound": "Hinflug",
+      "inbound": "Rückflug",
+      "roundtrip": "Hin- und Rückflug",
+      "day": "Datum",
+      "month": "Monat",
+      "cabin": "Klasse",
+      "passengers": "Reisende",
+      "travellers": "{count, plural, one {1 Person} other {# Personen}}",
+      "flexible": "±3 Tage",
+      "direct": "Direktflüge zuerst",
+      "removeProgram": "Programmfilter {program} entfernen",
+      "monthHint": "Die Monatssuche umfasst den ganzen Monat ab heute. ±3 Tage gilt nur für ein gewähltes Datum.",
+      "submit": "Prämienflüge suchen",
+      "searching": "Prämienflüge werden gesucht …"
+    },
+    "airport": {
+      "placeholder": "Flughafen auswählen",
+      "search": "Stadt oder Flughafencode suchen",
+      "hint": "Gib mindestens zwei Zeichen ein.",
+      "empty": "Keine Flughäfen gefunden.",
+      "loading": "Flughäfen werden gesucht …",
+      "error": "Die Flughafensuche ist gerade nicht verfügbar. Bitte versuche es erneut."
+    },
+    "cabins": {
+      "ECONOMY": "Economy",
+      "PREMIUM_ECONOMY": "Premium Economy",
+      "BUSINESS": "Business",
+      "FIRST": "First"
+    },
+    "issues": {
+      "invalid": "Bitte prüfe diese Eingabe.",
+      "required": "Bitte fülle die Suchfelder aus.",
+      "same_airport": "Abflug und Ziel müssen unterschiedlich sein.",
+      "depart_in_past": "Das Hinflugdatum liegt in der Vergangenheit.",
+      "return_in_past": "Das Rückflugdatum liegt in der Vergangenheit.",
+      "return_before_depart": "Der Rückflug muss nach dem Hinflug liegen.",
+      "month_in_past": "Dieser Monat liegt in der Vergangenheit.",
+      "ambiguous_window": "Wähle entweder ein Datum oder einen Monat."
+    },
+    "results": {
+      "title": "Deine Prämienflüge",
+      "outbound": "Hinflug",
+      "inbound": "Rückflug",
+      "direct": "Direkt",
+      "stops": "{count, plural, one {1 Stopp} other {# Stopps}}",
+      "connections": "{count, plural, one {Mit 1 Zwischenstopp} other {Mit # Zwischenstopps}}",
+      "miles": "{miles} Meilen",
+      "perPerson": "Meilen und Zuschläge pro Person und Flugrichtung",
+      "priceUnknown": "Meilenpreis unbekannt",
+      "taxesUnknown": "+ Zuschläge unbekannt",
+      "seats": "{count, plural, one {1 Platz verfügbar} other {# Plätze verfügbar}}",
+      "seatsUnknown": "Sitzplatzanzahl unbekannt",
+      "notEnoughSeats": "{count, plural, one {Nur 1 Platz – weniger als angefragt} other {Nur # Plätze – weniger als angefragt}}",
+      "book": "Beim Programm buchen",
+      "newTab": " (öffnet einen neuen Tab)",
+      "noBookingLink": "Direktbuchung nicht verfügbar",
+      "transfer": "Punkte übertragen: {sources}",
+      "empty": "Für diese Suche wurden keine Prämienflüge gefunden.",
+      "tryFlexible": "Mit ±3 Tagen suchen",
+      "unavailable": "Die Prämiensuche ist gerade nicht erreichbar. Bitte versuche es später erneut.",
+      "availabilityHint": "Verfügbarkeiten können sich ändern. Prüfe Preis und Plätze beim Programm vor der Buchung.",
+      "independentLegs": "Hin- und Rückflug sind unabhängige Prämien-Einlösungen. Wähle passende Reisedaten; die angezeigten Flüge sind noch keine kombinierte Rundreise."
+    },
+    "escape": {
+      "title": "Nichts Passendes dabei?",
+      "body": "Hey Mylo hilft dir bei Alternativen, Barpreisen und deiner Reiseplanung.",
+      "cta": "Frag Hey Mylo",
+      "prefill": "Ich suche Prämienflüge von {origin} nach {destination}, {dates}, {cabin}, für {passengers} Reisende. {preferences}. Kannst du mir bei der Reiseplanung helfen?"
+    },
+    "restricted": {
+      "title": "Prämiensuche mit MYLO",
+      "description": "Melde dich mit einem aktiven Zugang an, um Flüge mit Meilen zu suchen.",
+      "cta": "Zum Zugang"
+    }
   }
 }
