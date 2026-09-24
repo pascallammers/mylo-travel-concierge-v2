@@ -9,3 +9,4 @@ export { ChatSidebarHeader } from './chat-sidebar-header';
 export { ChatSidebarSearch } from './chat-sidebar-search';
 export { ChatSidebarList } from './chat-sidebar-list';
 export { ChatSidebarItem } from './chat-sidebar-item';
+export { useChatListController } from './use-chat-list-controller';

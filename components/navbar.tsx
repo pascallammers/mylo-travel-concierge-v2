@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 import React, { memo, useMemo } from 'react';
-import { PlusIcon, GlobeHemisphereWestIcon } from '@phosphor-icons/react';
+import { PlusIcon } from '@phosphor-icons/react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 
@@ -12,7 +12,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { LoyaltyHeaderWidget, LoyaltyHeaderBanner } from '@/components/awardwallet';
 import { SidebarTrigger, useSidebarOptional } from '@/components/ui/sidebar';
 
-import { ShareButton } from '@/components/share';
+import { ChatShareAction } from '@/components/share';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { cn } from '@/lib/utils';
 
@@ -40,6 +40,11 @@ interface NavbarProps {
   onOpenSettingsWithTab?: (tab: string) => void;
 }
 
+/**
+ * Render the legacy chat navigation with its existing account and loyalty controls.
+ * @param props - Chat ownership, visibility, account data and settings state.
+ * @returns The unchanged global navbar used outside the platform shell.
+ */
 const Navbar = memo(
   ({
     isDialogOpen,
@@ -103,45 +108,13 @@ const Navbar = memo(
           </div>
           <div className={cn('flex items-center gap-1', isDialogOpen ? 'pointer-events-auto' : '')}>
             {/* Share functionality using unified component */}
-            {chatId && (
-              <>
-                {user && isOwner ? (
-                  /* Authenticated chat owners get share functionality */
-                  <ShareButton
-                    chatId={chatId}
-                    selectedVisibilityType={selectedVisibilityType}
-                    onVisibilityChange={async (visibility) => {
-                      await Promise.resolve(onVisibilityChange(visibility));
-                    }}
-                    isOwner={isOwner}
-                    user={user}
-                    variant="navbar"
-                    className="mr-1"
-                    disabled={false}
-                  />
-                ) : (
-                  /* Non-owners (authenticated or not) just see indicator */
-                  selectedVisibilityType === 'public' && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          className="pointer-events-auto bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 opacity-80 cursor-not-allowed"
-                          disabled
-                        >
-                          <GlobeHemisphereWestIcon size={16} className="text-blue-600 dark:text-blue-400" />
-                          <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Shared</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" sideOffset={4}>
-                        {user ? "This is someone else's shared page" : 'This is a shared page'}
-                      </TooltipContent>
-                    </Tooltip>
-                  )
-                )}
-              </>
-            )}
+            <ChatShareAction
+              chatId={chatId}
+              selectedVisibilityType={selectedVisibilityType}
+              onVisibilityChange={onVisibilityChange}
+              user={user}
+              isOwner={isOwner}
+            />
 
             {/* Subscription Status - show loading or Pro status only */}
             {user && isSearchWithId && (
