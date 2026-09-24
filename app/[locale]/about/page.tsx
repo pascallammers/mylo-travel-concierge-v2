@@ -6,7 +6,6 @@ import {
   ArrowUpRight,
   Bot,
   GraduationCap,
-  Eye,
   Zap,
   Image as ImageIcon,
   FileText,
@@ -409,7 +408,7 @@ export default function AboutPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="bg-card border border-border rounded-lg p-6">
               <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
                 <Brain className="h-6 w-6 text-primary" />
@@ -439,16 +438,6 @@ export default function AboutPage() {
                 Fully open source and transparent. Contribute to development or self-host your own instance.
               </p>
             </div>
-
-            <div className="bg-card border border-border rounded-lg p-6">
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                <Eye className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">MYLO Lookout</h3>
-              <p className="text-muted-foreground">
-                Schedule automated searches to monitor trends and get regular updates on topics that matter to you.
-              </p>
-            </div>
           </div>
 
           {/* Feature CTA */}
@@ -459,15 +448,6 @@ export default function AboutPage() {
                 <Button onClick={() => router.push('/')} size="sm" className="px-4 py-2 text-sm w-full sm:w-auto">
                   Try Now
                   <ArrowUpRight className="ml-1 h-3 w-3" />
-                </Button>
-                <Button
-                  onClick={() => router.push('/lookout')}
-                  variant="outline"
-                  size="sm"
-                  className="px-4 py-2 text-sm w-full sm:w-auto"
-                >
-                  Try Lookout
-                  <Eye className="ml-1 h-3 w-3" />
                 </Button>
               </div>
             </div>
