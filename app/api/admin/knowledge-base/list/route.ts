@@ -1,3 +1,5 @@
+import { getUser, getUserRole } from '@/lib/auth-utils';
+import { getAdminAuthError } from '@/lib/auth-guards';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import {
@@ -95,6 +97,9 @@ function transformDocument(doc: KBDocument): DocumentListItem {
  * @returns JSON response with documents and pagination metadata
  */
 export async function GET(request: NextRequest): Promise<Response> {
+  const authError = await getAdminAuthError({ getUser, getUserRole });
+  if (authError) return authError;
+
   try {
     const { searchParams } = new URL(request.url);
 

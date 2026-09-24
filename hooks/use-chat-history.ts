@@ -142,9 +142,9 @@ export function useChatHistory(options: UseChatHistoryOptions): UseChatHistoryRe
       if (!user?.id) return { chats: [], hasMore: false };
 
       if (pageParam) {
-        return await loadMoreChats(user.id, pageParam, pageSize);
+        return await loadMoreChats(pageParam, pageSize);
       } else {
-        return await getUserChats(user.id, pageSize);
+        return await getUserChats(pageSize);
       }
     },
     getNextPageParam: (lastPage) => {
@@ -155,7 +155,7 @@ export function useChatHistory(options: UseChatHistoryOptions): UseChatHistoryRe
     refetchOnWindowFocus: true,
     refetchOnMount: true,
     staleTime,
-    initialPageParam: undefined,
+    initialPageParam: undefined as string | undefined,
     initialData: user ? undefined : { pages: [{ chats: [], hasMore: false }], pageParams: [undefined] },
     gcTime: user ? 5 * 60 * 1000 : 0,
   });

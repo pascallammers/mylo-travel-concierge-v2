@@ -1,3 +1,5 @@
+import { getUser, getUserRole } from '@/lib/auth-utils';
+import { getAdminAuthError } from '@/lib/auth-guards';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { GeminiFileManager } from '@/lib/gemini-file-manager';
@@ -142,6 +144,9 @@ async function handleLegacyDelete(name: string): Promise<Response> {
  * @returns JSON response with deletion results
  */
 export async function POST(request: NextRequest): Promise<Response> {
+  const authError = await getAdminAuthError({ getUser, getUserRole });
+  if (authError) return authError;
+
   try {
     const body = await request.json();
 
@@ -258,6 +263,9 @@ export async function POST(request: NextRequest): Promise<Response> {
  * @returns JSON response with deletion result
  */
 export async function DELETE(request: NextRequest): Promise<Response> {
+  const authError = await getAdminAuthError({ getUser, getUserRole });
+  if (authError) return authError;
+
   const { searchParams } = new URL(request.url);
   const name = searchParams.get('name');
 

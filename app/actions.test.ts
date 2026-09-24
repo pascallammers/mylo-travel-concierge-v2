@@ -4,20 +4,29 @@ import { beforeEach, mock, test } from 'node:test';
 
 process.env.SKIP_ENV_VALIDATION = '1';
 const require = createRequire(import.meta.url);
+mock.module('server-only', { namedExports: {} });
 const owner = { id: 'owner', isProUser: true };
 let session: typeof owner | null = owner;
 let chat: { id: string; userId: string } | undefined;
 let messages: { id: string; chatId: string; createdAt: Date }[];
-let connections: { id: string }[] = [];
+let connections: { id: string; metadata?: { userId: string } }[] = [];
 const calls: { name: string; args: unknown[] }[] = [];
 const cache = new Map<string, number>();
 function spy(name: string, result: unknown = null) {
-  return async (...args: unknown[]) => { calls.push({ name, args }); return result; };
+  return async (...args: unknown[]) => {
+    calls.push({ name, args });
+    return result;
+  };
 }
 const queryNames = [
-  'deleteChatById', 'updateChatTitleById', 'deleteMessagesByChatIdAfterTimestamp',
-  'incrementMessageUsage', 'createCustomInstructions', 'updateCustomInstructions',
-  'deleteCustomInstructions', 'getPaymentsByUserId',
+  'deleteChatById',
+  'updateChatTitleById',
+  'deleteMessagesByChatIdAfterTimestamp',
+  'incrementMessageUsage',
+  'createCustomInstructions',
+  'updateCustomInstructions',
+  'deleteCustomInstructions',
+  'getPaymentsByUserId',
 ];
 mock.module('@/lib/auth-utils', { namedExports: { getUser: async () => session } });
 mock.module('@/lib/user-data-server', {
@@ -27,8 +36,14 @@ mock.module('@/env/server', { namedExports: { serverEnv: {} } });
 mock.module('@/lib/db/queries', {
   namedExports: {
     ...Object.fromEntries(queryNames.map((name) => [name, spy(name, { id: 'chat' })])),
-    getChatById: async () => { calls.push({ name: 'getChatById', args: [] }); return chat; },
-    getMessageById: async () => { calls.push({ name: 'getMessageById', args: [] }); return messages; },
+    getChatById: async () => {
+      calls.push({ name: 'getChatById', args: [] });
+      return chat;
+    },
+    getMessageById: async () => {
+      calls.push({ name: 'getMessageById', args: [] });
+      return messages;
+    },
     getChatsByUserId: spy('getChatsByUserId', { chats: [{ id: 'chat', userId: 'owner' }], hasMore: false }),
     updateChatVisibilityById: spy('updateChatVisibilityById', { rowCount: 1 }),
     getMessageCount: spy('getMessageCount', 7),
@@ -39,7 +54,11 @@ mock.module('@/lib/db/queries', {
 });
 mock.module('@/lib/performance-cache', {
   namedExports: {
-    usageCountCache: { get: (key: string) => cache.get(key) ?? null, set: (key: string, value: number) => cache.set(key, value), delete: (key: string) => cache.delete(key) },
+    usageCountCache: {
+      get: (key: string) => cache.get(key) ?? null,
+      set: (key: string, value: number) => cache.set(key, value),
+      delete: (key: string) => cache.delete(key),
+    },
     createMessageCountKey: (id: string) => `messages:${id}`,
     createExtremeCountKey: (id: string) => `extreme:${id}`,
   },
@@ -53,9 +72,13 @@ mock.module('@/lib/chat/mylo-system-prompt', { namedExports: { buildMyloWebSyste
 mock.module('@/lib/connectors', {
   namedExports: {
     createConnection: spy('createConnection'),
-    listUserConnections: async (id: string) => { calls.push({ name: 'listUserConnections', args: [id] }); return connections; },
+    listUserConnections: async (id: string) => {
+      calls.push({ name: 'listUserConnections', args: [id] });
+      return connections;
+    },
     deleteConnection: spy('deleteConnection', { id: 'connection' }),
-    manualSync: spy('manualSync'), getSyncStatus: spy('getSyncStatus'),
+    manualSync: spy('manualSync'),
+    getSyncStatus: spy('getSyncStatus'),
   },
 });
 // Synchronous require lets node:test register mocks before loading the action boundary.
@@ -65,15 +88,30 @@ beforeEach(() => {
   session = owner;
   chat = { id: 'chat', userId: owner.id };
   messages = [{ id: 'message', chatId: 'chat', createdAt: new Date('2026-01-01') }];
-  connections = [{ id: 'connection' }];
+  connections = [{ id: 'connection', metadata: { userId: 'owner' } }];
   calls.length = 0;
   cache.clear();
 });
 const mutations = [
   { name: 'deleteChat', call: () => actions.deleteChat('chat'), db: 'deleteChatById', throws: false },
-  { name: 'updateChatTitle', call: () => actions.updateChatTitle('chat', ' Updated '), db: 'updateChatTitleById', throws: false },
-  { name: 'updateChatVisibility', call: () => actions.updateChatVisibility('chat', 'public'), db: 'updateChatVisibilityById', throws: true },
-  { name: 'deleteTrailingMessages', call: () => actions.deleteTrailingMessages({ id: 'message' }), db: 'deleteMessagesByChatIdAfterTimestamp', throws: true },
+  {
+    name: 'updateChatTitle',
+    call: () => actions.updateChatTitle('chat', ' Updated '),
+    db: 'updateChatTitleById',
+    throws: false,
+  },
+  {
+    name: 'updateChatVisibility',
+    call: () => actions.updateChatVisibility('chat', 'public'),
+    db: 'updateChatVisibilityById',
+    throws: true,
+  },
+  {
+    name: 'deleteTrailingMessages',
+    call: () => actions.deleteTrailingMessages({ id: 'message' }),
+    db: 'deleteMessagesByChatIdAfterTimestamp',
+    throws: true,
+  },
 ];
 for (const action of mutations) {
   for (const state of ['no session', 'foreign user', 'missing chat'] as const) {
@@ -83,7 +121,10 @@ for (const action of mutations) {
       if (state === 'missing chat') chat = undefined;
       if (action.throws) await assert.rejects(action.call, /Unauthorized/);
       else assert.equal(await action.call(), null);
-      assert.equal(calls.some((call) => call.name === action.db), false);
+      assert.equal(
+        calls.some((call) => call.name === action.db),
+        false,
+      );
       if (!session) assert.equal(calls.length, 0);
     });
   }
@@ -95,7 +136,10 @@ for (const action of mutations) {
 test('deleteTrailingMessages: missing message has the same plain failure', async () => {
   messages = [];
   await assert.rejects(() => actions.deleteTrailingMessages({ id: 'missing' }), /Unauthorized/);
-  assert.equal(calls.some((call) => call.name === 'deleteMessagesByChatIdAfterTimestamp'), false);
+  assert.equal(
+    calls.some((call) => call.name === 'deleteMessagesByChatIdAfterTimestamp'),
+    false,
+  );
 });
 for (const name of ['getUserChats', 'loadMoreChats'] as const) {
   const run = () => Reflect.apply(actions[name], undefined, name === 'getUserChats' ? [20] : ['chat', 20]);
@@ -106,7 +150,10 @@ for (const name of ['getUserChats', 'loadMoreChats'] as const) {
   });
   test(`${name}: client user id cannot select a foreign account`, async () => {
     await Reflect.apply(actions[name], undefined, name === 'getUserChats' ? ['victim', 20] : ['victim', 'chat', 20]);
-    assert.equal(calls.some((call) => call.name === 'getChatsByUserId'), false);
+    assert.equal(
+      calls.some((call) => call.name === 'getChatsByUserId'),
+      false,
+    );
   });
   test(`${name}: owner works using the session identity`, async () => {
     assert.deepEqual(await run(), { chats: [{ id: 'chat', userId: 'owner' }], hasMore: false });
@@ -116,10 +163,18 @@ for (const name of ['getUserChats', 'loadMoreChats'] as const) {
 }
 test('getUserChats: a foreign pagination cursor is rejected', async () => {
   chat = { id: 'foreign-cursor', userId: 'victim' };
-  assert.deepEqual(await Reflect.apply(actions.getUserChats, undefined, [20, 'foreign-cursor']), { chats: [], hasMore: false });
-  assert.equal(calls.some((call) => call.name === 'getChatsByUserId'), false);
+  assert.deepEqual(await Reflect.apply(actions.getUserChats, undefined, [20, 'foreign-cursor']), {
+    chats: [],
+    hasMore: false,
+  });
+  assert.equal(
+    calls.some((call) => call.name === 'getChatsByUserId'),
+    false,
+  );
 });
-test('getChatInfo is no longer exported', () => { assert.equal('getChatInfo' in actions, false); });
+test('getChatInfo is no longer exported', () => {
+  assert.equal('getChatInfo' in actions, false);
+});
 
 const reads = [
   { name: 'getUserMessageCount', db: 'getMessageCount', anonymous: { count: 0, error: 'User not found' } },
@@ -136,8 +191,14 @@ for (const read of reads) {
   });
   test(`${read.name}: foreign user input never reads victim data`, async () => {
     await Reflect.apply(actions[read.name], undefined, [{ id: 'victim' }, 9]);
-    assert.equal(calls.some((call) => call.name === read.db && (call.args[0] as { userId: string }).userId !== owner.id), false);
-    assert.equal(calls.some((call) => queryNames.includes(call.name)), false);
+    assert.equal(
+      calls.some((call) => call.name === read.db && (call.args[0] as { userId: string }).userId !== owner.id),
+      false,
+    );
+    assert.equal(
+      calls.some((call) => queryNames.includes(call.name)),
+      false,
+    );
   });
   test(`${read.name}: owner works`, async () => {
     const result = await Reflect.apply(actions[read.name], undefined, read.name === 'getHistoricalUsage' ? [9] : []);
@@ -158,9 +219,22 @@ for (const name of ['getUserMessageCount', 'getExtremeSearchUsageCount'] as cons
   });
 }
 const aiActions = [
-  { name: 'suggestQuestions', call: () => actions.suggestQuestions([{ role: 'user', content: 'Travel?' }, { role: 'assistant', content: 'Tokyo.' }]) },
+  {
+    name: 'suggestQuestions',
+    call: () =>
+      actions.suggestQuestions([
+        { role: 'user', content: 'Travel?' },
+        { role: 'assistant', content: 'Tokyo.' },
+      ]),
+  },
   { name: 'checkImageModeration', call: () => actions.checkImageModeration(['https://example.com/image.png']) },
-  { name: 'generateTitleFromUserMessage', call: () => actions.generateTitleFromUserMessage({ message: { id: 'message', role: 'user', parts: [{ type: 'text', text: 'Travel' }] } }) },
+  {
+    name: 'generateTitleFromUserMessage',
+    call: () =>
+      actions.generateTitleFromUserMessage({
+        message: { id: 'message', role: 'user', parts: [{ type: 'text', text: 'Travel' }] },
+      }),
+  },
   { name: 'generateSpeech', call: () => actions.generateSpeech('Travel') },
   { name: 'getGroupConfig', call: () => actions.getGroupConfig('web') },
 ];
@@ -170,7 +244,9 @@ for (const action of aiActions) {
     await assert.rejects(action.call, /Authentication required/);
     assert.equal(calls.length, 0);
   });
-  test(`${action.name}: authenticated user works`, async () => { assert.ok(await action.call()); });
+  test(`${action.name}: authenticated user works`, async () => {
+    assert.ok(await action.call());
+  });
 }
 test('enhancePrompt: no session rejects before model calls', async () => {
   session = null;
@@ -187,6 +263,23 @@ for (const state of ['no session', 'foreign user', 'owner'] as const) {
     if (state === 'foreign user') connections = [{ id: 'other' }];
     const result = await actions.deleteConnectorAction('connection');
     assert.equal(result.success, state === 'owner');
-    assert.equal(calls.some((call) => call.name === 'deleteConnection'), state === 'owner');
+    assert.equal(
+      calls.some((call) => call.name === 'deleteConnection'),
+      state === 'owner',
+    );
   });
+}
+
+for (const metadata of [undefined, { userId: 'victim' }]) {
+  test(
+    'deleteConnectorAction: rejects a matching ID without verified owner metadata ' + JSON.stringify(metadata),
+    async () => {
+      connections = [{ id: 'connection', metadata }];
+      assert.equal((await actions.deleteConnectorAction('connection')).success, false);
+      assert.equal(
+        calls.some((call) => call.name === 'deleteConnection'),
+        false,
+      );
+    },
+  );
 }

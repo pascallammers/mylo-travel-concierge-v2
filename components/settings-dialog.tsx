@@ -327,7 +327,7 @@ function PreferencesSection({
     refetch,
   } = useQuery({
     queryKey: ['customInstructions', user?.id],
-    queryFn: () => getCustomInstructions(user),
+    queryFn: () => getCustomInstructions(),
     enabled: !!user,
   });
 
@@ -526,7 +526,7 @@ function UsageSection({ user }: any) {
     refetch: refetchHistoricalData,
   } = useQuery({
     queryKey: ['historicalUsage', user?.id, 9],
-    queryFn: () => getHistoricalUsage(user, 9),
+    queryFn: () => getHistoricalUsage(9),
     enabled: !!user,
     staleTime: 1000 * 60 * 10,
   });

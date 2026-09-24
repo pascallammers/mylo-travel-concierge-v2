@@ -1,11 +1,17 @@
 // app/actions.ts
 'use server';
 
-import { serverEnv } from '@/env/server';
 import { SearchGroupId } from '@/lib/utils';
 import { UIMessage, generateText } from 'ai';
 import type { ModelMessage } from 'ai';
 import { getUser } from '@/lib/auth-utils';
+import { generateChatTitle } from '@/lib/chat-title';
+import {
+  getUserMessageCountForUser,
+  getExtremeSearchUsageCountForUser,
+  getHistoricalUsageForUser,
+  getCustomInstructionsForUser,
+} from '@/lib/user-records';
 import { enabledModuleToolNames } from '@/lib/chat/tool-registry';
 import {
   buildSuggestedQuestionsPrompt,
@@ -15,17 +21,7 @@ import {
 import { generateXaiSpeech } from '@/lib/xai/voice';
 import { scira, languageModel } from '@/ai/providers';
 import {
-  getChatsByUserId,
-  deleteChatById,
-  updateChatVisibilityById,
-  getChatById,
-  getMessageById,
-  deleteMessagesByChatIdAfterTimestamp,
-  updateChatTitleById,
-  getExtremeSearchCount,
   incrementMessageUsage,
-  getMessageCount,
-  getHistoricalUsageData,
   getCustomInstructionsByUserId,
   createCustomInstructions,
   updateCustomInstructions,
@@ -33,7 +29,7 @@ import {
   getPaymentsByUserId,
 } from '@/lib/db/queries';
 import { groq } from '@ai-sdk/groq';
-import { usageCountCache, createMessageCountKey, createExtremeCountKey } from '@/lib/performance-cache';
+import { usageCountCache, createMessageCountKey } from '@/lib/performance-cache';
 import { getComprehensiveUserData } from '@/lib/user-data-server';
 import {
   createConnection,
@@ -45,6 +41,15 @@ import {
 } from '@/lib/connectors';
 import { buildMyloWebSystemPrompt } from '@/lib/chat/mylo-system-prompt';
 
+export {
+  getUserChats,
+  loadMoreChats,
+  deleteChat,
+  updateChatVisibility,
+  deleteTrailingMessages,
+  updateChatTitle,
+} from './chat-actions';
+
 // Server action to get the current user with Pro status - UNIFIED VERSION
 export async function getCurrentUser() {
   'use server';
@@ -52,8 +57,13 @@ export async function getCurrentUser() {
   return await getComprehensiveUserData();
 }
 
+/**
+ * Generate follow-up questions only for an authenticated user.
+ * @param history - Conversation context.
+ * @returns Suggested follow-up questions.
+ */
 export async function suggestQuestions(history: SuggestedQuestionHistoryMessage[]) {
-  'use server';
+  if (!(await getUser())) throw new Error('Authentication required');
 
   const prompt = buildSuggestedQuestionsPrompt(history);
 
@@ -85,7 +95,13 @@ Regeln:
   }
 }
 
+/**
+ * Moderate images only for an authenticated user.
+ * @param images - Image URLs to moderate.
+ * @returns The model moderation result.
+ */
 export async function checkImageModeration(images: string[]) {
+  if (!(await getUser())) throw new Error('Authentication required');
   const messages: ModelMessage[] = images.map((image) => ({
     role: 'user',
     content: [{ type: 'image', image: image }],
@@ -103,21 +119,14 @@ export async function checkImageModeration(images: string[]) {
   return text;
 }
 
-export async function generateTitleFromUserMessage({ message }: { message: UIMessage }) {
-  const { text: title } = await generateText({
-    model: scira.languageModel('scira-name'),
-    system: `You are an expert title generator. You are given a message and you need to generate a short title based on it.
-
-    - you will generate a short title based on the first message a user begins a conversation with
-    - ensure it is not more than 80 characters long
-    - the title should be a summary of the user's message
-    - the title should creative and unique
-    - do not write anything other than the title
-    - do not use quotes or colons`,
-    prompt: JSON.stringify(message),
-  });
-
-  return title;
+/**
+ * Generate a title for an authenticated caller.
+ * @param input - The initial user message.
+ * @returns The generated title.
+ */
+export async function generateTitleFromUserMessage(input: { message: UIMessage }) {
+  if (!(await getUser())) throw new Error('Authentication required');
+  return generateChatTitle(input);
 }
 
 /**
@@ -163,8 +172,14 @@ function detectLanguage(text: string): 'de' | 'en' {
   return germanMatches / words.length > 0.3 ? 'de' : 'en';
 }
 
+/**
+ * Enhance a prompt for an authenticated Pro user.
+ * @param raw - Original prompt.
+ * @returns The enhanced prompt or the existing failure result.
+ */
 export async function enhancePrompt(raw: string) {
   try {
+    if (!(await getUser())) return { success: false, error: 'Authentication required' };
     const user = await getComprehensiveUserData();
     if (!user || !user.isProUser) {
       return { success: false, error: 'Pro subscription required' };
@@ -226,7 +241,13 @@ Guidelines (MANDATORY):
   }
 }
 
+/**
+ * Generate speech only for an authenticated user.
+ * @param text - Text to synthesize.
+ * @returns Generated audio.
+ */
 export async function generateSpeech(text: string) {
+  if (!(await getUser())) throw new Error('Authentication required');
   return {
     audio: await generateXaiSpeech({ text }),
   };
@@ -971,8 +992,13 @@ const groupInstructions = {
   - Use the document content to provide comprehensive answers`,
 };
 
+/**
+ * Resolve the tool group for an authenticated user.
+ * @param groupId - Requested search group.
+ * @returns Available tools and instructions.
+ */
 export async function getGroupConfig(groupId: LegacyGroupId = 'web') {
-  'use server';
+  if (!(await getUser())) throw new Error('Authentication required');
 
   // Check if the user is authenticated for memory, buddy, or connectors group
   if (groupId === 'memory' || groupId === 'buddy' || groupId === 'connectors') {
@@ -1013,152 +1039,6 @@ export async function getGroupConfig(groupId: LegacyGroupId = 'web') {
   };
 }
 
-// Add functions to fetch user chats
-export async function getUserChats(
-  userId: string,
-  limit: number = 20,
-  startingAfter?: string,
-  endingBefore?: string,
-): Promise<{ chats: any[]; hasMore: boolean }> {
-  'use server';
-
-  if (!userId) return { chats: [], hasMore: false };
-
-  try {
-    return await getChatsByUserId({
-      id: userId,
-      limit,
-      startingAfter: startingAfter || null,
-      endingBefore: endingBefore || null,
-    });
-  } catch (error) {
-    console.error('Error fetching user chats:', error);
-    return { chats: [], hasMore: false };
-  }
-}
-
-// Add function to load more chats for infinite scroll
-export async function loadMoreChats(
-  userId: string,
-  lastChatId: string,
-  limit: number = 20,
-): Promise<{ chats: any[]; hasMore: boolean }> {
-  'use server';
-
-  if (!userId || !lastChatId) return { chats: [], hasMore: false };
-
-  try {
-    return await getChatsByUserId({
-      id: userId,
-      limit,
-      startingAfter: null,
-      endingBefore: lastChatId,
-    });
-  } catch (error) {
-    console.error('Error loading more chats:', error);
-    return { chats: [], hasMore: false };
-  }
-}
-
-// Add function to delete a chat
-export async function deleteChat(chatId: string) {
-  'use server';
-
-  if (!chatId) return null;
-
-  try {
-    return await deleteChatById({ id: chatId });
-  } catch (error) {
-    console.error('Error deleting chat:', error);
-    return null;
-  }
-}
-
-// Add function to update chat visibility
-export async function updateChatVisibility(chatId: string, visibility: 'private' | 'public') {
-  'use server';
-
-  console.log('🔄 updateChatVisibility called with:', { chatId, visibility });
-
-  if (!chatId) {
-    console.error('❌ updateChatVisibility: No chatId provided');
-    throw new Error('Chat ID is required');
-  }
-
-  try {
-    console.log('📡 Calling updateChatVisibilityById with:', { chatId, visibility });
-    const result = await updateChatVisibilityById({ chatId, visibility });
-    console.log('✅ updateChatVisibilityById successful, result:', result);
-
-    // Return a serializable plain object instead of raw database result
-    return {
-      success: true,
-      chatId,
-      visibility,
-      rowCount: result?.rowCount || 0,
-    };
-  } catch (error) {
-    console.error('❌ Error in updateChatVisibility:', {
-      chatId,
-      visibility,
-      error: error instanceof Error ? error.message : error,
-      stack: error instanceof Error ? error.stack : undefined,
-    });
-    throw error;
-  }
-}
-
-// Add function to get chat info
-export async function getChatInfo(chatId: string) {
-  'use server';
-
-  if (!chatId) return null;
-
-  try {
-    return await getChatById({ id: chatId });
-  } catch (error) {
-    console.error('Error getting chat info:', error);
-    return null;
-  }
-}
-
-export async function deleteTrailingMessages({ id }: { id: string }) {
-  'use server';
-  try {
-    const [message] = await getMessageById({ id });
-    console.log('Message: ', message);
-
-    if (!message) {
-      console.error(`No message found with id: ${id}`);
-      return;
-    }
-
-    await deleteMessagesByChatIdAfterTimestamp({
-      chatId: message.chatId,
-      timestamp: message.createdAt,
-    });
-
-    console.log(`Successfully deleted trailing messages after message ID: ${id}`);
-  } catch (error) {
-    console.error(`Error deleting trailing messages: ${error}`);
-    throw error; // Re-throw to allow caller to handle
-  }
-}
-
-// Add function to update chat title
-export async function updateChatTitle(chatId: string, title: string) {
-  'use server';
-
-  if (!chatId || !title.trim()) return null;
-
-  try {
-    return await updateChatTitleById({ chatId, title: title.trim() });
-  } catch (error) {
-    console.error('Error updating chat title:', error);
-    return null;
-  }
-}
-
 export async function getSubDetails() {
   'use server';
 
@@ -1176,34 +1056,15 @@ export async function getSubDetails() {
     : { hasSubscription: false };
 }
 
-export async function getUserMessageCount(providedUser?: any) {
-  'use server';
-
-  try {
-    const user = providedUser || (await getUser());
-    if (!user) {
-      return { count: 0, error: 'User not found' };
-    }
-
-    // Check cache first
-    const cacheKey = createMessageCountKey(user.id);
-    const cached = usageCountCache.get(cacheKey);
-    if (cached !== null) {
-      return { count: cached, error: null };
-    }
-
-    const count = await getMessageCount({
-      userId: user.id,
-    });
-
-    // Cache the result
-    usageCountCache.set(cacheKey, count);
-
-    return { count, error: null };
-  } catch (error) {
-    console.error('Error getting user message count:', error);
-    return { count: 0, error: 'Failed to get message count' };
-  }
+/**
+ * Read only the authenticated user's records.
+ * @param - No client identity is accepted.
+ * @returns Records for the session user, or the existing anonymous fallback.
+ */
+export async function getUserMessageCount() {
+  const user = await getUser();
+  if (!user) return { count: 0, error: 'User not found' };
+  return getUserMessageCountForUser(user.id);
 }
 
 export async function incrementUserMessageCount() {
@@ -1230,113 +1091,39 @@ export async function incrementUserMessageCount() {
   }
 }
 
-export async function getExtremeSearchUsageCount(providedUser?: any) {
-  'use server';
-
-  try {
-    const user = providedUser || (await getUser());
-    if (!user) {
-      return { count: 0, error: 'User not found' };
-    }
-
-    // Check cache first
-    const cacheKey = createExtremeCountKey(user.id);
-    const cached = usageCountCache.get(cacheKey);
-    if (cached !== null) {
-      return { count: cached, error: null };
-    }
-
-    const count = await getExtremeSearchCount({
-      userId: user.id,
-    });
-
-    // Cache the result
-    usageCountCache.set(cacheKey, count);
-
-    return { count, error: null };
-  } catch (error) {
-    console.error('Error getting extreme search usage count:', error);
-    return { count: 0, error: 'Failed to get extreme search count' };
-  }
+/**
+ * Read only the authenticated user's records.
+ * @param - No client identity is accepted.
+ * @returns Records for the session user, or the existing anonymous fallback.
+ */
+export async function getExtremeSearchUsageCount() {
+  const user = await getUser();
+  if (!user) return { count: 0, error: 'User not found' };
+  return getExtremeSearchUsageCountForUser(user.id);
 }
 
-export async function getHistoricalUsage(providedUser?: any, months: number = 9) {
-  'use server';
-
-  try {
-    const user = providedUser || (await getUser());
-    if (!user) {
-      return [];
-    }
-
-    const historicalData = await getHistoricalUsageData({ userId: user.id, months });
-
-    // Calculate days based on months (approximately 30 days per month)
-    const totalDays = months * 30;
-    const futureDays = Math.min(15, Math.floor(totalDays * 0.08)); // ~8% future days, max 15
-    const pastDays = totalDays - futureDays - 1; // -1 for today
-
-    const today = new Date();
-    const endDate = new Date(today);
-    endDate.setDate(endDate.getDate() + futureDays);
-
-    const startDate = new Date(today);
-    startDate.setDate(startDate.getDate() - pastDays);
-
-    // Create a map of existing data for quick lookup
-    const dataMap = new Map<string, number>();
-    historicalData.forEach((record) => {
-      const dateKey = record.date.toISOString().split('T')[0];
-      dataMap.set(dateKey, record.messageCount || 0);
-    });
-
-    // Generate complete dataset for all days
-    const completeData = [];
-    for (let i = 0; i < totalDays; i++) {
-      const currentDate = new Date(startDate);
-      currentDate.setDate(startDate.getDate() + i);
-      const dateKey = currentDate.toISOString().split('T')[0];
-
-      const count = dataMap.get(dateKey) || 0;
-      let level: 0 | 1 | 2 | 3 | 4;
-
-      // Define usage levels based on message count
-      if (count === 0) level = 0;
-      else if (count <= 3) level = 1;
-      else if (count <= 7) level = 2;
-      else if (count <= 12) level = 3;
-      else level = 4;
-
-      completeData.push({
-        date: dateKey,
-        count,
-        level,
-      });
-    }
-
-    return completeData;
-  } catch (error) {
-    console.error('Error getting historical usage:', error);
-    return [];
-  }
+/**
+ * Read only the authenticated user's records.
+ * @param months - Number of months, from 1 to 12.
+ * @returns Records for the session user, or the existing anonymous fallback.
+ */
+export async function getHistoricalUsage(months: number = 9) {
+  const user = await getUser();
+  if (!user) return [];
+  if (!Number.isInteger(months) || months < 1 || months > 12) return [];
+  return getHistoricalUsageForUser(user.id, months);
 }
 
 // Custom Instructions Server Actions
-export async function getCustomInstructions(providedUser?: any) {
-  'use server';
-
-  try {
-    const user = providedUser || (await getUser());
-    if (!user) {
-      return null;
-    }
-
-    const instructions = await getCustomInstructionsByUserId({ userId: user.id });
-    return instructions;
-  } catch (error) {
-    console.error('Error getting custom instructions:', error);
-    return null;
-  }
+/**
+ * Read only the authenticated user's records.
+ * @param - No client identity is accepted.
+ * @returns Records for the session user, or the existing anonymous fallback.
+ */
+export async function getCustomInstructions() {
+  const user = await getUser();
+  if (!user) return null;
+  return getCustomInstructionsForUser(user.id);
 }
 
 export async function saveCustomInstructions(content: string) {
@@ -1443,6 +1230,11 @@ export async function listUserConnectorsAction() {
   }
 }
 
+/**
+ * Delete only a connection with server-recorded ownership matching the session.
+ * @param connectionId - Target connection identifier.
+ * @returns The deletion status without exposing foreign connection details.
+ */
 export async function deleteConnectorAction(connectionId: string) {
   'use server';
 
@@ -1452,6 +1244,10 @@ export async function deleteConnectorAction(connectionId: string) {
       return { success: false, error: 'Authentication required' };
     }
 
+    const connections = await listUserConnections(user.id);
+    if (!connections.some((connection) => connection.id === connectionId && connection.metadata?.userId === user.id)) {
+      return { success: false, error: 'Failed to delete connector' };
+    }
     const result = await deleteConnection(connectionId);
     if (result) {
       return { success: true };

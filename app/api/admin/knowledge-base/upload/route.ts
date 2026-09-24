@@ -1,3 +1,5 @@
+import { getUser, getUserRole } from '@/lib/auth-utils';
+import { getAdminAuthError } from '@/lib/auth-guards';
 import { NextRequest } from 'next/server';
 import { writeFile, unlink } from 'fs/promises';
 import { join } from 'path';
@@ -165,6 +167,9 @@ async function processFileUpload(file: File): Promise<FileUploadResult> {
  * @returns JSON response with per-file upload results
  */
 export async function POST(request: NextRequest): Promise<Response> {
+  const authError = await getAdminAuthError({ getUser, getUserRole });
+  if (authError) return authError;
+
   try {
     const formData = await request.formData();
     const files: File[] = [];

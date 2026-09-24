@@ -9,16 +9,32 @@ let session: { id: string } | null = { id: 'user' };
 const calls: string[] = [];
 mock.module('@/lib/auth-utils', { namedExports: { getUser: async () => session } });
 mock.module('next/server', { namedExports: { NextResponse, after: () => undefined } });
-mock.module('@/lib/xai/voice', { namedExports: {
-  createXaiRealtimeClientSecret: async () => { calls.push('voice'); return { value: 'secret' }; },
-  buildXaiRealtimeSessionConfig: () => ({ model: 'voice' }),
-  transcribeAudioWithFallback: async () => { calls.push('transcribe'); return 'transcript'; },
-} });
-mock.module('@/lib/tools/knowledge-base-query', { namedExports: {
-  queryKnowledgeBase: async () => { calls.push('query'); return { status: 'found', answer: 'answer' }; },
-} });
+mock.module('@/lib/xai/voice', {
+  namedExports: {
+    createXaiRealtimeClientSecret: async () => {
+      calls.push('voice');
+      return { value: 'secret' };
+    },
+    buildXaiRealtimeSessionConfig: () => ({ model: 'voice' }),
+    transcribeAudioWithFallback: async () => {
+      calls.push('transcribe');
+      return 'transcript';
+    },
+  },
+});
+mock.module('@/lib/tools/knowledge-base-query', {
+  namedExports: {
+    queryKnowledgeBase: async () => {
+      calls.push('query');
+      return { status: 'found', answer: 'answer' };
+    },
+  },
+});
 const route: typeof import('./route') = require('./route.ts');
-beforeEach(() => { session = { id: 'user' }; calls.length = 0; });
+beforeEach(() => {
+  session = { id: 'user' };
+  calls.length = 0;
+});
 function request() {
   return new NextRequest('http://localhost/api/voice/session', { method: 'POST', body: '{}' });
 }
