@@ -33,7 +33,21 @@
     },
     "beta": "Beta",
     "locked": "Locked",
-    "navigation": "Areas"
+    "navigation": "Areas",
+    "wertzahl": {
+      "travel": "As an award flight",
+      "noPlan": "without a plan {value}",
+      "coverage": "for {covered} of {total} programmes",
+      "unreadable": "{count, plural, one {# account unreadable} other {# accounts unreadable}}",
+      "repair": "repair at AwardWallet",
+      "rated": "{rated} of {total} accounts valued",
+      "breakdown": "View breakdown",
+      "noRateableAccount": "No rateable balance yet",
+      "connectPrompt": "Connect your account and see what your points are worth",
+      "connect": "Connect AwardWallet",
+      "unavailable": "Points value currently unavailable",
+      "loading": "Loading points value"
+    }
   },
   "navbar": {
     "newChat": "New Chat",

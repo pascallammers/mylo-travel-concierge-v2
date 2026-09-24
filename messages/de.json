@@ -33,7 +33,21 @@
     },
     "beta": "Beta",
     "locked": "Gesperrt",
-    "navigation": "Bereiche"
+    "navigation": "Bereiche",
+    "wertzahl": {
+      "travel": "Als Prämienflug",
+      "noPlan": "ohne Plan {value}",
+      "coverage": "für {covered} von {total} Programmen",
+      "unreadable": "{count, plural, one {# Konto nicht lesbar} other {# Konten nicht lesbar}}",
+      "repair": "bei AwardWallet reparieren",
+      "rated": "{rated} von {total} Konten bewertet",
+      "breakdown": "Aufschlüsselung ansehen",
+      "noRateableAccount": "Noch kein bewertbarer Saldo",
+      "connectPrompt": "Verbinde dein Konto und sieh, was deine Punkte wert sind",
+      "connect": "AwardWallet verbinden",
+      "unavailable": "Wertzahl gerade nicht verfügbar",
+      "loading": "Wertzahl wird geladen"
+    }
   },
   "navbar": {
     "newChat": "Neuer Chat",
