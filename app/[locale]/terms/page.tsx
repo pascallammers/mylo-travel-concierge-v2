@@ -257,15 +257,12 @@ export default function TermsPage() {
                 <MyloLogo className="size-4 opacity-80" />
               </div>
               <div className="text-sm text-muted-foreground">
-                © {new Date().getFullYear()} MYLO - Dein Travel-Concierge by Zaid Mukaddam
+                © {new Date().getFullYear()} MYLO - Dein Travel-Concierge
               </div>
             </div>
             <div className="flex items-center gap-6 text-sm text-muted-foreground">
               <Link href="/" className="hover:text-foreground transition-colors">
                 Home
-              </Link>
-              <Link href="/about" className="hover:text-foreground transition-colors">
-                About
               </Link>
               <Link href="/terms" className="text-foreground font-medium">
                 Terms
