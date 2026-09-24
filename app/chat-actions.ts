@@ -3,7 +3,7 @@
 import { getUser } from '@/lib/auth-utils';
 import { checkChatAccess } from '@/lib/auth-guards';
 import {
-  getChatById,
+  getChatByIdFresh,
   getChatsByUserId,
   deleteChatById,
   updateChatVisibilityById,
@@ -32,7 +32,7 @@ export async function getUserChats(limit = 20, startingAfter?: string, endingBef
     for (const cursor of [startingAfter, endingBefore]) {
       if (cursor !== undefined) {
         if (typeof cursor !== 'string' || !cursor) return empty;
-        const chat = await getChatById({ id: cursor });
+        const chat = await getChatByIdFresh({ id: cursor });
         if (!checkChatAccess({ user, chat }).ok) return empty;
       }
     }
@@ -67,7 +67,7 @@ export async function deleteChat(chatId: string) {
   try {
     const user = await getUser();
     if (!user || !chatId) return null;
-    const chat = await getChatById({ id: chatId });
+    const chat = await getChatByIdFresh({ id: chatId });
     if (!checkChatAccess({ user, chat }).ok) return null;
     return await deleteChatById({ id: chatId });
   } catch (error) {
@@ -85,7 +85,7 @@ export async function deleteChat(chatId: string) {
 export async function updateChatVisibility(chatId: string, visibility: 'private' | 'public') {
   const user = await getUser();
   if (!user || !chatId) throw new Error('Unauthorized');
-  const chat = await getChatById({ id: chatId });
+  const chat = await getChatByIdFresh({ id: chatId });
   if (!checkChatAccess({ user, chat }).ok) throw new Error('Unauthorized');
   if (visibility !== 'private' && visibility !== 'public') throw new Error('Invalid visibility');
   const result = await updateChatVisibilityById({ chatId, visibility });
@@ -95,14 +95,14 @@ export async function updateChatVisibility(chatId: string, visibility: 'private'
 /**
  * Delete trailing messages only after resolving their chat and checking ownership.
  * @param input - The message identifying where truncation starts.
- * @returns Nothing on success; denied or missing resources throw the same plain error.
+ * @returns Nothing on success or for a missing message; a foreign chat throws.
  */
 export async function deleteTrailingMessages({ id }: { id: string }) {
   const user = await getUser();
   if (!user) throw new Error('Unauthorized');
   const [message] = await getMessageById({ id });
-  if (!message) throw new Error('Unauthorized');
-  const chat = await getChatById({ id: message.chatId });
+  if (!message) return;
+  const chat = await getChatByIdFresh({ id: message.chatId });
   if (!checkChatAccess({ user, chat }).ok) throw new Error('Unauthorized');
   await deleteMessagesByChatIdAfterTimestamp({ chatId: message.chatId, timestamp: message.createdAt });
 }
@@ -117,7 +117,7 @@ export async function updateChatTitle(chatId: string, title: string) {
   try {
     const user = await getUser();
     if (!user || !chatId || typeof title !== 'string' || !title.trim()) return null;
-    const chat = await getChatById({ id: chatId });
+    const chat = await getChatByIdFresh({ id: chatId });
     if (!checkChatAccess({ user, chat }).ok) return null;
     return await updateChatTitleById({ chatId, title: title.trim() });
   } catch (error) {

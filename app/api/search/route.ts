@@ -175,7 +175,7 @@ export async function POST(req: Request) {
   const userCheckTime = Date.now();
   console.log('🔍 [DB] Starting getCurrentUser()...');
   const user = await getCurrentUser();
-  if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user) return new ChatSDKError('unauthorized:chat').toResponse();
 
   console.log('🔍 Search API endpoint hit');
   const {
