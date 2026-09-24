@@ -12,10 +12,11 @@ import { DealCard } from './deal-card';
  * @param props - Sorted unreachable deals, initial state, freshness-label preference and locale.
  * @returns A group of normal award cards, collapsed unless it is the only content.
  */
-export function UnreachableDealsToggle({ deals, defaultOpen, showFreshLabel, locale }: {
+export function UnreachableDealsToggle({ deals, defaultOpen, showFreshLabel, showAvailabilityCheck = false, locale }: {
   deals: PresentedDeal[];
   defaultOpen: boolean;
   showFreshLabel: boolean;
+  showAvailabilityCheck?: boolean;
   locale: string;
 }) {
   const t = useTranslations('deals.card');
@@ -29,7 +30,7 @@ export function UnreachableDealsToggle({ deals, defaultOpen, showFreshLabel, loc
       </CollapsibleTrigger>
       <CollapsibleContent className="space-y-4">
         {deals.map((deal) => (
-          <DealCard key={deal.id} deal={deal} showFreshLabel={showFreshLabel} locale={locale} />
+          <DealCard key={deal.id} deal={deal} showAvailabilityCheck={showAvailabilityCheck} showFreshLabel={showFreshLabel} locale={locale} />
         ))}
       </CollapsibleContent>
     </Collapsible>

@@ -6,6 +6,7 @@
 
 import { cookies } from 'next/headers';
 import { getUser, isAdmin } from '@/lib/auth-utils';
+import { usesShell } from '@/lib/shell/uses-shell';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { ChatSidebar } from '@/components/chat-sidebar';
 import { ShellLayout } from '@/components/shell';
@@ -50,7 +51,7 @@ export default async function ChatLayout({ children }: ChatLayoutProps) {
 
   const user = await getUser();
 
-  if (user && await isAdmin(user.id)) {
+  if (user && await usesShell(user.id, isAdmin)) {
     const wertzahl = loadRailWertzahlForUser(user.id);
     return <ShellLayout defaultOpen={defaultOpen} wertzahl={wertzahl}>{children}</ShellLayout>;
   }

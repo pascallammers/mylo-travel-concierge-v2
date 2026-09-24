@@ -329,6 +329,7 @@
       "roundtrip": "Hin- und Rückflug",
       "oneway": "Nur Hinflug",
       "book": "Buchen",
+      "checkAvailability": "Verfügbarkeit jetzt prüfen",
       "checkWithMylo": "Mit MYLO prüfen",
       "awardMiles": "{miles} Meilen",
       "awardSurcharges": "+ {taxes} Zuschläge",

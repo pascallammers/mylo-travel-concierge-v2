@@ -84,22 +84,22 @@ export function FlightSearchMask({ locale, today, draft: initial, issues: initia
             <div className="space-y-2">
               <Label htmlFor="flight-cabin">{t('mask.cabin')}</Label>
               <Select value={draft.cabin} onValueChange={(cabin: FlightsDraft['cabin']) => change({ cabin })}>
-                <SelectTrigger id="flight-cabin" className="min-h-12 w-full" aria-invalid={Boolean(error('cabin'))}><SelectValue /></SelectTrigger>
+                <SelectTrigger id="flight-cabin" className="min-h-12 w-full" aria-invalid={Boolean(error('cabin'))} aria-describedby={error('cabin') ? 'flight-cabin-error' : undefined}><SelectValue /></SelectTrigger>
                 <SelectContent>{(['ECONOMY', 'PREMIUM_ECONOMY', 'BUSINESS', 'FIRST'] as const).map((cabin) => (
-                  <SelectItem key={cabin} value={cabin}>{t(`cabins.${cabin}`)}</SelectItem>
+                  <SelectItem key={cabin} value={cabin} className="min-h-11">{t(`cabins.${cabin}`)}</SelectItem>
                 ))}</SelectContent>
               </Select>
-              {error('cabin') && <p className="text-sm text-destructive">{error('cabin')}</p>}
+              {error('cabin') && <p id="flight-cabin-error" className="text-sm text-destructive">{error('cabin')}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="flight-passengers">{t('mask.passengers')}</Label>
               <Select value={String(draft.passengers)} onValueChange={(passengers) => change({ passengers: Number(passengers) })}>
-                <SelectTrigger id="flight-passengers" className="min-h-12 w-full" aria-invalid={Boolean(error('passengers'))}><SelectValue /></SelectTrigger>
+                <SelectTrigger id="flight-passengers" className="min-h-12 w-full" aria-invalid={Boolean(error('passengers'))} aria-describedby={error('passengers') ? 'flight-passengers-error' : undefined}><SelectValue /></SelectTrigger>
                 <SelectContent>{Array.from({ length: 9 }, (_, index) => index + 1).map((count) => (
-                  <SelectItem key={count} value={String(count)}>{t('mask.travellers', { count })}</SelectItem>
+                  <SelectItem key={count} value={String(count)} className="min-h-11">{t('mask.travellers', { count })}</SelectItem>
                 ))}</SelectContent>
               </Select>
-              {error('passengers') && <p className="text-sm text-destructive">{error('passengers')}</p>}
+              {error('passengers') && <p id="flight-passengers-error" className="text-sm text-destructive">{error('passengers')}</p>}
             </div>
           </div>
           <div className="flex flex-wrap gap-2">

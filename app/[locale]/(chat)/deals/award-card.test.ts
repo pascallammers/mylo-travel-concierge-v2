@@ -31,11 +31,11 @@ function model(deal: DealsPageModelDeal) {
   });
 }
 
-function renderCard(overrides: Partial<DealsPageModelDeal> = {}, locale: 'de' | 'en' = 'de') {
+function renderCard(overrides: Partial<DealsPageModelDeal> = {}, locale: 'de' | 'en' = 'de', showAvailabilityCheck = false) {
   const data = model({ ...award, ...overrides });
   return renderToStaticMarkup(createElement(NextIntlClientProvider, {
     locale, messages: locale === 'de' ? de : en, timeZone: 'UTC',
-  }, createElement(DealCard, { deal: [...data.deals, ...data.unreachableDeals][0], locale, showScore: true })))
+  }, createElement(DealCard, { deal: [...data.deals, ...data.unreachableDeals][0], locale, showScore: true, showAvailabilityCheck })))
     .replaceAll('&amp;', '&').replaceAll('&#x27;', "'").replaceAll('\u00a0', ' ');
 }
 
@@ -104,4 +104,20 @@ test('the unreachable group starts open when it is the only content of the tab',
   assert.ok(html.includes('aria-expanded="true"'));
   assert.ok(html.includes('60.000 Meilen'));
   assert.ok(html.includes('Nur mit vorhandenen Meilen buchbar'));
+});
+
+
+test('shell award cards open a ready mask with the deal program and keep chat second', () => {
+  const html = renderCard({}, 'de', true);
+  assert.ok(html.includes('/de/flights?from=FRA&to=JFK&date=2026-10-01&flex=3&program=lufthansa'));
+  assert.ok(html.includes('Verfügbarkeit jetzt prüfen'));
+  assert.ok(html.indexOf('/de/flights?') < html.indexOf('/de/new?prefill='));
+  assert.ok(!renderCard().includes('/de/flights?'));
+  assert.ok(renderCard({}, 'en', true).includes('Check availability now'));
+});
+
+test('cash cards keep their existing actions even for shell users', () => {
+  const html = renderCard({ source: 'travelpayouts', currency: 'EUR', price: 300, averagePrice: 600 }, 'de', true);
+  assert.ok(!html.includes('/de/flights?'));
+  assert.ok(html.includes('/de/new?prefill='));
 });

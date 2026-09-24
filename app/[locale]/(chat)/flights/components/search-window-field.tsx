@@ -27,7 +27,7 @@ export function SearchWindowField({ id, label, date, month, today, error, onChan
           <Button type="button" key={option} variant={mode === option ? 'secondary' : 'ghost'} className="min-h-11 flex-1"
             aria-pressed={mode === option} onClick={() => {
               setMode(option);
-              onChange(option === 'day' ? (month ? `${month}-01` : date) : null, option === 'month' ? (date?.slice(0, 7) ?? month) : null);
+              onChange(option === 'day' ? (month ? (month === today.slice(0, 7) ? today : `${month}-01`) : date) : null, option === 'month' ? (date?.slice(0, 7) ?? month) : null);
             }}>{t(option)}</Button>
         ))}
       </div>

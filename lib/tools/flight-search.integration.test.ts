@@ -425,3 +425,15 @@ describe('MYLO-68 direct priority through chat presentation', () => {
     assert.match(output, /limit filtered out every result/);
   });
 });
+
+it('keeps the chat flex return decision separate from the Duffel roundtrip request', async () => {
+  let awardCalls = 0;
+  let cashReturn: string | null | undefined;
+  const tool = createFlightSearchTool(dependencies({
+    searchAwardTrips: async () => { awardCalls++; return [awardFlight]; },
+    searchDuffelFlexibleDates: async (request) => { cashReturn = request.returnDate; return []; },
+  }));
+  await tool.execute!({ ...params, flexibility: 3, returnDate: futureDate }, executeOptions());
+  assert.equal(awardCalls, 1);
+  assert.equal(cashReturn, futureDate);
+});

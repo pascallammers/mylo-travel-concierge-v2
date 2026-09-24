@@ -329,6 +329,7 @@
       "roundtrip": "Round trip",
       "oneway": "One way",
       "book": "Book",
+      "checkAvailability": "Check availability now",
       "checkWithMylo": "Check with MYLO",
       "awardMiles": "{miles} miles",
       "awardSurcharges": "+ {taxes} surcharges",
