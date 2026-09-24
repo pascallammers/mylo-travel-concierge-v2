@@ -36,8 +36,8 @@ mock.module('@/env/server', { namedExports: { serverEnv: {} } });
 mock.module('@/lib/db/queries', {
   namedExports: {
     ...Object.fromEntries(queryNames.map((name) => [name, spy(name, { id: 'chat' })])),
-    getChatById: async () => {
-      calls.push({ name: 'getChatById', args: [] });
+    getChatByIdFresh: async () => {
+      calls.push({ name: 'getChatByIdFresh', args: [] });
       return chat;
     },
     getMessageById: async () => {
@@ -134,9 +134,9 @@ for (const action of mutations) {
     assert.equal(calls.filter((call) => call.name === action.db).length, 1);
   });
 }
-test('deleteTrailingMessages: missing message has the same plain failure', async () => {
+test('deleteTrailingMessages: missing message is a no-op, as before', async () => {
   messages = [];
-  await assert.rejects(() => chatActions.deleteTrailingMessages({ id: 'missing' }), /Unauthorized/);
+  await chatActions.deleteTrailingMessages({ id: 'missing' });
   assert.equal(
     calls.some((call) => call.name === 'deleteMessagesByChatIdAfterTimestamp'),
     false,

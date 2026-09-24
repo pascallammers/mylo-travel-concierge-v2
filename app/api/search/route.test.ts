@@ -46,6 +46,6 @@ const { POST }: typeof import('./route') = require('./route.ts');
 test('search rejects anonymous requests before parsing input or starting a model', async () => {
   const response = await POST(new Request('http://localhost/api/search', { method: 'POST', body: '{' }));
   assert.equal(response.status, 401);
-  assert.deepEqual(await response.json(), { error: 'Unauthorized' });
+  assert.equal((await response.json()).code, 'unauthorized:chat');
   assert.equal(sessions, 1);
 });

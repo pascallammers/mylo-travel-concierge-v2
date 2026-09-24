@@ -8,7 +8,7 @@ const reads: unknown[] = [];
 mock.module('@/lib/auth-utils', { namedExports: { getUser: async () => ({ id: 'owner' }) } });
 mock.module('@/lib/db/queries', {
   namedExports: {
-    getChatById: async () => chat,
+    getChatByIdFresh: async () => chat,
     getChatsByUserId: async (input: unknown) => {
       reads.push(input);
       return { chats: [], hasMore: false };
