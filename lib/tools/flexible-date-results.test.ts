@@ -291,3 +291,12 @@ it('includes a localized quota notice even when the award group is empty', () =>
   assert.match(result.awardNotice ?? '', /ausgelastet.*02:00 Uhr/);
   assert.doesNotMatch(result.awardNotice ?? '', /seats\.aero|vorübergehend/i);
 });
+
+describe('direct tier notice visibility', () => {
+  it('combines a fallback notice with an existing quota notice in the rendered field', () => {
+    const result = buildFlexibleDateResults([], [], params, 'de', flightI18n,
+      { errorType: 'rate_limited' }, { tiering: null, notice: 'Keine Direktflüge. Optionen mit 2 Zwischenstopps.' });
+    assert.match(result.awardNotice!, /für heute ausgelastet/);
+    assert.match(result.awardNotice!, /2 Zwischenstopps/);
+  });
+});

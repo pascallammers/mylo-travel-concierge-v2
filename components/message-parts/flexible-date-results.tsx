@@ -1,3 +1,4 @@
+import { Badge } from '@/components/ui/badge';
 import { Calendar, Plane } from 'lucide-react';
 import type {
   FlexibleDateFlight,
@@ -114,6 +115,11 @@ function FlexibleDateFlightCard({
             <Plane className="h-3 w-3" />
             <span>{airline}</span>
             {duration && <span>• {duration}</span>}
+            {isAward && typeof flight.totalStops === 'number' && (
+              <Badge variant="secondary">{flight.totalStops === 0
+                ? (locale === 'de' ? 'Direkt' : 'Direct')
+                : `${flight.totalStops} ${locale === 'de' ? (flight.totalStops === 1 ? 'Stopp' : 'Stopps') : (flight.totalStops === 1 ? 'stop' : 'stops')}`}</Badge>
+            )}
           </div>
         </div>
 

@@ -1,3 +1,4 @@
+import type { DirectTiering } from '@/lib/flights/direct-tiering';
 /**
  * Merge/sort/cap path of the flexible date search (MYLO-20).
  *
@@ -5,7 +6,7 @@
  * separate groups so the two price units never compete numerically.
  */
 
-import { formatAwardQuotaNotice, type AwardSearchFailure } from './flight-search-award-errors';
+import { formatAwardQuotaNotice, type AwardSearchFailure } from '@/lib/flights/award-search';
 import type { FlightLocale } from './flight-search-format';
 import type {
   FlexibleDateFlight,
@@ -117,6 +118,7 @@ function shiftDate(isoDate: string, days: number): string {
  * @param locale - Locale used for relative date labels.
  * @param i18n - Injected label formatters for the selected locale.
  * @param awardFailure - Failure category and reset time for the award search.
+ * @param direct - Optional direct tier and visible fallback notice.
  * @returns Structured flexible-date results with explicit truncation metadata.
  */
 export function buildFlexibleDateResults(
@@ -126,6 +128,7 @@ export function buildFlexibleDateResults(
   locale: FlightLocale,
   i18n: FlexibleDateResultI18n,
   awardFailure?: AwardSearchFailure,
+  direct?: { tiering: DirectTiering | null; notice: string | null },
 ): FlexibleDateResultsResponse {
   const awardFlightsTruncated = (seatsFlights?.length ?? 0) > MAX_AWARD_RESULTS;
   const cashFlightsTruncated = (duffelFlights?.length ?? 0) > MAX_CASH_RESULTS;
@@ -139,7 +142,10 @@ export function buildFlexibleDateResults(
         i18n,
       ),
     )
-    .sort((a, b) => milesValue(a) - milesValue(b))
+    .sort((a, b) => {
+      const tier = direct?.tiering ? Number(a.totalStops !== 0) - Number(b.totalStops !== 0) : 0;
+      return tier || milesValue(a) - milesValue(b);
+    })
     .slice(0, MAX_AWARD_RESULTS);
 
   const cashFlights = (duffelFlights ?? [])
@@ -155,11 +161,13 @@ export function buildFlexibleDateResults(
     .sort((a, b) => cashValue(a) - cashValue(b))
     .slice(0, MAX_CASH_RESULTS);
 
+  const awardNotice = [
+    awardFailure?.errorType === 'rate_limited' ? formatAwardQuotaNotice(awardFailure.resetsAt, locale) : null,
+    direct?.notice,
+  ].filter(Boolean).join(' ');
   return {
     type: 'flexible_date_results',
-    ...(awardFailure?.errorType === 'rate_limited' ? {
-      awardNotice: formatAwardQuotaNotice(awardFailure.resetsAt, locale),
-    } : {}),
+    ...(awardNotice ? { awardNotice } : {}),
     locale,
     labels: i18n.flexibleResultLabels[locale],
     awardFlights,

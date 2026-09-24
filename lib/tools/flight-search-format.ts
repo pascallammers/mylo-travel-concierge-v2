@@ -10,7 +10,7 @@
 import type { SeatsAeroFlight } from '@/lib/api/seats-aero-client';
 import type { DuffelFlight } from '@/lib/api/duffel-client';
 import type { FlightSearchLinkParams } from '@/lib/utils/flight-search-links';
-import { formatAwardQuotaNotice, type AwardSearchFailure } from './flight-search-award-errors';
+import { formatAwardQuotaNotice, type AwardSearchFailure } from '@/lib/flights/award-search';
 import {
   buildGoogleFlightsUrl,
   buildSkyscannerUrl,
