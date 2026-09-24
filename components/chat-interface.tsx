@@ -23,8 +23,7 @@ import { ChatDialogs } from '@/components/chat-dialogs';
 import Messages from '@/components/messages';
 import { Navbar } from '@/components/navbar';
 import { ChatHead, useInShell } from '@/components/shell';
-import { useChatSettings, useChatPrefill } from '@/components/chat';
-import { usePathname } from '@/i18n/navigation';
+import { useChatSettings, useInitialQuery } from '@/components/chat';
 
 import FormComponent from '@/components/ui/form-component';
 
@@ -72,7 +71,6 @@ const ChatInterface = memo(
   }: ChatInterfaceProps): React.JSX.Element => {
     const router = useRouter();
     const ChatHeader = useInShell() ? ChatHead : Navbar;
-    const isChatNew = usePathname() === '/chat/new';
     const [query] = useQueryState('query', parseAsString.withDefault(''));
     const [q] = useQueryState('q', parseAsString.withDefault(''));
     const [input, setInput] = useState<string>('');
@@ -294,7 +292,7 @@ const ChatInterface = memo(
       }
     }, [user, status, router, chatId, initialChatId, messages.length]);
 
-    useChatPrefill({ query: initialState.query, hasMessages: messages.length > 0, initialChatId, prefillOnly: isChatNew, sendMessage, setInput });
+    useInitialQuery({ query: initialState.query, hasMessages: messages.length > 0, initialChatId, sendMessage });
 
     // Generate suggested questions when opening a chat directly
     useEffect(() => {

@@ -1,2 +1,2 @@
 export { useChatSettings } from './use-chat-settings';
-export { useChatPrefill } from './use-chat-prefill';
+export { useInitialQuery } from './use-initial-query';
