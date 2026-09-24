@@ -23,6 +23,20 @@
     "description": "MYLO is your AI-powered travel assistant for optimal flight search, Miles & Points advice, and Premium Cabin upgrades."
   },
   "shell": {
+    "preview": {
+      "badge": "Preview",
+      "inProgress": "This area is still in progress. Sign up and we’ll let you know when it launches.",
+      "notifyMe": "Notify me",
+      "notified": "You’ll be notified",
+      "signInRequired": "Please sign in to be notified.",
+      "error": "That didn’t work. Please try again.",
+      "alerts": {
+        "body": "Let Mylo monitor award availability on your preferred routes. Set up to 5 alerts at once, and we’ll let you know as soon as award seats become available."
+      },
+      "cards": {
+        "body": "The card catalogue for Germany, Austria and Switzerland: Which credit card earns the points that match your travel goals? Included in every subscription."
+      }
+    },
     "chat": {
       "allChats": "All chats",
       "newChat": "New chat",
