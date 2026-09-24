@@ -202,7 +202,10 @@ Mylo voraus, bis eine Hotel-Maske existiert.
 **Kreditkarten** ist ein Modul ohne Preis: in jedem Abo enthalten, weil es über Provision verdient.
 
 Ein Modul kann **Beta** sein: Das Etikett steht auf Kachel und Preisseite, und das Modul ist nicht
-einzeln buchbar, bis es live ist. Wer ohnehin alle Module hat (Altbestand, Trial), sieht es trotzdem.
+einzeln buchbar, bis es live ist. Solange es Beta ist, ist es in dem Modul enthalten, das es
+voraussetzt: Wer Hey Mylo hat, hat die Hotelsuche ohne Aufpreis. Wer ohnehin alle Module hat
+(Altbestand, Trial), hat es sowieso. Live wird ein Beta-Modul erst mit einer eigenen Fläche, denn
+erst dann bietet es mehr als das Werkzeug des Anbieters im Chat.
 
 ### Werkzeug
 
